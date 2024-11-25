@@ -13,7 +13,7 @@ import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 
 /**
  * @title MetadataFacet
- * @notice MetadataFacet is a contract that provides metadata for beanstalk ERC1155 deposits,
+ * @notice MetadataFacet is a contract that provides metadata for Pinto ERC1155 deposits,
  * as well as other auxiliary functions related to ERC1155 deposits.
  *
  * @dev Deposits are represented by a uint256, which is the concatination of the token address and the stem.
@@ -52,11 +52,11 @@ contract MetadataFacet is MetadataImage {
             depositId.toHexString(32),
             '"}, { "trait_type": "stem", "display_type": "number", "value": ',
             int256(stem).toStringSigned(),
-            '}, { "trait_type": "initial stalk per BDV", "display_type": "number", "value": ',
+            '}, { "trait_type": "initial stalk per PDV", "display_type": "number", "value": ',
             uint256(LibTokenSilo.stalkIssuedPerBdv(token)).toString(),
-            '}, { "trait_type": "grown stalk per BDV", "display_type": "number", "value": ',
+            '}, { "trait_type": "grown stalk per PDV", "display_type": "number", "value": ',
             uint256(int256(stemTip - stem)).toString(),
-            '}, { "trait_type": "stalk grown per BDV per season", "display_type": "number", "value": ',
+            '}, { "trait_type": "stalk grown per PDV per season", "display_type": "number", "value": ',
             uint256(LibTokenSilo.stalkEarnedPerSeason(token)).toString()
         );
         return
@@ -66,7 +66,7 @@ contract MetadataFacet is MetadataImage {
                     LibBytes64.encode(
                         abi.encodePacked(
                             "{",
-                            '"name": "Beanstalk Silo Deposits", "description": "An ERC1155 representing an asset deposited in the Beanstalk Silo. Silo Deposits gain stalk and bean seignorage. ',
+                            '"name": "Pinto Silo Deposits", "description": "An ERC1155 representing an asset deposited in the Pinto Silo. Silo Deposits gain stalk and pinto seignorage. ',
                             '\\n\\nDISCLAIMER: Due diligence is imperative when assessing this NFT. Opensea and other NFT marketplaces cache the svg output and thus, may require the user to refresh the metadata to properly show the correct values."',
                             attributes,
                             string(abi.encodePacked(' }], "image": "', imageURI(token, stem), '"')),
@@ -78,7 +78,7 @@ contract MetadataFacet is MetadataImage {
     }
 
     function name() external pure returns (string memory) {
-        return "Beanstalk Silo Deposits";
+        return "Pinto Silo Deposits";
     }
 
     function symbol() external pure returns (string memory) {

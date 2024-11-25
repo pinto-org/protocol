@@ -438,7 +438,7 @@ describe("newSilo", function () {
         const response = await axios.get(uri);
         const symbol = await metadataToken.symbol();
         jsonResponse = JSON.parse(response.data.toString());
-        expect(jsonResponse.name).to.be.equal(`Beanstalk Silo Deposits`);
+        expect(jsonResponse.name).to.be.equal(`Pinto Silo Deposits`);
         expect(jsonResponse.attributes[0].value).to.be.equal(symbol);
         expect(jsonResponse.attributes[1].value).to.be.equal(metadataToken.address.toLowerCase());
         expect(jsonResponse.attributes[2].value).to.be.equal(depositID.toLowerCase());

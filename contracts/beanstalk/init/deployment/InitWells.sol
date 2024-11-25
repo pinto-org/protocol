@@ -68,7 +68,7 @@ contract InitWells {
      * @notice Deploys a minimal proxy well with the upgradeable well implementation and a
      * ERC1967Proxy in front of it to allow for future upgrades.
      */
-    function deployUpgradebleWell(
+    function deployUpgradableWell(
         IERC20[] memory tokens,
         Call memory wellFunction,
         Call[] memory pumps,
@@ -123,7 +123,7 @@ contract InitWells {
             Call[] memory pumps = new Call[](1);
             pumps[0] = Call(wellData.pump, wellData.pumpData);
             // deploy well
-            deployUpgradebleWell(
+            deployUpgradableWell(
                 tokens, // tokens (IERC20[])
                 wellFunction, // well function (Call)
                 pumps, // pumps (Call[])
