@@ -352,6 +352,7 @@ struct EvaluationParameters {
     uint256 soilCoefficientLow;
     uint256 baseReward;
     uint128 minAvgGsPerBdv;
+    uint128 rainingMinBeanMaxLpGpPerBdvRatio;
 }
 
 /**

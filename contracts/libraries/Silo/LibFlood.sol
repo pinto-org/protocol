@@ -126,12 +126,12 @@ library LibFlood {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // upon rain, set beanToMaxLpGpPerBdvRatio to zero, to encourage converts down before starting to flood
-        s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = 0;
         emit BeanToMaxLpGpPerBdvRatioChange(
             s.sys.season.current,
             caseId,
             -int80(int128(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
+        s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = 0;
     }
 
     /**

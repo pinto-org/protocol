@@ -14,6 +14,7 @@ const { time } = require("@nomicfoundation/hardhat-network-helpers");
 const { addLiquidityAndTransfer } = require("./scripts/deployment/addLiquidity");
 const { megaInit } = require("./scripts/deployment/megaInit");
 const { impersonateSigner, mintEth, getBeanstalk, mintUsdc, getUsdc } = require("./utils");
+const { parseDeploymentParameters } = require("./scripts/deployment/parameters/parseParams.js");
 const { setBalanceAtSlot } = require("./utils/tokenSlots");
 const { to6, toX, to18 } = require("./test/hardhat/utils/helpers.js");
 const {
@@ -33,6 +34,7 @@ const {
 } = require("./test/hardhat/utils/constants.js");
 const { task } = require("hardhat/config");
 const { upgradeWithNewFacets } = require("./scripts/diamond.js");
+const { resolveDependencies } = require("./scripts/resolveDependencies");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -43,7 +45,7 @@ task("callSunrise", "Calls the sunrise function", async function () {
   // Simulate the transaction to check if it would succeed
   const lastTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
   const hourTimestamp = parseInt(lastTimestamp / 3600 + 1) * 3600;
-  const additionalSeconds = 100000;
+  const additionalSeconds = 0;
   await network.provider.send("evm_setNextBlockTimestamp", [hourTimestamp + additionalSeconds]);
   await beanstalk.connect(account).sunrise({ gasLimit: 10000000 });
   await network.provider.send("evm_mine");
@@ -52,7 +54,7 @@ task("callSunrise", "Calls the sunrise function", async function () {
 
   // Get season info
   const { raining, lastSop, lastSopSeason } = await beanstalk.time();
-  const currentSeason = await beanstalk.season();
+  const currentSeason = await beanstalk.connect(account).season();
   const floodedThisSeason = lastSopSeason === currentSeason;
   // Get total supply of pinto
   const pinto = await ethers.getContractAt("BeanstalkERC20", PINTO);
@@ -82,12 +84,47 @@ task("callSunrise", "Calls the sunrise function", async function () {
   );
 });
 
+task("epi0", async () => {
+  const mock = true;
+  let deployer;
+  if (mock) {
+    deployer = (await ethers.getSigners())[0];
+    console.log("Deployer address: ", await deployer.getAddress());
+  } else {
+    deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+  }
+  deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+
+  // Deployment parameters path
+  const inputFilePath = "./scripts/deployment/parameters/input/deploymentParams.json";
+  let [systemData, whitelistData, wellData, tokenData, initWellDistributions, initSupply] =
+    await parseDeploymentParameters(inputFilePath, false);
+
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: ["MetadataFacet"],
+    initFacetName: "InitZeroWell",
+    initArgs: [wellData],
+    bip: false,
+    object: !mock,
+    verbose: true,
+    account: deployer,
+    verify: false
+  });
+});
+
 // mint eth task to mint eth to specified account
 task("mintEth", "Mints eth to specified account")
   .addParam("account")
   .setAction(async (taskArgs) => {
     await mintEth(taskArgs.account);
   });
+
+task("unpause", "Unpauses the beanstalk contract", async function () {
+  let deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+  let beanstalk = await getBeanstalk(L2_PINTO);
+  await beanstalk.connect(deployer).unpause();
+});
 
 task("mintUsdc", "Mints usdc to specified account")
   .addParam("account")
@@ -131,7 +168,7 @@ task("megaDeploy", "Deploys the Pinto Diamond", async function () {
     await mintEth(owner);
     await mintEth(deployer.address);
   } else {
-    deployer = await ethers.getSigners()[0];
+    deployer = (await ethers.getSigners())[0];
     console.log("Deployer address: ", await deployer.getAddress());
     owner = L2_PCM;
   }
@@ -146,6 +183,67 @@ task("megaDeploy", "Deploys the Pinto Diamond", async function () {
     skipInitialAmountPrompts: true,
     verbose: true,
     mock: mock
+  });
+});
+
+task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
+  const mock = false;
+  let owner;
+  if (mock) {
+    await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "ClaimFacet",
+      "ApprovalFacet",
+      "ConvertFacet",
+      "ConvertGettersFacet",
+      "SiloFacet",
+      "SiloGettersFacet",
+      "PipelineConvertFacet",
+      "SeasonFacet",
+      "GaugeGettersFacet",
+      "FieldFacet"
+    ],
+    libraryNames: [
+      "LibSilo",
+      "LibTokenSilo",
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibGauge",
+      "LibIncentive",
+      "LibWellMinting",
+      "LibGerminate",
+      "LibShipping",
+      "LibFlood",
+      "LibEvaluate",
+      "LibDibbler"
+    ],
+    facetLibraries: {
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SiloFacet: ["LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibFlood",
+        "LibGauge",
+        "LibGerminate",
+        "LibShipping",
+        "LibIncentive",
+        "LibWellMinting"
+      ]
+    },
+    initFacetName: "InitPI1",
+    initArgs: [],
+    object: !mock,
+    verbose: true,
+    account: owner
   });
 });
 
@@ -346,6 +444,77 @@ task("getTokens", "Gets tokens to an address")
     console.log("-----------------------------------");
   });
 
+task("getPrice", async () => {
+  const priceContract = await ethers.getContractAt(
+    "BeanstalkPrice",
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E"
+  );
+  const price = await priceContract.price();
+  console.log(price);
+});
+
+task("getGerminatingStem", async () => {
+  const beanstalk = await getBeanstalk(L2_PINTO);
+  const stem = await beanstalk.getGerminatingStem(PINTO);
+  console.log("pinto stem:", stem);
+
+  const depositIds = await beanstalk.getTokenDepositIdsForAccount(
+    "0x00001d167c31a30fca4ccc0fd56df74f1c606524",
+    PINTO
+  );
+  for (let i = 0; i < depositIds.length; i++) {
+    const [token, stem] = await beanstalk.getAddressAndStem(depositIds[i]);
+    console.log("token:", token, "stem:", stem);
+  }
+});
+
+task("StalkData")
+  .addParam("account")
+  .setAction(async (taskArgs) => {
+    const beanstalk = await getBeanstalk(L2_PINTO);
+
+    // mow account before checking stalk data
+    await beanstalk.mow(taskArgs.account, PINTO);
+    const totalStalk = (await beanstalk.totalStalk()).toString();
+    const totalGerminatingStalk = (await beanstalk.getTotalGerminatingStalk()).toString();
+    const totalRoots = (await beanstalk.totalRoots()).toString();
+    const accountStalk = (await beanstalk.balanceOfStalk(taskArgs.account)).toString();
+    const accountRoots = (await beanstalk.balanceOfRoots(taskArgs.account)).toString();
+    const germinatingStemForBean = (await beanstalk.getGerminatingStem(PINTO)).toString();
+    const accountGerminatingStalk = (
+      await beanstalk.balanceOfGerminatingStalk(taskArgs.account)
+    ).toString();
+
+    console.log("totalStalk:", totalStalk);
+    console.log("totalGerminatingStalk:", totalGerminatingStalk);
+    console.log("totalRoots:", totalRoots);
+    console.log("accountStalk:", accountStalk);
+    console.log("accountRoots:", accountRoots);
+    console.log("accountGerminatingStalk:", accountGerminatingStalk);
+    console.log("germStem:", germinatingStemForBean);
+    console.log("stemTip:", (await beanstalk.stemTipForToken(PINTO)).toString());
+  });
+
+task("plant", "Plants beans")
+  .addParam("account")
+  .setAction(async (taskArgs) => {
+    console.log("---------Stalk Data Before Planting!---------");
+    await hre.run("StalkData", { account: taskArgs.account });
+    const beanstalk = await getBeanstalk(L2_PINTO);
+    console.log("---------------------------------------------");
+    console.log("-----------------Planting!!!!!---------------");
+    const account = await impersonateSigner(taskArgs.account);
+    console.log("account:", account.address);
+    const plantResult = await beanstalk.connect(account).callStatic.plant();
+    console.log("beans planted:", plantResult.beans.toString());
+    console.log("deposit stem:", plantResult.stem.toString());
+    await beanstalk.connect(account).plant();
+    console.log("---------------------------------------------");
+    console.log("---------Stalk Data After Planting!---------");
+    await hre.run("StalkData", { account: taskArgs.account });
+    console.log("---------------------------------------------");
+  });
+
 task("mintPinto", "Mints Pintos to an address")
   .addParam("receiver")
   .addParam("amount")
@@ -422,6 +591,26 @@ task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets"
   );
 
   console.log("ABI written to abi/Beanstalk.json");
+});
+
+task("wellOracleSnapshot", "Gets the well oracle snapshot for a given well", async function () {
+  const beanstalk = await getBeanstalk(L2_PINTO);
+  const tokens = await beanstalk.getWhitelistedWellLpTokens();
+  for (let i = 0; i < tokens.length; i++) {
+    const snapshot = await beanstalk.wellOracleSnapshot(tokens[i]);
+    console.log(snapshot);
+  }
+});
+
+task("price", "Gets the price of a given token", async function () {
+  const beanstalkPrice = await ethers.getContractAt(
+    "BeanstalkPrice",
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E"
+  );
+  const price = await beanstalkPrice.price();
+  for (let i = 0; i < 5; i++) {
+    console.log(price[3][i]);
+  }
 });
 
 /**
@@ -514,6 +703,44 @@ task("mockDiamondABI", "Generates ABI file for mock contracts", async () => {
   );
 });
 
+task("resolveUpgradeDependencies", "Resolves upgrade dependencies")
+  .addOptionalParam(
+    "facets",
+    "Comma-separated list of facet names that were changed in the upgrade"
+  )
+  .addOptionalParam(
+    "libraries",
+    "Comma-separated list of library names that were changed in the upgrade"
+  )
+  .setAction(async function (taskArgs) {
+    // compile first to update the artifacts
+    console.log("Compiling contracts to get updated artifacts...");
+    await hre.run("compile");
+    let facetNames;
+    let libraryNames;
+    // get the facet and library names
+    if (!taskArgs.facets && !taskArgs.libraries) {
+      throw new Error("Either 'facets' or 'libraries' parameters are required.");
+    }
+    if (!taskArgs.facets) {
+      console.log("No facets changed, resolving dependencies for libraries only");
+      taskArgs.facets = [];
+      libraryNames = taskArgs.libraries.split(",");
+    }
+    if (!taskArgs.libraries) {
+      console.log("No libraries changed, resolving dependencies for facets only");
+      taskArgs.libraries = [];
+      facetNames = taskArgs.facets.split(",");
+    }
+    resolveDependencies(facetNames, libraryNames);
+  });
+
+task("pumps", async function () {
+  const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL_BASE);
+  const pumps = await well.pumps();
+  console.log(pumps);
+});
+
 task("singleSidedDeposits", "Deposits non-bean tokens into wells and then into beanstalk")
   .addParam("account", "The account to deposit from")
   .addParam(
@@ -584,6 +811,63 @@ task("singleSidedDeposits", "Deposits non-bean tokens into wells and then into b
     console.log("Single-sided deposits complete!");
   });
 
+task("updateOracleTimeouts", "Updates oracle timeouts for all whitelisted LP tokens").setAction(
+  async () => {
+    console.log("Updating oracle timeouts for all whitelisted LP tokens");
+
+    const beanstalk = await getBeanstalk(L2_PINTO);
+    const account = await impersonateSigner(L2_PCM);
+    await mintEth(account.address);
+
+    // Get all whitelisted LP tokens
+    const wells = await beanstalk.getWhitelistedWellLpTokens();
+
+    for (let i = 0; i < wells.length; i++) {
+      const well = await ethers.getContractAt("IWell", wells[i]);
+      const tokens = await well.tokens();
+      // tokens[0] is pinto/bean, tokens[1] is the non-bean token
+      const nonPintoToken = tokens[1];
+      const tokenName = addressToNameMap[nonPintoToken] || nonPintoToken;
+
+      console.log(`\nProcessing well: ${wells[i]}`);
+      console.log(`Non-pinto token: ${tokenName} (${nonPintoToken})`);
+
+      try {
+        // Get current oracle implementation for the non-pinto token
+        const currentImpl = await beanstalk.getOracleImplementationForToken(nonPintoToken);
+        console.log("Current implementation:");
+        console.log("- Target:", currentImpl.target);
+        console.log("- Selector:", currentImpl.selector);
+        console.log("- Encode Type:", currentImpl.encodeType);
+        console.log("- Current Data:", currentImpl.data);
+
+        const newImpl = {
+          target: currentImpl.target,
+          selector: currentImpl.selector,
+          encodeType: currentImpl.encodeType,
+          data: ethers.utils.hexZeroPad(ethers.utils.hexlify(86400 * 365), 32) // 365 day oracle timeout
+        };
+
+        console.log("\nNew implementation:");
+        console.log("- Target:", newImpl.target);
+        console.log("- Selector:", newImpl.selector);
+        console.log("- Encode Type:", newImpl.encodeType);
+        console.log("- New Data:", newImpl.data);
+
+        // Update the oracle implementation for token
+        await beanstalk
+          .connect(account)
+          .updateOracleImplementationForToken(nonPintoToken, newImpl, { gasLimit: 10000000 });
+        console.log(`Successfully updated oracle timeout for token: ${tokenName}`);
+      } catch (error) {
+        console.error(`Failed to update oracle timeout for token ${tokenName}:`, error.message);
+      }
+    }
+
+    console.log("Finished oracle updates");
+  }
+);
+
 //////////////////////// CONFIGURATION ////////////////////////
 
 module.exports = {
@@ -621,8 +905,8 @@ module.exports = {
       timeout: 100000000
     },
     custom: {
-      chainId: 133137,
-      url: "<CUSTOM_URL>",
+      chainId: 41337,
+      url: process.env.CUSTOM_RPC || "",
       timeout: 100000
     }
   },
@@ -651,7 +935,8 @@ module.exports = {
           optimizer: {
             enabled: true,
             runs: 100
-          }
+          },
+          evmVersion: "cancun"
         }
       },
       {

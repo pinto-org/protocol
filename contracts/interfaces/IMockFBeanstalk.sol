@@ -78,6 +78,11 @@ interface IMockFBeanstalk {
         uint256 endTime;
     }
 
+    struct ClaimPlentyData {
+        address token;
+        uint256 plenty;
+    }
+
     struct DeltaBStorage {
         int256 beforeInputTokenDeltaB;
         int256 afterInputTokenDeltaB;
@@ -109,6 +114,7 @@ interface IMockFBeanstalk {
         uint256 soilCoefficientLow;
         uint256 baseReward;
         uint128 minAvgGsPerBdv;
+        uint128 rainingMinBeanMaxLpGpPerBdvRatio;
     }
 
     struct Facet {
@@ -679,7 +685,9 @@ interface IMockFBeanstalk {
 
     function captureWellEInstantaneous(address well) external returns (int256 instDeltaB);
 
-    function claimAllPlenty(uint8 toMode) external payable;
+    function claimAllPlenty(
+        uint8 toMode
+    ) external payable returns (ClaimPlentyData[] memory allPlenty);
 
     function claimOwnership() external;
 
@@ -952,9 +960,15 @@ interface IMockFBeanstalk {
 
     function getGerminatingStem(address token) external view returns (int96 germinatingStem);
 
+    function getHighestNonGerminatingStem(address token) external view returns (int96 stem);
+
     function getGerminatingStems(
         address[] memory tokens
     ) external view returns (int96[] memory germinatingStems);
+
+    function getHighestNonGerminatingStems(
+        address[] memory tokens
+    ) external view returns (int96[] memory highestNonGerminatingStems);
 
     function getGerminatingTotalDeposited(address token) external view returns (uint256 amount);
 

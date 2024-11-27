@@ -589,28 +589,8 @@ contract FloodTest is TestHelper {
     }
 
     function testSopUsingRealSunrise() public {
-        address sopWell = BEAN_ETH_WELL;
-        setReserves(sopWell, 1000000e6, 1100e18);
-
-        // there's only one well, so sop amount into that well will be the current deltaB
-        int256 currentDeltaB = bs.poolCurrentDeltaB(sopWell);
-
-        // log overallCurrentDeltaB
-        // int256 overallCurrentDeltaB = bs.overallCurrentDeltaB();
-
-        // getSwapOut for how much Beanstalk will get for swapping this amount of beans
-        uint256 amountOut = IWell(sopWell).getSwapOut(
-            IERC20(BEAN),
-            IERC20(WETH),
-            uint256(currentDeltaB)
-        );
-
-        // take this amount out, multiply by sop precision then divide by rain roots (current roots)
-        uint256 userCalcPlentyPerRoot = (amountOut * C.SOP_PRECISION) / bs.totalRoots(); // 2558534177813719812
-
-        // user plenty will be plenty per root * user roots
-        uint256 userCalcPlenty = (userCalcPlentyPerRoot * bs.balanceOfRoots(users[1])) /
-            C.SOP_PRECISION; // 25595575914848452999
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
 
         //
         warpToNextSeasonAndUpdateOracles();
@@ -626,6 +606,23 @@ contract FloodTest is TestHelper {
         // verify a sop a happened
         assertEq(s.lastSop, s.rainStart);
         assertEq(s.lastSopSeason, s.current);
+
+        // call mow to update plenty amount for user
+        bs.mow(users[1], BEAN);
+
+        // test claimAllPlenty function
+        vm.prank(users[1]);
+        IMockFBeanstalk.ClaimPlentyData[] memory allPlenty = bs.claimAllPlenty(0);
+        for (uint256 i = 0; i < allPlenty.length; i++) {
+            require(allPlenty[i].plenty > 0, "No plenty found for token");
+            address token = allPlenty[i].token;
+            if (token == WSTETH) {
+                assertEq(allPlenty[i].plenty, 52277442494667773084);
+            }
+            if (token == WETH) {
+                assertEq(allPlenty[i].plenty, 25595575914848452999);
+            }
+        }
     }
 
     function testCalculateSopPerWell() public pure {

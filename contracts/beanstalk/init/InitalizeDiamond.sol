@@ -64,6 +64,7 @@ contract InitalizeDiamond {
     uint256 internal constant TARGET_SEASONS_TO_CATCHUP = 4320;
     uint256 internal constant MAX_BEAN_MAX_LP_GP_PER_BDV_RATIO = 100e18;
     uint256 internal constant MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 50e18;
+    uint128 internal constant RAINING_MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 10e18;
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -266,6 +267,10 @@ contract InitalizeDiamond {
         s.sys.evaluationParameters.soilCoefficientHigh = SOIL_COEFFICIENT_HIGH;
         s.sys.evaluationParameters.soilCoefficientLow = SOIL_COEFFICIENT_LOW;
         s.sys.evaluationParameters.baseReward = BASE_REWARD;
+        s
+            .sys
+            .evaluationParameters
+            .rainingMinBeanMaxLpGpPerBdvRatio = RAINING_MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO;
     }
 
     function initalizeFarmAndTractor() internal {

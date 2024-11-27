@@ -346,44 +346,10 @@ library LibSilo {
 
         if (ar.odd.bdv > 0) {
             uint256 initialStalk = ar.odd.bdv.mul(stalkPerBDV);
-            if (token == s.sys.bean) {
-                // check whether the Germinating Stalk transferred exceeds the farmers
-                // Germinating Stalk. If so, the difference is considered from Earned
-                // Beans. Deduct the odd BDV and increment the activeBDV by the difference.
-                (uint256 senderGerminatingStalk, uint256 earnedBeansStalk) = checkForEarnedBeans(
-                    sender,
-                    initialStalk,
-                    GerminationSide.ODD
-                );
-                if (earnedBeansStalk > 0) {
-                    // increment the active stalk by the earned beans active stalk.
-                    // decrement the germinatingStalk stalk by the earned beans active stalk.
-                    ar.active.stalk = ar.active.stalk.add(earnedBeansStalk);
-                    initialStalk = senderGerminatingStalk;
-                }
-            }
             transferGerminatingStalk(sender, recipient, initialStalk, GerminationSide.ODD);
         }
-
         if (ar.even.bdv > 0) {
             uint256 initialStalk = ar.even.bdv.mul(stalkPerBDV);
-            if (token == s.sys.bean) {
-                // check whether the Germinating Stalk transferred exceeds the farmers
-                // Germinating Stalk. If so, the difference is considered from Earned
-                // Beans. Deduct the even BDV and increment the active BDV by the difference.
-                (uint256 senderGerminatingStalk, uint256 earnedBeansStalk) = checkForEarnedBeans(
-                    sender,
-                    initialStalk,
-                    GerminationSide.EVEN
-                );
-                if (earnedBeansStalk > 0) {
-                    // increment the active stalk by the earned beans active stalk.
-                    // decrement the germinatingStalk stalk by the earned beans active stalk.
-                    ar.active.stalk = ar.active.stalk.add(earnedBeansStalk);
-                    initialStalk = senderGerminatingStalk;
-                }
-            }
-
             transferGerminatingStalk(sender, recipient, initialStalk, GerminationSide.EVEN);
         }
 

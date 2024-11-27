@@ -69,6 +69,7 @@ library LibConvert {
         uint256 toAmount;
         address account;
         bool decreaseBDV;
+        bool shouldNotGerminate;
     }
 
     /**
@@ -86,9 +87,11 @@ library LibConvert {
         if (kind == LibConvertData.ConvertKind.BEANS_TO_WELL_LP) {
             (cp.toToken, cp.fromToken, cp.toAmount, cp.fromAmount) = LibWellConvert
                 .convertBeansToLP(convertData);
+            cp.shouldNotGerminate = true;
         } else if (kind == LibConvertData.ConvertKind.WELL_LP_TO_BEANS) {
             (cp.toToken, cp.fromToken, cp.toAmount, cp.fromAmount) = LibWellConvert
                 .convertLPToBeans(convertData);
+            cp.shouldNotGerminate = true;
         } else if (kind == LibConvertData.ConvertKind.LAMBDA_LAMBDA) {
             (cp.toToken, cp.fromToken, cp.toAmount, cp.fromAmount) = LibLambdaConvert.convert(
                 convertData
@@ -393,6 +396,29 @@ library LibConvert {
         } else {
             // This means it crossed peg, return how far it went towards peg, which is the abs of input token deltaB
             return beforeDeltaAbs;
+        }
+    }
+
+    /**
+     * @notice checks for potential germination. if the deposit is germinating,
+     * issue additional grown stalk such that the deposit is no longer germinating.
+     */
+    function calculateGrownStalkWithNonGerminatingMin(
+        address token,
+        uint256 grownStalk,
+        uint256 bdv
+    ) internal view returns (uint256 newGrownStalk) {
+        (, GerminationSide side) = LibTokenSilo.calculateStemForTokenFromGrownStalk(
+            token,
+            grownStalk,
+            bdv
+        );
+        // if the side is not `NOT_GERMINATING`, calculate the grown stalk needed to
+        // make the deposit non-germinating.
+        if (side != GerminationSide.NOT_GERMINATING) {
+            newGrownStalk = LibTokenSilo.calculateGrownStalkAtNonGerminatingStem(token, bdv);
+        } else {
+            newGrownStalk = grownStalk;
         }
     }
 

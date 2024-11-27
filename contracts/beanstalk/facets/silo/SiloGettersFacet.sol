@@ -652,6 +652,10 @@ contract SiloGettersFacet is ReentrancyGuard {
         return g.germinatingStem;
     }
 
+    function getHighestNonGerminatingStem(address token) external view returns (int96 stem) {
+        return LibGerminate.getHighestNonGerminatingStem(token);
+    }
+
     /**
      * @notice returns the germinating stem for a list of tokens.
      */
@@ -661,6 +665,15 @@ contract SiloGettersFacet is ReentrancyGuard {
         germinatingStems = new int96[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
             germinatingStems[i] = LibGerminate.getGerminatingStem(tokens[i]).germinatingStem;
+        }
+    }
+
+    function getHighestNonGerminatingStems(
+        address[] memory tokens
+    ) external view returns (int96[] memory highestNonGerminatingStems) {
+        highestNonGerminatingStems = new int96[](tokens.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            highestNonGerminatingStems[i] = LibGerminate.getHighestNonGerminatingStem(tokens[i]);
         }
     }
 

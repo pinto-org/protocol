@@ -125,24 +125,27 @@ library LibDibbler {
         uint256 activeField = s.sys.activeField;
 
         uint256 pods;
+        uint256 soilUsed;
         if (abovePeg) {
             uint256 maxTemperature = uint256(s.sys.weather.temp).mul(TEMPERATURE_PRECISION);
             // amount sown is rounded up, because
             // 1: temperature is rounded down.
             // 2: pods are rounded down.
-            beans = scaleSoilDown(beans, _morningTemperature, maxTemperature);
-            pods = beansToPods(beans, maxTemperature);
+            soilUsed = scaleSoilDown(beans, _morningTemperature, maxTemperature);
+            pods = beansToPods(soilUsed, maxTemperature);
         } else {
-            pods = beansToPods(beans, _morningTemperature);
+            // below peg, beans are used directly.
+            soilUsed = beans;
+            pods = beansToPods(soilUsed, _morningTemperature);
         }
 
         require(pods > 0, "Pods must be greater than 0");
 
         // In the case of an overflow, its equivalent to having no soil left.
-        if (s.sys.soil < beans) {
+        if (s.sys.soil < soilUsed) {
             s.sys.soil = 0;
         } else {
-            s.sys.soil = s.sys.soil.sub(uint128(beans));
+            s.sys.soil = s.sys.soil.sub(uint128(soilUsed));
         }
 
         uint256 index = s.sys.fields[activeField].pods;

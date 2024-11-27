@@ -38,6 +38,13 @@ jobs:
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: yarn install --immutable
 
+      - name: Install Libraries
+        run: |
+          forge install https://github.com/foundry-rs/forge-std@07263d1 --no-commit
+          forge install https://github.com/OpenZeppelin/openzeppelin-contracts@fd81a96 --no-commit
+          forge install https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable@3d4c0d5 --no-commit
+          forge install https://github.com/paulrberg/prb-math@2c59739 --no-commit
+
       - name: Run Forge build
         run: |
           forge --version

@@ -402,7 +402,8 @@ contract ConvertTest is TestHelper {
         vm.expectEmit();
         emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
         vm.prank(farmers[0]);
-        convert.convert(convertData, new int96[](1), amounts);
+        (int96 toStem, , , , ) = convert.convert(convertData, new int96[](1), amounts);
+        int96 germinatingStem = bs.getGerminatingStem(address(well));
 
         // the new maximum amount out should be the difference between the deltaB and the expected amount out.
         assertEq(
@@ -425,6 +426,7 @@ contract ConvertTest is TestHelper {
             initalBeanBalance + expectedAmtOut,
             "bean balance does not equal initalBeanBalance + expectedAmtOut"
         );
+        assertLt(toStem, germinatingStem, "toStem should be less than germinatingStem");
     }
 
     /**
@@ -468,7 +470,7 @@ contract ConvertTest is TestHelper {
         vm.expectEmit();
         emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
         vm.prank(farmers[0]);
-        convert.convert(convertData, stems, amounts);
+        (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
 
         // the new maximum amount out should be the difference between the deltaB and the expected amount out.
         assertEq(
@@ -491,6 +493,11 @@ contract ConvertTest is TestHelper {
             initalBeanBalance + expectedAmtOut,
             "bean balance does not equal initalBeanBalance + expectedAmtOut"
         );
+        // stack too deep.
+        {
+            int96 germinatingStem = bs.getGerminatingStem(address(bean));
+            assertLt(toStem, germinatingStem, "toStem should be less than germinatingStem");
+        }
     }
 
     function multipleWellDepositSetup() public returns (uint256 lpMinted) {
