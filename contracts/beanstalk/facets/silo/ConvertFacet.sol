@@ -114,6 +114,17 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
         toBdv = (newBdv > fromBdv || cp.decreaseBDV) ? newBdv : fromBdv;
 
+        // if the Farmer is converting between beans and well LP, check for
+        // potential germination. if the deposit is germinating, issue additional
+        // grown stalk such that the deposit is no longer germinating.
+        if (cp.shouldNotGerminate == true) {
+            pipeData.grownStalk = LibConvert.calculateGrownStalkWithNonGerminatingMin(
+                cp.toToken,
+                pipeData.grownStalk,
+                toBdv
+            );
+        }
+
         toStem = LibConvert._depositTokensForConvert(
             cp.toToken,
             cp.toAmount,

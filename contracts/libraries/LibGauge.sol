@@ -381,16 +381,23 @@ library LibGauge {
      * largest gauge points per BDV out of the LPs.
      * At the maximum value (100e18), beans should have the same amount of
      * gauge points per BDV as the largest out of the LPs.
+     *
+     * If the system is raining, use `rainingMinBeanMaxLpGpPerBdvRatio` instead of
+     * `minBeanMaxLpGpPerBdvRatio`.
      */
     function getBeanToMaxLpGpPerBdvRatioScaled(
         uint256 beanToMaxLpGpPerBdvRatio
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 minBeanMaxLpGpPerBdvRatio = s.sys.evaluationParameters.minBeanMaxLpGpPerBdvRatio;
+        if (s.sys.season.raining) {
+            minBeanMaxLpGpPerBdvRatio = s.sys.evaluationParameters.rainingMinBeanMaxLpGpPerBdvRatio;
+        }
         uint256 beanMaxLpGpRatioRange = s.sys.evaluationParameters.maxBeanMaxLpGpPerBdvRatio -
-            s.sys.evaluationParameters.minBeanMaxLpGpPerBdvRatio;
+            minBeanMaxLpGpPerBdvRatio;
         return
             beanToMaxLpGpPerBdvRatio.mul(beanMaxLpGpRatioRange).div(ONE_HUNDRED_PERCENT).add(
-                s.sys.evaluationParameters.minBeanMaxLpGpPerBdvRatio
+                minBeanMaxLpGpPerBdvRatio
             );
     }
 }

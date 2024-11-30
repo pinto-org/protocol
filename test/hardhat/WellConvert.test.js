@@ -173,8 +173,12 @@ describe("Well Convert", function () {
         await mockBeanstalk.siloSunrise("0");
         await mockBeanstalk.siloSunrise("0");
 
+        const [toStem, fromAmount, toAmount, fromBdv, toBdv] = await beanstalk
+          .connect(owner)
+          .callStatic.convert(convertData, ["0"], [to6("100000")]);
         await beanstalk.connect(owner).convert(convertData, ["0"], [to6("100000")]);
-        deposit = await beanstalk.getDeposit(owner.address, this.well.address, "4000000");
+
+        deposit = await beanstalk.getDeposit(owner.address, this.well.address, toStem);
         expect(deposit[0]).to.be.equal("1715728752538099023967");
       });
 

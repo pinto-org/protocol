@@ -443,7 +443,7 @@ describe("Convert", function () {
 
   //  ------------------------------ ANTI LAMBDA CONVERT ----------------------------------
 
-  describe("anti lambda convert bdv decrease", async function () {
+  describe.skip("anti lambda convert bdv decrease", async function () {
     beforeEach(async function () {
       // ----------------------- SETUP ------------------------
       // user deposits 100 new silo token at stem 0 so 1000000 bdv
@@ -501,7 +501,7 @@ describe("Convert", function () {
     });
   });
 
-  describe("anti lambda convert bdv increase", async function () {
+  describe.skip("anti lambda convert bdv increase", async function () {
     beforeEach(async function () {
       // ----------------------- SETUP ------------------------
       // user deposits 100 new silo token at stem 0 so 1000000 bdv
@@ -564,7 +564,7 @@ describe("Convert", function () {
     });
   });
 
-  describe("anti lambda convert revert on multiple deposit update", async function () {
+  describe.skip("anti lambda convert revert on multiple deposit update", async function () {
     it("Reverts on multiple deposit input", async function () {
       // ----------------------- SETUP ------------------------
       // user deposits 100 new silo token at stem 0 so 1000000 bdv
@@ -589,6 +589,34 @@ describe("Convert", function () {
           ["100", "100"]
         )
       ).to.be.revertedWith("Convert: DecreaseBDV only supports updating one deposit.");
+    });
+  });
+
+  describe("anti lambda convert reverts", async function () {
+    it("Reverts on anti lambda lambda", async function () {
+      // ----------------------- SETUP ------------------------
+      // user deposits 100 new silo token at stem 0 so 1000000 bdv
+      await this.newSiloToken.mint(userAddress, "10000000");
+      await this.newSiloToken.connect(user).approve(mockBeanstalk.address, "1000000000");
+      await mockBeanstalk.connect(user).deposit(this.newSiloToken.address, "100", EXTERNAL);
+      this.stem = await mockBeanstalk.stemTipForToken(this.newSiloToken.address);
+
+      // end germination:
+      await mockBeanstalk.siloSunrise(0);
+      await mockBeanstalk.siloSunrise(0);
+
+      // ----------------------- CONVERT ------------------------
+      await expect(
+        mockBeanstalk.connect(user2).convert(
+          // CALLDATA
+          // amount, token ,account
+          ConvertEncoder.convertAntiLambdaToLambda("100", this.newSiloToken.address, userAddress),
+          // STEMS []
+          [this.stem],
+          // AMOUNTS []
+          ["100"]
+        )
+      ).to.be.revertedWith("Convert: Anti-lambda-lambda not supported");
     });
   });
 });

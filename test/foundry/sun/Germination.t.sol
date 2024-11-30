@@ -5,6 +5,8 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer} from "test/foundry/utils/TestHelper.sol";
 import {MockSiloFacet} from "contracts/mocks/mockFacets/MockSiloFacet.sol";
 import {C} from "contracts/C.sol";
+import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title GerminationTest
@@ -172,41 +174,136 @@ contract GerminationTest is TestHelper {
         assertEq(bs.totalRoots(), 2 * _amount * C.STALK_PER_BEAN * C.getRootsBase(), "TotalRoots");
     }
 
-    // function testNoEarnedBeansPartialGerm(uint256 amount, uint256 sunriseBeans) public {
-    //     uint256 _sunriseBeans = bound(sunriseBeans, 0, MAX_DEPOSIT_BOUND);
+    // Verify that when a user plants, the user skips the germination process.
+    function test_plant_skip_germination() public {
+        uint256 initialAmount = 1000e6;
+        uint256 _amount;
+        (_amount, ) = setUpSiloDepositTest(initialAmount, farmers);
 
-    //     // see {initZeroEarnedBeansTest} for details.
-    //     uint256 _amount = initZeroEarnedBeansTest(amount, farmers, users[3]);
+        // call sunrise twice to finish the germination process.
+        season.siloSunrise(0);
+        season.siloSunrise(0);
 
-    //     // calls sunrise with some beans issued.
-    //     season.siloSunrise(sunriseBeans);
+        // get the users stalk, roots, and bdv.
+        uint256 stalk = bs.balanceOfStalk(farmers[1]);
+        uint256 roots = bs.balanceOfRoots(farmers[1]);
 
-    //     // verify silo/farmer states. Check user has no earned beans.
-    //     // assertEq(bs.totalStalk(), (2 * _amount + sunriseBeans) * C.STALK_PER_BEAN,  "TotalStalk0");
-    //     assertEq(bs.balanceOfEarnedBeans(users[3]), 0, "balanceOfEarnedBeans");
-    //     assertEq(bs.getTotalDeposited(BEAN), (2 * _amount + sunriseBeans), "TotalDeposited");
-    //     assertEq(bs.getTotalDepositedBdv(BEAN), (2 * _amount + sunriseBeans), "TotalDepositedBdv");
-    //     // assertEq(bs.totalRoots(), 2 * _amount * C.STALK_PER_BEAN * C.getRootsBase(), "TotalRoots");
+        // calls sunrise with some beans issued.
+        season.siloSunrise(1000e6);
 
-    //     // calls sunrise (and finishes germination for user 3):
-    //     season.siloSunrise(_sunriseBeans);
+        // mow so that the user has no grown stalk.
+        bs.mow(farmers[1], BEAN);
 
-    //     // verify silo/farmer states. Check user has no earned beans.
-    //     // assertEq(bs.totalStalk(), (3 * _amount + 2 * sunriseBeans) * C.STALK_PER_BEAN,  "TotalStalk1");
-    //     assertEq(bs.balanceOfEarnedBeans(users[3]), 0, "balanceOfEarnedBeans");
-    //     // assertEq(bs.getTotalDeposited(BEAN), (3 * _amount + 2 * sunriseBeans), "TotalDeposited");
-    //     // assertEq(bs.getTotalDepositedBdv(BEAN), (3 * _amount + 2 * sunriseBeans), "TotalDepositedBdv");
-    //     // assertEq(bs.totalRoots(), 5 * _amount * C.STALK_PER_BEAN * C.getRootsBase() / 2, "TotalRoots");
+        // verify the user has no germinating stalk:
+        assertEq(bs.balanceOfGerminatingStalk(farmers[1]), 0, "balanceOfGerminatingStalk");
+        uint256 globalGerminatingStalk = bs.getTotalGerminatingStalk();
 
-    //     season.siloSunrise(0);
+        // plant the beans.
+        vm.prank(farmers[1]);
+        (uint256 beans, int96 stem) = bs.plant();
 
-    //     // verify silo/farmer states. Check user has no earned beans.
-    //     // assertEq(bs.totalStalk(), (3 * _amount + 2 * sunriseBeans) * C.STALK_PER_BEAN,  "TotalStalk2");
-    //     assertEq(bs.balanceOfEarnedBeans(users[3]), 0, "balanceOfEarnedBeans");
-    //     // assertEq(bs.getTotalDeposited(BEAN), (3 * _amount + 2 * sunriseBeans), "TotalDeposited");
-    //     // assertEq(bs.getTotalDepositedBdv(BEAN), (3 * _amount + 2 * sunriseBeans), "TotalDepositedBdv");
-    //     // assertEq(bs.totalRoots(), 5 * _amount * C.STALK_PER_BEAN * C.getRootsBase()/ 2, "TotalRoots");
-    // }
+        // verify the user has the correct amount of beans and stem.
+        assertEq(beans, 1000e6 / 2, "Beans");
+        // the stem of the deposit is the germinating stem - 1.
+        int96 germinatingStem = bs.getGerminatingStem(BEAN);
+        int96 highestNonGerminatingStem = bs.getHighestNonGerminatingStem(BEAN);
+        assertEq(stem, highestNonGerminatingStem, "Stem");
+        assertEq(germinatingStem, highestNonGerminatingStem + 1, "GerminatingStem");
+
+        // calculate the users stalk at this point:
+        // summation of:
+        // - base stalk from initial deposit
+        // - 3 seasons of stalk growth.
+        // - base stalk from earned beans
+        // - 1 season of stalk growth from the previous seeds + 1 micro seeds.
+        // seeds are static at 2.
+        uint256 calculatedUserStalk;
+        uint256 calculatedUserRoots;
+        {
+            uint256 baseStalk = initialAmount * C.STALK_PER_BEAN;
+            uint256 grownStalk = 3 * 2e6 * initialAmount;
+            uint256 baseStalkFromEarnedBeans = beans * C.STALK_PER_BEAN;
+            uint256 grownStalkFromEarnedBeans = beans * (2e6 + 1);
+            calculatedUserStalk =
+                baseStalk +
+                grownStalk +
+                baseStalkFromEarnedBeans +
+                grownStalkFromEarnedBeans;
+            //  roots are issued based on the stalk/root ratio.
+            uint256 baseStalkRoots = (baseStalk * C.getRootsBase());
+
+            uint256 totalStalkAfterEarnedBeans = 2 * baseStalk + 2 * baseStalkFromEarnedBeans;
+
+            // see {LibSilo-mintActiveStalk} for details on how this is calculated.
+            uint256 grownStalkRoots = (2 * baseStalkRoots * grownStalk) /
+                totalStalkAfterEarnedBeans;
+
+            // see {LibSilo-mintActiveStalk} for details on how this is calculated.
+            uint256 grownStalkFromEarnedBeansRoots = ((2 * baseStalkRoots + grownStalkRoots) *
+                grownStalkFromEarnedBeans) / (totalStalkAfterEarnedBeans + grownStalk);
+            calculatedUserRoots = baseStalkRoots + grownStalkRoots + grownStalkFromEarnedBeansRoots;
+        }
+
+        // verify the users stalk and roots increased.
+        assertEq(bs.balanceOfStalk(farmers[1]), calculatedUserStalk, "Stalk");
+        assertEq(bs.balanceOfRoots(farmers[1]), calculatedUserRoots, "Roots");
+
+        // verify the total germinating stalk is unchanged.
+        assertEq(bs.getTotalGerminatingStalk(), globalGerminatingStalk, "TotalGerminatingStalk");
+
+        // verify the user has no germinating stalk:
+        assertEq(bs.balanceOfGerminatingStalk(farmers[1]), 0, "balanceOfGerminatingStalk");
+
+        uint256 snapshot = vm.snapshot();
+
+        // confirm that planting again does not issue any more beans.
+        vm.prank(farmers[1]);
+        uint256 newBeans;
+        (newBeans, stem) = bs.plant();
+        assertEq(newBeans, 0, "Beans");
+
+        vm.revertTo(snapshot);
+
+        ///// CONVERT //////
+
+        // Initialize well to balances. (1000 BEAN/ETH)
+        address well = BEAN_ETH_WELL;
+        addLiquidityToWell(
+            well,
+            10000e6, // 10,000 Beans
+            10 ether // 10 ether.
+        );
+
+        setDeltaBforWell(int256(1000e6), well, WETH);
+
+        // verify that the user can convert their beans to a well.
+        // create encoding for a bean -> well convert.
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.BEANS_TO_WELL_LP,
+            well, // well
+            beans, // amountIn
+            0 // minOut
+        );
+
+        vm.prank(farmers[1]);
+        int96[] memory stems = new int96[](1);
+        stems[0] = stem;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = beans;
+        // verify that the user can convert their newly earned beans.
+        bs.convert(convertData, stems, amounts);
+
+        ////// WITHDRAWALS //////
+        vm.revertTo(snapshot);
+
+        // verify that the user can withdraw their deposit.
+        vm.prank(farmers[1]);
+        bs.withdrawDeposit(BEAN, stem, beans, 0);
+
+        // verify the user has the correct stalk and roots.
+        assertEq(bs.balanceOfStalk(farmers[1]), 10006000000000000000, "Stalk");
+        assertEq(bs.balanceOfRoots(farmers[1]), 6670666666666666666666666666667, "Roots");
+    }
 
     ////// SILO TEST HELPERS //////
 

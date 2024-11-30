@@ -10,7 +10,7 @@ libs = ['node_modules', 'lib']
 cache = true
 cache_path = 'cache'
 force = false
-evm_version = 'shanghai'
+evm_version = 'cancun'
 line_length = 100
 
 # Compiler

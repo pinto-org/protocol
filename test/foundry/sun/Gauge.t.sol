@@ -671,6 +671,7 @@ contract GaugeTest is TestHelper {
                 0,
                 0,
                 0,
+                0,
                 0
             )
         );
@@ -692,6 +693,7 @@ contract GaugeTest is TestHelper {
         assertEq(ssg.soilCoefficientLow, 0);
         assertEq(ssg.baseReward, 0);
         assertEq(ssg.minAvgGsPerBdv, 0);
+        assertEq(ssg.rainingMinBeanMaxLpGpPerBdvRatio, 0);
 
         // change settings
         vm.prank(BEANSTALK);
@@ -712,7 +714,8 @@ contract GaugeTest is TestHelper {
                 13,
                 14,
                 15,
-                16
+                16,
+                17
             )
         );
 
@@ -733,6 +736,7 @@ contract GaugeTest is TestHelper {
         assertEq(ssg.soilCoefficientLow, 14);
         assertEq(ssg.baseReward, 15);
         assertEq(ssg.minAvgGsPerBdv, 16);
+        assertEq(ssg.rainingMinBeanMaxLpGpPerBdvRatio, 17);
     }
 
     function getPercentDifference(

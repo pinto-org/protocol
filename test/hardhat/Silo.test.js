@@ -118,15 +118,17 @@ describe("newSilo", function () {
     });
 
     it("properly updates the total balances", async function () {
-      expect(await beanstalk.balanceOfStalk(user.address)).to.eq(toStalk("1050.6"));
+      expect(await beanstalk.balanceOfStalk(user.address)).to.eq(
+        toStalk("1050.6").add(toStalk("0.010000005"))
+      );
       expect(await beanstalk.balanceOfRoots(user.address)).to.eq(
-        "10005714285714285714285714285714"
+        "10005809523857142857142857142856"
       );
     });
 
     it("properly updates the total balances", async function () {
-      expect(await beanstalk.totalStalk()).to.eq(to6("21012000000000"));
-      expect(await beanstalk.totalRoots()).to.eq("20011428571428571428571428571428");
+      expect(await beanstalk.totalStalk()).to.eq(toStalk("2101.2").add(toStalk("0.010000005")));
+      expect(await beanstalk.totalRoots()).to.eq("20011523809571428571428571428570");
     });
 
     it("properly emits events", async function () {
@@ -136,68 +138,80 @@ describe("newSilo", function () {
     it("user2 earns rest", async function () {
       await beanstalk.connect(user2).plant();
       expect(await beanstalk.totalEarnedBeans()).to.eq("0");
-      expect(await beanstalk.balanceOfStalk(user2.address)).to.eq(toStalk("1050.6"));
+      expect(await beanstalk.balanceOfStalk(user2.address)).to.eq(
+        toStalk("1050.6").add(toStalk("0.010000005"))
+      );
       expect(await beanstalk.balanceOfRoots(user2.address)).to.eq(
-        "10005714285714285714285714285714"
+        "10005809523857142857142857142856"
       );
     });
 
+    // a newly earned Bean Deposit has a stem value of the germinating stem - 1.
     it("user can withdraw earned beans", async function () {
-      stemTip = await beanstalk.stemTipForToken(BEAN);
-      await beanstalk.connect(user).withdrawDeposit(BEAN, stemTip, to6("25"), EXTERNAL);
-
-      // add Bean deposit, such that the stem tip matches with the earned beans, and verify withdraw.
-      await beanstalk.connect(user).deposit(BEAN, to6("25"), EXTERNAL);
-      await beanstalk.connect(user).withdrawDeposit(BEAN, stemTip, to6("50"), EXTERNAL);
+      highesNonGerminatingStem = await beanstalk.getHighestNonGerminatingStem(BEAN);
+      await beanstalk
+        .connect(user)
+        .withdrawDeposit(BEAN, highesNonGerminatingStem, to6("25"), EXTERNAL);
     });
 
     it("user can withdraws earned beans", async function () {
-      stemTip = await beanstalk.stemTipForToken(BEAN);
-      await beanstalk.connect(user).withdrawDeposits(BEAN, [stemTip], [to6("25")], EXTERNAL);
-
-      // add Bean deposit, such that the stem tip matches with the earned beans, and verify withdraw.
-      await beanstalk.connect(user).deposit(BEAN, to6("25"), EXTERNAL);
-      await beanstalk.connect(user).withdrawDeposits(BEAN, [stemTip], [to6("50")], EXTERNAL);
+      highesNonGerminatingStem = await beanstalk.getHighestNonGerminatingStem(BEAN);
+      await beanstalk
+        .connect(user)
+        .withdrawDeposits(BEAN, [highesNonGerminatingStem], [to6("25")], EXTERNAL);
     });
 
     it("user can withdraws multiple earned beans", async function () {
-      stemTip = await beanstalk.stemTipForToken(BEAN);
-      await beanstalk.connect(user).withdrawDeposits(BEAN, [stemTip], [to6("25")], EXTERNAL);
+      highesNonGerminatingStem = await beanstalk.getHighestNonGerminatingStem(BEAN);
+      await beanstalk
+        .connect(user)
+        .withdrawDeposits(BEAN, [highesNonGerminatingStem], [to6("12.5")], EXTERNAL);
 
-      // add Bean deposit, such that the stem tip matches with the earned beans, and verify withdraw.
-      await beanstalk.connect(user).deposit(BEAN, to6("25"), EXTERNAL);
       await mockBeanstalk.siloSunrise("0");
       stemTip1 = await beanstalk.stemTipForToken(BEAN);
       await beanstalk.connect(user).deposit(BEAN, to6("50"), EXTERNAL);
       await beanstalk
         .connect(user)
-        .withdrawDeposits(BEAN, [stemTip, stemTip1], [to6("50"), to6("50")], EXTERNAL);
+        .withdrawDeposits(
+          BEAN,
+          [highesNonGerminatingStem, stemTip1],
+          [to6("12.5"), to6("50")],
+          EXTERNAL
+        );
     });
 
     it("user can transfer earned beans", async function () {
-      stemTip = await beanstalk.stemTipForToken(BEAN);
+      highesNonGerminatingStem = await beanstalk.getHighestNonGerminatingStem(BEAN);
       await beanstalk
         .connect(user)
-        .transferDeposit(user.address, user2.address, BEAN, stemTip, to6("25"));
+        .transferDeposit(user.address, user2.address, BEAN, highesNonGerminatingStem, to6("25"));
       // add Bean deposit, such that the stem tip matches with the earned beans, and verify withdraw.
-      await beanstalk.connect(user).deposit(BEAN, to6("25"), EXTERNAL);
-      await beanstalk
-        .connect(user)
-        .transferDeposit(user.address, user2.address, BEAN, stemTip, to6("50"));
     });
 
     it("user can transferDeposits earned beans", async function () {
-      stemTip = await beanstalk.stemTipForToken(BEAN);
+      highesNonGerminatingStem = await beanstalk.getHighestNonGerminatingStem(BEAN);
       await beanstalk
         .connect(user)
-        .transferDeposits(user.address, user2.address, BEAN, [stemTip], [to6("50")]);
+        .transferDeposits(
+          user.address,
+          user2.address,
+          BEAN,
+          [highesNonGerminatingStem],
+          [to6("50")]
+        );
     });
 
     it("user can transferDeposits earned beans", async function () {
-      stemTip0 = await beanstalk.stemTipForToken(BEAN);
+      highesNonGerminatingStem = await beanstalk.getHighestNonGerminatingStem(BEAN);
       await beanstalk
         .connect(user)
-        .transferDeposits(user.address, user2.address, BEAN, [stemTip], [to6("25")]);
+        .transferDeposits(
+          user.address,
+          user2.address,
+          BEAN,
+          [highesNonGerminatingStem],
+          [to6("12.5")]
+        );
       // pass 1 season, deposit, and verify user can transfer.
       await mockBeanstalk.siloSunrise("0");
       stemTip1 = await beanstalk.stemTipForToken(BEAN);
@@ -208,8 +222,8 @@ describe("newSilo", function () {
           user.address,
           user2.address,
           BEAN,
-          [stemTip0, stemTip1],
-          [to6("25"), to6("25")]
+          [highesNonGerminatingStem, stemTip1],
+          [to6("12.5"), to6("25")]
         );
     });
   });
@@ -582,7 +596,13 @@ describe("newSilo", function () {
         // user 1 plants, and should have 50 beans deposited this season.
         await beanstalk.connect(user).plant();
         expect(
-          (await beanstalk.getDeposit(user.address, BEAN, await beanstalk.stemTipForToken(BEAN)))[0]
+          (
+            await beanstalk.getDeposit(
+              user.address,
+              BEAN,
+              (await beanstalk.getGerminatingStem(BEAN)) - 1
+            )
+          )[0]
         ).to.eq(49999999);
 
         // user 1 should now have 0 earned beans.

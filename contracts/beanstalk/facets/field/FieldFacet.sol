@@ -344,6 +344,10 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             );
     }
 
+    function initialSoil() external view returns (uint256) {
+        return uint256(s.sys.soil);
+    }
+
     //////////////////// GETTERS: TEMPERATURE ////////////////////
 
     /**
