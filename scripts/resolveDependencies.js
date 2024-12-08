@@ -6,7 +6,7 @@ const artifactsPath = "./artifacts/contracts";
 const facetsPath = "./contracts/beanstalk/facets";
 const librariesPath = "./contracts/libraries";
 
-// Dependency Resolver Function
+// Dependency Resolver
 function resolveDependencies(changedFacets = [], changedLibraries = []) {
   let facetNames = new Set();
   let libraryNames = new Set();
@@ -106,6 +106,7 @@ function resolveDependencies(changedFacets = [], changedLibraries = []) {
     });
   };
 
+  // checks usage of internal libraries in facets
   const findFacetsUsingInternalLibraries = () => {
     changedLibraries.forEach((libraryName) => {
       const libraryRegex = new RegExp(`\\b${libraryName}\\b`, "g");
@@ -120,6 +121,7 @@ function resolveDependencies(changedFacets = [], changedLibraries = []) {
             if (!facetSourcePath) return;
 
             const sourceCode = fs.readFileSync(facetSourcePath, "utf8");
+            // if a changed internal library is used in a facet, resolve the facet
             if (libraryRegex.test(sourceCode)) {
               console.log(`Facet "${facetName}" uses internal library "${libraryName}"`);
               resolveFacetDependencies(facetName);
@@ -135,15 +137,38 @@ function resolveDependencies(changedFacets = [], changedLibraries = []) {
   console.log("changedFacets:", changedFacets);
   console.log("changedLibraries:", changedLibraries);
 
+  // if facets were changed, resolve the libraries that need to be linked
   if (changedFacets.length > 0) {
     changedFacets.forEach(resolveFacetDependencies);
   }
 
+  // if libraries were changed
   if (changedLibraries.length > 0) {
+    // check to see if those libraries are internal and used in any facets
+    // if they are internal, they do not need to be linked,
+    // but the facets that use them will need to be included
     findFacetsUsingInternalLibraries();
+
     changedLibraries.forEach((libraryName) => {
-      libraryNames.add(libraryName);
-      resolveLibraryDependencies(libraryName);
+      // Check if the library is internal-only (does not require linking)
+      const isInternalOnly = (() => {
+        const libraryJSONPath = getContractJSONPath(libraryName);
+        if (!libraryJSONPath) return true; // Assume internal if JSON not found
+        const libraryData = loadJSON(libraryJSONPath);
+        return !(
+          libraryData &&
+          libraryData.linkReferences &&
+          Object.keys(libraryData.linkReferences).length > 0
+        );
+      })();
+      if (!isInternalOnly) {
+        // Add to libraryNames only if it is not internal-only
+        libraryNames.add(libraryName);
+        // Resolve dependencies for facets that use this library
+        resolveLibraryDependencies(libraryName);
+      } else {
+        console.log(`Excluding internal-only library: ${libraryName}`);
+      }
     });
   }
 

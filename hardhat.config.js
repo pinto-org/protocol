@@ -33,8 +33,9 @@ const {
   addressToBalanceSlotMap
 } = require("./test/hardhat/utils/constants.js");
 const { task } = require("hardhat/config");
-const { upgradeWithNewFacets } = require("./scripts/diamond.js");
+const { upgradeWithNewFacets, decodeDiamondCutAction } = require("./scripts/diamond.js");
 const { resolveDependencies } = require("./scripts/resolveDependencies");
+const { getFacetBytecode, compareBytecode } = require("./test/hardhat/utils/bytecode");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -434,9 +435,7 @@ task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
       "LibShipping",
       "LibWellMinting",
       "LibFlood",
-      "LibGerminate",
-      "LibDibbler",
-      "LibCases"
+      "LibGerminate"
     ],
     facetLibraries: {
       ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
@@ -456,6 +455,46 @@ task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
     },
     initArgs: [],
     initFacetName: "InitPI3",
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
+task("PI-4", "Deploys Pinto improvment set 4").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    // await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: ["SeasonFacet", "GaugeGettersFacet", "SeasonGettersFacet"],
+    libraryNames: [
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibFlood",
+      "LibGerminate"
+    ],
+    facetLibraries: {
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      SeasonGettersFacet: ["LibWellMinting"]
+    },
     object: !mock,
     verbose: true,
     account: owner
@@ -952,6 +991,88 @@ task("resolveUpgradeDependencies", "Resolves upgrade dependencies")
       console.log("No libraries changed, resolving dependencies for facets only.");
     }
     resolveDependencies(facetNames, libraryNames);
+  });
+
+task("decodeDiamondCut", "Decodes diamondCut calldata into human-readable format")
+  .addParam("data", "The calldata to decode")
+  .setAction(async ({ data }) => {
+    const DIAMOND_CUT_ABI = [
+      "function diamondCut((address facetAddress, uint8 action, bytes4[] functionSelectors)[] _diamondCut, address _init, bytes _calldata)"
+    ];
+    const iface = new ethers.utils.Interface(DIAMOND_CUT_ABI);
+
+    // Decode the calldata
+    const decoded = iface.parseTransaction({ data });
+
+    // Extract the decoded parameters
+    const { _diamondCut, _init, _calldata } = decoded.args;
+
+    // Pretty print
+    console.log("\n===== Decoded Diamond Cut =====");
+    _diamondCut.forEach((facetCut, index) => {
+      console.log(`\nFacetCut #${index + 1}`);
+      console.log("=".repeat(40));
+      console.log(`  🏷️  Facet Address  : ${facetCut.facetAddress}`);
+      console.log(`  🔧 Action         : ${decodeDiamondCutAction(facetCut.action)}`);
+      console.log("  📋 Function Selectors:");
+      if (facetCut.functionSelectors.length > 0) {
+        facetCut.functionSelectors.forEach((selector, selectorIndex) => {
+          console.log(`      ${selectorIndex + 1}. ${selector}`);
+        });
+      } else {
+        console.log("      (No selectors provided)");
+      }
+      console.log("=".repeat(40));
+    });
+
+    console.log("\n Init Facet Address:");
+    console.log(`  ${_init}`);
+
+    console.log("\n Init Selector:");
+    console.log(`  ${_calldata}`);
+  });
+
+task("verifyBytecode", "Verifies the bytecode of facets with optional library linking")
+  .addParam(
+    "facets",
+    'JSON string mapping facets to their deployed addresses (e.g., \'{"FacetName": "0xAddress"}\')'
+  )
+  .addOptionalParam(
+    "libraries",
+    'JSON string mapping facets to their linked libraries (e.g., \'{"FacetName": {"LibName": "0xAddress"}}\')'
+  )
+  .setAction(async (taskArgs) => {
+    // Compile first to update the artifacts
+    console.log("Compiling contracts to get updated artifacts...");
+    await hre.run("compile");
+
+    // Parse inputs
+    const deployedFacetAddresses = JSON.parse(taskArgs.facets);
+    const facetLibraries = taskArgs.libraries ? JSON.parse(taskArgs.libraries) : {};
+
+    // Deduce facet names from the keys in the addresses JSON
+    const facetNames = Object.keys(deployedFacetAddresses);
+
+    // Log the facet names and libraries
+    console.log("-----------------------------------");
+    console.log("\n📝 Facet Names:");
+    facetNames.forEach((name) => console.log(`  - ${name}`));
+    console.log("\n🔗 Facet Libraries:");
+    Object.entries(facetLibraries).forEach(([facet, libraries]) => {
+      console.log(`  📦 ${facet}:`);
+      Object.entries(libraries).forEach(([lib, address]) => {
+        console.log(`    🔹 ${lib}: ${address}`);
+      });
+    });
+    console.log("\n📍 Deployed Addresses:");
+    Object.entries(deployedFacetAddresses).forEach(([facet, address]) => {
+      console.log(`  ${facet}: ${address}\n`);
+    });
+    console.log("-----------------------------------");
+
+    // Verify bytecode for the facets
+    const facetData = await getFacetBytecode(facetNames, facetLibraries, true);
+    await compareBytecode(facetData, deployedFacetAddresses, false);
   });
 
 task("pumps", async function () {

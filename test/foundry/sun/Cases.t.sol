@@ -37,6 +37,9 @@ contract CasesTest is TestHelper {
     uint256 l2SR; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     int256 deltaB;
 
+    uint256 internal constant SOW_TIME_STEADY = 300; // this should match the setting in LibEvaluate.sol
+    uint256 internal constant SOW_TIME_DEMAND_INCR = 1200;
+
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
@@ -152,7 +155,7 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the time it took to sell out between this season was
-     * more than 60 seconds faster than last season, demand is decreasing.
+     * more than SOW_TIME_STEADY seconds faster than last season, demand is decreasing.
      */
     function testSowTimeSoldOutSlower(uint256 lastSowTime, uint256 thisSowTime) public {
         // set podrate to reasonably high,
@@ -163,10 +166,11 @@ contract CasesTest is TestHelper {
         // 10% temp for easier testing.
         bs.setMaxTempE(10);
         // the maximum value of lastSowTime is 3600
-        // the minimum time it takes to sell out is 600 seconds.
+        // the minimum time it takes to sell out is 900 seconds.
         // (otherwise we assume increasing demand).
-        lastSowTime = bound(lastSowTime, 601, 3599);
-        thisSowTime = bound(thisSowTime, lastSowTime + 61, 3660);
+
+        lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR + 2, 3599);
+        thisSowTime = bound(thisSowTime, lastSowTime + SOW_TIME_STEADY + 1, 3600 + SOW_TIME_STEADY);
 
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
@@ -198,9 +202,9 @@ contract CasesTest is TestHelper {
         // 10% temp for easier testing.
         bs.setMaxTempE(10);
         // the maximum value of lastSowTime is 3600
-        // the minimum time it takes to sell out is 600 seconds.
+        // the minimum time it takes to sell out is SOW_TIME_DEMAND_INCR seconds.
         // (otherwise we assume increasing demand).
-        lastSowTime = bound(lastSowTime, 600, 3600);
+        lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR, 3600);
         thisSowTime = bound(thisSowTime, lastSowTime, lastSowTime + 60);
 
         season.setLastSowTimeE(uint32(lastSowTime));
@@ -222,7 +226,7 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the time it took to sell out between this season was
-     * more than 60 seconds faster than last season, demand is increasing.
+     * more than SOW_TIME_STEADY seconds faster than last season, demand is increasing.
      */
     function testSowTimeSoldOutFaster(uint256 lastSowTime, uint256 thisSowTime) public {
         // set podrate to reasonably high,
@@ -232,11 +236,11 @@ contract CasesTest is TestHelper {
 
         // 10% temp for easier testing.
         bs.setMaxTempE(10);
-        // the maximum value of lastSowTime is 3600
+        // the maximum value of lastSowTime is 3600 - SOW_TIME_STEADY - 2 due to steady demand constant
         // the minimum time it takes to sell out is 600 seconds.
         // (otherwise we assume increasing demand).
-        lastSowTime = bound(lastSowTime, 601, 3600);
-        thisSowTime = bound(thisSowTime, 1, lastSowTime - 61);
+        lastSowTime = bound(lastSowTime, SOW_TIME_STEADY + 2, 3600);
+        thisSowTime = bound(thisSowTime, 1, lastSowTime - SOW_TIME_STEADY - 1);
 
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));

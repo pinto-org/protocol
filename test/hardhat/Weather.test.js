@@ -12,6 +12,8 @@ const [columns, tests] = parseJson("test/data/weather.json");
 var numberTests = tests.length;
 var startTest = 0;
 
+const SOW_TIME_STEADY = 300; // this should match the setting in LibEvaluate.sol
+
 async function setToSecondsAfterHour(seconds = 0) {
   const lastTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
   const hourTimestamp = parseInt(lastTimestamp / 3600 + 1) * 3600 + seconds;
@@ -145,7 +147,7 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(10);
     });
 
-    it("lastSowTime max", async function () {
+    it("lastSowTime max sow time decrease from max", async function () {
       await mockBeanstalk.setLastSowTimeE(MAX_UINT32);
       await mockBeanstalk.setNextSowTimeE("1000");
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
@@ -155,8 +157,8 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000);
     });
 
-    it("lastSowTime max", async function () {
-      await mockBeanstalk.setLastSowTimeE("1061");
+    it("lastSowTime max sow time decrease more than steady const", async function () {
+      await mockBeanstalk.setLastSowTimeE(1000 + SOW_TIME_STEADY + 1);
       await mockBeanstalk.setNextSowTimeE("1000");
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
@@ -165,8 +167,8 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000);
     });
 
-    it("lastSowTime max", async function () {
-      await mockBeanstalk.setLastSowTimeE("1060");
+    it("lastSowTime max sow time decrease less than steady const", async function () {
+      await mockBeanstalk.setLastSowTimeE(1000 + SOW_TIME_STEADY - 1);
       await mockBeanstalk.setNextSowTimeE("1000");
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
@@ -175,27 +177,27 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000);
     });
 
-    it("lastSowTime max", async function () {
-      await mockBeanstalk.setLastSowTimeE("940");
-      await mockBeanstalk.setNextSowTimeE("1000");
+    it("lastSowTime max sow time increase less than steady const", async function () {
+      await mockBeanstalk.setLastSowTimeE("1000");
+      await mockBeanstalk.setNextSowTimeE(1000 + SOW_TIME_STEADY);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
       expect(weather.temp).to.equal(7);
       expect(weather.thisSowTime).to.equal(parseInt(MAX_UINT32));
-      expect(weather.lastSowTime).to.equal(1000);
+      expect(weather.lastSowTime).to.equal(1000 + SOW_TIME_STEADY);
     });
 
-    it("lastSowTime max", async function () {
-      await mockBeanstalk.setLastSowTimeE("900");
-      await mockBeanstalk.setNextSowTimeE("1000");
+    it("lastSowTime max sow time increase more than steady const", async function () {
+      await mockBeanstalk.setLastSowTimeE("1000");
+      await mockBeanstalk.setNextSowTimeE(1000 + SOW_TIME_STEADY + 1);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
       expect(weather.temp).to.equal(9);
       expect(weather.thisSowTime).to.equal(parseInt(MAX_UINT32));
-      expect(weather.lastSowTime).to.equal(1000);
+      expect(weather.lastSowTime).to.equal(1000 + SOW_TIME_STEADY + 1);
     });
 
-    it("lastSowTime max", async function () {
+    it("lastSowTime max sow time increase more than steady const to max", async function () {
       await mockBeanstalk.setLastSowTimeE("900");
       await mockBeanstalk.setNextSowTimeE(MAX_UINT32);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");

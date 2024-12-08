@@ -31,7 +31,8 @@ contract PIRainRootsTest is TestHelper {
 
     // fork from Base when it's flooding,
     // verify after upgrade that you can transfer and convert without losing rain roots
-    function test_forkBaseTransferRainRootsWhenFlooding(uint256 amountToTransfer) public {
+    // commented out to conserve RPC requests. Fix deployed.
+    /*function test_forkBaseTransferRainRootsWhenFlooding(uint256 amountToTransfer) public {
         // 23074932 is just after season 245
         forkMainnetAndUpgradeAllFacets(
             23074932 + 900, // deploy halfway into season
@@ -100,11 +101,12 @@ contract PIRainRootsTest is TestHelper {
 
         // total roots stay the same
         assertEq(totalRootsBefore, bs.totalRoots());
-    }
+    }*/
 
     // fork from Base when it's flooding, verify after upgrade that you can convert
     // from pinto --> lp multiple deposits without losing rain roots
-    function test_forkBaseConvertWhenFloodingDoesNotLoseRainRoots() public {
+    // commented out to conserve RPC requests. Fix deployed.
+    /*function test_forkBaseConvertWhenFloodingDoesNotLoseRainRoots() public {
         // 23074932 is just after season 245
         forkMainnetAndUpgradeAllFacets(
             23074932 + 900, // deploy halfway into season
@@ -177,5 +179,5 @@ contract PIRainRootsTest is TestHelper {
 
         // total rain roots stay the same
         assertEq(totalRainRootsBefore, bs.totalRainRoots());
-    }
+    }*/
 }

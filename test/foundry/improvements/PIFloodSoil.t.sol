@@ -17,7 +17,8 @@ contract PIFloodSoilTest is TestHelper {
     }
 
     // fork from Base when it's flooding, verify after upgrade soil is available.
-    function test_forkBaseWhenFlooding() public {
+    // commented out to conserve RPC requests. Fix deployed.
+    /*function test_forkBaseWhenFlooding() public {
         // 23074932 is just after season 245
         forkMainnetAndUpgradeAllFacets(
             23074932 + 900, // deploy halfway into season
@@ -72,10 +73,11 @@ contract PIFloodSoilTest is TestHelper {
         soil = bs.totalSoil();
 
         assertGt(soil, 0, "soil after sunrise");
-    }
+    }*/
 
     // for Base when it's not flooding, verify soil issuance is not changed
-    function test_forkBaseWhenNotFlooding() public {
+    // commented out to conserve RPC requests. Fix deployed.
+    /*function test_forkBaseWhenNotFlooding() public {
         bs = IMockFBeanstalk(PINTO);
         // for after season 308 (which happens at block 23188327)
         uint256 forkBlock = 23188327;
@@ -96,5 +98,5 @@ contract PIFloodSoilTest is TestHelper {
         // verify same amount of soil after upgrade
         uint256 soilAfterUpgrade = bs.initialSoil();
         assertEq(soilAfterUpgrade, soilBeforeUpgrade, "soil after upgrade");
-    }
+    }*/
 }

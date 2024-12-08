@@ -24,6 +24,20 @@ function addCommas(nStr) {
   return x1 + x2;
 }
 
+// Helper function to decode the diamond cut action type
+function decodeDiamondCutAction(action) {
+  switch (action) {
+    case 0:
+      return "Add";
+    case 1:
+      return "Replace";
+    case 2:
+      return "Remove";
+    default:
+      return "Unknown";
+  }
+}
+
 function strDisplay(str) {
   return addCommas(str.toString());
 }
@@ -759,3 +773,4 @@ exports.upgrade = upgrade;
 exports.deployDiamond = deployDiamond;
 exports.deployFacetsAndLibraries = deployFacetsAndLibraries;
 exports.upgradeWithDeployedFacets = upgradeWithDeployedFacets;
+exports.decodeDiamondCutAction = decodeDiamondCutAction;

@@ -42,8 +42,8 @@ library LibEvaluate {
     using LibRedundantMath32 for uint32;
 
     /// @dev If all Soil is Sown faster than this, Beanstalk considers demand for Soil to be increasing.
-    uint256 internal constant SOW_TIME_DEMAND_INCR = 600; // seconds
-    uint32 internal constant SOW_TIME_STEADY = 60; // seconds
+    uint256 internal constant SOW_TIME_DEMAND_INCR = 1200; // seconds
+    uint32 internal constant SOW_TIME_STEADY = 300; // seconds
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
 
     struct BeanstalkState {

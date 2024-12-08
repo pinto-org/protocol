@@ -581,7 +581,7 @@ contract MockSeasonFacet is SeasonFacet {
         if (changeInSoilDemand == 0) {
             // decreasing demand
             s.sys.weather.lastSowTime = 600; // last season, everything was sown in 10 minutes.
-            s.sys.weather.thisSowTime = 1200; // this season, everything was sown in 20 minutes.
+            s.sys.weather.thisSowTime = 2400; // this season, everything was sown in 40 minutes.
         } else if (changeInSoilDemand == 1) {
             // steady demand
             s.sys.weather.lastSowTime = 600; // last season, everything was sown in 10 minutes.
