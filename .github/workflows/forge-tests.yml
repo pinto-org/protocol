@@ -6,7 +6,6 @@ on:
     branches: [main]
 
 env:
-  ETHEREUM_RPC: ${{ secrets.ETHEREUM_RPC }}
   FORKING_RPC: ${{ secrets.ANVIL_FORK_URL }}
   ARBITRUM_FORKING_RPC: ${{ secrets.ARBITRUM_FORKING_RPC }}
   BASE_RPC: ${{ secrets.BASE_RPC }}
@@ -42,7 +41,10 @@ jobs:
 
       - name: Install Libraries
         run: |
-          forge install
+          forge install https://github.com/foundry-rs/forge-std@07263d1
+          forge install https://github.com/OpenZeppelin/openzeppelin-contracts@fd81a96
+          forge install https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable@3d4c0d5
+          forge install https://github.com/paulrberg/prb-math@2c59739
 
       - name: Run Forge build
         run: |
