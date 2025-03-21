@@ -914,6 +914,8 @@ interface IMockFBeanstalk {
 
     function getBeanGaugePointsPerBdv() external view returns (uint256);
 
+    function getBeanToken() external view returns (address);
+
     function getBeanIndex(IERC20[] memory tokens) external view returns (uint256);
 
     function getBeanToMaxLpGpPerBdvRatio() external view returns (uint256);
@@ -933,6 +935,8 @@ interface IMockFBeanstalk {
     ) external view returns (uint32, int32, uint80, int80);
 
     function getCounter(address account, bytes32 counterId) external view returns (uint256 count);
+
+    function getCurrentBlueprintHash() external view returns (bytes32);
 
     function getCurrentHumidity() external view returns (uint128 humidity);
 
@@ -1593,6 +1597,8 @@ interface IMockFBeanstalk {
 
     function setSunriseBlock(uint256 _block) external;
 
+    function setUnharvestable(uint256 amount) external;
+
     function setUsdEthPrice(uint256 price) external;
 
     function setYieldE(uint256 t) external;
@@ -1717,6 +1723,12 @@ interface IMockFBeanstalk {
 
     function transferERC721(address token, address to, uint256 id) external payable;
 
+    function sendTokenToInternalBalance(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external payable;
+
     function transferInternalTokenFrom(
         address token,
         address sender,
@@ -1786,6 +1798,12 @@ interface IMockFBeanstalk {
     ) external returns (uint256 count);
 
     function updateSeedGaugeSettings(EvaluationParameters memory updatedSeedGaugeSettings) external;
+
+    function updateSortedDepositIds(
+        address account,
+        address token,
+        uint256[] calldata sortedDepositIds
+    ) external payable;
 
     function updateStalkPerBdvPerSeasonForToken(
         address token,

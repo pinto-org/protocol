@@ -297,6 +297,13 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns the number of Pods that are not yet Harvestable for the active Field.
+     */
+    function totalUnharvestableForActiveField() public view returns (uint256) {
+        return s.sys.fields[s.sys.activeField].pods - s.sys.fields[s.sys.activeField].harvestable;
+    }
+
+    /**
      * @notice Returns the number of Pods that were made Harvestable during the last Season as a result of flooding.
      */
     function floodHarvestablePods() public view returns (uint256) {

@@ -31,6 +31,13 @@ contract MockFieldFacet is FieldFacet {
         s.sys.fields[fieldId].pods += amount;
     }
 
+    function setUnharvestable(uint256 amount) external {
+        // Get current harvestable index
+        uint256 currentIndex = s.sys.fields[s.sys.activeField].harvestable;
+        // Set pods for the current field
+        s.sys.fields[s.sys.activeField].harvestable = currentIndex + amount;
+    }
+
     function totalRealSoil() external view returns (uint256) {
         return s.sys.soil;
     }
