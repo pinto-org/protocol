@@ -30,6 +30,7 @@ contract InitalizeDiamond {
     // INITIAL CONSTANTS //
     uint128 constant INIT_BEAN_TO_MAX_LP_GP_RATIO = 33_333_333_333_333_333_333; // 33%
     uint128 constant INIT_AVG_GSPBDV = 3e12;
+    uint128 constant INIT_MAX_TOTAL_GAUGE_POINTS = 2000e18;
     uint32 constant INIT_BEAN_STALK_EARNED_PER_SEASON = 2e6;
     uint32 constant INIT_BEAN_TOKEN_WELL_STALK_EARNED_PER_SEASON = 4e6;
     uint48 constant INIT_STALK_ISSUED_PER_BDV = 1e10;
@@ -231,13 +232,16 @@ contract InitalizeDiamond {
 
     function initalizeSeedGauge(
         uint128 beanToMaxLpGpRatio,
-        uint128 averageGrownStalkPerBdvPerSeason
+        uint128 averageGrownStalkPerBdvPerSeason,
+        uint128 maxTotalGaugePoints
     ) internal {
         // initalize the ratio of bean to max lp gp per bdv.
         s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = beanToMaxLpGpRatio;
 
         // initalize the average grown stalk per bdv per season.
         s.sys.seedGauge.averageGrownStalkPerBdvPerSeason = averageGrownStalkPerBdvPerSeason;
+
+        s.sys.seedGauge.maxTotalGaugePoints = maxTotalGaugePoints;
 
         // emit events.
         emit BeanToMaxLpGpPerBdvRatioChange(
@@ -321,7 +325,11 @@ contract InitalizeDiamond {
     }
 
     function initializeGauges() internal {
-        initalizeSeedGauge(INIT_BEAN_TO_MAX_LP_GP_RATIO, INIT_AVG_GSPBDV);
+        initalizeSeedGauge(
+            INIT_BEAN_TO_MAX_LP_GP_RATIO,
+            INIT_AVG_GSPBDV,
+            INIT_MAX_TOTAL_GAUGE_POINTS
+        );
         // GAUGE //
         Gauge memory cultivationFactorGauge = Gauge(
             abi.encode(INIT_CULTIVATION_FACTOR),
