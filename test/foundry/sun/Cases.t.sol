@@ -70,6 +70,10 @@ contract CasesTest is TestHelper {
         console.log("setting max temp to 100%");
         bs.setMaxTemp(100e6);
 
+        // set beanSown to be above min threshold so that we can measure change in soil demand.
+        bs.setSoilE(1000e6);
+        bs.setBeansSownE(300e6);
+
         uint256 initialTemperature = bs.maxTemperature();
         uint256 initialBeanToMaxLpGpPerBdvRatio = bs.getBeanToMaxLpGpPerBdvRatio();
 
@@ -239,8 +243,10 @@ contract CasesTest is TestHelper {
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
 
-        // calc caseId
-        season.calcCaseIdE(1, 0);
+        // calc caseId  (deltaB, beanSown==dsoil)
+        // beanSown needs to be at least 10e6, above the min pod demand threshold
+        // for demand to be steady and not decreasing.
+        season.calcCaseIdE(1, 1000e6);
 
         // beanstalk should record this season's sow time,
         // and set it as last sow time for next season.
@@ -274,8 +280,10 @@ contract CasesTest is TestHelper {
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
 
-        // calc caseId
-        season.calcCaseIdE(1, 0);
+        // calc caseId   (deltaB, beanSown==dsoil)
+        // this needs to be at least 10e6,
+        // above the min pod demand threshold for demand to be increasing.
+        season.calcCaseIdE(1, 1000e6);
 
         // beanstalk should record this season's sow time,
         // and set it as last sow time for next season.
@@ -286,6 +294,52 @@ contract CasesTest is TestHelper {
 
         // verify ∆temp is 3% (see whitepaper).
         assertEq(10e6 - uint256(w.temp), 3e6, "delta temp is not 3%");
+    }
+
+    /**
+     * @notice if the soil sown in the season is below the minimum demand threshold,
+     * of max(max(0,001% of supply, 10), 25% of soil issued) demand is considered decreasing.
+     */
+    function testDeltaPodDemandDecreasingBelowThreshold(
+        uint256 soilSown,
+        uint256 initialSoil,
+        uint256 beanSupply
+    ) public {
+        // init total supply = 10k beans
+        uint256 beanSupply = bound(beanSupply, 10_000e6, 10_000_000e6);
+        // mint beanSupply to increase
+        deal(address(bean), address(1), beanSupply);
+        beanSupply = bean.totalSupply();
+        // bound initial soil to 0 - beanSupply
+        initialSoil = bound(initialSoil, 0, beanSupply);
+
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold(beanSupply, initialSoil);
+
+        // soil sown is less than the min threashold to measure demand
+        soilSown = bound(soilSown, 0, minDemandThreshold - 1);
+
+        // set podrate to reasonably high,
+        // as we want to verify temp changes as a function of soil demand.
+        season.setPodRate(RES_HIGH);
+        season.setPrice(ABOVE_PEG, well);
+
+        // 10% temp for easier testing.
+        bs.setMaxTempE(10e6);
+        // set initial soil
+        bs.setSoilE(initialSoil);
+
+        // calc caseId  (deltaB, beanSown==dsoil)
+        season.calcCaseIdE(1, uint128(soilSown));
+
+        // if soil sown is below the threshold, demand is decreasing.
+        // beanstalk should record this season's sow time,
+        // and set it as last sow time for next season.
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
+        uint256 steadyDemand;
+        // reasonably high pod rate, above peg price, soil demand decreasing
+        // so temperature should stay the same, see https://docs.pinto.money/advanced/cases
+        assertEq(10e6 - uint256(w.temp), 0, "delta temp is not 0%");
     }
 
     /**
@@ -319,6 +373,23 @@ contract CasesTest is TestHelper {
 
         // Soil Demand: simple modulo
         deltaPodDemandCase = caseId % 3;
+    }
+
+    function calcMinSoilDemandThreshold(
+        uint256 beanSupply,
+        uint256 initialSoil
+    ) internal view returns (uint256 minDemandThreshold) {
+        // calculate the minimum threshold of bean to calculate delta pod demand.
+        uint256 calculatedThreshold = (beanSupply * 0.00001e6) / 1e6;
+
+        uint256 beanSupplyThreshold = calculatedThreshold > 10e6 ? calculatedThreshold : 10e6;
+
+        // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
+        uint256 scaledInitialSoil = (initialSoil * 0.25e6) / 1e6;
+
+        minDemandThreshold = beanSupplyThreshold > scaledInitialSoil
+            ? beanSupplyThreshold
+            : scaledInitialSoil;
     }
 
     /**

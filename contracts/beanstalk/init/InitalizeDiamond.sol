@@ -93,6 +93,10 @@ contract InitalizeDiamond {
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
+    // Pod Demand Scalars
+    uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.25e6; // 25%
+    uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
+
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
