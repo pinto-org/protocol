@@ -33,8 +33,6 @@ abstract contract GaugeDefault {
      *
      * @dev If % of deposited BDV is within range of optimal,
      * keep gauge points the same (RELATIVELY_CLOSE).
-     *
-     * Cap gaugePoints to MAX_GAUGE_POINTS to avoid runaway gaugePoints.
      */
     function defaultGaugePoints(
         uint256 currentGaugePoints,
@@ -42,8 +40,11 @@ abstract contract GaugeDefault {
         uint256 percentOfDepositedBdv,
         bytes memory
     ) public pure returns (uint256 newGaugePoints) {
-        if (percentOfDepositedBdv > getRelativelyCloseAbove(optimalPercentDepositedBdv)) {
-            // Cap gauge points to MAX_PERCENT if it exceeds.
+        // Get the relatively close bound above optimal
+        uint256 upperBound = getRelativelyCloseBound(optimalPercentDepositedBdv, true);
+
+        if (percentOfDepositedBdv > upperBound) {
+            // Cap gauge points to MAX_PERCENT if it exceeds
             if (percentOfDepositedBdv > MAX_PERCENT) {
                 percentOfDepositedBdv = MAX_PERCENT;
             }
@@ -53,30 +54,25 @@ abstract contract GaugeDefault {
                 true
             );
 
-            // gauge points cannot go below 0.
+            // gauge points cannot go below 0
             if (deltaPoints < currentGaugePoints) {
                 return currentGaugePoints - deltaPoints;
             } else {
-                // Cap gaugePoints to 0 if it exceeds.
+                // Cap gaugePoints to 0 if it exceeds
                 return 0;
             }
-        } else if (percentOfDepositedBdv < getRelativelyCloseBelow(optimalPercentDepositedBdv)) {
+        } else if (
+            percentOfDepositedBdv < getRelativelyCloseBound(optimalPercentDepositedBdv, false)
+        ) {
             uint256 deltaPoints = getDeltaPoints(
                 optimalPercentDepositedBdv,
                 percentOfDepositedBdv,
                 false
             );
-
-            // gauge points cannot go above MAX_GAUGE_POINTS.
-            if (deltaPoints + currentGaugePoints < MAX_GAUGE_POINTS) {
-                return currentGaugePoints + deltaPoints;
-            } else {
-                // Cap gaugePoints to MAX_GAUGE_POINTS if it exceeds.
-                return MAX_GAUGE_POINTS;
-            }
+            return currentGaugePoints + deltaPoints;
         } else {
-            // If % of deposited BDV is .5% within range of optimal,
-            // keep gauge points the same.
+            // If % of deposited BDV is within range of optimal,
+            // keep gauge points the same
             return currentGaugePoints;
         }
     }
@@ -91,26 +87,18 @@ abstract contract GaugeDefault {
         uint256 percentBdv,
         bool isAboveOptimal
     ) private pure returns (uint256) {
-        uint256 exsFar;
-        uint256 relFar;
         if (isAboveOptimal) {
-            exsFar = getExtremelyFarAbove(optimalPercentBdv);
-            relFar = getRelativelyFarAbove(optimalPercentBdv);
-
-            if (percentBdv > exsFar) {
+            if (percentBdv > getExtremelyFarBound(optimalPercentBdv, true)) {
                 return EXTREME_FAR_POINT;
-            } else if (percentBdv > relFar) {
+            } else if (percentBdv > getRelativelyFarBound(optimalPercentBdv, true)) {
                 return RELATIVE_FAR_POINT;
             } else {
                 return RELATIVE_CLOSE_POINT;
             }
         } else {
-            exsFar = getExtremelyFarBelow(optimalPercentBdv);
-            relFar = getRelativelyFarBelow(optimalPercentBdv);
-
-            if (percentBdv < exsFar) {
+            if (percentBdv < getExtremelyFarBound(optimalPercentBdv, false)) {
                 return EXTREME_FAR_POINT;
-            } else if (percentBdv < relFar) {
+            } else if (percentBdv < getRelativelyFarBound(optimalPercentBdv, false)) {
                 return RELATIVE_FAR_POINT;
             } else {
                 return RELATIVE_CLOSE_POINT;
@@ -118,31 +106,81 @@ abstract contract GaugeDefault {
         }
     }
 
-    function getExtremelyFarAbove(uint256 optimalPercentBdv) public pure returns (uint256) {
-        return
-            (((MAX_PERCENT - optimalPercentBdv) * EXCESSIVELY_FAR) / PRECISION) + optimalPercentBdv;
+    /**
+     * @notice Calculates the offset from the optimal percentage based on a multiplier
+     * @param optimalPercentBdv The optimal percentage of BDV (1e6 = 1%)
+     * @param multiplier The multiplier to determine the offset
+     * @return The calculated offset value based on the distance to 100% if above 50%, or based on current value if below 50%
+     */
+    function _getOffset(
+        uint256 optimalPercentBdv,
+        uint256 multiplier
+    ) private pure returns (uint256) {
+        // cap multiplier at 100e6, in case of error.
+        if (multiplier > 100e6) {
+            multiplier = 100e6;
+        }
+
+        if (optimalPercentBdv > 50e6) {
+            // Base offset on remaining distance to 100%
+            return ((MAX_PERCENT - optimalPercentBdv) * multiplier) / PRECISION;
+        } else {
+            // Base offset on current percentage
+            return (optimalPercentBdv * multiplier) / PRECISION;
+        }
     }
 
-    function getRelativelyFarAbove(uint256 optimalPercentBdv) public pure returns (uint256) {
-        return
-            (((MAX_PERCENT - optimalPercentBdv) * RELATIVELY_FAR) / PRECISION) + optimalPercentBdv;
+    /**
+     * @notice Calculates a boundary value above or below the optimal percentage
+     * @param optimalPercentBdv The optimal percentage of BDV (1e6 = 1%)
+     * @param offset The offset to add/subtract from optimal
+     * @param above If true, calculates upper bound; if false, calculates lower bound
+     * @return The boundary value
+     */
+    function _getBound(
+        uint256 optimalPercentBdv,
+        uint256 offset,
+        bool above
+    ) private pure returns (uint256) {
+        return above ? optimalPercentBdv + offset : optimalPercentBdv - offset;
     }
 
-    function getRelativelyCloseAbove(uint256 optimalPercentBdv) public pure returns (uint256) {
-        return
-            (((MAX_PERCENT - optimalPercentBdv) * RELATIVELY_CLOSE) / PRECISION) +
-            optimalPercentBdv;
+    /**
+     * @notice Gets the extremely far boundary from the optimal percentage
+     * @param optimalPercentBdv The optimal percentage of BDV (1e6 = 1%)
+     * @param above If true, returns upper bound; if false, returns lower bound
+     * @return The extremely far boundary value
+     */
+    function getExtremelyFarBound(
+        uint256 optimalPercentBdv,
+        bool above
+    ) public pure returns (uint256) {
+        return _getBound(optimalPercentBdv, _getOffset(optimalPercentBdv, EXCESSIVELY_FAR), above);
     }
 
-    function getExtremelyFarBelow(uint256 optimalPercentBdv) public pure returns (uint256) {
-        return (optimalPercentBdv * (PRECISION - EXCESSIVELY_FAR)) / PRECISION;
+    /**
+     * @notice Gets the relatively far boundary from the optimal percentage
+     * @param optimalPercentBdv The optimal percentage of BDV (1e6 = 1%)
+     * @param above If true, returns upper bound; if false, returns lower bound
+     * @return The relatively far boundary value
+     */
+    function getRelativelyFarBound(
+        uint256 optimalPercentBdv,
+        bool above
+    ) public pure returns (uint256) {
+        return _getBound(optimalPercentBdv, _getOffset(optimalPercentBdv, RELATIVELY_FAR), above);
     }
 
-    function getRelativelyFarBelow(uint256 optimalPercentBdv) public pure returns (uint256) {
-        return (optimalPercentBdv * (PRECISION - RELATIVELY_FAR)) / PRECISION;
-    }
-
-    function getRelativelyCloseBelow(uint256 optimalPercentBdv) public pure returns (uint256) {
-        return (optimalPercentBdv * (PRECISION - RELATIVELY_CLOSE)) / PRECISION;
+    /**
+     * @notice Gets the relatively close boundary from the optimal percentage
+     * @param optimalPercentBdv The optimal percentage of BDV (1e6 = 1%)
+     * @param above If true, returns upper bound; if false, returns lower bound
+     * @return The relatively close boundary value
+     */
+    function getRelativelyCloseBound(
+        uint256 optimalPercentBdv,
+        bool above
+    ) public pure returns (uint256) {
+        return _getBound(optimalPercentBdv, _getOffset(optimalPercentBdv, RELATIVELY_CLOSE), above);
     }
 }

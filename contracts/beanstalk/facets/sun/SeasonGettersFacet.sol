@@ -338,4 +338,8 @@ contract SeasonGettersFacet {
     {
         return LibFlood.getWellsByDeltaB();
     }
+
+    function getOrderLockedBeans() external view returns (uint256) {
+        return s.sys.orderLockedBeans;
+    }
 }

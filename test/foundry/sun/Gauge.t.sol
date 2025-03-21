@@ -6,7 +6,7 @@ import {TestHelper, IMockFBeanstalk, MockToken, C, IWell} from "test/foundry/uti
 import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 import {MockLiquidityWeight} from "contracts/mocks/MockLiquidityWeight.sol";
 import {GaugePriceThreshold} from "contracts/ecosystem/GaugePriceThreshold.sol";
-
+import {console2} from "forge-std/console2.sol";
 /**
  * @notice Tests the functionality of the gauge.
  */
@@ -306,7 +306,7 @@ contract GaugeTest is TestHelper {
         // verify that the gauge points remain unchanged.
         assertEq(
             uint256(postLpSettings.gaugePoints),
-            uint256(lpSettings.gaugePoints),
+            bs.getMaxTotalGaugePoints(),
             "invalid lp gauge points"
         );
 
@@ -407,11 +407,19 @@ contract GaugeTest is TestHelper {
         // verify that stalk issued to LP is porportional to gauge point %.
         uint256 avgGrownStalkPerBdvPerSeason = bs.getAverageGrownStalkPerBdvPerSeason();
         uint256 totalStalk = totalDepositedBdv * avgGrownStalkPerBdvPerSeason;
+        console2.log("totalStalk", totalStalk);
         for (uint i; i < tokens.length; i++) {
             if (tokens[i] == BEAN) continue;
-            uint256 percentGaugePoints = (postSettings[i].gaugePoints * 1e18) / totalGaugePoints;
+            console2.log("1");
+            console2.log("totalGaugePoints", totalGaugePoints);
+            console2.log("postSettings[i].gaugePoints", postSettings[i].gaugePoints);
+            uint256 percentGaugePoints = (uint256(postSettings[i].gaugePoints) * 1e18) /
+                totalGaugePoints;
+            console2.log("2");
             uint256 tokenDepositedBdv = bs.getTotalDepositedBdv(tokens[i]);
+            console2.log("3");
             uint256 stalkToLp = postSettings[i].stalkEarnedPerSeason * tokenDepositedBdv;
+            console2.log("4");
             // precise within 1e-6.
             assertApproxEqRel(stalkToLp, (totalStalk * percentGaugePoints) / (1e18 * 1e6), 1e12);
         }
@@ -472,12 +480,13 @@ contract GaugeTest is TestHelper {
             new bytes(0)
         );
 
-        uint256 extFarAbove = gpP.getExtremelyFarAbove(optimalPercentDepositedBdv);
-        uint256 relFarAbove = gpP.getRelativelyFarAbove(optimalPercentDepositedBdv);
-        uint256 relCloseAbove = gpP.getRelativelyCloseAbove(optimalPercentDepositedBdv);
-        uint256 extFarBelow = gpP.getExtremelyFarBelow(optimalPercentDepositedBdv);
-        uint256 relFarBelow = gpP.getRelativelyFarBelow(optimalPercentDepositedBdv);
-        uint256 relCloseBelow = gpP.getRelativelyCloseBelow(optimalPercentDepositedBdv);
+        uint256 extFarAbove = gpP.getExtremelyFarBound(optimalPercentDepositedBdv, true);
+        uint256 extFarBelow = gpP.getExtremelyFarBound(optimalPercentDepositedBdv, false);
+        uint256 relFarAbove = gpP.getRelativelyFarBound(optimalPercentDepositedBdv, true);
+        uint256 relFarBelow = gpP.getRelativelyFarBound(optimalPercentDepositedBdv, false);
+        uint256 relCloseAbove = gpP.getRelativelyCloseBound(optimalPercentDepositedBdv, true);
+        uint256 relCloseBelow = gpP.getRelativelyCloseBound(optimalPercentDepositedBdv, false);
+
         assertLe(extFarAbove, 100e6, "extFarAbove > 100e6");
         assertGe(
             extFarAbove,
@@ -517,50 +526,31 @@ contract GaugeTest is TestHelper {
         );
 
         assertGe(newGaugePoints, 0, "newGaugePoints < 0");
-        assertLe(newGaugePoints, 1000e18, "newGaugePoints > 1000e18");
 
-        uint256 deltaGaugePoints;
-        if (newGaugePoints > gaugePoints) {
-            deltaGaugePoints = newGaugePoints - gaugePoints;
-        } else {
-            deltaGaugePoints = gaugePoints - newGaugePoints;
-        }
+        int256 deltaGaugePoints;
+        deltaGaugePoints = int256(newGaugePoints) - int256(gaugePoints);
+        console2.log("deltaGaugePoints", deltaGaugePoints);
 
-        uint256 percentDifference;
-        if (percentOfDepositedBdv > optimalPercentDepositedBdv) {
-            percentDifference = getPercentDifference(
-                100e6 - optimalPercentDepositedBdv,
-                100e6 - percentOfDepositedBdv
-            );
-        } else {
-            percentDifference = getPercentDifference(
-                optimalPercentDepositedBdv,
-                percentOfDepositedBdv
-            );
-        }
+        // note: gaugePoints are not upper capped on the defaultGaugePoints function, and is instead capped in the gauge system.
+        // this is because the system should not assume the defaultGaugePoints enforces the nessecary security.
         if (deltaGaugePoints == 5e18) {
-            assertLe(percentDifference, 100e6);
+            assertLe(percentOfDepositedBdv, extFarBelow, "percentOfDepositedBdv > extFarBelow");
         } else if (deltaGaugePoints == 3e18) {
-            assertLe(percentDifference, 66.666666e6);
-            assertGe(percentDifference, 33.333333e6);
-        } else if (deltaGaugePoints == 1e18 && gaugePoints != 1e18) {
-            assertLe(percentDifference, 33.333333e6);
-        } else if (deltaGaugePoints == 0) {
-            // this can occur if the gauge points are at the max, and the optimal is higher than the current.
-            // or if the gauge points are at the min, and the optimal is lower than the current.
-            if (percentOfDepositedBdv <= optimalPercentDepositedBdv) {
-                if (gaugePoints != 1000e18) {
-                    assertLe(percentDifference, 10e6);
-                } else {
-                    assertEq(gaugePoints, 1000e18);
-                }
-            } else if (percentOfDepositedBdv > optimalPercentDepositedBdv) {
-                if (gaugePoints != 0) {
-                    assertLe(percentDifference, 10e6);
-                } else {
-                    assertEq(gaugePoints, 0);
-                }
-            }
+            assertLe(percentOfDepositedBdv, relFarBelow, "percentOfDepositedBdv > relFarBelow");
+            assertGe(percentOfDepositedBdv, extFarBelow, "percentOfDepositedBdv < extFarBelow");
+        } else if (deltaGaugePoints == 1e18) {
+            assertLe(percentOfDepositedBdv, relCloseBelow, "percentOfDepositedBdv > relCloseBelow");
+            assertGe(percentOfDepositedBdv, relFarBelow, "percentOfDepositedBdv < relFarBelow");
+            assertGe(percentOfDepositedBdv, extFarBelow, "percentOfDepositedBdv < extFarBelow");
+        } else if (deltaGaugePoints == -5e18 && gaugePoints != 5e18) {
+            assertGe(percentOfDepositedBdv, extFarAbove, "percentOfDepositedBdv < extFarAbove");
+        } else if (deltaGaugePoints == -3e18 && gaugePoints != 3e18) {
+            assertGe(percentOfDepositedBdv, relFarAbove, "percentOfDepositedBdv < relFarAbove");
+            assertLe(percentOfDepositedBdv, extFarAbove, "percentOfDepositedBdv > extFarAbove");
+        } else if (deltaGaugePoints == -1e18 && gaugePoints != 1e18) {
+            assertGe(percentOfDepositedBdv, relCloseAbove, "percentOfDepositedBdv < relCloseAbove");
+            assertLe(percentOfDepositedBdv, relFarAbove, "percentOfDepositedBdv > relFarAbove");
+            assertLe(percentOfDepositedBdv, extFarAbove, "percentOfDepositedBdv > extFarAbove");
         }
     }
 
