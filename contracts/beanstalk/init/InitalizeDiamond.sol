@@ -51,7 +51,7 @@ contract InitalizeDiamond {
     uint256 internal constant LP_TO_SUPPLY_RATIO_LOWER_BOUND = 0.12e18; // 12%
 
     // Excessive price threshold constant
-    uint256 internal constant EXCESSIVE_PRICE_THRESHOLD = 1.05e6;
+    uint256 internal constant EXCESSIVE_PRICE_THRESHOLD = 1.025e6;
 
     /// @dev When the Pod Rate is high, issue less Soil.
     uint256 private constant SOIL_COEFFICIENT_HIGH = 0.25e18;
@@ -89,6 +89,16 @@ contract InitalizeDiamond {
     uint256 internal constant MAX_DELTA_CULTIVATION_FACTOR = 2e6; // 2%
     uint256 internal constant MIN_CULTIVATION_FACTOR = 1e6; // 1%
     uint256 internal constant MAX_CULTIVATION_FACTOR = 100e6; // 100%
+
+    // Rolling Seasons Above Peg.
+    // The % penalty to be applied to grown stalk when down converting.
+    uint256 internal constant INIT_CONVERT_DOWN_PENALTY_RATIO = 0;
+    // Rolling count of seasons with a twap above peg.
+    uint256 internal constant INIT_ROLLING_SEASONS_ABOVE_PEG = 0;
+    // Max magnitude for rolling seasons above peg count.
+    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12;
+    // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
+    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
@@ -322,7 +332,7 @@ contract InitalizeDiamond {
 
     function initializeGauges() internal {
         initalizeSeedGauge(INIT_BEAN_TO_MAX_LP_GP_RATIO, INIT_AVG_GSPBDV);
-        // GAUGE //
+
         Gauge memory cultivationFactorGauge = Gauge(
             abi.encode(INIT_CULTIVATION_FACTOR),
             address(this),
@@ -334,7 +344,14 @@ contract InitalizeDiamond {
                 MAX_CULTIVATION_FACTOR
             )
         );
-
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
+
+        Gauge memory convertDownPenaltyRatioGauge = Gauge(
+            abi.encode(INIT_CONVERT_DOWN_PENALTY_RATIO, INIT_ROLLING_SEASONS_ABOVE_PEG),
+            address(this),
+            IGaugeFacet.convertDownPenaltyRatioGauge.selector,
+            abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
+        );
+        LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY_RATIO, convertDownPenaltyRatioGauge);
     }
 }

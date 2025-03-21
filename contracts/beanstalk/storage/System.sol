@@ -346,12 +346,12 @@ struct GaugeData {
 
 /**
  * @notice Gauge is a generic struct that contains the logic for a "gauge".
- * A "gauge" updates a `value` based on some data and its implmentation.
+ * A "gauge" updates a `value` based on some data and its implementation.
  * Any parameter that changes as a function of other parameters can be implemented as a gauge.
- * @param value // value(s) that is being controlled by the gauge. Can be multiple values
+ * @param value value(s) being controlled by the gauge. Can be multiple values.
  * @param target The address in which `selector` is called at.
  * @param selector The logic that changes the gauge value.
- * @param data Additional data that the gauge may ultilize.
+ * @param data Additional data that the gauge may utilize.
  */
 struct Gauge {
     bytes value;
@@ -443,6 +443,7 @@ struct EvaluationParameters {
  * @param abovePegDeltaBSoilScalar The scalar for the time weighted average deltaB when
  * twaDeltaB is negative but beanstalk ended the season above peg.
  * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
+ * @param minSoilIssuance The minimum amount of soil to issue in a season when below peg.
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
@@ -490,5 +491,6 @@ enum ShipmentRecipient {
  * @notice The id of the gauge. new gauges should be appended to the end of the enum.
  */
 enum GaugeId {
-    CULTIVATION_FACTOR
+    CULTIVATION_FACTOR,
+    CONVERT_DOWN_PENALTY_RATIO
 }

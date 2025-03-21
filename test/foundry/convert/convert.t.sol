@@ -6,7 +6,10 @@ import {TestHelper, LibTransfer, IMockFBeanstalk, C} from "test/foundry/utils/Te
 import {IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
 import {MockConvertFacet} from "contracts/mocks/mockFacets/MockConvertFacet.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
+import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import "forge-std/console.sol";
 
 /**
@@ -26,8 +29,11 @@ contract ConvertTest is TestHelper {
         uint256 toAmount
     );
 
+    event ConvertDownPenalty(uint256 stalkLost);
+
     // Interfaces.
     MockConvertFacet convert = MockConvertFacet(BEANSTALK);
+    BeanstalkPrice beanstalkPrice = BeanstalkPrice(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 
     // MockTokens.
     MockToken weth = MockToken(WETH);
@@ -237,6 +243,296 @@ contract ConvertTest is TestHelper {
 
         // verify deltaB.
         // assertEq(bs.getMaxAmountIn(BEAN, well), deltaB - beansConverted, 'BEAN -> WELL maxAmountIn should be deltaB - beansConverted');
+    }
+
+    function test_convertWithDownPenaltyOnce() public {
+        bean.mint(farmers[0], 20_000e6);
+        bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 10_000e6, 0);
+        sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
+        passGermination();
+
+        // Wait some seasons to allow stem tip to advance. More grown stalk to lose.
+        uint256 l2sr;
+        for (uint256 i; i < 580; i++) {
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            l2sr = bs.getLiquidityToSupplyRatio();
+            bs.sunrise();
+        }
+
+        // 1.0 < P < Q.
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+
+        uint256 beansToConvert = 50e6;
+        (
+            bytes memory convertData,
+            int96[] memory stems,
+            uint256[] memory amounts
+        ) = getConvertDownData(well, beansToConvert);
+
+        (uint256 amount, ) = bs.getDeposit(farmers[0], BEAN, int96(0));
+        uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
+        uint256 grownStalkConverting = (beansToConvert *
+            bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
+        uint256 grownStalkLost = LibPRBMathRoundable.mulDiv(
+            l2sr,
+            grownStalkConverting,
+            1e18,
+            LibPRBMathRoundable.Rounding.Up
+        );
+        assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
+
+        vm.expectEmit();
+        emit ConvertDownPenalty(grownStalkLost);
+
+        vm.prank(farmers[0]);
+        (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+
+        assertGt(toStem, int96(0), "toStem should be larger than initial");
+        uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
+
+        assertLe(newGrownStalk, grownStalkConverting - grownStalkLost, "newGrownStalk too large");
+    }
+
+    function test_convertWithDownPenaltyGerminating() public {
+        bean.mint(farmers[0], 20_000e6);
+        bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 10_000e6, 0);
+        sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
+
+        // // LP is still be germinating.
+        // passGermination();
+
+        // 1.0 < P < Q.
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+
+        uint256 beansToConvert = 10e6;
+        (
+            bytes memory convertData,
+            int96[] memory stems,
+            uint256[] memory amounts
+        ) = getConvertDownData(well, beansToConvert);
+
+        // Move forward one season.
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+
+        // Move forward one season.
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+
+        // Convert. Bean done germinating, but LP still germinating. No penalty.
+        vm.expectEmit();
+        emit ConvertDownPenalty(0);
+        vm.prank(farmers[0]);
+        convert.convert(convertData, stems, amounts);
+
+        // Move forward one season.
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        uint256 l2sr = bs.getLiquidityToSupplyRatio();
+        bs.sunrise();
+
+        // Convert. LP done germinating. Penalized only the gap from germinating stalk amount.
+        (uint256 amount, ) = bs.getDeposit(farmers[0], BEAN, int96(0));
+        uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
+        uint256 grownStalkConverting = (beansToConvert *
+            bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
+        uint256 maxGrownStalkLost = LibPRBMathRoundable.mulDiv(
+            l2sr,
+            grownStalkConverting,
+            1e18,
+            LibPRBMathRoundable.Rounding.Up
+        );
+        assertGt(maxGrownStalkLost, 0, "grownStalkLost should be greater than 0");
+        vm.expectEmit(false, false, false, false);
+        emit ConvertDownPenalty(1); // Do not check value match.
+        vm.prank(farmers[0]);
+        (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+
+        uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
+        uint256 stalkLost = grownStalkConverting - newGrownStalk;
+
+        assertGt(stalkLost, 0, "some stalk should be lost");
+        assertLt(stalkLost, maxGrownStalkLost, "stalkLost should be less than maxGrownStalkLost");
+    }
+
+    function test_convertWithDownPenaltyPgtQ() public {
+        bean.mint(farmers[0], 20_000e6);
+        bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 10_000e6, 0);
+        sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
+        passGermination();
+
+        // Wait some seasons to allow stem tip to advance. More grown stalk to lose.
+        uint256 l2sr;
+        for (uint256 i; i < 580; i++) {
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            l2sr = bs.getLiquidityToSupplyRatio();
+            bs.sunrise();
+        }
+
+        // 1.0 < Q < P.
+        setDeltaBforWell(int256(1_000e6), BEAN_ETH_WELL, WETH);
+
+        uint256 beansToConvert = 50e6;
+        (
+            bytes memory convertData,
+            int96[] memory stems,
+            uint256[] memory amounts
+        ) = getConvertDownData(well, beansToConvert);
+
+        (uint256 amount, ) = bs.getDeposit(farmers[0], BEAN, int96(0));
+        uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
+        uint256 grownStalkConverting = (beansToConvert *
+            bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
+
+        vm.expectEmit();
+        emit ConvertDownPenalty(0); // No penalty when Q < P.
+
+        vm.prank(farmers[0]);
+        (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+
+        assertGt(toStem, int96(0), "toStem should be larger than initial");
+        uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
+
+        assertLe(newGrownStalk, grownStalkConverting, "newGrownStalk too large");
+    }
+
+    /**
+     * @notice general convert test and verify down convert penalty.
+     */
+    function test_convertBeanToWellWithPenalty() public {
+        bean.mint(farmers[0], 20_000e6);
+        bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 10_000e6, 0);
+        sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
+        passGermination();
+
+        // Wait some seasons to allow stem tip to advance. More grown stalk to lose.
+        uint256 l2sr;
+        for (uint256 i; i < 580; i++) {
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            l2sr = bs.getLiquidityToSupplyRatio();
+            bs.sunrise();
+        }
+
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+
+        // create encoding for a bean -> well convert.
+        uint256 beansToConvert = 5e6;
+        (
+            bytes memory convertData,
+            int96[] memory stems,
+            uint256[] memory amounts
+        ) = getConvertDownData(well, beansToConvert);
+
+        int256 totalDeltaB = bs.totalDeltaB();
+        require(totalDeltaB > 0, "totalDeltaB should be greater than 0");
+
+        // initial penalty, when rolling count of seasons above peg is 0 is l2sr.
+        (uint256 lastPenaltyRatio, uint256 rollingSeasonsAbovePeg) = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+            (uint256, uint256)
+        );
+        assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg should be 0");
+
+        assertEq(l2sr, lastPenaltyRatio, "initial penalty ratio should be l2sr at pre sunrise");
+
+        // Convert 13 times, once per season, with an increasing rolling count and a diminishing penalty.
+        int96 lastStem;
+        uint256 lastGrownStalkPerBdv;
+        for (uint256 i; i < 13; i++) {
+            (uint256 newPenaltyRatio, uint256 rollingSeasonsAbovePeg) = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+                (uint256, uint256)
+            );
+            assertEq(rollingSeasonsAbovePeg, i, "rollingSeasonsAbovePeg incorrect");
+            l2sr = bs.getLiquidityToSupplyRatio();
+
+            vm.prank(farmers[0]);
+            (int96 toStem, , , uint256 fromBdv, ) = convert.convert(convertData, stems, amounts);
+
+            // Penalty when rolling count 0 and 1 is the same.
+            if (i > 1) {
+                assertLt(newPenaltyRatio, lastPenaltyRatio, "penalty ought to be getting smaller");
+                assertLt(toStem, lastStem, "stems ought to be getting lower, penalty smaller");
+            }
+            lastPenaltyRatio = newPenaltyRatio;
+            lastStem = toStem;
+            uint256 newGrownStalkPerBdv = bs.grownStalkForDeposit(
+                farmers[0],
+                BEAN_ETH_WELL,
+                toStem
+            ) / fromBdv;
+            assertGt(
+                newGrownStalkPerBdv,
+                lastGrownStalkPerBdv,
+                "Grown stalk per pdv should increase"
+            );
+            lastGrownStalkPerBdv = newGrownStalkPerBdv;
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            bs.sunrise();
+            require(bs.abovePeg(), "abovePeg should be true");
+        }
+
+        // Test decreasing above peg count.
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+        (lastPenaltyRatio, rollingSeasonsAbovePeg) = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+            (uint256, uint256)
+        );
+        assertEq(rollingSeasonsAbovePeg, 12, "rollingSeasonsAbovePeg at max");
+        assertEq(0, lastPenaltyRatio, "final penalty should be 0");
+        setDeltaBforWell(int256(-4_000e6), BEAN_ETH_WELL, WETH);
+        uint256 i = 12;
+        while (i > 0) {
+            i--;
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            bs.sunrise();
+            uint256 newPenaltyRatio;
+            (newPenaltyRatio, rollingSeasonsAbovePeg) = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+                (uint256, uint256)
+            );
+            if (i > 0) {
+                assertEq(rollingSeasonsAbovePeg, i, "rollingSeasonsAbovePeg not decreasing");
+                assertGt(newPenaltyRatio, lastPenaltyRatio, "penalty ought to be getting larger");
+            }
+            lastPenaltyRatio = newPenaltyRatio;
+        }
+        // Confirm min of 0.
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+        (, rollingSeasonsAbovePeg) = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+            (uint256, uint256)
+        );
+        assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg at min of 0");
+
+        // P > Q.
+        setDeltaBforWell(int256(1_000e6), BEAN_ETH_WELL, WETH);
+        (uint256 newGrownStalk, uint256 grownStalkLost) = bs.downPenalizedGrownStalk(
+            BEAN_ETH_WELL,
+            1_000e6,
+            10_000e18
+        );
+        assertEq(grownStalkLost, 0, "no penalty when P > Q");
+        assertEq(newGrownStalk, 10_000e18, "stalk same when P > Q");
     }
 
     /**
@@ -718,7 +1014,6 @@ contract ConvertTest is TestHelper {
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
-
         // assert that the farmer did not lose any rain roots as a result of the convert
         assertEq(
             bs.totalRainRoots(),
@@ -846,4 +1141,27 @@ contract ConvertTest is TestHelper {
     //     assertEq(MockToken(well).totalSupply(), initalLPbalance - lpConverted, 'well LP balance does not equal initalLPbalance - lpConverted');
     //     assertEq(bean.balanceOf(BEANSTALK), initalBeanBalance + expectedAmtOut, 'bean balance does not equal initalBeanBalance + expectedAmtOut');
     // }
+
+    /**
+     * @notice create encoding for a bean -> well convert.
+     */
+    function getConvertDownData(
+        address well,
+        uint256 beansToConvert
+    )
+        private
+        view
+        returns (bytes memory convertData, int96[] memory stems, uint256[] memory amounts)
+    {
+        convertData = convertEncoder(
+            LibConvertData.ConvertKind.BEANS_TO_WELL_LP,
+            well, // well
+            beansToConvert, // amountIn
+            0 // minOut
+        );
+        stems = new int96[](1);
+        stems[0] = int96(0);
+        amounts = new uint256[](1);
+        amounts[0] = beansToConvert;
+    }
 }

@@ -252,7 +252,21 @@ library LibWell {
      */
     function getBeanUsdPriceForWell(address well) internal view returns (uint256) {
         uint256 tokenBeanPrice = getTokenBeanPriceFromTwaReserves(well);
+        return getBeanUsdPriceFromTokenBeanPrice(well, tokenBeanPrice);
+    }
 
+    /**
+     * @notice Returns the USD price of Bean in a given well.
+     * @dev This function calculates the USD price of Bean by first determining the price of the non-Bean token in the well,
+     * and then using the reserves from the pump to calculate the Bean price.
+     * This can only be called during sunrise.
+     * @param well The address of the well to calculate the Bean USD price for.
+     * @return beanUsdPrice The USD price of Bean in the well.
+     */
+    function getBeanUsdPriceFromTokenBeanPrice(
+        address well,
+        uint256 tokenBeanPrice
+    ) internal view returns (uint256) {
         if (tokenBeanPrice == 0) {
             return 0;
         }
@@ -265,6 +279,27 @@ library LibWell {
         );
 
         return beanUsdPrice;
+    }
+
+    /**
+     * @notice Returns the USD price of Bean in a given well given the reserves.
+     * @param well The address of the well to calculate the Bean USD price for.
+     * @param reserves The reserves of the well. Can be instant, twap, current, etc.
+     * @return beanUsdPrice The USD price of Bean in the well.
+     */
+    function getBeanUsdPriceFromReserves(
+        address well,
+        uint256[] memory reserves
+    ) internal view returns (uint256) {
+        uint256 beanIndex = getBeanIndexFromWell(well);
+        uint256 tokenBeanPrice = calculateTokenBeanPriceFromReserves(
+            well,
+            beanIndex,
+            beanIndex == 0 ? 1 : 0,
+            reserves,
+            IWell(well).wellFunction()
+        );
+        return getBeanUsdPriceFromTokenBeanPrice(well, tokenBeanPrice);
     }
 
     /**

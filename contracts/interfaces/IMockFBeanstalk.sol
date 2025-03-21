@@ -1849,4 +1849,10 @@ interface IMockFBeanstalk {
     function woohoo() external pure returns (uint256);
 
     function wrapEth(uint256 amount, uint8 mode) external payable;
+
+    function downPenalizedGrownStalk(
+        address well,
+        uint256 bdvToConvert,
+        uint256 grownStalkToConvert
+    ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
 }

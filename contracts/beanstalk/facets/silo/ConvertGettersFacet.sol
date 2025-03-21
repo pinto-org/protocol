@@ -142,4 +142,19 @@ contract ConvertGettersFacet {
                 outputToken
             );
     }
+
+    /**
+     * @notice Returns the amount of grown stalk remaining after application of down penalty.
+     * @dev Germinating deposits are not penalized.
+     * @dev Does not factor in other sources of stalk change during convert.
+     * @return newGrownStalk Amount of grown stalk to assign the output deposit.
+     * @return grownStalkLost Amount of grown stalk lost due to down penalty.
+     */
+    function downPenalizedGrownStalk(
+        address well,
+        uint256 bdvToConvert,
+        uint256 grownStalkToConvert
+    ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
+        return LibConvert.downPenalizedGrownStalk(well, bdvToConvert, grownStalkToConvert);
+    }
 }

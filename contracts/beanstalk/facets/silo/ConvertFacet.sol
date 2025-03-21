@@ -126,6 +126,16 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             );
         }
 
+        if (cp.toToken != s.sys.bean && cp.fromToken == s.sys.bean) {
+            uint256 grownStalkLost;
+            (pipeData.grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
+                cp.toToken,
+                toBdv,
+                pipeData.grownStalk
+            );
+            emit LibConvert.ConvertDownPenalty(grownStalkLost);
+        }
+
         toStem = LibConvert._depositTokensForConvert(
             cp.toToken,
             cp.toAmount,

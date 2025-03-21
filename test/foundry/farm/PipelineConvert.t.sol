@@ -7,6 +7,7 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {MockPump} from "contracts/mocks/well/MockPump.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
@@ -157,8 +158,8 @@ contract PipelineConvertTest is TestHelper {
 
         amount = bound(amount, 10e6, 5000e6);
 
-        // manipulate well so we won't have a penalty applied
-        setDeltaBforWell(int256(amount), beanEthWell, WETH);
+        // manipulate well so we won't have a penalty applied (incl P > Q)
+        setDeltaBforWell(int256(5_000e6), beanEthWell, WETH);
 
         depositBeanAndPassGermination(amount, users[1]);
 
@@ -558,7 +559,8 @@ contract PipelineConvertTest is TestHelper {
     function testConvertWithPegAndKeepStalk(uint256 amount) public {
         amount = bound(amount, 10e6, 100e6);
 
-        setDeltaBforWell(int256(amount), beanEthWell, WETH);
+        // Set P > Q.
+        setDeltaBforWell(1000e6, beanEthWell, WETH);
 
         int96 stem = depositBeanAndPassGermination(amount, users[1]);
 
@@ -566,6 +568,12 @@ contract PipelineConvertTest is TestHelper {
         (, uint256 oldBdv) = bs.getDeposit(users[1], BEAN, stem);
 
         uint256 grownStalkBefore = bs.balanceOfGrownStalk(users[1], BEAN);
+
+        (uint256 downConvertPenaltyRatio, ) = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+            (uint256, uint256)
+        );
+        assertEq(downConvertPenaltyRatio, 0, "no penalty when P > Q");
 
         beanToLPDoConvert(amount, stem, users[1]);
 
@@ -576,13 +584,49 @@ contract PipelineConvertTest is TestHelper {
         uint256 newBdv = bs.balanceOfDepositedBdv(users[1], beanEthWell); // convert to stalk amount
 
         // calculate grown stalk haircut as a result of fewer BDV deposited
-        uint256 calculatedNewGrownStalk = (newBdv * BDV_TO_STALK) +
+        uint256 calculatedNewStalk = (newBdv * BDV_TO_STALK) +
             ((grownStalkBefore * newBdv) / oldBdv);
 
         assertEq(
             balanceOfStalk + balanceOfGerminatingStalk,
-            calculatedNewGrownStalk,
-            "all grown stalk was not kept"
+            calculatedNewStalk,
+            "stalk beyond the convert down penalty was lost"
+        );
+    }
+
+    function testConvertWithPegAndOnlyDownConvertStalkLoss(uint256 amount) public {
+        amount = bound(amount, 10e6, 100e6);
+
+        setDeltaBforWell(int256(amount), beanEthWell, WETH);
+
+        int96 stem = depositBeanAndPassGermination(amount, users[1]);
+
+        // get bdv of amount
+        (, uint256 oldBdv) = bs.getDeposit(users[1], BEAN, stem);
+
+        uint256 grownStalkBefore = bs.balanceOfGrownStalk(users[1], BEAN);
+
+        (uint256 downConvertPenaltyRatio, ) = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY_RATIO),
+            (uint256, uint256)
+        );
+
+        beanToLPDoConvert(amount, stem, users[1]);
+
+        uint256 balanceOfStalk = bs.balanceOfStalk(users[1]);
+        uint256 balanceOfGerminatingStalk = bs.balanceOfGerminatingStalk(users[1]);
+
+        // get balance of deposited bdv for this user
+        uint256 newBdv = bs.balanceOfDepositedBdv(users[1], beanEthWell); // convert to stalk amount
+
+        // calculate grown stalk haircut as a result of fewer BDV deposited
+        uint256 calculatedNewStalk = (newBdv * BDV_TO_STALK) +
+            ((grownStalkBefore * newBdv * (1e18 - downConvertPenaltyRatio)) / oldBdv / 1e18);
+
+        assertEq(
+            balanceOfStalk + balanceOfGerminatingStalk,
+            calculatedNewStalk,
+            "stalk beyond the convert down penalty was lost"
         );
     }
 

@@ -80,7 +80,6 @@ abstract contract Sun is Oracle, Distribution {
                 priorHarvestable +
                 s.sys.rain.floodHarvestablePods;
             setSoilAbovePeg(newHarvestable, caseId);
-
             s.sys.season.abovePeg = true;
         } else {
             // Below peg

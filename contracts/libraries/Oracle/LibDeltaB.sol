@@ -68,6 +68,25 @@ library LibDeltaB {
     }
 
     /**
+     * @notice returns the capped instant reserves for a given well.
+     * @dev empty array is returned if the well call reverts.
+     * @return instReserves The capped reserves for the given well.
+     */
+    function cappedReserves(address well) internal view returns (uint256[] memory) {
+        // get first pump from well
+        Call[] memory pumps = IWell(well).pumps();
+        address pump = pumps[0].target;
+
+        try ICappedReservesPump(pump).readCappedReserves(well, pumps[0].data) returns (
+            uint256[] memory instReserves
+        ) {
+            return instReserves;
+        } catch {
+            return new uint256[](0);
+        }
+    }
+
+    /**
      * @notice returns the overall cappedReserves deltaB for all whitelisted well tokens.
      */
     function cappedReservesDeltaB(address well) internal view returns (int256) {
@@ -76,25 +95,17 @@ library LibDeltaB {
             return 0;
         }
 
-        // get first pump from well
-        Call[] memory pumps = IWell(well).pumps();
-        address pump = pumps[0].target;
-
-        // well address , data[]
-        try ICappedReservesPump(pump).readCappedReserves(well, pumps[0].data) returns (
-            uint256[] memory instReserves
-        ) {
-            uint256 beanIndex = LibWell.getBeanIndex(IWell(well).tokens());
-            // if less than minimum bean balance, return 0, otherwise
-            // calculateDeltaBFromReserves will revert
-            if (instReserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
-                return 0;
-            }
-            // calculate deltaB.
-            return calculateDeltaBFromReserves(well, instReserves, ZERO_LOOKBACK);
-        } catch {
+        uint256[] memory instReserves = cappedReserves(well);
+        if (instReserves.length == 0) {
             return 0;
         }
+        // if less than minimum bean balance, return 0, otherwise
+        // calculateDeltaBFromReserves will revert
+        if (instReserves[LibWell.getBeanIndexFromWell(well)] < C.WELL_MINIMUM_BEAN_BALANCE) {
+            return 0;
+        }
+        // calculate deltaB.
+        return calculateDeltaBFromReserves(well, instReserves, ZERO_LOOKBACK);
     }
 
     // Calculates overall deltaB, used by convert for stalk penalty purposes
