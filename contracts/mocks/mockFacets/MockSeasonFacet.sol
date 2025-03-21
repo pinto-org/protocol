@@ -748,4 +748,8 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.timestamp = block.timestamp;
         emit DeltaB(instDeltaB);
     }
+
+    function setOverallConvertCapacityUsedForBlock(uint256 capacity) external {
+        s.sys.convertCapacity[block.number].overallConvertCapacityUsed = capacity;
+    }
 }

@@ -1294,8 +1294,6 @@ contract PipelineConvertTest is TestHelper {
         dbs.beforeInputTokenDeltaB = 100;
         dbs.beforeOutputTokenDeltaB = 100;
 
-        console.log("doing calculateStalkPenalty: ", bdvConverted);
-
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
             bdvConverted,
@@ -1370,6 +1368,52 @@ contract PipelineConvertTest is TestHelper {
             outputToken
         );
         assertEq(stalkPenaltyBdv, 100);
+    }
+
+    function testCalcStalkPenaltyCapBdvAllNonZero() public {
+        (
+            IMockFBeanstalk.DeltaBStorage memory dbs,
+            address inputToken,
+            address outputToken,
+            uint256 bdvConverted,
+            uint256 overallConvertCapacity
+        ) = setupTowardsPegDeltaBStorageNegative();
+
+        // Ensure `higherAmountAgainstPeg` is greater than `convertCapacityPenalty`
+        dbs.beforeInputTokenDeltaB = -200;
+        dbs.afterInputTokenDeltaB = -50;
+        dbs.beforeOutputTokenDeltaB = -100;
+        dbs.afterOutputTokenDeltaB = -500;
+        dbs.beforeOverallDeltaB = -300;
+        dbs.afterOverallDeltaB = -250;
+
+        overallConvertCapacity = 100; // Set low to force penalty
+
+        // Set the overall convert capacity used higher than the total convert capacity
+        bs.setOverallConvertCapacityUsedForBlock(overallConvertCapacity * 2);
+
+        inputToken = BEAN;
+        outputToken = beanEthWell;
+
+        // spd.higherAmountAgainstPeg = 400
+        // spd.convertCapacityPenalty = 50
+        // spd.convertCapacityPenalty should be > 0 now
+        bdvConverted = 75; // Less than max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty)
+
+        (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
+            dbs,
+            bdvConverted,
+            overallConvertCapacity,
+            inputToken,
+            outputToken
+        );
+
+        // final calculation
+        // max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty) = 400
+        // min(400, bdvConverted) = 75
+
+        // Ensure penalty is capped at `bdvConverted`
+        assertEq(stalkPenaltyBdv, bdvConverted);
     }
 
     function testConvertFromFarmCall() public {
