@@ -203,9 +203,12 @@ abstract contract Sun is Oracle, Distribution {
     /**
      * @param amount The new amount of Soil available.
      * @dev Sets the amount of Soil available and emits a Soil event.
+     * Also sets the initialSoil amount as s.sys.soil gets decremented when sowing.
+     * initialSoil gets used to calculate deltaPodDemand and amount needed to consider soil sold out.
      */
     function setSoil(uint256 amount) internal {
         s.sys.soil = amount.toUint128();
+        s.sys.initialSoil = s.sys.soil;
         emit Soil(s.sys.season.current, amount.toUint128());
     }
 }

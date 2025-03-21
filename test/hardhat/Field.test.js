@@ -355,34 +355,25 @@ describe("newField", function () {
   });
 
   describe("complex DPD", async function () {
-    it("Does not set thisSowTime if Soil > 1", async function () {
-      await mockBeanstalk.setSoilE(to6("3"));
+    it("Does not set thisSowTime if Soil > sold_out_threshold", async function () {
+      await mockBeanstalk.setSoilE(to6("10000"));
       await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.equal(parseInt(MAX_UINT32));
     });
 
-    it("Does set thisSowTime if Soil = 1", async function () {
-      await mockBeanstalk.setSoilE(to6("1"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
+    it("Does set thisSowTime if Soil = sold_out_threshold", async function () {
+      await mockBeanstalk.setSoilE(to6("100"));
+      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL);
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });
 
-    it("Does set thisSowTime if Soil < 1", async function () {
-      await mockBeanstalk.setSoilE(to6("1.5"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
+    it("Correctly sets thisSowTime if Soil < sold_out_threshold and Initial Soil < 100", async function () {
+      await mockBeanstalk.setSoilE(to6("80"));
+      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL); // above 50% of intial soil
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
-    });
-
-    it("Does not set thisSowTime if Soil already < 1", async function () {
-      await mockBeanstalk.setSoilE(to6("1.5"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
-      const weather = await beanstalk.weather();
-      await beanstalk.connect(user).sow(to6("0.5"), 0, EXTERNAL);
-      const weather2 = await beanstalk.weather();
-      expect(weather2.thisSowTime).to.be.equal(weather.thisSowTime);
     });
   });
 
