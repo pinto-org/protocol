@@ -152,7 +152,6 @@ contract SowBlueprintv0 is PerFunctionPausable {
                 vars.orderHash,
                 params.sowParams.sowAmounts.totalAmountToSow
             );
-            vars.counterValue = params.sowParams.sowAmounts.totalAmountToSow;
         }
 
         // Get tip address. If tip address is not set, set it to the operator
@@ -417,11 +416,12 @@ contract SowBlueprintv0 is PerFunctionPausable {
 
         _validateParams(params);
         counterValue = _validateBlueprintAndCounterValue(orderHash);
+        counterValue == 0 ? params.sowParams.sowAmounts.totalAmountToSow : counterValue;
 
         // Determine the total amount to sow based on various constraints
         totalAmountToSow = determineTotalAmountToSow(
             params.sowParams.sowAmounts.totalAmountToSow,
-            counterValue == 0 ? params.sowParams.sowAmounts.totalAmountToSow : counterValue,
+            counterValue,
             params.sowParams.sowAmounts.maxAmountToSowPerSeason,
             availableSoil
         );
