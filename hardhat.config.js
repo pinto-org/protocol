@@ -608,6 +608,95 @@ task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
   });
 });
 
+task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+
+  // Deploy contracts in correct order
+  const priceManipulation = await ethers.getContractFactory("PriceManipulation");
+  const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
+  await priceManipulationContract.deployed();
+  console.log("PriceManipulation deployed to:", priceManipulationContract.address);
+
+  // Deploy SiloHelpers
+  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
+  const siloHelpersContract = await siloHelpers.deploy(
+    L2_PINTO,
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+    await owner.getAddress(), // owner address
+    priceManipulationContract.address // price manipulation contract address
+  );
+  await siloHelpersContract.deployed();
+  console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+
+  // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
+  const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+  const sowBlueprintContract = await sowBlueprint.deploy(
+    L2_PINTO,
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+    await owner.getAddress(), // owner address
+    siloHelpersContract.address // siloHelpers contract address
+  );
+  await sowBlueprintContract.deployed();
+  console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
+
+  // Rest of the facet upgrades...
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "TokenFacet",
+      "TractorFacet",
+      "FieldFacet",
+      "SiloFacet",
+      "SiloGettersFacet",
+      "TokenSupportFacet",
+      "MarketplaceFacet",
+      "ApprovalFacet",
+      "ClaimFacet",
+      "ConvertFacet",
+      "PipelineConvertFacet",
+      "SeasonFacet"
+    ],
+    libraryNames: [
+      "LibSilo",
+      "LibTokenSilo",
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibFlood",
+      "LibGerminate"
+    ],
+    facetLibraries: {
+      SiloFacet: ["LibSilo", "LibTokenSilo"],
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
   async () => {
     console.log("-----------------------------------");
@@ -1432,6 +1521,63 @@ task("updateOracleTimeouts", "Updates oracle timeouts for all whitelisted LP tok
     console.log("Finished oracle updates");
   }
 );
+
+task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(
+  async (args, { network, ethers }) => {
+    try {
+      console.log("-----------------------------------");
+      console.log("Deploying SiloHelpers...");
+
+      // Get deployer
+      const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+      await mintEth(deployer.address);
+
+      const BEANSTALK_PRICE = "0xd0fd333f7b30c7925debd81b7b7a4dfe106c3a5e";
+
+      // Deploy contract
+      const SiloHelpers = await ethers.getContractFactory("SiloHelpers");
+      const siloHelpers = await SiloHelpers.connect(deployer).deploy(L2_PINTO, BEANSTALK_PRICE);
+      await siloHelpers.deployed();
+
+      console.log("\nSiloHelpers deployed to:", siloHelpers.address);
+      console.log("-----------------------------------");
+    } catch (error) {
+      console.error("\x1b[31mError during deployment:\x1b[0m", error);
+      process.exit(1);
+    }
+  }
+);
+
+task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
+  try {
+    console.log("Generating ABIs for ecosystem contracts...");
+
+    // Create output directory if it doesn't exist
+    const outputDir = "./abi/ecosystem";
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Generate SiloHelpers ABI
+    const siloHelpersArtifact = await hre.artifacts.readArtifact("SiloHelpers");
+    fs.writeFileSync(
+      `${outputDir}/SiloHelpers.json`,
+      JSON.stringify(siloHelpersArtifact.abi, null, 2)
+    );
+
+    // Generate SowBlueprintv0 ABI
+    const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0");
+    fs.writeFileSync(
+      `${outputDir}/SowBlueprintv0.json`,
+      JSON.stringify(sowBlueprintArtifact.abi, null, 2)
+    );
+
+    console.log("ABIs generated successfully in", outputDir);
+  } catch (error) {
+    console.error("Error generating ABIs:", error);
+    process.exit(1);
+  }
+});
 
 //////////////////////// CONFIGURATION ////////////////////////
 

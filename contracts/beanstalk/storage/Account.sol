@@ -124,7 +124,7 @@ struct MowStatus {
 
 /**
  * @notice This struct stores data for a deposit list for a given token.
- * a mapping from id to index was created to allow for O(1) retrevial of a deposit from the list.
+ * a mapping from id to index was created to allow for O(1) retrieval of a deposit from the list.
  * @param depositIds An array of depositIds for a given token.
  * @param idIndex A mapping from depositId to index in depositIds.
  */
