@@ -290,35 +290,45 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     LibTransfer.To.INTERNAL
                 );
 
+                // Calculate total amount of LP tokens to transfer
+                uint256 totalLPAmount = 0;
+                for (uint256 j = 0; j < plan.amounts[i].length; j++) {
+                    totalLPAmount += plan.amounts[i][j];
+                }
+
                 // Transfer LP tokens to this contract's external balance
                 beanstalk.transferInternalTokenFrom(
                     IERC20(sourceToken),
                     account,
                     address(this),
-                    plan.amounts[i][0], // Use first amount since it's the total LP amount
+                    totalLPAmount, // Use the total sum of all amounts
                     LibTransfer.To.EXTERNAL
                 );
 
                 // Then remove liquidity to get Beans
-                IERC20(sourceToken).approve(sourceToken, plan.amounts[i][0]);
-                uint256 beansOut = IWell(sourceToken).removeLiquidityOneToken(
-                    plan.amounts[i][0],
+                IERC20(sourceToken).approve(sourceToken, totalLPAmount);
+                IWell(sourceToken).removeLiquidityOneToken(
+                    totalLPAmount,
                     IERC20(beanToken),
-                    plan.availableBeans[i], // Min amount out should be the remaining amount needed
+                    plan.availableBeans[i],
                     address(this),
                     type(uint256).max
                 );
 
                 // approve spending of Beans from this contract's external balance
-                IERC20(beanToken).approve(address(beanstalk), beansOut);
+                IERC20(beanToken).approve(address(beanstalk), plan.availableBeans[i]);
 
                 // Transfer from this contract's external balance to the user's internal/external balance depending on mode
                 if (mode == LibTransfer.To.INTERNAL) {
-                    beanstalk.sendTokenToInternalBalance(beanToken, account, beansOut);
+                    beanstalk.sendTokenToInternalBalance(
+                        beanToken,
+                        account,
+                        plan.availableBeans[i]
+                    );
                 } else {
-                    IERC20(beanToken).transfer(account, beansOut);
+                    IERC20(beanToken).transfer(account, plan.availableBeans[i]);
                 }
-                amountWithdrawn += beansOut;
+                amountWithdrawn += plan.availableBeans[i];
             }
         }
 

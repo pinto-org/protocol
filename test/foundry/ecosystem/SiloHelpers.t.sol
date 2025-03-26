@@ -285,6 +285,47 @@ contract SiloHelpersTest is TractorHelper {
         }
     }
 
+    function test_withdrawBeansHelperMultipleLPDeposits() public {
+        // Setup: Create multiple LP deposits over various seasons, deposit amounts 100, then 200, then 300, etc
+        uint256 numDeposits = 10;
+        uint256 depositAmount = 100e6;
+        uint256 totalBeansToWithdraw = 0;
+        for (uint256 i = 1; i < numDeposits + 1; i++) {
+            mintAndDepositBeanETH(farmers[0], depositAmount * i);
+            totalBeansToWithdraw += depositAmount * i;
+        }
+
+        // Get all deposits to find grown stalk values
+        (int96[] memory allStems, uint256[] memory allAmounts) = siloHelpers.getSortedDeposits(
+            farmers[0],
+            BEAN_ETH_WELL
+        );
+
+        uint256 initialBeanBalance = IERC20(BEAN).balanceOf(farmers[0]);
+
+        // Setup a setupWithdrawBeansBlueprint to withdraw the total amount of beans
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+        IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
+            farmers[0],
+            totalBeansToWithdraw,
+            sourceTokenIndices,
+            MAX_GROWN_STALK_PER_BDV,
+            LibTransfer.To.EXTERNAL
+        );
+
+        // Execute the blueprint
+        vm.prank(farmers[0]);
+        bs.publishRequisition(req);
+        executeRequisition(farmers[0], req, address(bs));
+
+        assertEq(
+            IERC20(BEAN).balanceOf(farmers[0]),
+            initialBeanBalance + totalBeansToWithdraw,
+            "Bean balance incorrect after withdrawal"
+        );
+    }
+
     function test_withdrawBeansHelper() public {
         // Setup: Create deposits in both Bean and LP tokens
         uint256 beanAmount = 1000e6;
