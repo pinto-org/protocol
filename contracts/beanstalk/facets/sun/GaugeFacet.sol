@@ -12,6 +12,8 @@ import {C} from "contracts/C.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title GaugeFacet
@@ -30,6 +32,12 @@ interface IGaugeFacet {
         bytes memory systemData,
         bytes memory gaugeData
     ) external view returns (bytes memory result);
+
+    function convertDownPenaltyGauge(
+        bytes memory value,
+        bytes memory,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory);
 }
 
 /**
@@ -102,6 +110,58 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         );
     }
 
+    /**
+     * @notice tracks the down convert penalty ratio and the rolling count of seasons above peg.
+     * Penalty ratio is the % of grown stalk lost on a down convert (1e18 = 100% penalty).
+     * value is encoded as (uint256, uint256):
+     *     penaltyRatio - the penalty ratio.
+     *     rollingSeasonsAbovePeg - the rolling count of seasons above peg.
+     * gaugeData encoded as (uint256, uint256):
+     *     rollingSeasonsAbovePegRate - amount to change the the rolling count by each season.
+     *     rollingSeasonsAbovePegCap - upper limit of rolling count.
+     * @dev returned penalty ratio has 18 decimal precision.
+     */
+    function convertDownPenaltyGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory) {
+        LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
+        (uint256 rollingSeasonsAbovePegRate, uint256 rollingSeasonsAbovePegCap) = abi.decode(
+            gaugeData,
+            (uint256, uint256)
+        );
+
+        (uint256 penaltyRatio, uint256 rollingSeasonsAbovePeg) = abi.decode(
+            value,
+            (uint256, uint256)
+        );
+        rollingSeasonsAbovePeg = uint256(
+            LibGaugeHelpers.linear(
+                int256(rollingSeasonsAbovePeg),
+                bs.twaDeltaB > 0 ? true : false,
+                rollingSeasonsAbovePegRate,
+                0,
+                int256(rollingSeasonsAbovePegCap)
+            )
+        );
+
+        // Do not update penalty ratio if l2sr failed to compute.
+        if (bs.lpToSupplyRatio.value == 0) {
+            return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
+        }
+
+        // Scale L2SR by the optimal L2SR.
+        uint256 l2srRatio = (1e18 * bs.lpToSupplyRatio.value) /
+            s.sys.evaluationParameters.lpToSupplyRatioOptimal;
+
+        uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
+            PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
+
+        penaltyRatio = Math.min(1e18, l2srRatio * (1e18 - timeRatio) / 1e18);
+        return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
+    }
+
     /// GAUGE ADD/REMOVE/UPDATE ///
 
     // function addGauge(GaugeId gaugeId, Gauge memory gauge) external {
@@ -125,6 +185,10 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     function getGaugeValue(GaugeId gaugeId) external view returns (bytes memory) {
         return s.sys.gaugeData.gauges[gaugeId].value;
+    }
+
+    function getGaugeData(GaugeId gaugeId) external view returns (bytes memory) {
+        return s.sys.gaugeData.gauges[gaugeId].data;
     }
 
     // /**

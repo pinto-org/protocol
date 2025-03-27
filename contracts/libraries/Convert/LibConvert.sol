@@ -11,6 +11,7 @@ import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {C} from "contracts/C.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
@@ -18,9 +19,14 @@ import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
-import {GerminationSide} from "contracts/beanstalk/storage/System.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+import {GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Decimal} from "contracts/libraries/Decimal.sol";
+import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
+import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
+import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 
 /**
  * @title LibConvert
@@ -31,6 +37,8 @@ library LibConvert {
     using LibWell for address;
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
+
+    event ConvertDownPenalty(uint256 stalkLost);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -561,6 +569,79 @@ library LibConvert {
             bdv,
             LibTokenSilo.Transfer.emitTransferSingle
         );
+    }
+
+    /**
+     * @notice Computes new grown stalk after downward convert penalty.
+     * No penalty if P > Q or grown stalk below germination threshold.
+     * @dev Inbound must not be germinating, will return germinating amount of grown stalk.
+     * @return newGrownStalk Amount of grown stalk to assign the deposit.
+     * @return grownStalkLost Amount of grown stalk lost to penalty.
+     */
+    function downPenalizedGrownStalk(
+        address well,
+        uint256 bdv,
+        uint256 grownStalk
+    ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // No penalty if output deposit germinating.
+        uint256 minGrownStalk = LibTokenSilo.calculateGrownStalkAtNonGerminatingStem(well, bdv);
+        if (grownStalk < minGrownStalk) {
+            return (grownStalk, 0);
+        }
+
+        // No penalty if P > Q.
+        if (pGreaterThanQ(well)) {
+            return (grownStalk, 0);
+        }
+
+        // Get penalty ratio from gauge.
+        (uint256 penaltyRatio, ) = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].value,
+            (uint256, uint256)
+        );
+        newGrownStalk = max(
+            grownStalk -
+                LibPRBMathRoundable.mulDiv(
+                    grownStalk,
+                    penaltyRatio,
+                    C.PRECISION,
+                    LibPRBMathRoundable.Rounding.Up
+                ),
+            minGrownStalk
+        );
+        grownStalkLost = grownStalk - newGrownStalk;
+    }
+
+    function pGreaterThanQ(address well) internal view returns (bool) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // No penalty if P > Q.
+        (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell.getRatiosAndBeanIndex(
+            IWell(well).tokens(),
+            0
+        );
+        require(success, "Convert: USD Oracle failed");
+
+        // Scale ratio by Q.
+        ratios[beanIndex] =
+            (ratios[beanIndex] * 1e6) /
+            s.sys.evaluationParameters.excessivePriceThreshold;
+
+        uint256[] memory instantReserves = LibDeltaB.instantReserves(well);
+        Call memory wellFunction = IWell(well).wellFunction();
+        uint256 beansAtQ = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
+            instantReserves,
+            beanIndex,
+            ratios,
+            wellFunction.data
+        );
+        // Fewer Beans indicates a higher Bean price.
+        if (instantReserves[beanIndex] < beansAtQ) {
+            return true;
+        }
+        return false;
     }
 
     function abs(int256 a) internal pure returns (uint256) {

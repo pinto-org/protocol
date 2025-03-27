@@ -748,4 +748,5 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.timestamp = block.timestamp;
         emit DeltaB(instDeltaB);
     }
+
 }
