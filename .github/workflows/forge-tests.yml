@@ -41,10 +41,7 @@ jobs:
 
       - name: Install Libraries
         run: |
-          forge install https://github.com/foundry-rs/forge-std@07263d1
-          forge install https://github.com/OpenZeppelin/openzeppelin-contracts@fd81a96
-          forge install https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable@3d4c0d5
-          forge install https://github.com/paulrberg/prb-math@2c59739
+          forge install
 
       - name: Run Forge build
         run: |

@@ -39,7 +39,7 @@ library LibGaugeHelpers {
     event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
 
     /**
-     * @notice Calls all Gauges, and updates their values.
+     * @notice Calls all generalized Gauges, and updates their values.
      * @param systemData The system data to pass to the Gauges.
      */
     function engage(bytes memory systemData) internal {
@@ -145,7 +145,7 @@ library LibGaugeHelpers {
     /// GAUGE BLOCKS ///
 
     /**
-     * @notice linear is a implmentation that adds or
+     * @notice linear is a implementation that adds or
      * subtracts an absolute value, as a function of
      * the current value, the amount, and the max and min values.
      */

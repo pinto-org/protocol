@@ -206,6 +206,7 @@ interface IBeanstalk {
     function getWhitelistedWellLpTokens() external view returns (address[] memory);
     function getUsdTokenPrice(address token) external view returns (uint256);
     function getTokenUsdPrice(address token) external view returns (uint256);
+    function getMillionUsdPrice(address token, uint256 lookback) external view returns (uint256);
     function bdv(address token, uint256 amount) external view returns (uint256);
     function poolCurrentDeltaB(address pool) external view returns (int256 deltaB);
 }

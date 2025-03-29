@@ -462,7 +462,7 @@ interface IMockFBeanstalk {
     );
     event TotalGerminatingStalkChanged(uint256 germinationSeason, int256 deltaGerminatingStalk);
     event TotalStalkChangedFromGermination(int256 deltaStalk, int256 deltaRoots);
-    event Tractor(address indexed operator, bytes32 blueprintHash);
+    event Tractor(address indexed operator, address indexed publisher, bytes32 blueprintHash);
     event TractorVersionSet(string version);
     event TransferBatch(
         address indexed operator,
@@ -707,6 +707,8 @@ interface IMockFBeanstalk {
     function getGauge(GaugeId gaugeId) external view returns (Gauge memory);
 
     function getGaugeValue(GaugeId gaugeId) external view returns (bytes memory);
+
+    function getGaugeData(GaugeId gaugeId) external view returns (bytes memory);
 
     function cancelBlueprint(Requisition memory requisition) external;
 
@@ -1867,4 +1869,10 @@ interface IMockFBeanstalk {
     function woohoo() external pure returns (uint256);
 
     function wrapEth(uint256 amount, uint8 mode) external payable;
+
+    function downPenalizedGrownStalk(
+        address well,
+        uint256 bdvToConvert,
+        uint256 grownStalkToConvert
+    ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
 }

@@ -10,6 +10,16 @@
         "internalType": "address",
         "name": "_beanstalkPrice",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_priceManipulation",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -35,33 +45,6 @@
       }
     ],
     "name": "OwnableUnauthorizedAccount",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "bits",
-        "type": "uint8"
-      },
-      {
-        "internalType": "int256",
-        "name": "value",
-        "type": "int256"
-      }
-    ],
-    "name": "SafeCastOverflowedIntDowncast",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "value",
-        "type": "uint256"
-      }
-    ],
-    "name": "SafeCastOverflowedUintToInt",
     "type": "error"
   },
   {
@@ -556,6 +539,67 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxGrownStalkPerBdv",
+        "type": "uint256"
+      }
+    ],
+    "name": "getWithdrawalPlan",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SiloHelpers.WithdrawalPlan",
+        "name": "plan",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "a",
         "type": "uint256"
@@ -599,6 +643,25 @@
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "whitelistedOperators",
+        "type": "address[]"
+      }
+    ],
+    "name": "isOperatorWhitelisted",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -784,19 +847,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "sowBlueprintv0",
-    "outputs": [
-      {
-        "internalType": "contract SowBlueprintv0",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -818,6 +868,44 @@
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "publisher",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "tipAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "int256",
+        "name": "tipAmount",
+        "type": "int256"
+      },
+      {
+        "internalType": "enum LibTransfer.From",
+        "name": "from",
+        "type": "uint8"
+      },
+      {
+        "internalType": "enum LibTransfer.To",
+        "name": "to",
+        "type": "uint8"
+      }
+    ],
+    "name": "tip",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -855,7 +943,7 @@
       },
       {
         "internalType": "uint8[]",
-        "name": "sourceTokenIndices",
+        "name": "tokenIndices",
         "type": "uint8[]"
       },
       {
@@ -869,9 +957,46 @@
         "type": "uint256"
       },
       {
+        "internalType": "uint256",
+        "name": "slippageRatio",
+        "type": "uint256"
+      },
+      {
         "internalType": "enum LibTransfer.To",
         "name": "mode",
         "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SiloHelpers.WithdrawalPlan",
+        "name": "plan",
+        "type": "tuple"
       }
     ],
     "name": "withdrawBeansFromSources",
