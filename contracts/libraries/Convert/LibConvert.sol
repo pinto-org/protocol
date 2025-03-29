@@ -39,6 +39,7 @@ library LibConvert {
     using SafeCast for uint256;
 
     event ConvertDownPenalty(uint256 stalkLost);
+    event ConvertUpBonus(uint256 stalkGained);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -572,6 +573,39 @@ library LibConvert {
     }
 
     /**
+     * @notice Applies the penalty/bonus on grown stalk for a convert.
+     * @param inputToken The token being converted from.
+     * @param outputToken The token being converted to.
+     * @param toBdv The bdv of the deposit to convert.
+     * @param grownStalk The grown stalk of the deposit to convert.
+     * @return newGrownStalk The new grown stalk to assign the deposit, after applying the penalty/bonus.
+     */
+    function applyStalkModifiers(
+        address inputToken,
+        address outputToken,
+        uint256 toBdv,
+        uint256 grownStalk
+    ) internal returns (uint256 newGrownStalk) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // penalty down for BEAN -> WELL
+        if (inputToken == s.sys.bean && outputToken != s.sys.bean) {
+            uint256 grownStalkLost;
+            (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
+                outputToken,
+                toBdv,
+                grownStalk
+            );
+            emit ConvertDownPenalty(grownStalkLost);
+        } else if (inputToken == s.sys.bean && outputToken != s.sys.bean) {
+            // bonus up for WELL -> BEAN
+            uint256 grownStalkGained;
+            (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
+            emit ConvertUpBonus(grownStalkGained);
+        }
+        return newGrownStalk;
+    }
+
+    /**
      * @notice Computes new grown stalk after downward convert penalty.
      * No penalty if P > Q or grown stalk below germination threshold.
      * @dev Inbound must not be germinating, will return germinating amount of grown stalk.
@@ -614,6 +648,12 @@ library LibConvert {
         grownStalkLost = grownStalk - newGrownStalk;
     }
 
+    /**
+     * @notice Checks if the price of the well is greater than Q.
+     * Q is a threshold above the price target at which the protocol deems the price excessive.
+     * @param well The address of the well to check.
+     * @return true if the price is greater than Q, false otherwise.
+     */
     function pGreaterThanQ(address well) internal view returns (bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
@@ -642,6 +682,41 @@ library LibConvert {
             return true;
         }
         return false;
+    }
+
+    /**
+     * @notice Calculates the stalk bonus for a convert. Credits the user with bonus grown stalk.
+     * @dev This function is used to calculate the bonus grown stalk for a convert.
+     * @param toBdv The bdv of the deposit to convert.
+     * @param grownStalk The grown stalk of the deposit to convert.
+     * @return newGrownStalk The new grown stalk to assign the deposit, after applying the bonus.
+     * @return grownStalkGained The amount of grown stalk gained from the bonus.
+     */
+    function stalkBonus(
+        uint256 toBdv,
+        uint256 grownStalk
+    ) internal returns (uint256 newGrownStalk, uint256 grownStalkGained) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // get all gauge data: how much bonus stalk to issue per BDV, capacity of bonus stalk to issue
+        (uint256 convertBonusBdvCapacity, uint256 stalkPerBdv) = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (uint256, uint256)
+        );
+
+        // calculate the bonus stalk (bdv * stalkPerBdv)
+        uint256 bonusStalk = toBdv * stalkPerBdv;
+
+        // make sure the bonus stalk does not exceed the capacity
+        bonusStalk = min(bonusStalk, convertBonusBdvCapacity);
+
+        // reduce the bonus stalk by the convertBonusBdvCapacity in gauge storage
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(
+            convertBonusBdvCapacity - toBdv,
+            stalkPerBdv
+        );
+
+        return (grownStalk + bonusStalk, bonusStalk);
     }
 
     function abs(int256 a) internal pure returns (uint256) {

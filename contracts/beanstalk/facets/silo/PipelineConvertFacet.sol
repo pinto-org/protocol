@@ -107,15 +107,13 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             advancedPipeCalls
         );
 
-        if (outputToken != s.sys.bean && inputToken == s.sys.bean) {
-            uint256 grownStalkLost;
-            (grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
-                outputToken,
-                toBdv,
-                grownStalk
-            );
-            emit LibConvert.ConvertDownPenalty(grownStalkLost);
-        }
+        // apply convert penalty/bonus on grown stalk
+        grownStalk = LibConvert.applyStalkModifiers(
+            inputToken,
+            outputToken,
+            toBdv,
+            grownStalk
+        );
 
         toStem = LibConvert._depositTokensForConvert(
             outputToken,
