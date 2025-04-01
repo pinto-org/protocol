@@ -305,7 +305,10 @@ contract BeanstalkDeployer is Utils {
         string memory initContractName
     ) internal {
         vm.createSelectFork(forkingUrl, blockNumber);
+        upgradeAllFacets(beanstalkAddress, initContractName);
+    }
 
+    function upgradeAllFacets(address beanstalkAddress, string memory initContractName) internal {
         setupFacetAddresses(true, false, true);
 
         // Deploy the init contract if a name is provided
