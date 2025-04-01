@@ -155,7 +155,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
         (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
-        stepSun(caseId, bs);
+        stepSun(bs);
     }
 
     function sunSunrise(
@@ -168,7 +168,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.sunriseBlock = uint64(block.number);
         bs.twaDeltaB = deltaB;
         stepGauges(bs);
-        stepSun(caseId, bs);
+        stepSun(bs);
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) public {
@@ -177,7 +177,6 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.sunriseBlock = uint64(block.number);
         updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);
         stepSun(
-            caseId,
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
@@ -199,8 +198,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.current += 1;
         s.sys.weather.temp = t;
         s.sys.season.sunriseBlock = uint64(block.number);
-        stepSun(
-            caseId,
+        stepSun(            
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
