@@ -100,8 +100,23 @@ contract InitalizeDiamond {
     // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
 
+    // Convert Up Bonus Gauge
+    // Value
+    uint256 internal constant INIT_CONVERT_UP_BONUS_RATIO = 0;
+    uint256 internal constant INIT_SEASONS_BELOW_PEG = 0;
+    uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0;
+    // Gauge Data
+    uint256 internal constant INIT_DELTA_C = 2e18;
+    uint256 internal constant INIT_MIN_DELTA_C = 1e18;
+    uint256 internal constant INIT_MAX_DELTA_C = 0;
+    uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CONVERTED = 0;
+    uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CAPACITY = 0;
+
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
+
+    // Convert Bonus Stalk Scalar
+    uint256 internal constant CONVERT_BONUS_STALK_SCALAR = 0.0001e18; // 0.01% of total stalk
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -353,5 +368,19 @@ contract InitalizeDiamond {
             abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
         );
         LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
+
+        Gauge memory convertUpBonusGauge = Gauge(
+            abi.encode(INIT_SEASONS_BELOW_PEG, INIT_CONVERT_UP_BONUS_RATIO, INIT_BONUS_STALK_PER_BDV),
+            address(this),
+            IGaugeFacet.convertUpBonusGauge.selector,
+            abi.encode(
+                INIT_DELTA_C,
+                INIT_MIN_DELTA_C,
+                INIT_MAX_DELTA_C,
+                INIT_PREVIOUS_SEASON_BVD_CONVERTED,
+                INIT_PREVIOUS_SEASON_BVD_CAPACITY
+            )
+        );
+        LibGaugeHelpers.addGauge(GaugeId.CONVERT_UP_BONUS, convertUpBonusGauge);
     }
 }

@@ -215,11 +215,18 @@ contract SiloGettersFacet is ReentrancyGuard {
     //////////////////////// SILO: TOTALS ////////////////////////
 
     /**
-     * @notice Returns the total supply of Stalk. Does NOT include Grown Stalk.
+     * @notice Returns the total supply of Stalk. Does NOT include unmown Grown Stalk.
      */
     function totalStalk() external view returns (uint256) {
         return s.sys.silo.stalk;
     }
+    
+    // todo: implement this
+    // function totalGrownStalk() external view returns (uint256) {
+    //     // id get the total stalk, and subtract that by (bdv of each well * stalkIssuedPerBDV) for each token
+    //     uint256 totalStalk = s.sys.silo.stalk;
+    //     address[] memory whitelistedTokens = LibWhitelistedTokens.getWhitelistedTokens();
+    // }
 
     /**
      * @notice Returns the unclaimed germinating stalk and roots for a season.

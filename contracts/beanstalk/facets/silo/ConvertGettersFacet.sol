@@ -9,6 +9,7 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
@@ -157,4 +158,31 @@ contract ConvertGettersFacet {
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
         return LibConvert.downPenalizedGrownStalk(well, bdvToConvert, grownStalkToConvert);
     }
+
+    /**
+     * @notice Returns the bdv capacity left to receive the convert up bonus.
+     */
+    function getConvertBonusBdvCapacity(address well) external view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        (, , , uint256 convertBonusBdvCapacityLeft, ) = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (uint256, uint256, uint256, uint256, uint256)
+        );
+        return convertBonusBdvCapacityLeft;
+    }
+
+    /**
+     * @notice Returns the amount of grown stalk gained from the convert up bonus.
+     * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
+     * @param bdvToConvert The resulting bdv of the convert.
+     * @param grownStalkToConvert The grown stalk to amount associated with the deposit to convert.
+     * @return newGrownStalk The amount of grown stalk to assign the output deposit.
+     * @return grownStalkGained The amount of grown stalk gained from the bonus.
+     */
+    // function stalkBonus(
+    //     uint256 bdvToConvert,
+    //     uint256 grownStalkToConvert
+    // ) external view returns (uint256 newGrownStalk, uint256 grownStalkGained) {
+    //     return LibConvert.stalkBonus(bdvToConvert, grownStalkToConvert);
+    // }
 }
