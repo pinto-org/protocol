@@ -543,7 +543,10 @@ contract MockSeasonFacet is SeasonFacet {
     }
 
     function mockStartSop() internal {
-        LibFlood.handleRain(3);
+        // caseId is set to 75 because it satisfies the conditions in handleRain.
+        // caseId % 36 3-8 : execessively low pod rate
+        // cases / 36  >=2 : at least reasonably high l2sr
+        LibFlood.handleRain(75);
     }
 
     function mockIncrementGermination(
