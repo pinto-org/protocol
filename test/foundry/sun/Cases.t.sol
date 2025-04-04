@@ -375,7 +375,7 @@ contract CasesTest is TestHelper {
         deltaPodDemandCase = caseId % 3;
     }
 
-    function `(
+    function calcMinSoilDemandThreshold(
         uint256 beanSupply,
         uint256 initialSoil
     ) internal view returns (uint256 minDemandThreshold) {
