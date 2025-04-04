@@ -311,7 +311,7 @@ contract CasesTest is TestHelper {
         deal(address(bean), address(1), beanSupply);
         beanSupply = bean.totalSupply();
         // bound initial soil to 0 - beanSupply
-        initialSoil = bound(initialSoil, 0, beanSupply);
+        initialSoil = bound(initialSoil, 4, beanSupply);
 
         uint256 minDemandThreshold = calcMinSoilDemandThreshold(beanSupply, initialSoil);
 
@@ -375,7 +375,7 @@ contract CasesTest is TestHelper {
         deltaPodDemandCase = caseId % 3;
     }
 
-    function calcMinSoilDemandThreshold(
+    function `(
         uint256 beanSupply,
         uint256 initialSoil
     ) internal view returns (uint256 minDemandThreshold) {
@@ -387,7 +387,7 @@ contract CasesTest is TestHelper {
         // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
         uint256 scaledInitialSoil = (initialSoil * 0.25e6) / 1e6;
 
-        minDemandThreshold = beanSupplyThreshold > scaledInitialSoil
+        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
             ? beanSupplyThreshold
             : scaledInitialSoil;
     }

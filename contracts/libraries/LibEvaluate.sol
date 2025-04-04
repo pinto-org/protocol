@@ -363,6 +363,7 @@ library LibEvaluate {
         uint256 calculatedThreshold = (beanSupply *
             s.sys.extEvaluationParameters.supplyPodDemandScalar) / BEAN_PRECISION;
 
+        // take the maximum of the calculated threshold and the minimum supply bound.
         uint256 beanSupplyThreshold = calculatedThreshold > MIN_BEAN_SUPPLY_BOUND
             ? calculatedThreshold
             : MIN_BEAN_SUPPLY_BOUND;
@@ -371,7 +372,8 @@ library LibEvaluate {
         uint256 scaledInitialSoil = (s.sys.initialSoil *
             s.sys.extEvaluationParameters.initialSoilPodDemandScalar) / SOIL_PRECISION;
 
-        minDemandThreshold = beanSupplyThreshold > scaledInitialSoil
+        // take the minimum of the scaled initial soil and the bean supply threshold.
+        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
             ? beanSupplyThreshold
             : scaledInitialSoil;
     }
