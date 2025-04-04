@@ -230,7 +230,7 @@ library LibConvert {
 
         // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
         stalkPenaltyBdv = min(
-            spd.higherAmountAgainstPeg.add(spd.convertCapacityPenalty),
+            max(spd.higherAmountAgainstPeg,spd.convertCapacityPenalty),
             bdvConverted
         );
 
