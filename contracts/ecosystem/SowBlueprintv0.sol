@@ -15,6 +15,20 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  */
 contract SowBlueprintv0 is PerFunctionPausable {
     /**
+     * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
+     * @param blueprintHash The hash of the blueprint
+     * @param publisher The address of the publisher
+     * @param totalAmountSown The amount of beans sown
+     * @param amountUnfulfilled The amount of beans that were not sown
+     */
+    event SowOrderComplete(
+        bytes32 indexed blueprintHash,
+        address indexed publisher,
+        uint256 totalAmountSown,
+        uint256 amountUnfulfilled
+    );
+
+    /**
      * @notice Struct to hold local variables for the sow operation to avoid stack too deep errors
      * @param currentTemp Current temperature from Beanstalk
      * @param availableSoil Amount of soil available for sowing at time of execution
@@ -187,11 +201,22 @@ contract SowBlueprintv0 is PerFunctionPausable {
         // If this will use up all remaining amount, set to max to indicate completion
         if (vars.pintoLeftToSow - vars.totalAmountToSow == 0) {
             updatePintoLeftToSowCounter(vars.orderHash, type(uint256).max);
+            // Order filled completely, emit event as such
+            emit SowOrderComplete(vars.orderHash, vars.account, vars.totalAmountToSow, 0);
         } else {
-            updatePintoLeftToSowCounter(
-                vars.orderHash,
-                vars.pintoLeftToSow - vars.totalAmountToSow
-            );
+            uint256 amountUnfulfilled = vars.pintoLeftToSow - vars.totalAmountToSow;
+            updatePintoLeftToSowCounter(vars.orderHash, amountUnfulfilled);
+
+            // If the min sow per season is greater than the amount unfulfilled, this order will
+            // never be able to execute again, so emit event as such
+            if (amountUnfulfilled < params.sowParams.sowAmounts.minAmountToSowPerSeason) {
+                emit SowOrderComplete(
+                    vars.orderHash,
+                    vars.account,
+                    params.sowParams.sowAmounts.totalAmountToSow - amountUnfulfilled,
+                    amountUnfulfilled
+                );
+            }
         }
 
         // Tip the operator

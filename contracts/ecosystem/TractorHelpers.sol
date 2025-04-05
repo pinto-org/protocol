@@ -34,7 +34,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
 
     event OperatorReward(
         RewardType rewardType,
-        address publisher,
+        address indexed publisher,
         address indexed operator,
         address token,
         int256 amount

@@ -136,6 +136,23 @@ contract SowBlueprintv0Test is TractorHelper {
                 0 // No runBlocksAfterSunrise
             );
 
+            // Expect the TractorExecutionBegan event to be emitted
+            vm.expectEmit(true, true, true, true);
+            emit IMockFBeanstalk.TractorExecutionBegan(
+                state.operator,
+                state.user,
+                req.blueprintHash
+            );
+
+            // Expect the SowOrderComplete event to be emitted for complete order
+            vm.expectEmit(true, true, true, true);
+            emit SowBlueprintv0.SowOrderComplete(
+                req.blueprintHash,
+                state.user,
+                state.sowAmount / 4,
+                0 // No unfulfilled amount
+            );
+
             // Expect the OperatorReward event to be emitted with correct parameters
             vm.expectEmit(true, true, true, true);
             emit TractorHelpers.OperatorReward(
@@ -462,6 +479,35 @@ contract SowBlueprintv0Test is TractorHelper {
         }
 
         vm.revertTo(snapshot);
+
+        // Test case 10: sow 80 total with 40 min sow, but 60 soil available, after first run, it should emit SowOrderComplete event
+        {
+            (IMockFBeanstalk.Requisition memory req, ) = setupSowBlueprintv0Blueprint(
+                state.user,
+                SourceMode.PURE_PINTO,
+                makeSowAmountsArray(80e6, 40e6, 80e6),
+                0, // minTemp
+                state.tipAmount,
+                state.operator,
+                type(uint256).max,
+                MAX_GROWN_STALK_PER_BDV,
+                0 // No runBlocksAfterSunrise
+            );
+
+            // Set soil to 60
+            bs.setSoilE(60e6);
+
+            // Expect the SowOrderComplete event to be emitted for complete order
+            vm.expectEmit(true, true, true, true);
+            emit SowBlueprintv0.SowOrderComplete(
+                req.blueprintHash,
+                state.user,
+                60e6, // 60e6 sowed
+                20e6 // 20e6 unfulfilled
+            );
+
+            executeRequisition(state.operator, req, address(bs));
+        }
     }
 
     function test_sowBlueprintv0Counter() public {
