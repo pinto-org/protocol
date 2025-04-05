@@ -103,6 +103,9 @@ contract InitalizeDiamond {
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
+    // Min Soil Sown Demand
+    uint256 internal constant MIN_SOIL_SOWN_DEMAND = 25e6; // 25
+
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
@@ -323,6 +326,7 @@ contract InitalizeDiamond {
 
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
+        s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
     }
 
     function initalizeFarmAndTractor() internal {

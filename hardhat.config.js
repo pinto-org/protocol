@@ -1090,6 +1090,7 @@ task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets"
       files.push("contracts/libraries/Token/LibTransfer.sol");
       files.push("contracts/libraries/LibEvaluate.sol");
       files.push("contracts/libraries/Silo/LibFlood.sol");
+      files.push("contracts/libraries/LibGaugeHelpers.sol");
     }
     files.forEach((file) => {
       const facetName = getFacetName(file);
@@ -1174,9 +1175,17 @@ task("mockDiamondABI", "Generates ABI file for mock contracts", async () => {
     if (module == "silo") {
       // Manually add in libraries that emit events
       files.push("contracts/libraries/LibIncentive.sol");
-      files.push("contracts/libraries/Silo/LibWhitelist.sol");
-      files.push("contracts/libraries/LibGauge.sol");
       files.push("contracts/libraries/Silo/LibGerminate.sol");
+      files.push("contracts/libraries/Minting/LibWellMinting.sol");
+      files.push("contracts/libraries/Silo/LibWhitelistedTokens.sol");
+      files.push("contracts/libraries/Silo/LibWhitelist.sol");
+      files.push("contracts/libraries/Silo/LibTokenSilo.sol");
+      files.push("contracts/libraries/LibGauge.sol");
+      files.push("contracts/libraries/LibShipping.sol");
+      files.push("contracts/libraries/Token/LibTransfer.sol");
+      files.push("contracts/libraries/LibEvaluate.sol");
+      files.push("contracts/libraries/Silo/LibFlood.sol");
+      files.push("contracts/libraries/LibGaugeHelpers.sol");
     }
     files.forEach((file) => {
       const facetName = getFacetName(file);

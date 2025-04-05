@@ -152,6 +152,10 @@ library LibEvaluate {
         returns (Decimal.D256 memory deltaPodDemand, uint32 lastSowTime, uint32 thisSowTime)
     {
         Weather storage w = LibAppStorage.diamondStorage().sys.weather;
+        // not enough soil sown, consider demand to be decreasing, reset sow times.
+        if (dsoil < LibAppStorage.diamondStorage().sys.extEvaluationParameters.minSoilSownDemand) {
+            return (Decimal.zero(), w.thisSowTime, type(uint32).max);
+        }
 
         // `s.weather.thisSowTime` is set to the number of seconds in it took for
         // Soil to sell out during the current Season. If Soil didn't sell out,
@@ -165,26 +169,42 @@ library LibEvaluate {
             ) {
                 deltaPodDemand = Decimal.from(1e18);
             } else if (w.thisSowTime <= w.lastSowTime.add(SOW_TIME_STEADY_UPPER)) {
-                // Sow'd all in same time
-                deltaPodDemand = Decimal.one();
+                // Soil sold out in the same time.
+                // set a floor for demand to be steady (i.e, demand can either be steady or increasing)
+                deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
+                if (deltaPodDemand.lessThan(Decimal.one())) {
+                    deltaPodDemand = Decimal.one();
+                }
             } else {
-                deltaPodDemand = Decimal.zero();
+                // if soil sold out slower, it is equal to not selling out at all.
+                deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
             }
         } else {
             // Soil didn't sell out
-            uint256 lastDeltaSoil = w.lastDeltaSoil;
-
-            if (dsoil == 0) {
-                deltaPodDemand = Decimal.zero(); // If no one Sow'd
-            } else if (lastDeltaSoil == 0) {
-                deltaPodDemand = Decimal.from(1e18); // If no one Sow'd last Season
-            } else {
-                deltaPodDemand = Decimal.ratio(dsoil, lastDeltaSoil);
-            }
+            deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
         }
 
         lastSowTime = w.thisSowTime; // Overwrite last Season
         thisSowTime = type(uint32).max; // Reset for next Season
+    }
+
+    /**
+     * @notice Calculates the change in soil demand from the previous season.
+     * @param dsoil The amount of soil sown this season.
+     * @param lastDeltaSoil The amount of soil sown in the previous season.
+     */
+    function getDemand(
+        uint256 dsoil,
+        uint256 lastDeltaSoil
+    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+        if (dsoil == 0) {
+            deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
+        } else if (lastDeltaSoil == 0) {
+            deltaPodDemand = Decimal.from(1e18); // If no one Sow'd last Season, ∆ demand is infinite.
+        } else {
+            // If both seasons had some soil sown, ∆ demand is the ratio of this season's soil sown to last season's soil sown.
+            deltaPodDemand = Decimal.ratio(dsoil, lastDeltaSoil);
+        }
     }
 
     /**
