@@ -299,6 +299,10 @@ contract MockSeasonFacet is SeasonFacet {
         setSoil(amount);
     }
 
+    function setBeansSownE(uint128 amount) public {
+        s.sys.beanSown = amount;
+    }
+
     function resetState() public {
         for (uint256 i; i < s.sys.fieldCount; i++) {
             s.sys.fields[i].pods = 0;

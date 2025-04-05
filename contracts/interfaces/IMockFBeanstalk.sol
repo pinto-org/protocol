@@ -1603,6 +1603,8 @@ interface IMockFBeanstalk {
 
     function setYieldE(uint256 t) external;
 
+    function setBeansSownE(uint128 amount) external;
+
     function setCultivationFactor(uint256 cultivationFactor) external;
 
     function siloSunrise(uint256 amount) external;
