@@ -150,7 +150,9 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.pintoLeftToSow,
             vars.totalAmountToSow,
             vars.totalBeansNeeded,
-            vars.withdrawalPlan
+            vars.withdrawalPlan,
+            // Operator tip amount
+
         ) = validateParamsAndReturnBeanstalkState(params, vars.orderHash, vars.account);
 
         // Check if the executing operator (msg.sender) is whitelisted
@@ -367,6 +369,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @return totalAmountToSow The total amount to sow, adjusted based on constraints
      * @return totalBeansNeeded The total beans needed (sow amount + tip)
      * @return plan The withdrawal plan to check if enough beans are available
+     * @return operatorTipAmount The operator tip amount
      */
     function validateParamsAndReturnBeanstalkState(
         SowBlueprintStruct calldata params,
@@ -382,7 +385,8 @@ contract SowBlueprintv0 is PerFunctionPausable {
             uint256 pintoLeftToSow,
             uint256 totalAmountToSow,
             uint256 totalBeansNeeded,
-            LibTractorHelpers.WithdrawalPlan memory plan
+            LibTractorHelpers.WithdrawalPlan memory plan,
+            int256 operatorTipAmount
         )
     {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
@@ -435,6 +439,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
                 totalAmountToSow = plan.totalAvailableBeans;
             }
         }
+        operatorTipAmount = params.opParams.operatorTipAmount;
     }
 
     /**
@@ -447,12 +452,16 @@ contract SowBlueprintv0 is PerFunctionPausable {
         SowBlueprintStruct[] calldata paramsArray,
         bytes32[] calldata orderHashes,
         address[] calldata blueprintPublishers
-    ) external view returns (bytes32[] memory validOrderHashes) {
-        uint256 length = paramsArray.length;
-        validOrderHashes = new bytes32[](length);
+    )
+        external
+        view
+        returns (bytes32[] memory validOrderHashes, int256[] memory operatorTipAmounts)
+    {
+        validOrderHashes = new bytes32[](paramsArray.length);
+        operatorTipAmounts = new int256[](paramsArray.length);
         uint256 validCount = 0;
 
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < paramsArray.length; i++) {
             try
                 this.validateParamsAndReturnBeanstalkState(
                     paramsArray[i],
@@ -466,9 +475,11 @@ contract SowBlueprintv0 is PerFunctionPausable {
                 uint256, // pintoLeftToSow
                 uint256, // totalAmountToSow
                 uint256, // totalBeansNeeded
-                LibTractorHelpers.WithdrawalPlan memory // plan
+                LibTractorHelpers.WithdrawalPlan memory, // plan
+                int256 operatorTipAmount // operatorTipAmount
             ) {
                 validOrderHashes[validCount] = orderHashes[i];
+                operatorTipAmounts[validCount] = operatorTipAmount;
                 validCount++;
             } catch {
                 // Skip invalid parameters

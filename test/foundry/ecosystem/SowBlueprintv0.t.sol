@@ -929,12 +929,16 @@ contract SowBlueprintv0Test is TractorHelper {
         vm.warp(block.timestamp + tenMinutesInSeconds); // Advance time by 10 minutes
         vm.roll(block.number + (10 * 60)); // Advance blocks (assuming ~1 block per second)
 
-        bytes32[] memory validOrderHashes = sowBlueprintv0
+        (bytes32[] memory validOrderHashes, int256[] memory operatorTipAmounts) = sowBlueprintv0
             .validateParamsAndReturnBeanstalkStateArray(params, orderHashes, blueprintPublishers);
 
         assertEq(validOrderHashes.length, 4, "Expected 4 valid order hashes");
         for (uint256 i = 0; i < 4; i++) {
             assertEq(validOrderHashes[i], orderHashes[i], "Expected valid order hash");
+        }
+        assertEq(operatorTipAmounts.length, 4, "Expected 4 operator tip amounts");
+        for (uint256 i = 0; i < 4; i++) {
+            assertEq(operatorTipAmounts[i], state.tipAmount, "Expected operator tip amount");
         }
     }
 }
