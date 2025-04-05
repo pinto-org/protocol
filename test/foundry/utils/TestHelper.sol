@@ -170,6 +170,42 @@ contract TestHelper is
         MockToken(token).approve(BEANSTALK, type(uint256).max);
     }
 
+    function mintAndDepositBeanETH(address user, uint256 amountInBeans) public {
+        // We assume bean:eth is 1000:1 here, where it's 1000e6 and 1e18
+        uint256 amountInWETH = amountInBeans * 1e12;
+        mintTokensToUser(user, WETH, amountInWETH);
+        mintTokensToUser(user, BEAN, amountInBeans);
+
+        // Approve spending Bean to well
+        vm.prank(user);
+        MockToken(BEAN).approve(BEAN_ETH_WELL, amountInBeans);
+
+        // Approve spending WETH to well
+        vm.prank(user);
+        MockToken(WETH).approve(BEAN_ETH_WELL, amountInWETH);
+
+        // Deposit LP tokens
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = amountInBeans;
+        tokenAmountsIn[1] = amountInWETH;
+
+        // Approve spending LP tokens to Beanstalk
+        vm.prank(user);
+        MockToken(BEAN_ETH_WELL).approve(address(bs), type(uint256).max);
+
+        vm.prank(user);
+        uint256 lpAmountOut = IWell(BEAN_ETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            user,
+            type(uint256).max
+        );
+
+        vm.prank(user);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut, 0);
+        bs.siloSunrise(0);
+    }
+
     function addLiquidityToWell(
         address well,
         uint256 beanAmount,

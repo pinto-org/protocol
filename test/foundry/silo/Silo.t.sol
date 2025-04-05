@@ -6,7 +6,7 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {MockSiloFacet} from "contracts/mocks/mockFacets/MockSiloFacet.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
-
+import {console} from "forge-std/console.sol";
 /**
  * @notice Tests the functionality of the Silo.
  */
@@ -245,6 +245,86 @@ contract SiloTest is TestHelper {
         depositIds = bs.getTokenDepositIdsForAccount(farmers[0], BEAN);
         deposit = bs.getTokenDepositsForAccount(farmers[0], BEAN);
         verifyDepositIdLengths(depositIds, deposit, BEAN, 0);
+    }
+
+    function test_setSortedDepositIds(uint256 swapPosition) public {
+        // Create multiple deposits in different seasons
+        uint256 depositAmount = 1e6;
+        uint256 numDeposits = 10;
+
+        for (uint256 i; i < numDeposits; i++) {
+            mintTokensToUser(farmers[0], BEAN, depositAmount);
+            vm.prank(farmers[0]);
+            bs.deposit(BEAN, depositAmount, 0);
+            bs.siloSunrise(0);
+        }
+
+        // Get current deposit IDs
+        uint256[] memory originalDepositIds = bs.getTokenDepositIdsForAccount(farmers[0], BEAN);
+        assertEq(originalDepositIds.length, numDeposits, "Should have correct number of deposits");
+
+        // Create a new sorted array in reverse order
+        uint256[] memory sortedDepositIds = new uint256[](numDeposits);
+        for (uint256 i; i < numDeposits; i++) {
+            sortedDepositIds[i] = originalDepositIds[numDeposits - 1 - i];
+        }
+
+        // Update the sorted deposit IDs
+        vm.prank(farmers[0]);
+        bs.updateSortedDepositIds(farmers[0], BEAN, sortedDepositIds);
+
+        // Verify the new order matches what we set
+        uint256[] memory newDepositIds = bs.getTokenDepositIdsForAccount(farmers[0], BEAN);
+        assertEq(newDepositIds.length, sortedDepositIds.length, "Length should match");
+
+        for (uint256 i; i < newDepositIds.length; i++) {
+            assertEq(newDepositIds[i], sortedDepositIds[i], "IDs should match in order");
+        }
+
+        // Test that submitting unsorted deposit IDs reverts
+        // Create an unsorted array by swapping two elements
+        uint256[] memory unsortedDepositIds = new uint256[](numDeposits);
+        for (uint256 i; i < numDeposits; i++) {
+            unsortedDepositIds[i] = newDepositIds[i];
+        }
+
+        // Use bounded swap position to select which adjacent elements to swap
+        uint256 swapIndex = bound(swapPosition, 0, numDeposits - 2);
+
+        // Swap adjacent elements to break the descending order
+        (unsortedDepositIds[swapIndex], unsortedDepositIds[swapIndex + 1]) = (
+            unsortedDepositIds[swapIndex + 1],
+            unsortedDepositIds[swapIndex]
+        );
+
+        // Verify that updating with unsorted IDs reverts
+        vm.prank(farmers[0]);
+        vm.expectRevert("Deposit IDs not sorted");
+        bs.updateSortedDepositIds(farmers[0], BEAN, unsortedDepositIds);
+
+        // Test that submitting a list with an ID not in the current list reverts
+        uint256[] memory invalidDepositIds = new uint256[](numDeposits);
+        for (uint256 i; i < numDeposits; i++) {
+            invalidDepositIds[i] = newDepositIds[i];
+        }
+        // Use bounded swap position to select which ID to make invalid
+        uint256 invalidIndex = bound(swapPosition, 0, numDeposits - 1);
+
+        // Modify one ID to be invalid by changing its stem value
+        (address token, int96 stem) = LibBytes.unpackAddressAndStem(
+            invalidDepositIds[invalidIndex]
+        );
+        invalidDepositIds[invalidIndex] = LibBytes.packAddressAndStem(token, stem + 1);
+
+        // Verify that updating with an invalid ID reverts
+        vm.prank(farmers[0]);
+        vm.expectRevert("ID not found in current list");
+        bs.updateSortedDepositIds(farmers[0], BEAN, invalidDepositIds);
+
+        // Note: We don't need to test for "Duplicate ID" explicitly because the sorting check
+        // `require(stem < lastStem, "Deposit IDs not sorted")` prevents duplicates by requiring
+        // strictly decreasing stems. Any attempt to include duplicate IDs will fail the sorting
+        // check first.
     }
 
     // silo list helpers //
