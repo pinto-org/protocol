@@ -1,5 +1,6 @@
 /*
- SPDX-License-Identifier: MIT*/
+ SPDX-License-Identifier: MIT
+ */
 
 pragma solidity ^0.8.20;
 
@@ -480,16 +481,10 @@ contract MockSeasonFacet is SeasonFacet {
         (
             uint256 maxLpGpPerBdv,
             LibGauge.LpGaugePointData[] memory lpGpData,
-            uint256 totalGaugePoints,
             uint256 totalLpBdv
         ) = LibGauge.updateGaugePoints();
         if (totalLpBdv == type(uint256).max) return;
-        LibGauge.updateGrownStalkEarnedPerSeason(
-            maxLpGpPerBdv,
-            lpGpData,
-            totalGaugePoints,
-            totalLpBdv
-        );
+        LibGauge.updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalLpBdv);
     }
 
     function stepGauge() external {
@@ -507,7 +502,7 @@ contract MockSeasonFacet is SeasonFacet {
      * @dev used to test the updateGrownStalkPerSeason updating.
      */
     function mockUpdateAverageGrownStalkPerBdvPerSeason() external {
-        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 100e18, 0);
+        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 0);
     }
 
     function gaugePointsNoChange(

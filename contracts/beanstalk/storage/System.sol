@@ -18,6 +18,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param initialSoil The amount of Soil at the start of the season.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -170,6 +171,7 @@ struct Weather {
  * @param beanToMaxLpGpPerBdvRatio a scalar of the gauge points(GP) per bdv
  * issued to the largest LP share and Bean. 6 decimal precision.
  * @param avgGsPerBdvFlag update the average grown stalk per bdv per season, if true.
+ * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should be incentivized the most,
  * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
@@ -178,6 +180,8 @@ struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;
     uint128 beanToMaxLpGpPerBdvRatio;
     bool avgGsPerBdvFlag;
+    uint128 maxTotalGaugePoints;
+    // 15 bytes are left here.
     bytes32[4] _buffer;
 }
 

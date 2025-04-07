@@ -481,6 +481,7 @@ interface IMockFBeanstalk {
     event URI(string _uri, uint256 indexed _id);
     event Unpause(uint256 timestamp, uint256 timePassed);
     event UpdateAverageStalkPerBdvPerSeason(uint256 newStalkPerBdvPerSeason);
+    event UpdateMaxTotalGaugePoints(uint256 newMaxTotalGaugePoints);
     event UpdateGaugeSettings(
         address indexed token,
         bytes4 gpSelector,
@@ -1869,6 +1870,8 @@ interface IMockFBeanstalk {
     function woohoo() external pure returns (uint256);
 
     function wrapEth(uint256 amount, uint8 mode) external payable;
+
+    function getMaxTotalGaugePoints() external view returns (uint256);
 
     function setOverallConvertCapacityUsedForBlock(uint256 capacity) external;
 
