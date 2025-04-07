@@ -13,5 +13,6 @@
     },
     "files.associations": {
         "**/LibCases.sol": "solidity-noformat"
-    }
+    },
+    "solidity-va.deco.statevars": true
 }

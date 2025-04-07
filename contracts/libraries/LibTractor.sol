@@ -38,6 +38,10 @@ library LibTractor {
         address payable activePublisher;
         // Version of Tractor. Only Blueprints using current Version can run.
         string version;
+        // Hash of currently executing blueprint
+        bytes32 currentBlueprintHash;
+        // Address of the currently executing operator
+        address operator;
     }
 
     // Blueprint stores blueprint related values
@@ -193,5 +197,51 @@ library LibTractor {
                     address(this)
                 )
             );
+    }
+
+    /**
+     * @notice Set the current blueprint hash
+     * @param blueprintHash The hash of the currently executing blueprint
+     */
+    function _setCurrentBlueprintHash(bytes32 blueprintHash) internal {
+        _tractorStorage().currentBlueprintHash = blueprintHash;
+    }
+
+    /**
+     * @notice Reset the current blueprint hash
+     */
+    function _resetCurrentBlueprintHash() internal {
+        _tractorStorage().currentBlueprintHash = bytes32(uint256(1));
+    }
+
+    /**
+     * @notice Get the current blueprint hash
+     * @return The hash of the currently executing blueprint
+     */
+    function _getCurrentBlueprintHash() internal view returns (bytes32) {
+        return _tractorStorage().currentBlueprintHash;
+    }
+
+    /**
+     * @notice Set the operator
+     * @param operator The operator address
+     */
+    function _setOperator(address operator) internal {
+        _tractorStorage().operator = operator;
+    }
+
+    /**
+     * @notice Reset the operator
+     */
+    function _resetOperator() internal {
+        _tractorStorage().operator = address(1);
+    }
+
+    /**
+     * @notice Get the operator
+     * @return The operator address
+     */
+    function _getOperator() internal view returns (address) {
+        return _tractorStorage().operator;
     }
 }

@@ -40,7 +40,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
 
     /**
-     * @notice cultivationFactor is a gauge implementation that returns the adjusted cultivationFactor based on the podRate and the price of Pinto.
+     * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
+     * The value increases as soil is sold out (and vice versa), with the amount being a function of
+     * podRate and price. It ranges between 1% to 100% and uses 6 decimal precision.
      */
     function cultivationFactor(
         bytes memory value,

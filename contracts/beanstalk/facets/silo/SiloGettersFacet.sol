@@ -58,6 +58,13 @@ contract SiloGettersFacet is ReentrancyGuard {
     //////////////////////// GETTERS ////////////////////////
 
     /**
+     * @notice Get the address of the Bean token.
+     */
+    function getBeanToken() external view returns (address) {
+        return s.sys.bean;
+    }
+
+    /**
      * @notice Find the amount and BDV of `token` that `account` has Deposited in stem index `stem`.
      *
      * Returns a deposit tuple `(uint256 amount, uint256 bdv)`.

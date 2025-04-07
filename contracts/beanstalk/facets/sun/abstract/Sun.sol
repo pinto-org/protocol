@@ -45,7 +45,6 @@ abstract contract Sun is Oracle, Distribution {
     //////////////////// SUN INTERNAL ////////////////////
 
     /**
-     * @param caseId Pre-calculated Weather case from {Weather.calcCaseId}.
      * @param bs Pre-calculated Beanstalk state from {LibEvaluate.evaluateBeanstalk}.
      * Includes deltaPodDemand, lpToSupplyRatio, podRate, largestLiquidWellTwapBeanPrice, twaDeltaB.
      *
@@ -56,7 +55,7 @@ abstract contract Sun is Oracle, Distribution {
      * -- If the instantaneous deltaB is also negative, Beanstalk compares the instDeltaB to the twaDeltaB
      * and picks the minimum of the two, to avoid over-issuing soil.
      * -- If the instDeltaB is positive, Beanstalk issues soil as a percentage of the twaDeltaB and scales it
-     * according to the pod rate, as it does when above peg.
+     * according to the pod rate, and cultivation factor as it does when above peg.
      *
      * Issuing soil below peg is also a function of the L2SR.
      * The higher the L2SR, the less soil is issued, as Beanstalk is more willing to
@@ -65,9 +64,9 @@ abstract contract Sun is Oracle, Distribution {
      * - When above peg, Beanstalk wants to gauge demand for Soil. Here it
      * issues the amount of Soil that would result in the same number of Pods
      * as became Harvestable during the last Season. It then scales that soil based
-     * on the pod rate.
+     * on the pod rate and cultivation factor.
      */
-    function stepSun(uint256 caseId, LibEvaluate.BeanstalkState memory bs) internal {
+    function stepSun(LibEvaluate.BeanstalkState memory bs) internal {
         int256 twaDeltaB = bs.twaDeltaB;
         // Above peg
         if (twaDeltaB > 0) {
@@ -79,7 +78,7 @@ abstract contract Sun is Oracle, Distribution {
             uint256 newHarvestable = s.sys.fields[s.sys.activeField].harvestable -
                 priorHarvestable +
                 s.sys.rain.floodHarvestablePods;
-            setSoilAbovePeg(newHarvestable, caseId);
+            setSoilAbovePeg(newHarvestable, bs.podRate);
 
             s.sys.season.abovePeg = true;
         } else {
@@ -91,7 +90,7 @@ abstract contract Sun is Oracle, Distribution {
                 soil =
                     (uint256(-twaDeltaB) * s.sys.extEvaluationParameters.abovePegDeltaBSoilScalar) /
                     SOIL_PRECISION;
-                setSoil(scaleSoilAbovePeg(soil, caseId));
+                setSoil(scaleSoilAbovePeg(soil, bs.podRate));
             } else {
                 // twaDeltaB < 0 and instDeltaB <= 0, beanstalk ended the season below peg
                 soil = Math.min(uint256(-twaDeltaB), uint256(-instDeltaB));
@@ -105,50 +104,54 @@ abstract contract Sun is Oracle, Distribution {
 
     /**
      * @param newHarvestable The number of Beans that were minted to the Field.
-     * @param caseId The current Weather Case.
+     * @param podRate The protocol debt level (Pod supply) relative to the Pinto supply.
      * @dev To calculate the amount of Soil to issue, Beanstalk first calculates the number
      * of Harvestable Pods that would result in the same number of Beans as were minted to the Field.
+     * It then scales this number based on the pod rate and cultivation factor.
      */
-    function setSoilAbovePeg(uint256 newHarvestable, uint256 caseId) internal {
+    function setSoilAbovePeg(uint256 newHarvestable, Decimal.D256 memory podRate) internal {
         uint256 newSoil = newHarvestable.mul(LibDibbler.ONE_HUNDRED_TEMP).div(
             LibDibbler.ONE_HUNDRED_TEMP + s.sys.weather.temp
         );
-        // scale the soil according to pod rate
-        setSoil(scaleSoilAbovePeg(newSoil, caseId));
+        setSoil(scaleSoilAbovePeg(newSoil, podRate));
     }
 
     /**
-     * @param soilAmount The amount of Soil, as a result of the new Harvestable Pods (above peg)
-     * or a percentage of the twaDeltaB (below peg).
-     * @param caseId The current Weather Case.
-     * @dev Scales the Soil amount above peg as a function of the Weather Case.
-     * Beanstalk distinguishes between four cases of podRate
-     * 1. podRate < lowerBound
-     * 2. lowerBound <= podRate < optimal
-     * 3. optimal <= podRate < upperBound
-     * 4. podRate > upperBound
-     * The higher the podRate, the less Soil is issued according to the soilCoefficients.
+     * @param soilAmount The amount of Soil, as a result of the
+     * - New Harvestable Pods (above peg).
+     * - A percentage of the twaDeltaB (below peg).
+     * @param podRate The protocol debt level (Pod supply) relative to the Pinto supply.
+     * @dev Scales the Soil amount above peg as a function of
+     * new Harvestable Pods, Pod rate and the CultivationFactor gauge.
      */
-    function scaleSoilAbovePeg(uint256 soilAmount, uint256 caseId) internal view returns (uint256) {
-        if (caseId.mod(36) >= 27) {
-            // podrate >=25%
-            return soilAmount.mul(s.sys.evaluationParameters.soilCoefficientHigh).div(C.PRECISION);
-        } else if (caseId.mod(36) >= 18) {
-            // podrate 15-25%
-            return
-                soilAmount.mul(s.sys.extEvaluationParameters.soilCoefficientRelativelyHigh).div(
-                    C.PRECISION
-                );
-        } else if (caseId.mod(36) >= 9) {
-            // podrate 3-15%
-            return
-                soilAmount.mul(s.sys.extEvaluationParameters.soilCoefficientRelativelyLow).div(
-                    C.PRECISION
-                );
-        } else {
-            // podrate <=3%
-            return soilAmount.mul(s.sys.evaluationParameters.soilCoefficientLow).div(C.PRECISION);
-        }
+    function scaleSoilAbovePeg(
+        uint256 soilAmount,
+        Decimal.D256 memory podRate
+    ) internal view returns (uint256) {
+        // Apply cultivationFactor scaling 
+        // (cultivationFactor is a percentage with 6 decimal places, where 100e6 = 100%)
+        uint256 cultivationFactor = abi.decode(
+            LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+
+        // determine pod rate scalar as a function of podRate.
+        uint256 podRateScalar = LibGaugeHelpers.linearInterpolation(
+            podRate.value,
+            false, // when podrate increases, the scalar decreases
+            s.sys.evaluationParameters.podRateLowerBound,
+            s.sys.evaluationParameters.podRateUpperBound,
+            s.sys.evaluationParameters.soilCoefficientHigh,
+            s.sys.evaluationParameters.soilCoefficientLow
+        );
+
+        // soilAmount * podRateScalar * cultivationFactor
+        return
+            Math.mulDiv(
+                Math.mulDiv(soilAmount, podRateScalar, C.PRECISION),
+                cultivationFactor,
+                100e6
+            );
     }
 
     /**
@@ -193,6 +196,7 @@ abstract contract Sun is Oracle, Distribution {
             LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
         );
+
         return
             Math.max(
                 Math.mulDiv(scaledAmount, cultivationFactor, 100e6),
@@ -203,9 +207,12 @@ abstract contract Sun is Oracle, Distribution {
     /**
      * @param amount The new amount of Soil available.
      * @dev Sets the amount of Soil available and emits a Soil event.
+     * Also sets the initialSoil amount as s.sys.soil gets decremented when sowing.
+     * initialSoil gets used to calculate deltaPodDemand and amount needed to consider soil sold out.
      */
     function setSoil(uint256 amount) internal {
         s.sys.soil = amount.toUint128();
+        s.sys.initialSoil = s.sys.soil;
         emit Soil(s.sys.season.current, amount.toUint128());
     }
 }

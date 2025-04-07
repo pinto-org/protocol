@@ -44,6 +44,9 @@ contract Utils is Test {
 
     bytes32 internal nextUser = keccak256(abi.encodePacked("user address"));
 
+    // Store private keys and their corresponding addresses
+    mapping(address => uint256) internal _privateKeys;
+
     /// @dev impersonate `from`
     modifier prank(address from) {
         vm.startPrank(from);
@@ -62,12 +65,24 @@ contract Utils is Test {
     function createUsers(uint256 userNum) public returns (address payable[] memory) {
         address payable[] memory _users = new address payable[](userNum);
         for (uint256 i = 0; i < userNum; i++) {
-            address payable user = this.getNextUserAddress();
+            // Create deterministic private key
+            uint256 privateKey = 0x1234 + i;
+            // Get the corresponding address
+            address payable user = payable(vm.addr(privateKey));
+
+            // Store the private key
+            _privateKeys[user] = privateKey;
+
             vm.label(user, string(abi.encodePacked("Farmer ", i.toString())));
             vm.deal(user, 100 ether);
             _users[i] = user;
         }
         return _users;
+    }
+
+    // Helper to get private key for an address
+    function getPrivateKey(address user) public view returns (uint256) {
+        return _privateKeys[user];
     }
 
     function toStalk(uint256 stalk) public pure returns (uint256) {

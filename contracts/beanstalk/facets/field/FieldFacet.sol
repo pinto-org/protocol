@@ -139,8 +139,16 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256 fieldId,
         uint256[] calldata plots,
         LibTransfer.To mode
-    ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant {
-        uint256 beansHarvested = _harvest(fieldId, plots);
+    )
+        external
+        payable
+        fundsSafu
+        noSupplyChange
+        oneOutFlow(s.sys.bean)
+        nonReentrant
+        returns (uint256 beansHarvested)
+    {
+        beansHarvested = _harvest(fieldId, plots);
         LibTransfer.sendToken(BeanstalkERC20(s.sys.bean), beansHarvested, LibTractor._user(), mode);
     }
 
@@ -294,6 +302,13 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      */
     function totalUnharvestable(uint256 fieldId) public view returns (uint256) {
         return s.sys.fields[fieldId].pods - s.sys.fields[fieldId].harvestable;
+    }
+
+    /**
+     * @notice Returns the number of Pods that are not yet Harvestable for the active Field.
+     */
+    function totalUnharvestableForActiveField() public view returns (uint256) {
+        return s.sys.fields[s.sys.activeField].pods - s.sys.fields[s.sys.activeField].harvestable;
     }
 
     /**
