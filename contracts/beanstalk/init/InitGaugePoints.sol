@@ -7,6 +7,7 @@ import "../../libraries/LibAppStorage.sol";
 import "../../libraries/LibCases.sol";
 import "../../C.sol";
 import "../../libraries/Silo/LibWhitelistedTokens.sol";
+import "../../libraries/LibGauge.sol";
 
 /**
  * @title InitGaugePoints`.
@@ -20,6 +21,7 @@ contract InitGaugePoints {
 
         // Set the max total gauge points to 2000e6
         s.sys.seedGauge.maxTotalGaugePoints = MAX_TOTAL_GAUGE_POINTS;
+        emit LibGauge.UpdateMaxTotalGaugePoints(MAX_TOTAL_GAUGE_POINTS);
 
         address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
         // iterate over all the whitelisted LP tokens
@@ -32,6 +34,11 @@ contract InitGaugePoints {
             s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints = uint128(
                 (uint256(s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints) *
                     MAX_TOTAL_GAUGE_POINTS) / totalGaugePoints
+            );
+            emit LibGauge.GaugePointChange(
+                s.sys.season.current,
+                whitelistedLpTokens[i],
+                s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints
             );
         }
     }
