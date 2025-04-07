@@ -9,10 +9,10 @@ import "../../C.sol";
 import "../../libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
- * @title InitPI7`.
+ * @title InitGaugePoints`.
  * @dev Initializes parameters for pinto improvement set 7
  **/
-contract InitPI7 {
+contract InitGaugePoints {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 2000e18;
 
     function init() external {
