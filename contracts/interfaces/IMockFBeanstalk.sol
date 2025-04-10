@@ -28,8 +28,7 @@ interface IMockFBeanstalk {
         NULL,
         SILO,
         FIELD,
-        INTERNAL_BALANCE,
-        EXTERNAL_BALANCE
+        DEV
     }
 
     struct AccountSeasonOfPlenty {
@@ -52,12 +51,12 @@ interface IMockFBeanstalk {
 
     struct AssetSettings {
         bytes4 selector;
-        uint40 stalkEarnedPerSeason;
+        uint32 stalkEarnedPerSeason;
         uint48 stalkIssuedPerBdv;
         uint32 milestoneSeason;
         int96 milestoneStem;
         bytes1 encodeType;
-        int40 deltaStalkEarnedPerSeason;
+        int32 deltaStalkEarnedPerSeason;
         uint128 gaugePoints;
         uint64 optimalPercentDepositedBdv;
         Implementation gaugePointImplementation;
@@ -108,7 +107,6 @@ interface IMockFBeanstalk {
         uint256 soilCoefficientHigh;
         uint256 soilCoefficientLow;
         uint256 baseReward;
-        uint128 minAvgGsPerBdv;
     }
 
     struct Facet {
@@ -204,7 +202,6 @@ interface IMockFBeanstalk {
         uint256 start;
         uint256 period;
         uint256 timestamp;
-        uint256 standardMintedBeans;
         bytes32[8] _buffer;
     }
 
@@ -480,14 +477,14 @@ interface IMockFBeanstalk {
     );
     event UpdatedStalkPerBdvPerSeason(
         address indexed token,
-        uint40 stalkEarnedPerSeason,
+        uint32 stalkEarnedPerSeason,
         uint32 season
     );
     event WellOracle(uint32 indexed season, address well, int256 deltaB, bytes cumulativeReserves);
     event WhitelistToken(
         address indexed token,
         bytes4 selector,
-        uint40 stalkEarnedPerSeason,
+        uint32 stalkEarnedPerSeason,
         uint256 stalkIssuedPerBdv,
         uint128 gaugePoints,
         uint64 optimalPercentDepositedBdv
@@ -1235,6 +1232,8 @@ interface IMockFBeanstalk {
 
     function lastUpdate(address account) external view returns (uint32);
 
+    function leftoverBeans() external view returns (uint256);
+
     function lightSunrise() external;
 
     function maxTemperature() external view returns (uint256);
@@ -1309,14 +1308,14 @@ interface IMockFBeanstalk {
         address token,
         bytes4 selector,
         uint48 stalkIssuedPerBdv,
-        uint40 stalkEarnedPerSeason
+        uint32 stalkEarnedPerSeason
     ) external;
 
     function mockWhitelistTokenWithGauge(
         address token,
         bytes4 selector,
         uint16 stalkIssuedPerBdv,
-        uint40 stalkEarnedPerSeason,
+        uint24 stalkEarnedPerSeason,
         bytes1 encodeType,
         bytes4 gaugePointSelector,
         bytes4 liquidityWeightSelector,
@@ -1452,6 +1451,10 @@ interface IMockFBeanstalk {
     function rewardSilo(uint256 amount) external;
 
     function rewardSunrise(uint256 amount) external;
+
+    function rinsableSprouts() external view returns (uint256);
+
+    function rinsedSprouts() external view returns (uint256);
 
     function ripen(uint256 amount) external;
 
@@ -1711,7 +1714,7 @@ interface IMockFBeanstalk {
 
     function updateStalkPerBdvPerSeasonForToken(
         address token,
-        uint40 stalkEarnedPerSeason
+        uint32 stalkEarnedPerSeason
     ) external payable;
 
     function updateStems() external;
@@ -1738,7 +1741,7 @@ interface IMockFBeanstalk {
         address token,
         bytes4 selector,
         uint48 stalkIssuedPerBdv,
-        uint40 stalkEarnedPerSeason,
+        uint32 stalkEarnedPerSeason,
         bytes1 encodeType,
         uint128 gaugePoints,
         uint64 optimalPercentDepositedBdv,

@@ -33,6 +33,8 @@ library LibWellMinting {
     using LibRedundantMathSigned256 for int256;
     using LibRedundantMath256 for uint256;
 
+    uint256 internal constant ZERO_LOOKBACK = 0;
+
     /**
      * @notice Emitted when a Well Minting Oracle is captured.
      * @param season The season that the Well was captured.
@@ -45,26 +47,19 @@ library LibWellMinting {
     //////////////////// CHECK ////////////////////
 
     /**
-     * @dev Caps the deltaB at the absolute and relative max.
-     * @return deltaB The time weighted average delta B balance since the last `capture` call.
-     */
-    function check(address well) external view returns (int256 deltaB) {
-        deltaB = checkDeltaB(well);
-        deltaB = LibMinting.checkForMaxDeltaB(C.WELL_ABSOLUTE_MAX, C.WELL_RATIO_MAX, deltaB);
-    }
-
-    /**
      * @dev Returns the time weighted average delta B in a given Well
      * since the last Sunrise.
      * @return deltaB The time weighted average delta B balance since the last `capture` call.
      */
-    function checkDeltaB(address well) internal view returns (int256 deltaB) {
+    function check(address well) external view returns (int256 deltaB) {
         bytes memory lastSnapshot = LibAppStorage.diamondStorage().sys.wellOracleSnapshots[well];
         // If the length of the stored Snapshot for a given Well is 0,
         // then the Oracle is not initialized.
         if (lastSnapshot.length > 0) {
             (deltaB, , , ) = twaDeltaB(well, lastSnapshot);
         }
+
+        deltaB = LibMinting.checkForMaxDeltaB(deltaB);
     }
 
     //////////////////// CHECK ////////////////////
@@ -84,7 +79,7 @@ library LibWellMinting {
             initializeOracle(well);
         }
 
-        deltaB = LibMinting.checkForMaxDeltaB(C.WELL_ABSOLUTE_MAX, C.WELL_RATIO_MAX, deltaB);
+        deltaB = LibMinting.checkForMaxDeltaB(deltaB);
     }
 
     //////////////////// Oracle ////////////////////

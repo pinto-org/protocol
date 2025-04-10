@@ -16,8 +16,6 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
-import {C} from "contracts/C.sol";
 
 /**
  * @title SeasonGettersFacet
@@ -91,8 +89,6 @@ contract SeasonGettersFacet {
 
     /**
      * @notice Returns the total Delta B across all whitelisted minting liquidity Wells.
-     * @dev returns the capped deltaB (globally, and per well).
-     * max(max(800k, 4% of total supply), Σ max(200k, 2% of total supply) per well)
      */
     function totalDeltaB() external view returns (int256 deltaB) {
         address[] memory tokens = LibWhitelistedTokens.getWhitelistedLpTokens();
@@ -100,38 +96,13 @@ contract SeasonGettersFacet {
         for (uint256 i = 0; i < tokens.length; i++) {
             deltaB = deltaB.add(LibWellMinting.check(tokens[i]));
         }
-        // cap deltaB to max(800k, 4% of total supply)
-        deltaB = LibMinting.checkForMaxDeltaB(C.GLOBAL_ABSOLUTE_MAX, C.GLOBAL_RATIO_MAX, deltaB);
-    }
-
-    /**
-     * @notice Returns the total Delta B across all whitelisted minting liquidity Wells.
-     * @dev No cap is applied to the deltaB.
-     */
-    function totalDeltaBNoCap() external view returns (int256 deltaB) {
-        address[] memory tokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-        if (tokens.length == 0) return 0;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            deltaB = deltaB.add(LibWellMinting.checkDeltaB(tokens[i]));
-        }
     }
 
     /**
      * @notice Returns the Time Weighted Average Delta B since the start of the Season for the requested pool.
-     * @dev returns the capped deltaB (globally, and per well).
-     * max(max(800k, 4% of total supply), Σ max(200k, 2% of total supply) per well)
      */
     function poolDeltaB(address pool) external view returns (int256) {
         if (LibWell.isWell(pool)) return LibWellMinting.check(pool);
-        revert("Oracle: Pool not supported");
-    }
-
-    /**
-     * @notice Returns the Time Weighted Average Delta B since the start of the Season for the requested pool.
-     * @dev No cap is applied to the deltaB.
-     */
-    function poolDeltaBNoCap(address pool) external view returns (int256) {
-        if (LibWell.isWell(pool)) return LibWellMinting.checkDeltaB(pool);
         revert("Oracle: Pool not supported");
     }
 

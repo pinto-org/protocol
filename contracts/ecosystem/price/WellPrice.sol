@@ -15,8 +15,6 @@ interface IBeanstalk {
 
     function getUsdTokenPrice(address token) external view returns (uint256);
 
-    function getTokenUsdPrice(address token) external view returns (uint256);
-
     function getBeanIndex(IERC20[] memory tokens) external view returns (uint256);
 
     function getWhitelistedWellLpTokens() external view returns (address[] memory tokens);
@@ -50,13 +48,6 @@ contract WellPrice {
         int256 deltaB;
         uint256 lpUsd;
         uint256 lpBdv;
-    }
-
-    struct SwapData {
-        address well;
-        address token;
-        uint256 usdValue;
-        uint256 amountOut;
     }
 
     /**
@@ -106,151 +97,5 @@ contract WellPrice {
         try beanstalk.bdv(wellAddress, WELL_DECIMALS) returns (uint256 bdv) {
             pool.lpBdv = bdv;
         } catch {}
-    }
-
-    ////////////////////////// BEAN IN //////////////////////////
-
-    /**
-     * @notice given an amount of Beans, return the Well that will yield the
-     * largest usd value.
-     * @param beans the amount of Beans to consider (Bean has 6 decimals).
-     * @return sd the SwapData struct containing the well, token, usd value, and amount out.
-     * @dev this is an estimation and not a guarantee.
-     * if the usd value is the same for multiple wells, the last well in the whitelist is returned.
-     **/
-    function getBestWellForBeanIn(uint256 beans) public view returns (SwapData memory sd) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        for (uint256 i = 0; i < wells.length; i++) {
-            SwapData memory wellSwapData = getSwapDataBeanIn(wells[i], beans);
-            if (wellSwapData.usdValue > sd.usdValue) {
-                sd = wellSwapData;
-            }
-        }
-        return sd;
-    }
-
-    /**
-     * @notice given an amount of Beans, return the SwapData struct for all wells.
-     * @param beans the amount of Beans to consider (Bean has 6 decimal precision).
-     * @return sds the SwapData struct for all wells.
-     **/
-    function getSwapDataBeanInAll(uint256 beans) external view returns (SwapData[] memory sds) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        sds = new SwapData[](wells.length);
-        for (uint256 i = 0; i < wells.length; i++) {
-            sds[i] = getSwapDataBeanIn(wells[i], beans);
-        }
-        return sds;
-    }
-
-    /**
-     * @notice given an amount of Beans, return the SwapData struct for a given well.
-     * @param well the address of the well.
-     * @param beans the amount of Beans to consider (Bean has 6 decimal precision).
-     * @return sd the SwapData struct.
-     **/
-    function getSwapDataBeanIn(
-        address well,
-        uint256 beans
-    ) public view returns (SwapData memory sd) {
-        (
-            IERC20 beanToken,
-            IERC20 nonBeanToken,
-            uint256 oneToken,
-            uint256 nonBeanTokenUsdPrice
-        ) = getTokensAndNonBeanTokenData(well);
-
-        // calculate the token amount out of the well for the given amount of beans
-        uint256 tokenAmountOut = IWell(well).getSwapOut(beanToken, nonBeanToken, beans);
-        // calculate the usd value of the amount out
-        uint256 usdAmountOut = (nonBeanTokenUsdPrice * tokenAmountOut) / oneToken;
-
-        sd.well = well;
-        sd.token = address(nonBeanToken);
-        sd.usdValue = usdAmountOut;
-        sd.amountOut = tokenAmountOut;
-        return sd;
-    }
-
-    ////////////////////////// USD IN //////////////////////////
-
-    /**
-     * @notice given an amount of USD, return the address of the well that will yield the
-     * largest amount of Beans.
-     * @param usdAmount the amount of USD to consider (6 decimal precision).
-     * @return sd the SwapData struct containing the well, token, usd value, and amount out.
-     * @dev This is an estimation and not a guarantee.
-     * if the amount out is the same for multiple wells, the last well in the whitelist is returned.
-     **/
-    function getBestWellForUsdIn(uint256 usdAmount) external view returns (SwapData memory sd) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        for (uint256 i = 0; i < wells.length; i++) {
-            SwapData memory wellSwapData = getSwapDataUsdIn(wells[i], usdAmount);
-            if (wellSwapData.amountOut > sd.amountOut) {
-                sd = wellSwapData;
-            }
-        }
-        return sd;
-    }
-
-    /**
-     * @notice given an amount of USD, return the SwapData struct for all wells.
-     * @param usdAmount the amount of USD to consider (6 decimal precision).
-     * @return sds the SwapData struct for all wells.
-     **/
-    function getSwapDataUsdInAll(uint256 usdAmount) external view returns (SwapData[] memory sds) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        sds = new SwapData[](wells.length);
-        for (uint256 i = 0; i < wells.length; i++) {
-            sds[i] = getSwapDataUsdIn(wells[i], usdAmount);
-        }
-        return sds;
-    }
-
-    /**
-     * @notice given an amount of USD, return the SwapData struct for a given well.
-     * @param well the address of the well.
-     * @param usdAmount the amount of USD to consider (6 decimal precision).
-     * @return sd the SwapData struct.
-     **/
-    function getSwapDataUsdIn(
-        address well,
-        uint256 usdAmount
-    ) public view returns (SwapData memory sd) {
-        (
-            IERC20 beanToken,
-            IERC20 nonBeanToken,
-            uint256 oneToken,
-            uint256 nonBeanTokenUsdPrice
-        ) = getTokensAndNonBeanTokenData(well);
-        // calculate the amount out of the well for the given amount of tokens
-        uint256 amountIn = (usdAmount * oneToken) / nonBeanTokenUsdPrice;
-        // get the amount of beans out of the well
-        uint256 beanAmountOut = IWell(well).getSwapOut(nonBeanToken, beanToken, amountIn);
-        sd.well = well;
-        sd.token = address(nonBeanToken);
-        sd.amountOut = beanAmountOut;
-        sd.usdValue = usdAmount;
-        return sd;
-    }
-
-    /**
-     * @notice returns the beanToken, nonBeanToken,
-     * the amount of 1 non bean token and the nonBeanTokenUsdPrice for a given well.
-     **/
-    function getTokensAndNonBeanTokenData(
-        address well
-    ) internal view returns (IERC20, IERC20, uint256, uint256) {
-        IERC20[] memory tokens = IWell(well).tokens();
-
-        uint256 beanIndex = beanstalk.getBeanIndex(tokens);
-        uint256 tknIndex = beanIndex == 0 ? 1 : 0;
-
-        IERC20 beanToken = tokens[beanIndex];
-        IERC20 nonBeanToken = tokens[tknIndex];
-
-        uint256 oneToken = (10 ** dec(address(nonBeanToken)).decimals());
-        uint256 nonBeanTokenUsdPrice = beanstalk.getTokenUsdPrice(address(nonBeanToken));
-        return (beanToken, nonBeanToken, oneToken, nonBeanTokenUsdPrice);
     }
 }

@@ -68,7 +68,7 @@ contract WhitelistFacet is Invariable, WhitelistedTokens, ReentrancyGuard {
         address token,
         bytes4 selector,
         uint48 stalkIssuedPerBdv,
-        uint40 stalkEarnedPerSeason,
+        uint32 stalkEarnedPerSeason,
         bytes1 encodeType,
         uint128 gaugePoints,
         uint64 optimalPercentDepositedBdv,
@@ -99,7 +99,7 @@ contract WhitelistFacet is Invariable, WhitelistedTokens, ReentrancyGuard {
      */
     function updateStalkPerBdvPerSeasonForToken(
         address token,
-        uint40 stalkEarnedPerSeason
+        uint32 stalkEarnedPerSeason
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         LibDiamond.enforceIsOwnerOrContract();
         LibWhitelist.updateStalkPerBdvPerSeasonForToken(token, stalkEarnedPerSeason);

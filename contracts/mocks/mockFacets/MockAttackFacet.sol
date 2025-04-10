@@ -23,7 +23,7 @@ contract MockAttackFacet is Invariable {
     AppStorage internal s;
 
     address constant BEAN_ETH_WELL = 0xBEA0e11282e2bB5893bEcE110cF199501e872bAd;
-    address constant WETH = LibWeth.WETH;
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     function revert_netFlow() external noNetFlow {
         BeanstalkERC20(s.sys.bean).transferFrom(msg.sender, address(this), 1);

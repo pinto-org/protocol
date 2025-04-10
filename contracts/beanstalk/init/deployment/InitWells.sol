@@ -12,7 +12,6 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Implementation, WhitelistStatus, AssetSettings} from "contracts/beanstalk/storage/System.sol";
 import {LibWhitelist} from "contracts/libraries/Silo/LibWhitelist.sol";
-import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {Call} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/console.sol";
 
@@ -154,10 +153,7 @@ contract InitWells {
                 s.sys.twaReserves[token].reserve1 = 1;
                 // LP tokens will require an Oracle Implementation for the non Bean Asset.
                 s.sys.oracleImplementation[nonBeanToken] = whitelistData.oracle[i];
-                emit LibWhitelist.UpdatedOracleImplementationForToken(
-                    token,
-                    whitelistData.oracle[i]
-                );
+                emit LibWhitelist.UpdatedOracleImplementationForToken(token, whitelistData.oracle[i]);
             }
             // add asset settings for the underlying lp token
             s.sys.silo.assetSettings[token] = assetSettings;
@@ -170,16 +166,6 @@ contract InitWells {
                 token != address(s.sys.bean)
             );
             s.sys.silo.whitelistStatuses.push(whitelistStatus);
-
-            emit LibWhitelistedTokens.UpdateWhitelistStatus(
-                token,
-                i,
-                true,
-                token != address(s.sys.bean),
-                token != address(s.sys.bean),
-                token != address(s.sys.bean)
-            );
-
             emit LibWhitelist.WhitelistToken(
                 token,
                 assetSettings.selector,

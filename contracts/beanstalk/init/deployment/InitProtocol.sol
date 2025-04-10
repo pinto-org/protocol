@@ -18,16 +18,14 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IDiamondCut} from "contracts/interfaces/IDiamondCut.sol";
 import {IDiamondLoupe} from "contracts/interfaces/IDiamondLoupe.sol";
 import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import "forge-std/console.sol";
 
 /**
  * @title InitProtocol
+ * todo: Update addresses and salts
  */
 contract InitProtocol {
     using SafeERC20 for IERC20;
-
-    // EVENTS:
-    event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     AppStorage internal s;
 
@@ -48,13 +46,18 @@ contract InitProtocol {
         string symbol;
         address receiver;
         bytes32 salt;
-        uint256 initSupply;
     }
+
+    uint256 internal constant SEED_AMOUNT = 100e6;
 
     /**
      * @notice Initializes the Bean protocol deployment.
      */
-    function init(SystemData calldata system, TokenData calldata token, address newOwner) external {
+    function init(
+        SystemData calldata system,
+        TokenData calldata token,
+        address newOwner
+    ) external {
         // set supported diamond interfaces
         addInterfaces();
         // deploy new bean contract.
@@ -97,7 +100,8 @@ contract InitProtocol {
             token.symbol
         );
         s.sys.bean = address(bean);
-        bean.mint(token.receiver, token.initSupply);
+        console.log("Pinto deployed at: ", address(bean));
+        bean.mint(token.receiver, SEED_AMOUNT);
     }
 
     /**
@@ -142,15 +146,6 @@ contract InitProtocol {
         s.sys.seedGauge.averageGrownStalkPerBdvPerSeason = seedGauge
             .averageGrownStalkPerBdvPerSeason;
         s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = seedGauge.beanToMaxLpGpPerBdvRatio;
-        // emit events.
-        emit BeanToMaxLpGpPerBdvRatioChange(
-            s.sys.season.current,
-            type(uint256).max,
-            int80(int128(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
-        );
-        emit LibGauge.UpdateAverageStalkPerBdvPerSeason(
-            s.sys.seedGauge.averageGrownStalkPerBdvPerSeason
-        );
     }
 
     /**
@@ -173,7 +168,8 @@ contract InitProtocol {
      */
     function initShipping(ShipmentRoute[] calldata routes) internal {
         // deploy the shipment planner
-        address shipmentPlanner = address(new ShipmentPlanner(address(this), s.sys.bean));
+        address shipmentPlanner = address(new ShipmentPlanner(address(this)));
+        console.log("Shipment Planner deployed at: ", shipmentPlanner);
         // set the shipment routes
         _setShipmentRoutes(shipmentPlanner, routes);
     }

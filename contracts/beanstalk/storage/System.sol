@@ -125,7 +125,6 @@ struct Field {
  * @param start The timestamp of the Beanstalk deployment rounded down to the nearest hour.
  * @param period The length of each season in Beanstalk in seconds.
  * @param timestamp The timestamp of the start of the current Season.
- * @param standardMintedBeans The number of Beans minted this season, excluding flood.
  * @param _buffer Reserved storage for future expansion.
  */
 struct Season {
@@ -139,7 +138,6 @@ struct Season {
     uint256 start;
     uint256 period;
     uint256 timestamp;
-    uint256 standardMintedBeans;
     bytes32[8] _buffer;
 }
 
@@ -165,7 +163,6 @@ struct Weather {
  * that beanstalk issues each season.
  * @param beanToMaxLpGpPerBdvRatio a scalar of the gauge points(GP) per bdv
  * issued to the largest LP share and Bean. 6 decimal precision.
- * @param avgGsPerBdvFlag update the average grown stalk per bdv per season, if true.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should be incentivized the most,
  * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
@@ -173,7 +170,6 @@ struct Weather {
 struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;
     uint128 beanToMaxLpGpPerBdvRatio;
-    bool avgGsPerBdvFlag;
     bytes32[4] _buffer;
 }
 
@@ -257,15 +253,16 @@ struct WhitelistStatus {
  */
 struct AssetSettings {
     bytes4 selector; // ────────────────────┐ 4
-    uint40 stalkEarnedPerSeason; //         │ 5  (9)
-    uint48 stalkIssuedPerBdv; //            │ 6  (15)
-    uint32 milestoneSeason; //              │ 4  (19)
-    int96 milestoneStem; //                 │ 12 (31)
-    bytes1 encodeType; //                 ──┘ 1  (32)
-    int40 deltaStalkEarnedPerSeason; // ────┐ 5
-    uint128 gaugePoints; //                 │ 16 (21)
-    uint64 optimalPercentDepositedBdv; //   │ 8  (29)
-    // 3 bytes are left here.             ──┘ 3  (32)
+    uint32 stalkEarnedPerSeason; //         │ 4  (8)
+    uint48 stalkIssuedPerBdv; //            │ 6  (14)
+    uint32 milestoneSeason; //              │ 4  (18)
+    int96 milestoneStem; //                 │ 12 (30)
+    bytes1 encodeType; //                   │ 1  (31)
+    // one byte is left here.             ──┘ 1  (32)
+    int32 deltaStalkEarnedPerSeason; // ────┐ 4
+    uint128 gaugePoints; //                 │ 16 (20)
+    uint64 optimalPercentDepositedBdv; //   │ 8  (28)
+    // 4 bytes are left here.             ──┘ 4  (32)
     Implementation gaugePointImplementation;
     Implementation liquidityWeightImplementation;
 }
@@ -351,7 +348,6 @@ struct EvaluationParameters {
     uint256 soilCoefficientHigh;
     uint256 soilCoefficientLow;
     uint256 baseReward;
-    uint128 minAvgGsPerBdv;
 }
 
 /**
@@ -381,6 +377,5 @@ enum ShipmentRecipient {
     NULL,
     SILO,
     FIELD,
-    INTERNAL_BALANCE,
-    EXTERNAL_BALANCE
+    DEV
 }

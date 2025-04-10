@@ -452,13 +452,13 @@ library LibGerminate {
 
     function getPrevStalkEarnedPerSeason(
         address token
-    ) private view returns (uint40 prevStalkEarnedPerSeason) {
+    ) private view returns (uint32 prevStalkEarnedPerSeason) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         if (s.sys.silo.assetSettings[token].milestoneSeason < s.sys.season.current) {
             prevStalkEarnedPerSeason = s.sys.silo.assetSettings[token].stalkEarnedPerSeason;
         } else {
-            int40 deltaStalkEarnedPerSeason = s
+            int32 deltaStalkEarnedPerSeason = s
                 .sys
                 .silo
                 .assetSettings[token]
@@ -466,11 +466,11 @@ library LibGerminate {
             if (deltaStalkEarnedPerSeason >= 0) {
                 prevStalkEarnedPerSeason =
                     s.sys.silo.assetSettings[token].stalkEarnedPerSeason -
-                    uint40(deltaStalkEarnedPerSeason);
+                    uint32(deltaStalkEarnedPerSeason);
             } else {
                 prevStalkEarnedPerSeason =
                     s.sys.silo.assetSettings[token].stalkEarnedPerSeason +
-                    uint40(-deltaStalkEarnedPerSeason);
+                    uint32(-deltaStalkEarnedPerSeason);
             }
         }
     }

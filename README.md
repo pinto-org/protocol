@@ -89,4 +89,4 @@ For `<FORKING_RPC>`, use an Alchemy or Infura RPC URL.
 
 ## License
 
-[MIT](https://github.com/pintomoney/protocol/blob/main/LICENSE.txt)
+[MIT](https://github.com/pinto-org/protocol/blob/master/LICENSE.txt)

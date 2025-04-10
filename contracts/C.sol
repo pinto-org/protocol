@@ -1,6 +1,5 @@
-/**
- * SPDX-License-Identifier: MIT
- **/
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.20;
 
 import "./interfaces/IBean.sol";
@@ -18,11 +17,6 @@ library C {
     //////////////////// Globals ////////////////////
 
     uint256 internal constant PRECISION = 1e18;
-    /// @dev The absolute maximum amount of Beans or Soil that can be issued from the system.
-    uint256 internal constant GLOBAL_ABSOLUTE_MAX = 800_000e6;
-    /// @dev The maximum percentage of Beans or Soil that can be issued from the system.
-    /// @dev Relative to the total supply.
-    uint256 internal constant GLOBAL_RATIO_MAX = 0.04e18;
 
     //////////////////// Reentrancy ////////////////////
     uint256 internal constant NOT_ENTERED = 1;
@@ -39,17 +33,11 @@ library C {
     uint256 private constant ROOTS_BASE = 1e12;
 
     //////////////////// Contracts ////////////////////
-    address internal constant PIPELINE = 0xb1bE0001f5a373b69b1E132b420e6D9687155e80;
+    address internal constant PIPELINE = 0xb1bE000644bD25996b0d9C2F7a6D6BA3954c91B0;
 
     //////////////////// Well ////////////////////
 
-    /// @dev The minimum balance required to calculate the BDV of a Well Token.
-    uint256 internal constant WELL_MINIMUM_BEAN_BALANCE = 10e6;
-    /// @dev The absolute maximum amount of Beans or Soil that can be issued from a single Well.
-    uint256 internal constant WELL_ABSOLUTE_MAX = 200_000e6;
-    /// @dev The maximum percentage of Beans or Soil that can be issued from a single Well.
-    /// @dev Relative to the total supply.
-    uint256 internal constant WELL_RATIO_MAX = 0.02e18;
+    uint256 internal constant WELL_MINIMUM_BEAN_BALANCE = 10e6; // 10 Bean
 
     //////////////////// Tractor ////////////////////
 
