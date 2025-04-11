@@ -125,7 +125,9 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        bytes32[60] buffer;
+        uint256 supplyPodDemandScalar;
+        uint256 initialSoilPodDemandScalar;
+        bytes32[59] buffer;
     }
 
     struct Facet {
@@ -421,7 +423,6 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint256[] bdvs
     );
-    event RemoveWhitelistStatus(address token, uint256 index);
     event RetryableTicketCreated(uint256 indexed ticketId);
     event SeasonOfPlentyField(uint256 toField);
     event SeasonOfPlentyWell(
@@ -464,7 +465,18 @@ interface IMockFBeanstalk {
     );
     event TotalGerminatingStalkChanged(uint256 germinationSeason, int256 deltaGerminatingStalk);
     event TotalStalkChangedFromGermination(int256 deltaStalk, int256 deltaRoots);
-    event Tractor(address indexed operator, bytes32 blueprintHash);
+    event Tractor(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
+    event TractorExecutionBegan(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
     event TractorVersionSet(string version);
     event TransferBatch(
         address indexed operator,
@@ -1504,8 +1516,6 @@ interface IMockFBeanstalk {
 
     function removeWhitelistSelector(address token) external;
 
-    function removeWhitelistStatus(address token) external;
-
     function resetPools(address[] memory pools) external;
 
     function resetSeasonStart(uint256 amount) external;
@@ -1896,4 +1906,10 @@ interface IMockFBeanstalk {
     function mockUpdateBdvConverted(uint256 bdvConverted) external;
 
     function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external;
+
+    function setLastSeasonAndThisSeasonBeanSown(
+        uint128 lastSeasonBeanSown,
+        uint128 thisSeasonBeanSown
+    ) external;
+
 }

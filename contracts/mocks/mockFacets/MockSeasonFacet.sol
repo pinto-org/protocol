@@ -180,18 +180,18 @@ contract MockSeasonFacet is SeasonFacet {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);
-        stepSun(
-            LibEvaluate.BeanstalkState({
-                deltaPodDemand: Decimal.zero(),
-                lpToSupplyRatio: Decimal.zero(),
-                podRate: Decimal.zero(),
-                largestLiqWell: address(0),
-                oracleFailure: false,
-                largestLiquidWellTwapBeanPrice: 0,
-                twaDeltaB: deltaB
-            })
-        ); // Do not scale soil down using L2SR
+        LibEvaluate.BeanstalkState memory bs = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 0,
+            twaDeltaB: deltaB
+        });
+
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
+        stepSun(bs);
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {
@@ -203,7 +203,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.current += 1;
         s.sys.weather.temp = t;
         s.sys.season.sunriseBlock = uint64(block.number);
-        stepSun(            
+        stepSun(
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
@@ -635,9 +635,12 @@ contract MockSeasonFacet is SeasonFacet {
         } else if (podRate == 2) {
             // < 25%
             s.sys.fields[s.sys.activeField].pods = beanSupply.mul(249).div(1000);
-        } else {
+        } else if (podRate == 3) {
             // > 25%
             s.sys.fields[s.sys.activeField].pods = beanSupply.mul(251).div(1000);
+        } else {
+            // > 100%
+            s.sys.fields[s.sys.activeField].pods = beanSupply.mul(1001).div(1000);
         }
     }
 
@@ -648,14 +651,20 @@ contract MockSeasonFacet is SeasonFacet {
     function setChangeInSoilDemand(uint256 changeInSoilDemand) public {
         if (changeInSoilDemand == 0) {
             // decreasing demand
+            // 200 beans sown last season, 100 beans sown this season
+            setLastSeasonAndThisSeasonBeanSown(200e6, 100e6);
             s.sys.weather.lastSowTime = 600; // last season, everything was sown in 10 minutes.
             s.sys.weather.thisSowTime = 2400; // this season, everything was sown in 40 minutes.
         } else if (changeInSoilDemand == 1) {
             // steady demand
+            // 100 beans sown last season, 100 beans sown this season
+            setLastSeasonAndThisSeasonBeanSown(100e6, 100e6);
             s.sys.weather.lastSowTime = 60 * 21; // last season, everything was sown in 21 minutes, this is past the 20 minute increasing window
             s.sys.weather.thisSowTime = 60 * 21; // this season, everything was sown in 21 minutes.
         } else {
             // increasing demand
+            // 100 beans sown last season, 200 beans sown this season
+            setLastSeasonAndThisSeasonBeanSown(100e6, 200e6);
             s.sys.weather.lastSowTime = type(uint32).max; // last season, no one sow'd
             s.sys.weather.thisSowTime = type(uint32).max - 1; // this season, someone sow'd
         }
@@ -706,7 +715,7 @@ contract MockSeasonFacet is SeasonFacet {
         }
         // Calculate Case Id
         (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, false);
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, false);
         LibFlood.handleRain(caseId);
     }
 
@@ -755,5 +764,12 @@ contract MockSeasonFacet is SeasonFacet {
 
     function setOverallConvertCapacityUsedForBlock(uint256 capacity) external {
         s.sys.convertCapacity[block.number].overallConvertCapacityUsed = capacity;
+    }
+    function setLastSeasonAndThisSeasonBeanSown(
+        uint128 lastSeasonBeanSown,
+        uint128 thisSeasonBeanSown
+    ) public {
+        s.sys.weather.lastDeltaSoil = lastSeasonBeanSown;
+        s.sys.beanSown = thisSeasonBeanSown;
     }
 }

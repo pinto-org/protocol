@@ -43,6 +43,8 @@ contract CasesTest is TestHelper {
     uint256 internal constant SOW_TIME_STEADY_LOWER = 300; // this should match the setting in LibEvaluate.sol
     uint256 internal constant SOW_TIME_DEMAND_INCR = 1200;
 
+    uint128 internal constant BASE_BEAN_SOIL = 100e6;
+
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
@@ -176,6 +178,42 @@ contract CasesTest is TestHelper {
         }
     }
 
+    function test_extremely_high_podrate(uint256 caseId) public {
+        caseId = bound(caseId, 1000, 1143);
+        console.log("caseId", caseId);
+        // set temperature to 100%, for better testing.
+        console.log("setting max temp to 100%");
+        bs.setMaxTemp(100e6);
+
+        uint256 initialTemperature = bs.maxTemperature();
+        uint256 initialBeanToMaxLpGpPerBdvRatio = bs.getBeanToMaxLpGpPerBdvRatio();
+
+        (podRate, price, changeInSoilDemand, l2SR) = extractNormalizedCaseComponents(caseId);
+        console.log("podRate", podRate);
+        console.log("price", price);
+        console.log("changeInSoilDemand", changeInSoilDemand);
+        console.log("l2SR", l2SR);
+
+        // set beanstalk state based on parameters.
+        deltaB = season.setBeanstalkState(price, podRate, changeInSoilDemand, l2SR, well);
+
+        season.mockcalcCaseIdAndHandleRain(deltaB);
+
+        // verify temperature changed based on soil demand.
+        // decreasing
+        if (deltaB < 0) {
+            if (changeInSoilDemand == 0) {
+                assertEq(bs.maxTemperature(), 100.5e6, "Temp did not dec by 0.5%");
+            } else if (changeInSoilDemand == 1) {
+                // steady
+                assertEq(bs.maxTemperature(), 100e6, "Temp did not stay at 100%");
+            } else if (changeInSoilDemand == 2) {
+                // increasing
+                assertEq(bs.maxTemperature(), 99e6, "Temp did not dec by 1%");
+            }
+        }
+    }
+
     //////// SOWING //////
 
     /**
@@ -184,9 +222,15 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the time it took to sell out between this season was
-     * more than SOW_TIME_STEADY_UPPER seconds faster than last season, demand is decreasing.
+     * more than SOW_TIME_STEADY_UPPER seconds faster than last season,
+     * and the change in bean sown is increasing,
+     * demand is increasing.
      */
-    function testSowTimeSoldOutSlower(uint256 lastSowTime, uint256 thisSowTime) public {
+    function testSowTimeSoldOutSlowerMoreBeanSown(
+        uint256 lastSowTime,
+        uint256 thisSowTime,
+        uint256 beanSown
+    ) public {
         // set podrate to reasonably high,
         // as we want to verify temp changes as a function of soil demand.
         season.setPodRate(RES_HIGH);
@@ -208,8 +252,110 @@ contract CasesTest is TestHelper {
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
 
+        // set the same amount of beans sown last and this season such that the change in bean sown is increasing.
+        beanSown = bound(beanSown, (BASE_BEAN_SOIL * 106) / 100, 10000e6);
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, uint128(beanSown));
+
         // calc caseId
-        season.calcCaseIdE(1, 0);
+        season.calcCaseIdE(1, uint128(beanSown));
+
+        // beanstalk should record this season's sow time,
+        // and set it as last sow time for next season.
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        assertEq(uint256(w.lastSowTime), thisSowTime);
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
+        uint256 steadyDemand;
+
+        // verify ∆temp is 3% (see whitepaper).
+        assertEq(10e6 - uint256(w.temp), 3e6);
+    }
+
+    /**
+     * @notice if the time it took to sell out between this season was
+     * more than SOW_TIME_STEADY_UPPER seconds faster than last season,
+     * and the change in bean sown is steady,
+     * demand is steady.
+     */
+    function testSowTimeSoldOutSlowerSteadyBeanSown(
+        uint256 lastSowTime,
+        uint256 thisSowTime
+    ) public {
+        // set podrate to reasonably high,
+        // as we want to verify temp changes as a function of soil demand.
+        season.setPodRate(RES_HIGH);
+        season.setPrice(ABOVE_PEG, well);
+
+        // 10% temp for easier testing.
+        bs.setMaxTempE(10e6);
+        // the maximum value of lastSowTime is 3600
+        // the minimum time it takes to sell out is 900 seconds.
+        // (otherwise we assume increasing demand).
+
+        lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR + 2, 3599);
+        thisSowTime = bound(
+            thisSowTime,
+            lastSowTime + SOW_TIME_STEADY_LOWER + 1,
+            3600 + SOW_TIME_STEADY_LOWER
+        );
+
+        season.setLastSowTimeE(uint32(lastSowTime));
+        season.setNextSowTimeE(uint32(thisSowTime));
+
+        // set the same amount of beans sown last and this season such that the change in bean sown is steady.
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, BASE_BEAN_SOIL);
+
+        // calc caseId
+        season.calcCaseIdE(1, BASE_BEAN_SOIL);
+
+        // beanstalk should record this season's sow time,
+        // and set it as last sow time for next season.
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        assertEq(uint256(w.lastSowTime), thisSowTime);
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
+        uint256 steadyDemand;
+
+        // verify ∆temp is 1% (see whitepaper).
+        assertEq(10e6 - uint256(w.temp), 1e6);
+    }
+
+    /**
+     * @notice if the time it took to sell out between this season was
+     * more than SOW_TIME_STEADY_UPPER seconds faster than last season,
+     * and the change in bean sown is decreasing,
+     * demand is decreasing.
+     */
+    function testSowTimeSoldOutSlowerDecreasingBeanSown(
+        uint256 lastSowTime,
+        uint256 thisSowTime,
+        uint256 beanSown
+    ) public {
+        // set podrate to reasonably high,
+        // as we want to verify temp changes as a function of soil demand.
+        season.setPodRate(RES_HIGH);
+        season.setPrice(ABOVE_PEG, well);
+
+        // 10% temp for easier testing.
+        bs.setMaxTempE(10e6);
+        // the maximum value of lastSowTime is 3600
+        // the minimum time it takes to sell out is 900 seconds.
+        // (otherwise we assume increasing demand).
+
+        lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR + 2, 3599);
+        thisSowTime = bound(
+            thisSowTime,
+            lastSowTime + SOW_TIME_STEADY_LOWER + 1,
+            3600 + SOW_TIME_STEADY_LOWER
+        );
+
+        season.setLastSowTimeE(uint32(lastSowTime));
+        season.setNextSowTimeE(uint32(thisSowTime));
+
+        // set the same amount of beans sown last and this season such that the change in bean sown is steady.
+        beanSown = bound(beanSown, 25e6, (BASE_BEAN_SOIL * 94) / 100);
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, uint128(beanSown));
+
+        // calc caseId
+        season.calcCaseIdE(1, uint128(beanSown));
 
         // beanstalk should record this season's sow time,
         // and set it as last sow time for next season.
@@ -224,9 +370,15 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the time it took to sell out between this season and
-     * the last season is within 60 seconds, demand is steady.
+     * the last season is within 60 seconds, AND
+     * the change in bean sown is increasing,
+     * demand is increasing.
      */
-    function testSowTimeSoldOutSowSameTime(uint256 lastSowTime, uint256 thisSowTime) public {
+    function testSowTimeSoldOutSowSameTimeMoreBeanSown(
+        uint256 lastSowTime,
+        uint256 thisSowTime,
+        uint256 beanSown
+    ) public {
         // set podrate to reasonably high,
         // as we want to verify temp changes as a function of soil demand.
         season.setPodRate(RES_HIGH);
@@ -243,17 +395,105 @@ contract CasesTest is TestHelper {
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
 
-        // calc caseId  (deltaB, beanSown==dsoil)
-        // beanSown needs to be at least 10e6, above the min pod demand threshold
-        // for demand to be steady and not decreasing.
-        season.calcCaseIdE(1, 1000e6);
+        // set the same amount of beans sown last and this season such that the change in bean sown is increasing.
+        beanSown = bound(beanSown, (BASE_BEAN_SOIL * 105) / 100, 10000e6);
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, uint128(beanSown));
+
+        // calc caseId
+        season.calcCaseIdE(1, uint128(beanSown));
 
         // beanstalk should record this season's sow time,
         // and set it as last sow time for next season.
         IMockFBeanstalk.Weather memory w = bs.weather();
         assertEq(uint256(w.lastSowTime), thisSowTime);
         assertEq(uint256(w.thisSowTime), type(uint32).max);
-        uint256 steadyDemand;
+
+        // verify ∆temp is 3% (see whitepaper).
+        assertEq(10e6 - uint256(w.temp), 3e6);
+    }
+
+    /**
+     * @notice if the time it took to sell out between this season and
+     * the last season is within 60 seconds, AND
+     * the change in bean sown is steady,
+     * demand is steady.
+     */
+    function testSowTimeSoldOutSowSameTimeSameBeanSown(
+        uint256 lastSowTime,
+        uint256 thisSowTime
+    ) public {
+        // set podrate to reasonably high,
+        // as we want to verify temp changes as a function of soil demand.
+        season.setPodRate(RES_HIGH);
+        season.setPrice(ABOVE_PEG, well);
+
+        // 10% temp for easier testing.
+        bs.setMaxTempE(10e6);
+        // the maximum value of lastSowTime is 3600
+        // the minimum time it takes to sell out is SOW_TIME_DEMAND_INCR seconds.
+        // (otherwise we assume increasing demand).
+        lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR, 3600);
+        thisSowTime = bound(thisSowTime, lastSowTime, lastSowTime + 60);
+
+        season.setLastSowTimeE(uint32(lastSowTime));
+        season.setNextSowTimeE(uint32(thisSowTime));
+
+        // set the same amount of beans sown last and this season such that the change in bean sown is steady.
+        // the 2nd parameter should be with some % of change from the 1st parameter. see {ep.deltaPodDemandUpperBound}.
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, 101e6);
+
+        // calc caseId
+        season.calcCaseIdE(1, BASE_BEAN_SOIL);
+
+        // beanstalk should record this season's sow time,
+        // and set it as last sow time for next season.
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        assertEq(uint256(w.lastSowTime), thisSowTime);
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
+
+        // verify ∆temp is 1% (see whitepaper).
+        assertEq(10e6 - uint256(w.temp), 1e6);
+    }
+
+    /**
+     * @notice if the time it took to sell out between this season and
+     * the last season is within 60 seconds, AND
+     * the change in bean sown is decreasing,
+     * demand is steady.
+     */
+    function testSowTimeSoldOutSowSameTimeDecreasingBeanSown(
+        uint256 lastSowTime,
+        uint256 thisSowTime,
+        uint256 beanSown
+    ) public {
+        // set podrate to reasonably high,
+        // as we want to verify temp changes as a function of soil demand.
+        season.setPodRate(RES_HIGH);
+        season.setPrice(ABOVE_PEG, well);
+
+        // 10% temp for easier testing.
+        bs.setMaxTempE(10e6);
+        // the maximum value of lastSowTime is 3600
+        // the minimum time it takes to sell out is SOW_TIME_DEMAND_INCR seconds.
+        // (otherwise we assume increasing demand).
+        lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR, 3600);
+        thisSowTime = bound(thisSowTime, lastSowTime, lastSowTime + 60);
+
+        season.setLastSowTimeE(uint32(lastSowTime));
+        season.setNextSowTimeE(uint32(thisSowTime));
+
+        // set the same amount of beans sown last and this season such that the change in bean sown is increasing.
+        beanSown = bound(beanSown, 25e6, (BASE_BEAN_SOIL * 94) / 100);
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, uint128(beanSown));
+
+        // calc caseId
+        season.calcCaseIdE(1, uint128(beanSown));
+
+        // beanstalk should record this season's sow time,
+        // and set it as last sow time for next season.
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        assertEq(uint256(w.lastSowTime), thisSowTime);
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
 
         // verify ∆temp is 1% (see whitepaper).
         assertEq(10e6 - uint256(w.temp), 1e6);
@@ -280,10 +520,10 @@ contract CasesTest is TestHelper {
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
 
-        // calc caseId   (deltaB, beanSown==dsoil)
-        // this needs to be at least 10e6,
-        // above the min pod demand threshold for demand to be increasing.
-        season.calcCaseIdE(1, 1000e6);
+        season.setLastSeasonAndThisSeasonBeanSown(BASE_BEAN_SOIL, BASE_BEAN_SOIL);
+
+        // calc caseId
+        season.calcCaseIdE(1, BASE_BEAN_SOIL);
 
         // beanstalk should record this season's sow time,
         // and set it as last sow time for next season.
@@ -373,6 +613,10 @@ contract CasesTest is TestHelper {
 
         // Soil Demand: simple modulo
         deltaPodDemandCase = caseId % 3;
+
+        if (caseId >= 1000) {
+            podRateCase = 4;
+        }
     }
 
     function calcMinSoilDemandThreshold(

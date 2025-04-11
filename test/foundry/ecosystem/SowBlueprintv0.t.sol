@@ -5,7 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -45,25 +45,20 @@ contract SowBlueprintv0Test is TractorHelper {
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SiloHelpers with PriceManipulation address
-        siloHelpers = new SiloHelpers(
+        // Deploy TractorHelpers with PriceManipulation address
+        tractorHelpers = new TractorHelpers(
             address(bs),
             address(beanstalkPrice),
             address(this),
             address(priceManipulation)
         );
-        vm.label(address(siloHelpers), "SiloHelpers");
+        vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with SiloHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(
-            address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(siloHelpers)
-        );
+        // Deploy SowBlueprintv0 with TractorHelpers address
+        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
-        setSiloHelpers(address(siloHelpers));
+        setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
 
         addLiquidityToWell(
@@ -136,10 +131,28 @@ contract SowBlueprintv0Test is TractorHelper {
                 0 // No runBlocksAfterSunrise
             );
 
+            // Expect the TractorExecutionBegan event to be emitted
+            vm.expectEmit(true, true, true, false);
+            emit IMockFBeanstalk.TractorExecutionBegan(
+                state.operator,
+                state.user,
+                req.blueprintHash,
+                gasleft()
+            );
+
+            // Expect the SowOrderComplete event to be emitted for complete order
+            vm.expectEmit(true, true, true, true);
+            emit SowBlueprintv0.SowOrderComplete(
+                req.blueprintHash,
+                state.user,
+                state.sowAmount / 4,
+                0 // No unfulfilled amount
+            );
+
             // Expect the OperatorReward event to be emitted with correct parameters
             vm.expectEmit(true, true, true, true);
-            emit SiloHelpers.OperatorReward(
-                SiloHelpers.RewardType.ERC20,
+            emit TractorHelpers.OperatorReward(
+                TractorHelpers.RewardType.ERC20,
                 state.user,
                 state.operator,
                 state.beanToken,
@@ -354,8 +367,8 @@ contract SowBlueprintv0Test is TractorHelper {
 
             // Expect the OperatorReward event to be emitted with negative tip amount
             vm.expectEmit(true, true, true, true);
-            emit SiloHelpers.OperatorReward(
-                SiloHelpers.RewardType.ERC20,
+            emit TractorHelpers.OperatorReward(
+                TractorHelpers.RewardType.ERC20,
                 state.user,
                 state.operator,
                 state.beanToken,
@@ -462,6 +475,35 @@ contract SowBlueprintv0Test is TractorHelper {
         }
 
         vm.revertTo(snapshot);
+
+        // Test case 10: sow 80 total with 40 min sow, but 60 soil available, after first run, it should emit SowOrderComplete event
+        {
+            (IMockFBeanstalk.Requisition memory req, ) = setupSowBlueprintv0Blueprint(
+                state.user,
+                SourceMode.PURE_PINTO,
+                makeSowAmountsArray(80e6, 40e6, 80e6),
+                0, // minTemp
+                state.tipAmount,
+                state.operator,
+                type(uint256).max,
+                MAX_GROWN_STALK_PER_BDV,
+                0 // No runBlocksAfterSunrise
+            );
+
+            // Set soil to 60
+            bs.setSoilE(60e6);
+
+            // Expect the SowOrderComplete event to be emitted for complete order
+            vm.expectEmit(true, true, true, true);
+            emit SowBlueprintv0.SowOrderComplete(
+                req.blueprintHash,
+                state.user,
+                60e6, // 60e6 sowed
+                20e6 // 20e6 unfulfilled
+            );
+
+            executeRequisition(state.operator, req, address(bs));
+        }
     }
 
     function test_sowBlueprintv0Counter() public {

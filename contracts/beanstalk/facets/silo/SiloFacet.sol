@@ -261,7 +261,7 @@ contract SiloFacet is Invariable, TokenSilo {
      * @dev This function verifies that:
      * 1. All deposit IDs exist in the current list
      * 2. All deposit IDs belong to the specified token
-     * 3. The list is properly sorted (descending order by stem)
+     * 3. The list is properly sorted (ascending order by stem)
      */
     function updateSortedDepositIds(
         address account,
@@ -276,14 +276,14 @@ contract SiloFacet is Invariable, TokenSilo {
         require(sortedDepositIds.length == existingIds.length, "Length mismatch");
 
         // Verify all IDs exist in the current deposits list
-        int96 lastStem = type(int96).max;
+        int96 lastStem = type(int96).min;
         for (uint256 i = 0; i < sortedDepositIds.length; i++) {
             // Verify deposit ID format
             (, int96 stem) = LibBytes.unpackAddressAndStem(sortedDepositIds[i]);
             // Verifying the token is not necessary, since the full id will be verified below
 
-            // Verify descending order (this also prevents duplicates since we use < instead of <=)
-            require(stem < lastStem, "Deposit IDs not sorted");
+            // Verify ascending order (this also prevents duplicates since we use > instead of >=)
+            require(stem > lastStem, "Deposit IDs not sorted");
             lastStem = stem;
 
             // Verify ID exists in current list

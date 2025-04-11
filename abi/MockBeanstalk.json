@@ -516,6 +516,12 @@
         "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "publisher",
+        "type": "address"
+      },
+      {
         "indexed": false,
         "internalType": "bytes32",
         "name": "blueprintHash",
@@ -7528,6 +7534,112 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "deltaStalk",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "deltaRoots",
+        "type": "int256"
+      }
+    ],
+    "name": "TotalStalkChangedFromGermination",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "season",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "well",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "deltaB",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "cumulativeReserves",
+        "type": "bytes"
+      }
+    ],
+    "name": "WellOracle",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "well",
+        "type": "address"
+      }
+    ],
+    "name": "check",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "deltaB",
+        "type": "int256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "int96",
+        "name": "stem",
+        "type": "int96"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdv",
+        "type": "uint256"
+      }
+    ],
+    "name": "AddDeposit",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "uint256",
         "name": "season",
@@ -7566,6 +7678,12 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "enum ShipmentRecipient",
+        "name": "recipient",
+        "type": "uint8"
+      },
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "newMaxTotalGaugePoints",
@@ -7586,12 +7704,380 @@
       },
       {
         "indexed": false,
-        "internalType": "int256",
-        "name": "deltaRoots",
-        "type": "int256"
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
       }
     ],
-    "name": "TotalStalkChangedFromGermination",
+    "name": "Receipt",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "season",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shipmentAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Shipped",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "shipmentAmounts",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "points",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cap",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShipmentPlan[]",
+        "name": "shipmentPlans",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalPoints",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "beansToShip",
+        "type": "uint256"
+      }
+    ],
+    "name": "getBeansFromPoints",
+    "outputs": [],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "planContract",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "planSelector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "enum ShipmentRecipient",
+            "name": "recipient",
+            "type": "ShipmentRecipient"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct ShipmentRoute[]",
+        "name": "shipmentRoutes",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "getShipmentPlans",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "points",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cap",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShipmentPlan[]",
+        "name": "shipmentPlans",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalPoints",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "deltaPodDemand",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lpToSupplyRatio",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "podRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "thisSowTime",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lastSowTime",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonMetrics",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "caseId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int80",
+        "name": "absChange",
+        "type": "int80"
+      }
+    ],
+    "name": "BeanToMaxLpGpPerBdvRatioChange",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "raining",
+        "type": "bool"
+      }
+    ],
+    "name": "RainStatus",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toField",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonOfPlentyField",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "well",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "beans",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonOfPlentyWell",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      }
+    ],
+    "name": "AddedGauge",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "Engaged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      }
+    ],
+    "name": "RemovedGauge",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      }
+    ],
+    "name": "UpdatedGauge",
     "type": "event"
   },
   {
@@ -10241,31 +10727,6 @@
     "type": "function"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum ShipmentRecipient",
-        "name": "recipient",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "receivedAmount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "Receipt",
-    "type": "event"
-  },
-  {
     "inputs": [],
     "name": "forceSunrise",
     "outputs": [],
@@ -10840,37 +11301,6 @@
       }
     ],
     "name": "DeltaB",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint32",
-        "name": "season",
-        "type": "uint32"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "well",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "int256",
-        "name": "deltaB",
-        "type": "int256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "cumulativeReserves",
-        "type": "bytes"
-      }
-    ],
-    "name": "WellOracle",
     "type": "event"
   },
   {
@@ -11814,6 +12244,24 @@
   {
     "inputs": [
       {
+        "internalType": "uint128",
+        "name": "lastSeasonBeanSown",
+        "type": "uint128"
+      },
+      {
+        "internalType": "uint128",
+        "name": "thisSeasonBeanSown",
+        "type": "uint128"
+      }
+    ],
+    "name": "setLastSeasonAndThisSeasonBeanSown",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint32",
         "name": "number",
         "type": "uint32"
@@ -11833,6 +12281,19 @@
       }
     ],
     "name": "setMaxTempE",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "minSoilSownDemand",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMinSoilSownDemand",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -12486,25 +12947,6 @@
     "type": "function"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "index",
-        "type": "uint256"
-      }
-    ],
-    "name": "RemoveWhitelistStatus",
-    "type": "event"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -12533,19 +12975,6 @@
       }
     ],
     "name": "addWhitelistStatus",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      }
-    ],
-    "name": "removeWhitelistStatus",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

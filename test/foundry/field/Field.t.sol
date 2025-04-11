@@ -261,7 +261,7 @@ contract FieldTest is TestHelper {
 
         assertEq(field.totalPods(0), totalPodsIssued, "invalid total pods");
         assertEq(field.totalUnharvestable(0), totalPodsIssued, "invalid unharvestable");
-        assertEq(field.podIndex(0), totalPodsIssued, "invalid pod index");
+        assertEq(field.podIndex(0), totalPodsIssued, "invalid pod index");  
 
         assertEq(field.totalSoil(), soilAvailable - totalAmountSown);
     }

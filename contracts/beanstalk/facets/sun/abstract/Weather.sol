@@ -104,7 +104,7 @@ abstract contract Weather is Sun {
         // Calculate Case Id
         (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
         updatePegState(bs.twaDeltaB);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs.oracleFailure);
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, bs.oracleFailure);
         LibFlood.handleRain(caseId);
     }
 
@@ -144,9 +144,29 @@ abstract contract Weather is Sun {
      */
     function updateTemperatureAndBeanToMaxLpGpPerBdvRatio(
         uint256 caseId,
+        LibEvaluate.BeanstalkState memory bs,
         bool oracleFailure
     ) internal {
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
+
+        // if the podrate is > 100% and deltaB is negative, set bt based on soil demand:
+        if (bs.podRate.value > 1e18) {
+            if (bs.twaDeltaB < 0) {
+                if (caseId % 3 == 0) {
+                    // decreasing
+                    cd.bT = 0.5e6;
+                } else if (caseId % 3 == 1) {
+                    // steady
+                    cd.bT = 0;
+                } else if (caseId % 3 == 2) {
+                    // increasing
+                    cd.bT = -1e6;
+                }
+            }
+            // append 1000 to the caseId to indicate that the podrate is > 100%
+            caseId = caseId + 1000;
+        }
+
         updateTemperature(cd.bT, caseId);
 
         // if one of the oracles needed to calculate usd liquidity fails,

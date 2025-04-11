@@ -58,6 +58,9 @@ describe("Complex Weather", function () {
 
     await setEthUsdChainlinkPrice("1000");
     await setWstethUsdPrice("1000");
+
+    // temporary override to allow testing of 0 soil sown until PI-9.
+    await mockBeanstalk.setMinSoilSownDemand(0);
   });
 
   [...Array(numberTests).keys()]
@@ -190,6 +193,7 @@ describe("Complex Weather", function () {
 
     it("lastSowTime max sow time increase more than steady const", async function () {
       await mockBeanstalk.setLastSowTimeE("1000");
+      await mockBeanstalk.setLastSeasonAndThisSeasonBeanSown(to6("100"), to6("100"));
       await mockBeanstalk.setNextSowTimeE(1000 + SOW_TIME_STEADY_UPPER + 1);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();

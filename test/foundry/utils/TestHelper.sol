@@ -753,4 +753,49 @@ contract TestHelper is
             return 1e12 / ((podRateMultiplier * price) / 1e18);
         }
     }
+
+    function whitelistLPWell(address well, address chainlinkOracle) internal {
+        address beanstalkOwner = bs.owner();
+
+        uint40 stalkIssuedPerBdv = 1e6;
+        uint40 stalkEarnedPerSeason = 1e6;
+        uint128 gaugePoints = 1e18;
+        uint64 optimalPercentDepositedBdv = 1e18;
+
+        bytes4 bdvSelector = IMockFBeanstalk.wellBdv.selector;
+        IMockFBeanstalk.Implementation memory oracleImplementation = IMockFBeanstalk.Implementation(
+            chainlinkOracle,
+            bytes4(0x00),
+            bytes1(0x01),
+            abi.encode(uint256(1234))
+        );
+
+        IMockFBeanstalk.Implementation memory gpImplementation = IMockFBeanstalk.Implementation(
+            address(0),
+            IMockFBeanstalk.defaultGaugePoints.selector,
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        IMockFBeanstalk.Implementation memory lwImplementation = IMockFBeanstalk.Implementation(
+            address(0),
+            IMockFBeanstalk.maxWeight.selector,
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        vm.prank(beanstalkOwner);
+        bs.whitelistToken(
+            well,
+            bdvSelector,
+            stalkIssuedPerBdv,
+            stalkEarnedPerSeason,
+            bytes1(0),
+            gaugePoints,
+            optimalPercentDepositedBdv,
+            oracleImplementation,
+            gpImplementation,
+            lwImplementation
+        );
+    }
 }

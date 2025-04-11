@@ -51,6 +51,7 @@ library LibEvaluate {
     uint256 internal constant SOIL_PRECISION = 1e6;
     uint256 internal constant BEAN_PRECISION = 1e6;
     uint256 internal constant MIN_BEAN_SUPPLY_BOUND = 10e6;
+    uint256 internal constant HIGH_DEMAND_THRESHOLD = 1e18;
 
     struct BeanstalkState {
         Decimal.D256 deltaPodDemand;
@@ -166,6 +167,8 @@ library LibEvaluate {
             return (Decimal.zero(), w.thisSowTime, type(uint32).max);
         }
 
+        deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
+
         // `s.weather.thisSowTime` is set to the number of seconds in it took for
         // Soil to sell out during the current Season. If Soil didn't sell out,
         // it remains `type(uint32).max`.
@@ -176,28 +179,39 @@ library LibEvaluate {
                 (w.lastSowTime > SOW_TIME_STEADY_UPPER &&
                     w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY_LOWER)) // Sow'd all faster
             ) {
-                deltaPodDemand = Decimal.from(1e18);
+                deltaPodDemand = Decimal.from(HIGH_DEMAND_THRESHOLD);
             } else if (w.thisSowTime <= w.lastSowTime.add(SOW_TIME_STEADY_UPPER)) {
-                // Sow'd all in same time
-                deltaPodDemand = Decimal.one();
-            } else {
-                deltaPodDemand = Decimal.zero();
-            }
-        } else {
-            // Soil didn't sell out
-            uint256 lastDeltaSoil = w.lastDeltaSoil;
-
-            if (dsoil == 0) {
-                deltaPodDemand = Decimal.zero(); // If no one Sow'd this Season
-            } else if (lastDeltaSoil == 0) {
-                deltaPodDemand = Decimal.from(1e18); // If no one Sow'd last Season
-            } else {
-                deltaPodDemand = Decimal.ratio(dsoil, lastDeltaSoil);
+                // Soil sold out in the same time.
+                // set a floor for demand to be steady (i.e, demand can either be steady or increasing)
+                if (deltaPodDemand.lessThan(Decimal.one())) {
+                    deltaPodDemand = Decimal.one();
+                }
             }
         }
+        // if the soil didn't sell out, or sold out slower than the previous season,
+        // demand for soil is a function of the amount of soil sown this season.
 
         lastSowTime = w.thisSowTime; // Overwrite last Season
         thisSowTime = type(uint32).max; // Reset for next Season
+    }
+
+    /**
+     * @notice Calculates the change in soil demand from the previous season.
+     * @param soilSownThisSeason The amount of soil sown this season.
+     * @param soilSownLastSeason The amount of soil sown in the previous season.
+     */
+    function getDemand(
+        uint256 soilSownThisSeason,
+        uint256 soilSownLastSeason
+    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+        if (soilSownThisSeason == 0) {
+            deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
+        } else if (soilSownLastSeason == 0) {
+            deltaPodDemand = Decimal.from(HIGH_DEMAND_THRESHOLD); // If no one Sow'd last Season, ∆ demand is infinite.
+        } else {
+            // If both seasons had some soil sown, ∆ demand is the ratio of this season's soil sown to last season's soil sown.
+            deltaPodDemand = Decimal.ratio(soilSownThisSeason, soilSownLastSeason);
+        }
     }
 
     /**

@@ -250,23 +250,35 @@ contract SiloTest is TestHelper {
     function test_setSortedDepositIds(uint256 swapPosition) public {
         // Create multiple deposits in different seasons
         uint256 depositAmount = 1e6;
-        uint256 numDeposits = 10;
-
-        for (uint256 i; i < numDeposits; i++) {
-            mintTokensToUser(farmers[0], BEAN, depositAmount);
+        uint256 numDeposits = 5;
+        mintTokensToUser(farmers[1], BEAN, depositAmount * numDeposits);
+        vm.prank(farmers[1]);
+        (uint256 amount, uint256 _bdv, int96 ogStem) = bs.deposit(BEAN, depositAmount, 0);
+        bs.siloSunrise(0);
+        mintTokensToUser(farmers[0], BEAN, depositAmount * numDeposits);
+        for (uint256 i = 1; i < numDeposits; i++) {
             vm.prank(farmers[0]);
             bs.deposit(BEAN, depositAmount, 0);
             bs.siloSunrise(0);
         }
 
+        // transfer deposit to farmers[0]
+        vm.prank(farmers[1]);
+        bs.transferDeposit(farmers[1], farmers[0], BEAN, ogStem, depositAmount);
+
         // Get current deposit IDs
         uint256[] memory originalDepositIds = bs.getTokenDepositIdsForAccount(farmers[0], BEAN);
         assertEq(originalDepositIds.length, numDeposits, "Should have correct number of deposits");
 
-        // Create a new sorted array in reverse order
+        // Create a new sorted array in ascending order
         uint256[] memory sortedDepositIds = new uint256[](numDeposits);
         for (uint256 i; i < numDeposits; i++) {
-            sortedDepositIds[i] = originalDepositIds[numDeposits - 1 - i];
+            if (i == 0) {
+                // last deposit should be first
+                sortedDepositIds[0] = originalDepositIds[numDeposits - 1];
+            } else {
+                sortedDepositIds[i] = originalDepositIds[i - 1];
+            }
         }
 
         // Update the sorted deposit IDs
@@ -291,7 +303,7 @@ contract SiloTest is TestHelper {
         // Use bounded swap position to select which adjacent elements to swap
         uint256 swapIndex = bound(swapPosition, 0, numDeposits - 2);
 
-        // Swap adjacent elements to break the descending order
+        // Swap adjacent elements to break the ascending order
         (unsortedDepositIds[swapIndex], unsortedDepositIds[swapIndex + 1]) = (
             unsortedDepositIds[swapIndex + 1],
             unsortedDepositIds[swapIndex]
@@ -314,7 +326,7 @@ contract SiloTest is TestHelper {
         (address token, int96 stem) = LibBytes.unpackAddressAndStem(
             invalidDepositIds[invalidIndex]
         );
-        invalidDepositIds[invalidIndex] = LibBytes.packAddressAndStem(token, stem + 1);
+        invalidDepositIds[invalidIndex] = LibBytes.packAddressAndStem(token, stem - 1);
 
         // Verify that updating with an invalid ID reverts
         vm.prank(farmers[0]);
@@ -322,8 +334,8 @@ contract SiloTest is TestHelper {
         bs.updateSortedDepositIds(farmers[0], BEAN, invalidDepositIds);
 
         // Note: We don't need to test for "Duplicate ID" explicitly because the sorting check
-        // `require(stem < lastStem, "Deposit IDs not sorted")` prevents duplicates by requiring
-        // strictly decreasing stems. Any attempt to include duplicate IDs will fail the sorting
+        // `require(stem > lastStem, "Deposit IDs not sorted")` prevents duplicates by requiring
+        // strictly increasing stems. Any attempt to include duplicate IDs will fail the sorting
         // check first.
     }
 
