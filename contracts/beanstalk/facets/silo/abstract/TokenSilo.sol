@@ -211,32 +211,6 @@ abstract contract TokenSilo is ReentrancyGuard {
         uint256 stalk,
         GerminationSide side
     ) private {
-        // Deposited Earned Beans do not germinate. Thus, when withdrawing a Bean Deposit
-        // with a Germinating Stem, Beanstalk needs to determine how many of the Beans
-        // were Planted vs Deposited from a Circulating/Farm balance.
-        // If a Farmer's Germinating Stalk for a given Season is less than the number of
-        // Deposited Beans in that Season, then it is assumed that the excess Beans were
-        // Planted.
-        if (token == s.sys.bean) {
-            (uint256 germinatingStalk, uint256 earnedBeanStalk) = LibSilo.checkForEarnedBeans(
-                account,
-                stalk,
-                side
-            );
-            // set the bdv and amount accordingly to the stalk.
-            stalk = germinatingStalk;
-            uint256 earnedBeans = earnedBeanStalk.div(C.STALK_PER_BEAN);
-            amount = amount - earnedBeans;
-            // note: the 1 Bean = 1 BDV assumption cannot be made here for input `bdv`,
-            // as a user converting a germinating LP deposit into bean may have an inflated bdv.
-            // thus, amount and bdv are decremented by the earnedBeans (where the 1 Bean = 1 BDV assumption can be made).
-            bdv = bdv - earnedBeans;
-
-            // burn the earned bean stalk (which is active).
-            LibSilo.burnActiveStalk(account, earnedBeanStalk);
-            // calculate earnedBeans and decrement totalDeposited.
-            LibTokenSilo.decrementTotalDeposited(s.sys.bean, earnedBeans, earnedBeans);
-        }
         // Decrement from total germinating.
         LibTokenSilo.decrementTotalGerminating(token, amount, bdv, side); // Decrement total Germinating in the silo.
         LibSilo.burnGerminatingStalk(account, uint128(stalk), side); // Burn stalk and roots associated with the stalk.
@@ -258,7 +232,12 @@ abstract contract TokenSilo is ReentrancyGuard {
         int96 stem,
         uint256 amount
     ) internal returns (uint256) {
-        if (sender != LibTractor._user()) {
+        // if the sender is not the user, and the sender has not approved the caller ,
+        // then we need to spend the deposit allowance.
+        if (
+            sender != LibTractor._user() &&
+            s.accts[sender].isApprovedForAll[LibTractor._user()] != true
+        ) {
             LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, amount);
         }
         LibSilo._mow(sender, token);
@@ -285,17 +264,6 @@ abstract contract TokenSilo is ReentrancyGuard {
         if (side == GerminationSide.NOT_GERMINATING) {
             LibSilo.transferStalk(sender, recipient, initialStalk.add(activeStalk));
         } else {
-            if (token == s.sys.bean) {
-                (uint256 senderGerminatingStalk, uint256 senderEarnedBeanStalk) = LibSilo
-                    .checkForEarnedBeans(sender, initialStalk, side);
-                // if initial stalk is greater than the sender's germinating stalk, then the sender is sending an
-                // Earned Bean Deposit. The active stalk is incremented and the
-                // initial stalk is decremented by the sender's earnedBeansStalk.
-                if (initialStalk > senderGerminatingStalk) {
-                    activeStalk = activeStalk.add(senderEarnedBeanStalk);
-                    initialStalk = initialStalk.sub(senderEarnedBeanStalk);
-                }
-            }
             LibSilo.transferGerminatingStalk(sender, recipient, initialStalk, side);
             if (activeStalk > 0) {
                 LibSilo.transferStalk(sender, recipient, activeStalk);

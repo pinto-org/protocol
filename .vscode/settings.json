@@ -1,4 +1,18 @@
 {
     "editor.formatOnSave": true,
-    "solidity.formatter": "prettier"
+    "solidity.formatter": "prettier",
+    "[solidity]": {
+        "editor.defaultFormatter": "JuanBlanco.solidity",
+        "editor.formatOnSave": true
+    },
+    "[solidity-noformat]": {
+        "editor.formatOnSave": false
+    },
+    "files.exclude": {
+        "**/LibCases.sol": false
+    },
+    "files.associations": {
+        "**/LibCases.sol": "solidity-noformat"
+    },
+    "solidity-va.deco.statevars": true
 }

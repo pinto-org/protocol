@@ -28,17 +28,21 @@ library LibDibbler {
     using LibRedundantMath32 for uint32;
     using LibRedundantMath128 for uint128;
 
-    /// @dev Morning Auction scales temperature by 1e6.
+    /// @dev The precision of s.sys.weather.temp
     uint256 internal constant TEMPERATURE_PRECISION = 1e6;
+
+    /// @dev The divisor of s.sys.weather.temp in the morning auction
+    uint256 internal constant TEMPERATURE_DIVISOR = 1e12;
 
     /// @dev Simplifies conversion of Beans to Pods:
     /// `pods = beans * (1 + temperature)`
     /// `pods = beans * (100% + temperature) / 100%`
-    uint256 private constant ONE_HUNDRED_PCT = 100 * TEMPERATURE_PRECISION;
+    uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
-    /// @dev If less than `SOIL_SOLD_OUT_THRESHOLD` Soil is left, consider
-    /// Soil to be "sold out"; affects how Temperature is adjusted.
-    uint256 private constant SOIL_SOLD_OUT_THRESHOLD = 1e6;
+    /// @dev If less than `soilSoldOutThreshold` Soil is left, consider
+    /// Soil to be "sold out"; affects how Temperature is adjusted. 
+    /// This is the maximum amount that `soilSoldOutThreshold` can be set to.
+    uint256 internal constant MAX_SOIL_SOLD_OUT_THRESHOLD = 50e6;
 
     uint256 private constant L1_BLOCK_TIME = 1200;
     uint256 private constant L2_BLOCK_TIME = 200;
@@ -101,7 +105,7 @@ library LibDibbler {
      *
      * ## Above Peg
      *
-     * | t   | Max pods  | s.sys.soil         | soil                    | temperature              | maxTemperature |
+     * | t   | Max pods  | s.sys.soil            | soil                    | temperature              | maxTemperature |
      * |-----|-----------|-----------------------|-------------------------|--------------------------|----------------|
      * | 0   | 500e6     | ~37e6 500e6/(1+1250%) | ~495e6 500e6/(1+1%))    | 1e6 (1%)                 | 1250 (1250%)   |
      * | 12  | 500e6     | ~37e6                 | ~111e6 500e6/(1+348%))  | 348.75e6 (27.9% * 1250)  | 1250           |
@@ -125,24 +129,27 @@ library LibDibbler {
         uint256 activeField = s.sys.activeField;
 
         uint256 pods;
+        uint256 soilUsed;
         if (abovePeg) {
-            uint256 maxTemperature = uint256(s.sys.weather.temp).mul(TEMPERATURE_PRECISION);
+            uint256 maxTemperature = uint256(s.sys.weather.temp);
             // amount sown is rounded up, because
             // 1: temperature is rounded down.
             // 2: pods are rounded down.
-            beans = scaleSoilDown(beans, _morningTemperature, maxTemperature);
-            pods = beansToPods(beans, maxTemperature);
+            soilUsed = scaleSoilDown(beans, _morningTemperature, maxTemperature);
+            pods = beansToPods(soilUsed, maxTemperature);
         } else {
-            pods = beansToPods(beans, _morningTemperature);
+            // below peg, beans are used directly.
+            soilUsed = beans;
+            pods = beansToPods(soilUsed, _morningTemperature);
         }
 
         require(pods > 0, "Pods must be greater than 0");
 
         // In the case of an overflow, its equivalent to having no soil left.
-        if (s.sys.soil < beans) {
+        if (s.sys.soil < soilUsed) {
             s.sys.soil = 0;
         } else {
-            s.sys.soil = s.sys.soil.sub(uint128(beans));
+            s.sys.soil = s.sys.soil.sub(uint128(soilUsed));
         }
 
         uint256 index = s.sys.fields[activeField].pods;
@@ -162,7 +169,10 @@ library LibDibbler {
     /**
      * @dev Stores the time elapsed from the start of the Season to the time
      * at which Soil is "sold out", i.e. the remaining Soil is less than a
-     * threshold `SOIL_SOLD_OUT_THRESHOLD`.
+     * threshold. 
+     *
+     * That threshold is calculated based on the soil at the start of the season, set in {setSoil} and is
+     * currently set to 50e6 if the initial soil was >100e6, and 50% of the initial soil otherwise.
      *
      * RATIONALE: Beanstalk utilizes the time elapsed for Soil to "sell out" to
      * gauge demand for Soil, which affects how the Temperature is adjusted. For
@@ -173,7 +183,7 @@ library LibDibbler {
      * Season to be considered increasing in demand.
      *
      * `thisSowTime` should only be updated if:
-     *  (a) there is less than 1 Soil available after this Sow, and
+     *  (a) there is less than the threshold Soil available after this Sow, and
      *  (b) it has not yet been updated this Season.
      *
      * Note that:
@@ -183,8 +193,16 @@ library LibDibbler {
     function _saveSowTime() private {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
+        // If the initial Soil was less than 100e6, set the threshold to 50% of the initial Soil.
+        // Otherwise the threshold is 50e6.
+        uint256 soilSoldOutThreshold = (s.sys.initialSoil < 100e6)
+            ? ((s.sys.initialSoil * 50e6) / 100e6)
+            : MAX_SOIL_SOLD_OUT_THRESHOLD;
+
         // s.sys.soil is now the soil remaining after this Sow.
-        if (s.sys.soil > SOIL_SOLD_OUT_THRESHOLD || s.sys.weather.thisSowTime < type(uint32).max) {
+        if (
+            s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max
+        ) {
             // haven't sold enough soil, or already set thisSowTime for this Season.
             return;
         }
@@ -218,7 +236,7 @@ library LibDibbler {
             // need to scale up the amount of Soil to hold Pods constant.
             soil = LibDibbler.scaleSoilUp(
                 uint256(s.sys.soil), // max soil offered this Season, reached when `t >= 25`
-                uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION), // max temperature
+                uint256(s.sys.weather.temp), // max temperature (1e6 precision)
                 _morningTemperature // temperature adjusted by number of blocks since Sunrise
             );
         }
@@ -227,7 +245,7 @@ library LibDibbler {
     //////////////////// TEMPERATURE ////////////////////
 
     /**
-     * @dev Returns the temperature `s.weather.t` scaled down based on the block delta.
+     * @dev Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
      * Precision level 1e6, as soil has 1e6 precision (1% = 1e6)
      * the formula `log3.5(A * MAX_BLOCK_ELAPSED + 1)` is applied, where:
      * `A = 0.1`
@@ -237,13 +255,16 @@ library LibDibbler {
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 delta = block.number.sub(s.sys.season.sunriseBlock).mul(L2_BLOCK_TIME).div(
-            L1_BLOCK_TIME
-        );
+        uint256 delta = block
+            .number
+            .sub(s.sys.season.sunriseBlock)
+            .mul(L2_BLOCK_TIME)
+            .div(L1_BLOCK_TIME)
+            .div(2); // dividing by 2 increases the morning auction time from 25 to 50 L1 blocks (5 min -> 10 min)
 
         // check most likely case first
         if (delta > 24) {
-            return uint256(s.sys.weather.temp).mul(TEMPERATURE_PRECISION);
+            return uint256(s.sys.weather.temp);
         }
 
         // Binary Search
@@ -253,7 +274,7 @@ library LibDibbler {
                     if (delta < 2) {
                         if (delta < 1) {
                             // delta == 0, same block as sunrise
-                            return TEMPERATURE_PRECISION;
+                            return _scaleTemperature(10000000000);
                         } else {
                             // delta == 1
                             return _scaleTemperature(76079978576);
@@ -365,9 +386,9 @@ library LibDibbler {
 
     /**
      * @param pct The percentage to scale down by, measured to 1e12.
-     * @return scaledTemperature The scaled temperature, measured to 1e8 = 100e6 = 100% = 1.
-     * @dev Scales down `s.weather.t` and imposes a minimum of 1e6 (1%) unless
-     * `s.weather.t` is 0%.
+     * @return scaledTemperature The scaled temperature, measured to 1e6 = 1% = 1.
+     * @dev Scales down `s.sys.weather.temp` and imposes a minimum of 1e6 (1%) unless
+     * `s.sys.weather.temp` is 0%.
      */
     function _scaleTemperature(uint256 pct) private view returns (uint256 scaledTemperature) {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -375,16 +396,16 @@ library LibDibbler {
         uint256 maxTemperature = s.sys.weather.temp;
         if (maxTemperature == 0) return 0;
 
-        scaledTemperature = Math.max(
-            // To save gas, `pct` is pre-calculated to 12 digits. Here we
-            // perform the following transformation:
-            // (1e2)    maxTemperature
-            // (1e12)    * pct
-            // (1e6)     / TEMPERATURE_PRECISION
-            // (1e8)     = scaledYield
-            maxTemperature.mulDiv(pct, TEMPERATURE_PRECISION, LibPRBMathRoundable.Rounding.Up),
-            // Floor at TEMPERATURE_PRECISION (1%)
-            TEMPERATURE_PRECISION
+        // To save gas, `pct` is pre-calculated to 12 digits. Here we
+        // perform the following transformation:
+        // (1e6)    maxTemperature
+        // (1e12)    * pct
+        // (1e12)    / TEMPERATURE_DIVISOR
+        // (1e6)     = scaledYield
+        scaledTemperature = maxTemperature.mulDiv(
+            pct,
+            TEMPERATURE_DIVISOR,
+            LibPRBMathRoundable.Rounding.Up
         );
     }
 
@@ -404,7 +425,7 @@ library LibDibbler {
         uint256 beans,
         uint256 _morningTemperature
     ) internal pure returns (uint256 pods) {
-        pods = beans.mulDiv(_morningTemperature.add(ONE_HUNDRED_PCT), ONE_HUNDRED_PCT);
+        pods = beans.mulDiv(_morningTemperature.add(ONE_HUNDRED_TEMP), ONE_HUNDRED_TEMP);
     }
 
     /**
@@ -418,8 +439,8 @@ library LibDibbler {
     ) internal pure returns (uint256) {
         return
             soil.mulDiv(
-                maxTemperature.add(ONE_HUNDRED_PCT),
-                _morningTemperature.add(ONE_HUNDRED_PCT)
+                maxTemperature.add(ONE_HUNDRED_TEMP),
+                _morningTemperature.add(ONE_HUNDRED_TEMP)
             );
     }
 
@@ -428,7 +449,7 @@ library LibDibbler {
      *
      * When Beanstalk is above peg, the Soil issued changes. Example:
      *
-     * If 500 Soil is issued when `s.weather.temp = 100e2 = 100%`
+     * If 500 Soil is issued when `s.weather.temp = 100e6 = 100%`
      * At delta = 0:
      *  morningTemperature() = 1%
      *  Soil = `500*(100 + 100%)/(100 + 1%)` = 990.09901 soil
@@ -446,8 +467,8 @@ library LibDibbler {
     ) internal pure returns (uint256) {
         return
             soil.mulDiv(
-                _morningTemperature.add(ONE_HUNDRED_PCT),
-                maxTemperature.add(ONE_HUNDRED_PCT),
+                _morningTemperature.add(ONE_HUNDRED_TEMP),
+                maxTemperature.add(ONE_HUNDRED_TEMP),
                 LibPRBMathRoundable.Rounding.Up
             );
     }
@@ -463,7 +484,7 @@ library LibDibbler {
             return
                 beansToPods(
                     s.sys.soil, // 1 bean = 1 soil
-                    uint256(s.sys.weather.temp).mul(TEMPERATURE_PRECISION) // 1e2 -> 1e8
+                    uint256(s.sys.weather.temp)
                 );
         } else {
             // Below peg: amount of Soil is fixed, temperature adjusts

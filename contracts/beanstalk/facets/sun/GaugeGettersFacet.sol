@@ -75,6 +75,13 @@ contract GaugeGettersFacet {
     }
 
     /**
+     * @notice Returns the maximum total gauge points.
+     */
+    function getMaxTotalGaugePoints() external view returns (uint256) {
+        return s.sys.seedGauge.maxTotalGaugePoints;
+    }
+
+    /**
      * @notice returns the Gauge Points per BDV for a given token.
      * @param token The token to get the Gauge Points per BDV for.
      */
@@ -202,7 +209,19 @@ contract GaugeGettersFacet {
         address token,
         uint256 percentOfDepositedBdv
     ) external view returns (uint256) {
-        return LibGauge.calcGaugePoints(s.sys.silo.assetSettings[token], percentOfDepositedBdv);
+        address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+        uint256 totalOptimalDepositedBdvPercent;
+        for (uint256 i; i < whitelistedLpTokens.length; ++i) {
+            totalOptimalDepositedBdvPercent = totalOptimalDepositedBdvPercent.add(
+                s.sys.silo.assetSettings[whitelistedLpTokens[i]].optimalPercentDepositedBdv
+            );
+        }
+        return
+            LibGauge.calcGaugePoints(
+                s.sys.silo.assetSettings[token],
+                percentOfDepositedBdv,
+                totalOptimalDepositedBdvPercent
+            );
     }
 
     /**
@@ -224,7 +243,9 @@ contract GaugeGettersFacet {
         }
 
         // Summate total deposited BDV across all whitelisted LP tokens.
+        // get the total optimal deposited BDV percent for all LP tokens.
         uint256 totalLpBdv;
+        uint256 totalOptimalDepositedBdvPercent;
         for (uint256 i; i < whitelistedLpTokens.length; ++i) {
             uint256 finishedGerminatingBdv = s
             .sys
@@ -233,11 +254,14 @@ contract GaugeGettersFacet {
             totalLpBdv = totalLpBdv
                 .add(s.sys.silo.balances[whitelistedLpTokens[i]].depositedBdv)
                 .add(finishedGerminatingBdv);
+            totalOptimalDepositedBdvPercent = totalOptimalDepositedBdvPercent.add(
+                s.sys.silo.assetSettings[whitelistedLpTokens[i]].optimalPercentDepositedBdv
+            );
         }
         uint256 depositedBdv = s.sys.silo.balances[token].depositedBdv;
         uint256 percentDepositedBdv = depositedBdv.mul(100e6).div(totalLpBdv);
 
         AssetSettings memory ss = s.sys.silo.assetSettings[token];
-        return LibGauge.calcGaugePoints(ss, percentDepositedBdv);
+        return LibGauge.calcGaugePoints(ss, percentDepositedBdv, totalOptimalDepositedBdvPercent);
     }
 }

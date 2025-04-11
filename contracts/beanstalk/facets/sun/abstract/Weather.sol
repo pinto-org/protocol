@@ -12,6 +12,8 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 
 /**
  * @title Weather
@@ -44,7 +46,7 @@ abstract contract Weather is Sun {
     event TemperatureChange(
         uint256 indexed season,
         uint256 caseId,
-        int8 absChange,
+        int32 absChange,
         uint256 fieldId
     );
 
@@ -58,19 +60,25 @@ abstract contract Weather is Sun {
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
-     * @notice Emitted when Beans are minted to a Well during the Season of Plenty.
-     * @param season The Season in which Beans were minted for distribution.
-     * @param well The Well that the SOP occurred in.
-     * @param token The token that was swapped for Beans.
-     * @param amount The amount of tokens which was received for swapping Beans.
-     */
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
-
-    /**
      * @notice Emitted when Beans are minted to the Field during the Season of Plenty.
      * @param toField The amount of Beans which were distributed to remaining Pods in the Field.
      */
     event SeasonOfPlentyField(uint256 toField);
+
+    /**
+     * @notice Emitted when bean crosses below its value target.
+     * @param season The season in which the bean crossed below its value target.
+     * @param tokens The tokens that were updated.
+     * @param stems The new stemTips stored at the peg cross.
+     */
+    event UpdatedBelowPegCrossStems(uint256 indexed season, address[] tokens, int96[] stems);
+
+    /**
+     * @notice Emitted when the peg state is updated.
+     * @param season The season in which the peg state was updated.
+     * @param abovePeg Whether the peg is above or below.
+     */
+    event PegStateUpdated(uint32 season, bool abovePeg);
 
     //////////////////// WEATHER INTERNAL ////////////////////
 
@@ -82,18 +90,48 @@ abstract contract Weather is Sun {
      * mechanism can be found in the Beanstalk whitepaper.
      * An explanation of state variables can be found in {AppStorage}.
      */
-    function calcCaseIdandUpdate(int256 deltaB) internal returns (uint256) {
+    function calcCaseIdAndHandleRain(
+        int256 deltaB
+    ) internal returns (uint256 caseId, LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
-            s.sys.weather.temp = 1;
-            return 9; // Reasonably low
+            s.sys.weather.temp = 1e6;
+            // Returns an uninitialized Beanstalk State.
+            return (9, bs); // Reasonably low
         }
+
         // Calculate Case Id
-        (uint256 caseId, bool oracleFailure) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);
+        (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        updatePegState(bs.twaDeltaB);
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, bs.oracleFailure);
         LibFlood.handleRain(caseId);
-        return caseId;
+    }
+
+    /**
+     * @notice Updates the peg state based on the twaDeltaB and whether the peg was crossed.
+     * @param twaDeltaB The twaDeltaB from the Oracle.
+     */
+    function updatePegState(int256 twaDeltaB) internal {
+        bool lastSeasonPeg = s.sys.season.abovePeg;
+        s.sys.season.abovePeg = twaDeltaB > 0;
+
+        // if the last season peg state is not the same as the current peg state,
+        // the system has crossed peg.
+        if (lastSeasonPeg != s.sys.season.abovePeg) {
+            s.sys.season.pegCrossSeason = s.sys.season.current;
+            if (twaDeltaB < 0) {
+                // if the peg was crossed below, cache the stems for each whitelisted token.
+                address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+                int96[] memory stems = new int96[](lpTokens.length);
+                for (uint256 i = 0; i < lpTokens.length; i++) {
+                    stems[i] = LibTokenSilo.stemTipForToken(lpTokens[i]);
+                    s.sys.belowPegCrossStems[lpTokens[i]] = stems[i];
+                }
+                emit UpdatedBelowPegCrossStems(s.sys.season.pegCrossSeason, lpTokens, stems);
+            }
+            emit PegStateUpdated(s.sys.season.current, s.sys.season.abovePeg);
+        }
     }
 
     /**
@@ -106,9 +144,29 @@ abstract contract Weather is Sun {
      */
     function updateTemperatureAndBeanToMaxLpGpPerBdvRatio(
         uint256 caseId,
+        LibEvaluate.BeanstalkState memory bs,
         bool oracleFailure
     ) internal {
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
+
+        // if the podrate is > 100% and deltaB is negative, set bt based on soil demand:
+        if (bs.podRate.value > 1e18) {
+            if (bs.twaDeltaB < 0) {
+                if (caseId % 3 == 0) {
+                    // decreasing
+                    cd.bT = 0.5e6;
+                } else if (caseId % 3 == 1) {
+                    // steady
+                    cd.bT = 0;
+                } else if (caseId % 3 == 2) {
+                    // increasing
+                    cd.bT = -1e6;
+                }
+            }
+            // append 1000 to the caseId to indicate that the podrate is > 100%
+            caseId = caseId + 1000;
+        }
+
         updateTemperature(cd.bT, caseId);
 
         // if one of the oracles needed to calculate usd liquidity fails,
@@ -121,15 +179,17 @@ abstract contract Weather is Sun {
      * @notice Changes the current Temperature `s.weather.t` based on the Case Id.
      * @dev bT are set during edge cases such that the event emitted is valid.
      */
-    function updateTemperature(int8 bT, uint256 caseId) private {
+    function updateTemperature(int32 bT, uint256 caseId) private {
         uint256 t = s.sys.weather.temp;
         if (bT < 0) {
             if (t <= uint256(int256(-bT))) {
+                // if temp is to be decreased and the change is greater than the current temp,
+                // - then the new temp will be 1e6.
+                // - and the change in temp bT will be the difference between the new temp and the old temp.
                 // if (change < 0 && t <= uint32(-change)),
-                // then 0 <= t <= type(int8).max because change is an int8.
-                // Thus, downcasting t to an int8 will not cause overflow.
-                bT = 1 - int8(int256(t));
-                s.sys.weather.temp = 1;
+                // then 0 <= t <= type(int32).max because change is an int32.
+                bT = 1e6 - int32(int256(t));
+                s.sys.weather.temp = 1e6;
             } else {
                 s.sys.weather.temp = uint32(t - uint256(int256(-bT)));
             }

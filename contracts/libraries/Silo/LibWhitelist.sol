@@ -38,7 +38,7 @@ library LibWhitelist {
     event WhitelistToken(
         address indexed token,
         bytes4 selector,
-        uint32 stalkEarnedPerSeason,
+        uint40 stalkEarnedPerSeason,
         uint256 stalkIssuedPerBdv,
         uint128 gaugePoints,
         uint64 optimalPercentDepositedBdv
@@ -86,7 +86,7 @@ library LibWhitelist {
      */
     event UpdatedStalkPerBdvPerSeason(
         address indexed token,
-        uint32 stalkEarnedPerSeason,
+        uint40 stalkEarnedPerSeason,
         uint32 season
     );
 
@@ -107,7 +107,7 @@ library LibWhitelist {
         address token,
         bytes4 selector,
         uint48 stalkIssuedPerBdv,
-        uint32 stalkEarnedPerSeason,
+        uint40 stalkEarnedPerSeason,
         bytes1 encodeType,
         uint128 gaugePoints,
         uint64 optimalPercentDepositedBdv,
@@ -187,7 +187,7 @@ library LibWhitelist {
      */
     function updateStalkPerBdvPerSeasonForToken(
         address token,
-        uint32 stalkEarnedPerSeason
+        uint40 stalkEarnedPerSeason
     ) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
@@ -202,8 +202,8 @@ library LibWhitelist {
 
         // stalkEarnedPerSeason is set to int32 before casting down.
         s.sys.silo.assetSettings[token].deltaStalkEarnedPerSeason =
-            int32(stalkEarnedPerSeason) -
-            int32(s.sys.silo.assetSettings[token].stalkEarnedPerSeason);
+            int40(stalkEarnedPerSeason) -
+            int40(s.sys.silo.assetSettings[token].stalkEarnedPerSeason);
         s.sys.silo.assetSettings[token].stalkEarnedPerSeason = stalkEarnedPerSeason;
 
         emit UpdatedStalkPerBdvPerSeason(token, stalkEarnedPerSeason, s.sys.season.current);

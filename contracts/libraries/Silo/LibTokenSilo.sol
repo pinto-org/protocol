@@ -510,14 +510,11 @@ library LibTokenSilo {
         address token,
         int96 grownStalkIndexOfDeposit,
         uint256 bdv
-    ) internal view returns (int96 grownStalk) {
+    ) internal view returns (uint256 grownStalk) {
         // current latest grown stalk index
         int96 _stemTipForToken = stemTipForToken(address(token));
-
-        return
-            _stemTipForToken.sub(grownStalkIndexOfDeposit).mul(
-                SafeCast.toInt96(SafeCast.toInt256(bdv))
-            );
+        // note: _stemTipForToken should always be >= grownStalkIndexOfDeposit
+        return uint256(int256(_stemTipForToken.sub(grownStalkIndexOfDeposit))).mul(bdv);
     }
 
     /**
@@ -532,6 +529,17 @@ library LibTokenSilo {
         LibGerminate.GermStem memory germStem = LibGerminate.getGerminatingStem(token);
         stem = germStem.stemTip.sub(SafeCast.toInt96(SafeCast.toInt256(grownStalk.div(bdv))));
         side = LibGerminate._getGerminationState(stem, germStem);
+    }
+
+    /**
+     * @notice returns the grown stalk needed to make a deposit non-germinating, given the bdv and token.
+     */
+    function calculateGrownStalkAtNonGerminatingStem(
+        address token,
+        uint256 bdv
+    ) internal view returns (uint256 newGrownStalk) {
+        int96 nonGerminatingStem = LibGerminate.getHighestNonGerminatingStem(token);
+        return calculateStalkFromStemAndBdv(token, nonGerminatingStem, bdv);
     }
 
     function toInt96(uint256 value) internal pure returns (int96) {

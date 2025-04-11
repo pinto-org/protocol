@@ -14,7 +14,7 @@ import {C} from "contracts/C.sol";
  * The Sunrise can be seperated into the following parts:
  * - stepSeason() - increments season.
  * - stepOracle() - reads oracles from whitelisted silo wells.
- * - calcCaseIdAndUpdate() - determines and evaluates the beanstalk state, and updates temperature and bean to max lp gp per bdv ratio.
+ * - calcCaseIdAndHandleRain() - determines and evaluates the beanstalk state, and updates temperature and bean to max lp gp per bdv ratio.
  * - endTotalGermination() - ends the germination process for all whitelisted tokens.
  * - stepGauge() - iterates through the gauge system.
  * - stepSun() - distrbuted newly minted beans to the field and silo, and issues new soil to the field.
@@ -28,7 +28,7 @@ contract SunriseTest is TestHelper {
     event TemperatureChange(
         uint256 indexed season,
         uint256 caseId,
-        int8 absChange,
+        int32 absChange,
         uint256 fieldId
     );
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -38,6 +38,14 @@ contract SunriseTest is TestHelper {
         address indexed token,
         int256 delta,
         int256 deltaBdv
+    );
+    event SeasonMetrics(
+        uint256 indexed season,
+        uint256 deltaPodDemand,
+        uint256 lpToSupplyRatio,
+        uint256 podRate,
+        uint256 thisSowTime,
+        uint256 lastSowTime
     );
 
     // test accounts.
@@ -186,6 +194,31 @@ contract SunriseTest is TestHelper {
 
         assertEq(bs.season(), s + 1);
         assertEq(bs.sunriseBlock(), block.number);
+    }
+
+    function test_seasonMetrics() public {
+        warpToNextSeasonAndUpdateOracles();
+
+        vm.expectEmit();
+        emit SeasonMetrics(2, 0, 1e18, 0, 4294967295, 4294967295);
+        bs.sunrise();
+
+        // mints beans to first test user
+        uint256 beans = 1000000e6;
+        season.setSoilE(beans);
+        vm.prank(users[1]);
+        bean.approve(BEANSTALK, type(uint256).max);
+        vm.prank(users[1]);
+        bean.mint(users[1], beans * 1e5); // increase bean supply so that flood will mint something
+        // sows beans
+        vm.prank(users[1]);
+        bs.sow(beans, 1, 0);
+
+        warpToNextSeasonAndUpdateOracles();
+
+        vm.expectEmit();
+        emit SeasonMetrics(3, 1e36, 200001960009, 10002098120061, 4294967295, 0);
+        bs.sunrise();
     }
 
     ///////// STEP ORACLE /////////

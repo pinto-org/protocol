@@ -31,8 +31,15 @@ library LibFlood {
      * @param well The Well that the SOP occurred in.
      * @param token The token that was swapped for Beans.
      * @param amount The amount of tokens which was received for swapping Beans.
+     * @param beans The amount of Beans which were minted to the Well.
      */
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
+    event SeasonOfPlentyWell(
+        uint256 indexed season,
+        address well,
+        address token,
+        uint256 amount,
+        uint256 beans
+    );
 
     /**
      * @notice Emitted when Beans are minted to the Field during the Season of Plenty.
@@ -49,6 +56,13 @@ library LibFlood {
      */
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
+    /**
+     * @notice Emitted when the rain status changes.
+     * @param season The current Season
+     * @param raining True if it started raining this season, false if it stopped raining.
+     */
+    event RainStatus(uint256 indexed season, bool raining);
+
     // @dev In-memory struct used to store current deltaB, and then reduction amount per-well.
     struct WellDeltaB {
         address well;
@@ -56,17 +70,24 @@ library LibFlood {
     }
 
     /**
-     * @dev Oversaturated was previously referred to as Raining and thus code
-     * references mentioning Rain really refer to Oversaturation. If P > 1 and the
-     * Pod Rate is less than 5%, the Farm is Oversaturated. If it is Oversaturated
-     * for a Season, each Season in which it continues to be Oversaturated, it Floods.
+     * @dev Oversaturated was previously referred to as Raining and thus code references 
+     * mentioning Rain really refer to Oversaturation. 
+     * - If P > 1 and the Pod Rate is less than 3%, while L2SR is relatively high and above,
+     *   the Farm is Oversaturated.
+     * - If it is Oversaturated for a Season, each Season in which it continues to be Oversaturated,
+     *   it Floods.
      */
     function handleRain(uint256 caseId) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // reset floodHarvestablePods from prior season
+        s.sys.rain.floodHarvestablePods = 0;
         // cases % 36  3-8 represent the case where the pod rate is less than 5% and P > 1.
-        if (caseId.mod(36) < 3 || caseId.mod(36) > 8) {
+        // cases / 36  >=2 represent the case where L2SR is relatively high and above.
+        if (caseId.mod(36) < 3 || caseId.mod(36) > 8 || caseId.div(36) < 2) {
             if (s.sys.season.raining) {
                 s.sys.season.raining = false;
+                emit RainStatus(s.sys.season.current, false);
             }
             return;
         } else if (!s.sys.season.raining) {
@@ -107,6 +128,7 @@ library LibFlood {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         s.sys.season.raining = true;
+        emit RainStatus(s.sys.season.current, true);
         address[] memory wells = LibWhitelistedTokens.getCurrentlySoppableWellLpTokens();
         // Set the plenty per root equal to previous rain start.
         uint32 season = s.sys.season.current;
@@ -126,12 +148,12 @@ library LibFlood {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // upon rain, set beanToMaxLpGpPerBdvRatio to zero, to encourage converts down before starting to flood
-        s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = 0;
         emit BeanToMaxLpGpPerBdvRatioChange(
             s.sys.season.current,
             caseId,
             -int80(int128(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
+        s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = 0;
     }
 
     /**
@@ -255,6 +277,9 @@ library LibFlood {
         );
 
         sopFieldBeans = sopFieldBeans > maxHarvestable ? maxHarvestable : sopFieldBeans;
+
+        // save floodHarvestablePods, so that it can be used in soil available calculation
+        s.sys.rain.floodHarvestablePods = uint128(sopFieldBeans);
 
         s.sys.fields[s.sys.activeField].harvestable = s
             .sys
@@ -381,7 +406,8 @@ library LibFlood {
                 s.sys.season.current,
                 wellDeltaB.well,
                 address(sopToken),
-                amountOut
+                amountOut,
+                sopBeans
             );
         }
     }

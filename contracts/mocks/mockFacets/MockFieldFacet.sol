@@ -8,7 +8,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import "contracts/libraries/Math/LibRedundantMath256.sol";
 import "contracts/beanstalk/facets/field/FieldFacet.sol";
-
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 /**
  * @title Mock Field Facet
  **/
@@ -30,6 +31,13 @@ contract MockFieldFacet is FieldFacet {
         s.sys.fields[fieldId].pods += amount;
     }
 
+    function setUnharvestable(uint256 amount) external {
+        // Get current harvestable index
+        uint256 currentIndex = s.sys.fields[s.sys.activeField].harvestable;
+        // Set pods for the current field
+        s.sys.fields[s.sys.activeField].harvestable = currentIndex + amount;
+    }
+
     function totalRealSoil() external view returns (uint256) {
         return s.sys.soil;
     }
@@ -48,7 +56,7 @@ contract MockFieldFacet is FieldFacet {
     ) external pure returns (uint256 scaledTemperature) {
         // check most likely case first
         if (delta > 24) {
-            return uint256(initalTemp).mul(LibDibbler.TEMPERATURE_PRECISION);
+            return uint256(initalTemp);
         }
 
         // Binary Search
@@ -58,7 +66,7 @@ contract MockFieldFacet is FieldFacet {
                     if (delta < 2) {
                         // delta == 0, same block as sunrise
                         if (delta < 1) {
-                            return LibDibbler.TEMPERATURE_PRECISION;
+                            return _scaleTemperature(10000000000, initalTemp);
                         } else {
                             // delta == 1
                             return _scaleTemperature(279415312704, initalTemp);
@@ -164,21 +172,13 @@ contract MockFieldFacet is FieldFacet {
         uint256 pct,
         uint256 initalTemp
     ) private pure returns (uint256 scaledTemperature) {
-        scaledTemperature = Math.max(
-            // To save gas, `pct` is pre-calculated to 12 digits. Here we
-            // perform the following transformation:
-            // (1e2)    maxTemperature
-            // (1e12)    * pct
-            // (1e6)     / TEMPERATURE_PRECISION
-            // (1e8)     = scaledYield
-            initalTemp.mulDiv(
-                pct,
-                LibDibbler.TEMPERATURE_PRECISION,
-                LibPRBMathRoundable.Rounding.Up
-            ),
-            // Floor at TEMPERATURE_PRECISION (1%)
-            LibDibbler.TEMPERATURE_PRECISION
-        );
+        // To save gas, `pct` is pre-calculated to 12 digits. Here we
+        // perform the following transformation:
+        // (1e6)    maxTemperature
+        // (1e12)    * pct
+        // (1e12)     / TEMPERATURE_DIVISOR
+        // (1e6)     = scaledYield
+        scaledTemperature = initalTemp.mulDiv(pct, 1e12, LibPRBMathRoundable.Rounding.Up);
     }
 
     /**
@@ -205,12 +205,16 @@ contract MockFieldFacet is FieldFacet {
         return
             LibDibbler.scaleSoilUp(
                 uint256(s.sys.soil), // min soil
-                uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION), // max temperature
+                uint256(s.sys.weather.temp), // max temperature
                 morningTemperature // temperature adjusted by number of blocks since Sunrise
             );
     }
 
     function setMaxTemp(uint32 t) external {
         s.sys.weather.temp = t;
+    }
+
+    function setCultivationFactor(uint256 cultivationFactor) external {
+        s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].value = abi.encode(cultivationFactor);
     }
 }

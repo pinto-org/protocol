@@ -390,7 +390,7 @@ library LibIncentive {
             if (secondsLate <= 210) {
                 return _scaleReward(beans, 8_081_435);
             }
-        } else if (secondsLate <= 240) {
+        } else if (secondsLate <= 238) {
             if (secondsLate <= 212) {
                 return _scaleReward(beans, 8_243_872);
             }

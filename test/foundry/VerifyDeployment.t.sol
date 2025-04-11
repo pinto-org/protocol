@@ -26,10 +26,10 @@ interface IBeanstalkERC20 {
 
 /**
  * @notice Verfifies the deployment parameters of Pinto
+ * @dev This test is marked as LEGACY because it is not used in the current deployment process.
  */
-contract VerifyDeploymentTest is TestHelper {
+contract LEGACY_VerifyDeploymentTest is TestHelper {
     // contracts for testing:
-    address constant PINTO = address(0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f);
     address constant PRICE = address(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 
     address constant PINTO_DEPLOYER = address(0x183926c42993478F6b2eb8CDEe0BEa524B119ab2);
@@ -37,9 +37,6 @@ contract VerifyDeploymentTest is TestHelper {
 
     uint256 constant FIELD_ID = 0;
     uint256 constant PAYBACK_FIELD_ID = 1;
-
-    // bean tokens
-    address constant L2_PINTO = address(0xb170000aeeFa790fa61D6e837d1035906839a3c8);
 
     address constant DEV_BUDGET = address(0xb0cdb715D8122bd976a30996866Ebe5e51bb18b0);
     address constant FIVE_PERCENT_RESERVES = address(0x4FAE5420F64c282FD908fdf05930B04E8e079770);
@@ -105,6 +102,8 @@ contract VerifyDeploymentTest is TestHelper {
 
     function test_verifyEvaluationParams() public {
         IMockFBeanstalk.EvaluationParameters memory evalParams = pinto.getEvaluationParameters();
+        IMockFBeanstalk.ExtEvaluationParameters memory extEvalParams = pinto
+            .getExtEvaluationParameters();
         // log all params
         console.log("-------------------------------");
         console.log("Evaluation Parameters");
@@ -125,6 +124,8 @@ contract VerifyDeploymentTest is TestHelper {
         console.log("soilCoefficientLow: ", evalParams.soilCoefficientLow);
         console.log("baseReward: ", evalParams.baseReward);
         console.log("minAvgGsPerBdv: ", evalParams.minAvgGsPerBdv);
+        console.log("");
+        console.log("belowPegSoilL2SRScalar: ", extEvalParams.belowPegSoilL2SRScalar);
         console.log("-------------------------------");
         assertEq(
             evalParams.maxBeanMaxLpGpPerBdvRatio,
@@ -186,6 +187,10 @@ contract VerifyDeploymentTest is TestHelper {
         assertEq(
             evalParams.minAvgGsPerBdv,
             getGlobalPropertyUint("evaluationParameters.minAvgGsPerBdv")
+        );
+        assertEq(
+            extEvalParams.belowPegSoilL2SRScalar,
+            getGlobalPropertyUint("extEvaluationParameters.belowPegSoilL2SRScalar")
         );
     }
 
