@@ -66,6 +66,10 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.weather.temp = uint32(t);
     }
 
+    function setTotalStalkE(uint256 amount) public {
+        s.sys.silo.stalk = uint128(amount);
+    }
+
     function siloSunrise(uint256 amount) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;

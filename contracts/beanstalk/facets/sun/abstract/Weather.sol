@@ -12,6 +12,8 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 
 /**
  * @title Weather
@@ -63,6 +65,21 @@ abstract contract Weather is Sun {
      */
     event SeasonOfPlentyField(uint256 toField);
 
+    /**
+     * @notice Emitted when bean crosses below its value target.
+     * @param season The season in which the bean crossed below its value target.
+     * @param tokens The tokens that were updated.
+     * @param stems The new stemTips stored at the peg cross.
+     */
+    event UpdatedBelowPegCrossStems(uint256 indexed season, address[] tokens, int96[] stems);
+
+    /**
+     * @notice Emitted when the peg state is updated.
+     * @param season The season in which the peg state was updated.
+     * @param abovePeg Whether the peg is above or below.
+     */
+    event PegStateUpdated(uint32 season, bool abovePeg);
+
     //////////////////// WEATHER INTERNAL ////////////////////
 
     /**
@@ -86,8 +103,35 @@ abstract contract Weather is Sun {
 
         // Calculate Case Id
         (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        updatePegState(bs.twaDeltaB);
         updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs.oracleFailure);
         LibFlood.handleRain(caseId);
+    }
+
+    /**
+     * @notice Updates the peg state based on the twaDeltaB and whether the peg was crossed.
+     * @param twaDeltaB The twaDeltaB from the Oracle.
+     */
+    function updatePegState(int256 twaDeltaB) internal {
+        bool lastSeasonPeg = s.sys.season.abovePeg;
+        s.sys.season.abovePeg = twaDeltaB > 0;
+
+        // if the last season peg state is not the same as the current peg state,
+        // the system has crossed peg.
+        if (lastSeasonPeg != s.sys.season.abovePeg) {
+            s.sys.season.pegCrossSeason = s.sys.season.current;
+            if (twaDeltaB < 0) {
+                // if the peg was crossed below, cache the stems for each whitelisted token.
+                address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+                int96[] memory stems = new int96[](lpTokens.length);
+                for (uint256 i = 0; i < lpTokens.length; i++) {
+                    stems[i] = LibTokenSilo.stemTipForToken(lpTokens[i]);
+                    s.sys.belowPegCrossStems[lpTokens[i]] = stems[i];
+                }
+                emit UpdatedBelowPegCrossStems(s.sys.season.pegCrossSeason, lpTokens, stems);
+            }
+            emit PegStateUpdated(s.sys.season.current, s.sys.season.abovePeg);
+        }
     }
 
     /**

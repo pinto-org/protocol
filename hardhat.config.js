@@ -608,6 +608,157 @@ task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
   });
 });
 
+task("PI-7", "Deploys Pinto improvment set 7, Convert Down Penalty").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    // await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "ConvertFacet",
+      "ConvertGettersFacet",
+      "PipelineConvertFacet",
+      "GaugeFacet",
+      "SeasonFacet",
+      "ApprovalFacet",
+      "SeasonGettersFacet",
+      "ClaimFacet",
+      "SiloGettersFacet",
+      "GaugeGettersFacet",
+      "OracleFacet"
+    ],
+    libraryNames: [
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibSilo",
+      "LibTokenSilo",
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibFlood",
+      "LibGerminate"
+    ],
+    facetLibraries: {
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      SeasonGettersFacet: ["LibWellMinting"],
+      ClaimFacet: ["LibSilo", "LibTokenSilo"]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner,
+    initArgs: [],
+    initFacetName: "InitPI7"
+  });
+});
+
+task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+
+  // Deploy contracts in correct order
+  const priceManipulation = await ethers.getContractFactory("PriceManipulation");
+  const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
+  await priceManipulationContract.deployed();
+  console.log("PriceManipulation deployed to:", priceManipulationContract.address);
+
+  // Deploy SiloHelpers
+  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
+  const siloHelpersContract = await siloHelpers.deploy(
+    L2_PINTO,
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+    await owner.getAddress(), // owner address
+    priceManipulationContract.address // price manipulation contract address
+  );
+  await siloHelpersContract.deployed();
+  console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+
+  // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
+  const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+  const sowBlueprintContract = await sowBlueprint.deploy(
+    L2_PINTO,
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+    await owner.getAddress(), // owner address
+    siloHelpersContract.address // siloHelpers contract address
+  );
+  await sowBlueprintContract.deployed();
+  console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
+
+  // Rest of the facet upgrades...
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "TokenFacet",
+      "TractorFacet",
+      "FieldFacet",
+      "SiloFacet",
+      "SiloGettersFacet",
+      "TokenSupportFacet",
+      "MarketplaceFacet",
+      "ApprovalFacet",
+      "ClaimFacet",
+      "ConvertFacet",
+      "PipelineConvertFacet",
+      "SeasonFacet"
+    ],
+    libraryNames: [
+      "LibSilo",
+      "LibTokenSilo",
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibFlood",
+      "LibGerminate"
+    ],
+    facetLibraries: {
+      SiloFacet: ["LibSilo", "LibTokenSilo"],
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
 task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   const mock = true;
   let owner;

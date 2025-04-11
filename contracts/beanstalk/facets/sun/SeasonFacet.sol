@@ -110,7 +110,7 @@ contract SeasonFacet is Invariable, Weather {
 
     /**
      * @notice Steps all gauges in the system.
-     * @param bs The BeanstalkState memory struct containing data of beanstalk's current.
+     * @param bs The BeanstalkState memory struct containing data of beanstalk's current state.
      */
     function stepGauges(LibEvaluate.BeanstalkState memory bs) internal {
         bytes memory systemData = abi.encode(bs);

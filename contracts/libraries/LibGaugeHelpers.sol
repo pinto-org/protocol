@@ -9,6 +9,52 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Gauge structs
+
+    //// Convert Bonus Gauge ////
+
+    /**
+     * @notice Struct for Convert Bonus Gauge Value
+     * @dev The value of the Convert Bonus Gauge is a struct that contains the following:
+     * - convertBonusFactor: The % of the baseBonusStalkPerBdv that a user recieves upon a successful WELL -> BEAN conversion.
+     * - convertCapacityFactor: The Factor used to determine the convert capacity. Capacity is a % of the twaDeltaB.
+     * - baseBonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
+     * - maxConvertCapacity: The maximum amount of bdv that can be converted in a season and get a bonus.
+     */
+    struct ConvertBonusGaugeValue {
+        uint256 convertBonusFactor;
+        uint256 convertCapacityFactor;
+        uint256 baseBonusStalkPerBdv;
+        uint256 maxConvertCapacity;
+    }
+
+    /**
+     * @notice Struct for Convert Bonus Gauge Data
+     * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
+     * - deltaC: The delta used in adjusting the convertBonusFactor.
+     * - deltaT: The delta used in adjusting the convertCapacityFactor.
+     * - minConvertBonusFactor: The minimum value of the conversion factor.
+     * - maxConvertBonusFactor: The maximum value of the conversion factor.
+     * - minCapacityFactor: The minimum value of the convert bonus bdv capacity factor.
+     * - maxCapacityFactor: The maximum value of the convert bonus bdv capacity factor.
+     * - lastSeasonBdvConverted: The amount of bdv converted last season.
+     * - thisSeasonBdvConverted: The amount of bdv converted this season.
+     * - deltaBdvConvertedDemandUpperBound: The percentage of bdv converted such that above this value, demand for converting is increasing.
+     * - deltaBdvConvertedDemandLowerBound: The percentage of bdv converted such that below this value, demand for converting is decreasing.
+     */
+    struct ConvertBonusGaugeData {
+        uint256 deltaC;
+        uint256 deltaT;
+        uint256 minConvertBonusFactor;
+        uint256 maxConvertBonusFactor;
+        uint256 minCapacityFactor;
+        uint256 maxCapacityFactor;
+        uint256 lastSeasonBdvConverted;
+        uint256 thisSeasonBdvConverted;
+        uint256 deltaBdvConvertedDemandUpperBound;
+        uint256 deltaBdvConvertedDemandLowerBound;
+    }
+
     // Gauge events
 
     /**
@@ -16,30 +62,43 @@ library LibGaugeHelpers {
      * @param gaugeId The id of the Gauge that was engaged.
      * @param value The value of the Gauge after it was engaged.
      */
-    event Engaged(GaugeId gaugeId, bytes value);
+    event Engaged(GaugeId indexed gaugeId, bytes value);
+
+    /**
+     * @notice Emitted when a Gauge is engaged (i.e. its value is updated).
+     * @param gaugeId The id of the Gauge that was engaged.
+     * @param data The data of the Gauge after it was engaged.
+     */
+    event EngagedData(GaugeId indexed gaugeId, bytes data);
 
     /**
      * @notice Emitted when a Gauge is added.
      * @param gaugeId The id of the Gauge that was added.
      * @param gauge The Gauge that was added.
      */
-    event AddedGauge(GaugeId gaugeId, Gauge gauge);
+    event AddedGauge(GaugeId indexed gaugeId, Gauge gauge);
 
     /**
      * @notice Emitted when a Gauge is removed.
      * @param gaugeId The id of the Gauge that was removed.
      */
-    event RemovedGauge(GaugeId gaugeId);
+    event RemovedGauge(GaugeId indexed gaugeId);
 
     /**
      * @notice Emitted when a Gauge is updated.
      * @param gaugeId The id of the Gauge that was updated.
      * @param gauge The Gauge that was updated.
      */
-    event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
+    event UpdatedGauge(GaugeId indexed gaugeId, Gauge gauge);
 
     /**
-     * @notice Calls all Gauges, and updates their values.
+     * @notice Emitted when a Gauge's data is updated.
+     * @param gaugeId The id of the Gauge that was updated.
+     * @param data The data of the Gauge that was updated.
+     */
+    event UpdatedGaugeData(GaugeId indexed gaugeId, bytes data);
+    /**
+     * @notice Calls all generalized Gauges, and updates their values.
      * @param systemData The system data to pass to the Gauges.
      */
     function engage(bytes memory systemData) internal {
@@ -61,8 +120,9 @@ library LibGaugeHelpers {
             s.sys.gaugeData.gauges[gaugeId].data
         ) = getGaugeResult(g, systemData);
 
-        // emit change in gauge value
+        // emit change in gauge value and data
         emit Engaged(gaugeId, s.sys.gaugeData.gauges[gaugeId].value);
+        emit EngagedData(gaugeId, s.sys.gaugeData.gauges[gaugeId].data);
     }
 
     /**
@@ -114,6 +174,13 @@ library LibGaugeHelpers {
         emit UpdatedGauge(gaugeId, g);
     }
 
+    function updateGaugeData(GaugeId gaugeId, bytes memory data) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.gaugeData.gauges[gaugeId].data = data;
+
+        emit UpdatedGaugeData(gaugeId, data);
+    }
+
     function removeGauge(GaugeId gaugeId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // remove the gauge from the array
@@ -145,7 +212,7 @@ library LibGaugeHelpers {
     /// GAUGE BLOCKS ///
 
     /**
-     * @notice linear is a implmentation that adds or
+     * @notice linear is a implementation that adds or
      * subtracts an absolute value, as a function of
      * the current value, the amount, and the max and min values.
      */
@@ -171,6 +238,22 @@ library LibGaugeHelpers {
         }
 
         return currentValue;
+    }
+
+    /**
+     * @notice linear256 is uint256 version of linear.
+     */
+    function linear256(
+        uint256 currentValue,
+        bool increase,
+        uint256 amount,
+        uint256 minValue,
+        uint256 maxValue
+    ) internal pure returns (uint256) {
+        return
+            uint256(
+                linear(int256(currentValue), increase, amount, int256(minValue), int256(maxValue))
+            );
     }
 
     /**
