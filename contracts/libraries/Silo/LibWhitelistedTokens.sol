@@ -16,7 +16,6 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
  *
  * @dev manages the WhitelistStatuses for all tokens in the Silo in order to track lists.
  * Note: dewhitelisting a token doesn't remove it's WhitelistStatus entirely–It just modifies it.
- * Once a token has no more Deposits in the Silo, it's WhitelistStatus should be removed through calling `removeWhitelistStatus`.
  */
 library LibWhitelistedTokens {
     /**
@@ -30,11 +29,6 @@ library LibWhitelistedTokens {
         bool isWhitelistedWell,
         bool isSoppable
     );
-
-    /**
-     * @notice Emitted when a Whitelist Status is removed.
-     */
-    event RemoveWhitelistStatus(address token, uint256 index);
 
     /**
      * @notice Emitted when a Whitelist Status is updated.
@@ -258,20 +252,6 @@ library LibWhitelistedTokens {
             isWhitelistedWell,
             isSoppable
         );
-    }
-
-    /**
-     * @notice Removes `token`'s Whitelist Status.
-     */
-    function removeWhitelistStatus(address token) internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 tokenStatusIndex = findWhitelistStatusIndex(token);
-        s.sys.silo.whitelistStatuses[tokenStatusIndex] = s.sys.silo.whitelistStatuses[
-            s.sys.silo.whitelistStatuses.length - 1
-        ];
-        s.sys.silo.whitelistStatuses.pop();
-
-        emit RemoveWhitelistStatus(token, tokenStatusIndex);
     }
 
     /**

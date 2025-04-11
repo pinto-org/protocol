@@ -55,6 +55,12 @@ contract LSDChainlinkOracle {
             uint256 xEthTimeout
         ) = abi.decode(data, (address, uint256, address, uint256));
 
+        // cache the isMillion flag by checking the last byte of the data
+        bool isMillion;
+        if (data.length > 128) {
+            isMillion = data[data.length - 1] == 0x01;
+        }
+
         // get the price of xETH/ETH or ETH/xETH, depending on decimals.
         uint256 xEthEthPrice = LibChainlinkOracle.getTokenPrice(
             xEthChainlinkOracle,
@@ -68,7 +74,8 @@ contract LSDChainlinkOracle {
             ethChainlinkOracle,
             ethTimeout,
             decimals == 0 ? 0 : ETH_DECIMALS,
-            lookback
+            lookback,
+            isMillion
         );
 
         if (decimals == 0) {

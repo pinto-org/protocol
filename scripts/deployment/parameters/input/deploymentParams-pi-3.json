@@ -1,0 +1,272 @@
+{
+  "seedGauge": {
+    "averageGrownStalkPerBdvPerSeason": "3e12",
+    "beanToMaxLpGpPerBdvRatio": "33333333333333333333",
+    "avgGsPerBdvFlag": false
+  },
+  "evaluationParameters": {
+    "maxBeanMaxLpGpPerBdvRatio": "100e18",
+    "minBeanMaxLpGpPerBdvRatio": "50e18",
+    "targetSeasonsToCatchUp": "4320",
+    "podRateLowerBound": "0.03e18",
+    "podRateOptimal": "0.15e18",
+    "podRateUpperBound": "0.25e18",
+    "deltaPodDemandLowerBound": "0.95e18",
+    "deltaPodDemandUpperBound": "1.05e18",
+    "lpToSupplyRatioUpperBound": "0.8e18",
+    "lpToSupplyRatioOptimal": "0.4e18",
+    "lpToSupplyRatioLowerBound": "0.12e18",
+    "excessivePriceThreshold": "1.05e6",
+    "soilCoefficientHigh": "0.5e18",
+    "soilCoefficientLow": "1.2e18",
+    "baseReward": "1e6",
+    "minAvgGsPerBdv": "2e12"
+  },
+  "whitelistData": {
+    "tokens": [
+      "0xb170000aeeFa790fa61D6e837d1035906839a3c8",
+      "0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3",
+      "0x3e111115A82dF6190e36ADf0d552880663A4dBF1",
+      "0x3e11226fe3d85142B734ABCe6e58918d5828d1b4",
+      "0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1",
+      "0x3e11444c7650234c748D743D8d374fcE2eE5E6C9"
+    ],
+    "nonBeanTokens": [
+      "0xb170000aeeFa790fa61D6e837d1035906839a3c8",
+      "0x4200000000000000000000000000000000000006",
+      "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+      "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "0x1C61629598e4a901136a81BC138E5828dc150d67"
+    ],
+    "defaultAssetSettings": {
+      "stalkEarnedPerSeason": "1",
+      "stalkIssuedPerBdv": "1e10",
+      "milestoneSeason": "1",
+      "milestoneStem": "0",
+      "deltaStalkEarnedPerSeason": "0",
+      "gaugePoints": "500e18",
+      "optimalPercentDepositedBdv": "0",
+      "gaugePointImplementation": {
+        "target": "0x0000000000000000000000000000000000000000",
+        "selector": "0x00000000",
+        "encodeType": "0x00",
+        "data": "0x"
+      },
+      "liquidityWeightImplementation": {
+        "target": "0x0000000000000000000000000000000000000000",
+        "selector": "0x2c5fa218",
+        "encodeType": "0x00",
+        "data": "0x"
+      }
+    },
+    "tokenAssetSettings": {
+      "0xb170000aeeFa790fa61D6e837d1035906839a3c8": {
+        "selector": "0x5a049a47",
+        "encodeType": "0x00",
+        "optimalPercentDepositedBdv": "0",
+        "stalkEarnedPerSeason": "2000000"
+      },
+      "0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3": {
+        "selector": "0xc84c7727",
+        "encodeType": "0x01",
+        "gaugePoints": "250e18",
+        "optimalPercentDepositedBdv": "12500000",
+        "stalkEarnedPerSeason": "3000000"
+      },
+      "0x3e111115A82dF6190e36ADf0d552880663A4dBF1": {
+        "selector": "0xc84c7727",
+        "encodeType": "0x01",
+        "gaugePoints": "250e18",
+        "optimalPercentDepositedBdv": "12500000",
+        "stalkEarnedPerSeason": "3000000"
+      },
+      "0x3e11226fe3d85142B734ABCe6e58918d5828d1b4": {
+        "selector": "0xc84c7727",
+        "encodeType": "0x01",
+        "gaugePoints": "500e18",
+        "optimalPercentDepositedBdv": "25000000",
+        "stalkEarnedPerSeason": "3000000"
+      },
+      "0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1": {
+        "selector": "0xc84c7727",
+        "encodeType": "0x01",
+        "gaugePoints": "500e18",
+        "optimalPercentDepositedBdv": "25000000",
+        "stalkEarnedPerSeason": "3000000"
+      },
+      "0x3e11444c7650234c748D743D8d374fcE2eE5E6C9": {
+        "selector": "0xc84c7727",
+        "encodeType": "0x01",
+        "gaugePoints": "500e18",
+        "optimalPercentDepositedBdv": "25000000",
+        "stalkEarnedPerSeason": "3000000"
+      }
+    },
+    "oraclesImplementations": [
+      {
+        "token": "0xb170000aeeFa790fa61D6e837d1035906839a3c8",
+        "implementation": {
+          "target": "0x0000000000000000000000000000000000000000",
+          "selector": "0x00000000",
+          "encodeType": "0x00",
+          "data": "0x"
+        }
+      },
+      {
+        "token": "0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3",
+        "implementation": {
+          "target": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+          "selector": "0x00000000",
+          "encodeType": "0x01",
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000708"
+        }
+      },
+      {
+        "token": "0x3e111115A82dF6190e36ADf0d552880663A4dBF1",
+        "implementation": {
+          "target": "0xd7818272B9e248357d13057AAb0B417aF31E817d",
+          "selector": "0x00000000",
+          "encodeType": "0x01",
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000708"
+        }
+      },
+      {
+        "token": "0x3e11226fe3d85142B734ABCe6e58918d5828d1b4",
+        "implementation": {
+          "target": "0x07DA0E54543a844a80ABE69c8A12F22B3aA59f9D",
+          "selector": "0x00000000",
+          "encodeType": "0x01",
+          "data": "0x000000000000000000000000000000000000000000000000000000000001fa40"
+        }
+      },
+      {
+        "token": "0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1",
+        "implementation": {
+          "target": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+          "selector": "0x00000000",
+          "encodeType": "0x01",
+          "data": "0x000000000000000000000000000000000000000000000000000000000001fa40"
+        }
+      },
+      {
+        "token": "0x3e11444c7650234c748D743D8d374fcE2eE5E6C9",
+        "implementation": {
+          "target": "0x975043adBb80fc32276CbF9Bbcfd4A601a12462D",
+          "selector": "0x00000000",
+          "encodeType": "0x01",
+          "data": "0x000000000000000000000000000000000000000000000000000000000001fa40"
+        }
+      }
+    ]
+  },
+  "shipmentRoutes": [
+    {
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
+      "planSelector": "0x7c655075",
+      "recipient": "0x1",
+      "data": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
+      "planSelector": "0x12e8d3ed",
+      "recipient": "0x2",
+      "data": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
+      "planSelector": "0x05655264",
+      "recipient": "0x3",
+      "data": "0x000000000000000000000000b0cdb715D8122bd976a30996866Ebe5e51bb18b0"
+    },
+    {
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
+      "planSelector": "0x6fc9267a",
+      "recipient": "0x2",
+      "data": "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000002cf82605402912C6a79078a9BBfcCf061CbfD507"
+    },
+    {
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
+      "planSelector": "0x441d1e5b",
+      "recipient": "0x4",
+      "data": "0x0000000000000000000000002cf82605402912C6a79078a9BBfcCf061CbfD507"
+    }
+  ],
+  "wellComponents": {
+    "wellUpgradeableImplementation": "0xBA510990a720725Ab1F9a0D231F045fc906909f4",
+    "aquifer": "0xBA51AA60B3b8d9A36cc748a62Aa56801060183f8",
+    "pump": "0xBA51AAaA66DaB6c236B356ad713f759c206DcB93",
+    "pumpData": "0x3ffefd29d6deab9ccdef2300d0c1c903000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000603ffd0000000000000000000000000000000000000000000000000000000000003ffd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003ffd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000023ffd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "wells": [
+    {
+      "nonBeanToken": "0x4200000000000000000000000000000000000006",
+      "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
+      "wellFunctionData": "0x",
+      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f41c1de71aa9cede63741a8da",
+      "name": "PINTO:WETH Constant Product 2 Upgradeable Well",
+      "symbol": "U-PINTOWETHCP2w"
+    },
+    {
+      "nonBeanToken": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+      "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
+      "wellFunctionData": "0x",
+      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f934b9bc011434f813a1ae920",
+      "name": "PINTO:CBETH Constant Product 2 Upgradeable Well",
+      "symbol": "U-PINTOCBETHCP2w"
+    },
+    {
+      "nonBeanToken": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
+      "wellFunctionData": "0x",
+      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f26706e0b89538f1d727b857a",
+      "name": "PINTO:CBBTC Constant Product 2 Upgradeable Well",
+      "symbol": "U-PINTOCBBTCCP2w"
+    },
+    {
+      "nonBeanToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "wellFunctionTarget": "0xBA51055a97b40d7f41f3F64b57469b5D45B67c87",
+      "wellFunctionData": "0x00000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000006",
+      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8fa6788115197ecbb19d0b0ad7",
+      "name": "PINTO:USDC Stable 2 Upgradeable Well",
+      "symbol": "U-PINTOUSDCS2w"
+    },
+    {
+      "nonBeanToken": "0x1C61629598e4a901136a81BC138E5828dc150d67",
+      "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
+      "wellFunctionData": "0x",
+      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8feb59fd26e03e60c2ee9c4a55",
+      "name": "PINTO:WSOL Constant Product 2 Upgradeable Well",
+      "symbol": "U-PINTOWSOLCP2w"
+    }
+  ],
+  "token": {
+    "name": "Pinto",
+    "symbol": "PINTO",
+    "receiver": "0x183926c42993478F6b2eb8CDEe0BEa524B119ab2",
+    "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f5e59c7880900f6ef885adb82",
+    "initSupply": "1000e6"
+  },
+  "initWellDistributions": [
+    {
+      "well": "0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3",
+      "initSupplyPercentage": "12.5"
+    },
+    {
+      "well": "0x3e111115A82dF6190e36ADf0d552880663A4dBF1",
+      "initSupplyPercentage": "12.5"
+    },
+    {
+      "well": "0x3e11226fe3d85142B734ABCe6e58918d5828d1b4",
+      "initSupplyPercentage": "25"
+    },
+    {
+      "well": "0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1",
+      "initSupplyPercentage": "25"
+    },
+    {
+      "well": "0x3e11444c7650234c748D743D8d374fcE2eE5E6C9",
+      "initSupplyPercentage": "25"
+    }
+  ]
+}

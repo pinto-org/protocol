@@ -243,6 +243,45 @@ library LibWell {
     }
 
     /**
+     * @notice Returns the USD price of Bean in a given well.
+     * @dev This function calculates the USD price of Bean by first determining the price of the non-Bean token in the well,
+     * and then using the reserves from the pump to calculate the Bean price.
+     * This can only be called during sunrise.
+     * @param well The address of the well to calculate the Bean USD price for.
+     * @return beanUsdPrice The USD price of Bean in the well.
+     */
+    function getBeanUsdPriceForWell(address well) internal view returns (uint256) {
+        uint256 tokenBeanPrice = getTokenBeanPriceFromTwaReserves(well);
+        return getBeanUsdPriceFromTokenBeanPrice(well, tokenBeanPrice);
+    }
+
+    /**
+     * @notice Returns the USD price of Bean in a given well.
+     * @dev This function calculates the USD price of Bean by first determining the price of the non-Bean token in the well,
+     * and then using the reserves from the pump to calculate the Bean price.
+     * This can only be called during sunrise.
+     * @param well The address of the well to calculate the Bean USD price for.
+     * @return beanUsdPrice The USD price of Bean in the well.
+     */
+    function getBeanUsdPriceFromTokenBeanPrice(
+        address well,
+        uint256 tokenBeanPrice
+    ) internal view returns (uint256) {
+        if (tokenBeanPrice == 0) {
+            return 0;
+        }
+
+        address nonBeanToken = address(getNonBeanTokenFromWell(well));
+        uint256 nonBeanTokenDecimals = IERC20Decimals(nonBeanToken).decimals();
+
+        uint256 beanUsdPrice = uint256(10 ** (12 + nonBeanTokenDecimals)).div(
+            getUsdTokenPriceForWell(well).mul(tokenBeanPrice)
+        );
+
+        return beanUsdPrice;
+    }
+
+    /**
      * @dev Sets the twaReserves in {AppStorage.usdTokenPrice}.
      * assumes the twaReserve indexes correspond to the Constant Product Well indexes.
      * if the length of the twaReserves is 0, then the minting oracle is off.
@@ -295,7 +334,7 @@ library LibWell {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // s.sys.twaReserve[well] should be set prior to this function being called.
         // 'price' is in terms of reserve0:reserve1.
-        if (s.sys.twaReserves[well].reserve0 == 0 || s.sys.twaReserves[well].reserve1 == 0) {
+        if (s.sys.twaReserves[well].reserve0 <= 1 || s.sys.twaReserves[well].reserve1 <= 1) {
             price = 0;
         } else {
             // fetch the bean index from the well in order to properly return the bean price.

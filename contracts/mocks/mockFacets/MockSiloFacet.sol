@@ -170,4 +170,11 @@ contract MockSiloFacet is SiloFacet {
         s.accts[account].stalk = stalk;
         s.accts[account].roots = roots;
     }
+
+    function reduceAccountRainRoots(address account, uint256 rainRoots) external {
+        // reduce user rain roots
+        s.accts[account].sop.rainRoots = s.accts[account].sop.rainRoots.sub(rainRoots);
+        // reduce global rain roots
+        s.sys.rain.roots = s.sys.rain.roots.sub(rainRoots);
+    }
 }

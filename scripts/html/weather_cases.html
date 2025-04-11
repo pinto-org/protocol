@@ -1,0 +1,897 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Beanstalk Weather Cases</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .l2sr-section {
+            margin-bottom: 40px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .case-table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+            table-layout: fixed;
+        }
+        .case-table th, .case-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            position: relative;
+            font-size: 18px;
+            overflow: visible;
+            text-overflow: ellipsis;
+        }
+        .case-table th {
+            background-color: #f4f4f4;
+        }
+        .highlighted {
+            background-color: #ffeb3b;
+            transition: background-color 0.3s;
+        }
+        .search-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        input {
+            padding: 8px;
+            font-size: 16px;
+        }
+        .tooltip {
+            visibility: hidden;
+            background-color: black;
+            color: white;
+            text-align: center;
+            padding: 5px 10px;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        td:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Beanstalk Weather Cases</h1>
+    <div class="search-container">
+        <label for="caseIdInput">Enter Case ID (0-143): </label>
+        <input type="number" id="caseIdInput" min="0" max="143" />
+    </div>
+    <div id="cases-container">
+
+    <div class="l2sr-section" data-l2sr-level="0">
+        <h2>Excessively Low L2SR</h2>
+        <table class="case-table">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Demand</th>
+                    <th>Excessively Low Debt</th>
+                    <th>Reasonably Low Debt</th>
+                    <th>Reasonably High Debt</th>
+                    <th>Excessively High Debt</th>
+                </tr>
+            </thead>
+            <tbody>
+    <tr data-price="P > Q" data-demand="Increasing"><td rowspan="3">P > Q</td><td>Increasing</td>
+            <td data-case-id="8">
+                <span class="tooltip">Case ID: 8</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="17">
+                <span class="tooltip">Case ID: 17</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="26">
+                <span class="tooltip">Case ID: 26</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="35">
+                <span class="tooltip">Case ID: 35</span>
+                -3%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="7">
+                <span class="tooltip">Case ID: 7</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="16">
+                <span class="tooltip">Case ID: 16</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="25">
+                <span class="tooltip">Case ID: 25</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="34">
+                <span class="tooltip">Case ID: 34</span>
+                -1%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="6">
+                <span class="tooltip">Case ID: 6</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="15">
+                <span class="tooltip">Case ID: 15</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="24">
+                <span class="tooltip">Case ID: 24</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="33">
+                <span class="tooltip">Case ID: 33</span>
+                +0%, -0.5
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Increasing"><td rowspan="3">P > 1</td><td>Increasing</td>
+            <td data-case-id="5">
+                <span class="tooltip">Case ID: 5</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="14">
+                <span class="tooltip">Case ID: 14</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="23">
+                <span class="tooltip">Case ID: 23</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="32">
+                <span class="tooltip">Case ID: 32</span>
+                -3%, -0.5
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="4">
+                <span class="tooltip">Case ID: 4</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="13">
+                <span class="tooltip">Case ID: 13</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="22">
+                <span class="tooltip">Case ID: 22</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="31">
+                <span class="tooltip">Case ID: 31</span>
+                -1%, -0.5
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="3">
+                <span class="tooltip">Case ID: 3</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="12">
+                <span class="tooltip">Case ID: 12</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="21">
+                <span class="tooltip">Case ID: 21</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="30">
+                <span class="tooltip">Case ID: 30</span>
+                +0%, -0.5
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Increasing"><td rowspan="3">P < 1</td><td>Increasing</td>
+            <td data-case-id="2">
+                <span class="tooltip">Case ID: 2</span>
+                +1%, -0.5
+            </td>
+          
+            <td data-case-id="11">
+                <span class="tooltip">Case ID: 11</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="20">
+                <span class="tooltip">Case ID: 20</span>
+                -05%, -0.5
+            </td>
+          
+            <td data-case-id="29">
+                <span class="tooltip">Case ID: 29</span>
+                -05%, -0.5
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="1">
+                <span class="tooltip">Case ID: 1</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="10">
+                <span class="tooltip">Case ID: 10</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="19">
+                <span class="tooltip">Case ID: 19</span>
+                +05%, -0.5
+            </td>
+          
+            <td data-case-id="28">
+                <span class="tooltip">Case ID: 28</span>
+                +05%, -0.5
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="0">
+                <span class="tooltip">Case ID: 0</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="9">
+                <span class="tooltip">Case ID: 9</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="18">
+                <span class="tooltip">Case ID: 18</span>
+                +1%, -0.5
+            </td>
+          
+            <td data-case-id="27">
+                <span class="tooltip">Case ID: 27</span>
+                +1%, -0.5
+            </td>
+          </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="l2sr-section" data-l2sr-level="1">
+        <h2>Reasonably Low L2SR</h2>
+        <table class="case-table">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Demand</th>
+                    <th>Excessively Low Debt</th>
+                    <th>Reasonably Low Debt</th>
+                    <th>Reasonably High Debt</th>
+                    <th>Excessively High Debt</th>
+                </tr>
+            </thead>
+            <tbody>
+    <tr data-price="P > Q" data-demand="Increasing"><td rowspan="3">P > Q</td><td>Increasing</td>
+            <td data-case-id="44">
+                <span class="tooltip">Case ID: 44</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="53">
+                <span class="tooltip">Case ID: 53</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="62">
+                <span class="tooltip">Case ID: 62</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="71">
+                <span class="tooltip">Case ID: 71</span>
+                -3%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="43">
+                <span class="tooltip">Case ID: 43</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="52">
+                <span class="tooltip">Case ID: 52</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="61">
+                <span class="tooltip">Case ID: 61</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="70">
+                <span class="tooltip">Case ID: 70</span>
+                -1%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="42">
+                <span class="tooltip">Case ID: 42</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="51">
+                <span class="tooltip">Case ID: 51</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="60">
+                <span class="tooltip">Case ID: 60</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="69">
+                <span class="tooltip">Case ID: 69</span>
+                +0%, -0.5
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Increasing"><td rowspan="3">P > 1</td><td>Increasing</td>
+            <td data-case-id="41">
+                <span class="tooltip">Case ID: 41</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="50">
+                <span class="tooltip">Case ID: 50</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="59">
+                <span class="tooltip">Case ID: 59</span>
+                -3%, -0.02
+            </td>
+          
+            <td data-case-id="68">
+                <span class="tooltip">Case ID: 68</span>
+                -3%, -0.02
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="40">
+                <span class="tooltip">Case ID: 40</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="49">
+                <span class="tooltip">Case ID: 49</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="58">
+                <span class="tooltip">Case ID: 58</span>
+                -1%, -0.02
+            </td>
+          
+            <td data-case-id="67">
+                <span class="tooltip">Case ID: 67</span>
+                -1%, -0.02
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="39">
+                <span class="tooltip">Case ID: 39</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="48">
+                <span class="tooltip">Case ID: 48</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="57">
+                <span class="tooltip">Case ID: 57</span>
+                +0%, -0.02
+            </td>
+          
+            <td data-case-id="66">
+                <span class="tooltip">Case ID: 66</span>
+                +0%, -0.02
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Increasing"><td rowspan="3">P < 1</td><td>Increasing</td>
+            <td data-case-id="38">
+                <span class="tooltip">Case ID: 38</span>
+                +1%, -0.5
+            </td>
+          
+            <td data-case-id="47">
+                <span class="tooltip">Case ID: 47</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="56">
+                <span class="tooltip">Case ID: 56</span>
+                -05%, +0.01
+            </td>
+          
+            <td data-case-id="65">
+                <span class="tooltip">Case ID: 65</span>
+                -05%, +0.01
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="37">
+                <span class="tooltip">Case ID: 37</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="46">
+                <span class="tooltip">Case ID: 46</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="55">
+                <span class="tooltip">Case ID: 55</span>
+                +05%, +0.01
+            </td>
+          
+            <td data-case-id="64">
+                <span class="tooltip">Case ID: 64</span>
+                +05%, +0.01
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="36">
+                <span class="tooltip">Case ID: 36</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="45">
+                <span class="tooltip">Case ID: 45</span>
+                +2%, -0.5
+            </td>
+          
+            <td data-case-id="54">
+                <span class="tooltip">Case ID: 54</span>
+                +1%, +0.01
+            </td>
+          
+            <td data-case-id="63">
+                <span class="tooltip">Case ID: 63</span>
+                +1%, +0.01
+            </td>
+          </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="l2sr-section" data-l2sr-level="2">
+        <h2>Reasonably High L2SR</h2>
+        <table class="case-table">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Demand</th>
+                    <th>Excessively Low Debt</th>
+                    <th>Reasonably Low Debt</th>
+                    <th>Reasonably High Debt</th>
+                    <th>Excessively High Debt</th>
+                </tr>
+            </thead>
+            <tbody>
+    <tr data-price="P > Q" data-demand="Increasing"><td rowspan="3">P > Q</td><td>Increasing</td>
+            <td data-case-id="80">
+                <span class="tooltip">Case ID: 80</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="89">
+                <span class="tooltip">Case ID: 89</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="98">
+                <span class="tooltip">Case ID: 98</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="107">
+                <span class="tooltip">Case ID: 107</span>
+                -3%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="79">
+                <span class="tooltip">Case ID: 79</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="88">
+                <span class="tooltip">Case ID: 88</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="97">
+                <span class="tooltip">Case ID: 97</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="106">
+                <span class="tooltip">Case ID: 106</span>
+                -1%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="78">
+                <span class="tooltip">Case ID: 78</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="87">
+                <span class="tooltip">Case ID: 87</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="96">
+                <span class="tooltip">Case ID: 96</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="105">
+                <span class="tooltip">Case ID: 105</span>
+                +0%, -0.5
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Increasing"><td rowspan="3">P > 1</td><td>Increasing</td>
+            <td data-case-id="77">
+                <span class="tooltip">Case ID: 77</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="86">
+                <span class="tooltip">Case ID: 86</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="95">
+                <span class="tooltip">Case ID: 95</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="104">
+                <span class="tooltip">Case ID: 104</span>
+                -3%, -0.01
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="76">
+                <span class="tooltip">Case ID: 76</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="85">
+                <span class="tooltip">Case ID: 85</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="94">
+                <span class="tooltip">Case ID: 94</span>
+                -1%, -0.01
+            </td>
+          
+            <td data-case-id="103">
+                <span class="tooltip">Case ID: 103</span>
+                -1%, -0.01
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="75">
+                <span class="tooltip">Case ID: 75</span>
+                -1%, -0.01
+            </td>
+          
+            <td data-case-id="84">
+                <span class="tooltip">Case ID: 84</span>
+                -1%, -0.01
+            </td>
+          
+            <td data-case-id="93">
+                <span class="tooltip">Case ID: 93</span>
+                +0%, -0.01
+            </td>
+          
+            <td data-case-id="102">
+                <span class="tooltip">Case ID: 102</span>
+                +0%, -0.01
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Increasing"><td rowspan="3">P < 1</td><td>Increasing</td>
+            <td data-case-id="74">
+                <span class="tooltip">Case ID: 74</span>
+                +1%, +0.01
+            </td>
+          
+            <td data-case-id="83">
+                <span class="tooltip">Case ID: 83</span>
+                +0%, +0.01
+            </td>
+          
+            <td data-case-id="92">
+                <span class="tooltip">Case ID: 92</span>
+                -05%, +0.01
+            </td>
+          
+            <td data-case-id="101">
+                <span class="tooltip">Case ID: 101</span>
+                -05%, +0.01
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="73">
+                <span class="tooltip">Case ID: 73</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="82">
+                <span class="tooltip">Case ID: 82</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="91">
+                <span class="tooltip">Case ID: 91</span>
+                +05%, +0.01
+            </td>
+          
+            <td data-case-id="100">
+                <span class="tooltip">Case ID: 100</span>
+                +05%, +0.01
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="72">
+                <span class="tooltip">Case ID: 72</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="81">
+                <span class="tooltip">Case ID: 81</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="90">
+                <span class="tooltip">Case ID: 90</span>
+                +1%, +0.01
+            </td>
+          
+            <td data-case-id="99">
+                <span class="tooltip">Case ID: 99</span>
+                +1%, +0.01
+            </td>
+          </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="l2sr-section" data-l2sr-level="3">
+        <h2>Excessively High L2SR</h2>
+        <table class="case-table">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Demand</th>
+                    <th>Excessively Low Debt</th>
+                    <th>Reasonably Low Debt</th>
+                    <th>Reasonably High Debt</th>
+                    <th>Excessively High Debt</th>
+                </tr>
+            </thead>
+            <tbody>
+    <tr data-price="P > Q" data-demand="Increasing"><td rowspan="3">P > Q</td><td>Increasing</td>
+            <td data-case-id="116">
+                <span class="tooltip">Case ID: 116</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="125">
+                <span class="tooltip">Case ID: 125</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="134">
+                <span class="tooltip">Case ID: 134</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="143">
+                <span class="tooltip">Case ID: 143</span>
+                -3%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="115">
+                <span class="tooltip">Case ID: 115</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="124">
+                <span class="tooltip">Case ID: 124</span>
+                -3%, -0.5
+            </td>
+          
+            <td data-case-id="133">
+                <span class="tooltip">Case ID: 133</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="142">
+                <span class="tooltip">Case ID: 142</span>
+                -1%, -0.5
+            </td>
+          </tr><tr data-price="P > Q" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="114">
+                <span class="tooltip">Case ID: 114</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="123">
+                <span class="tooltip">Case ID: 123</span>
+                -1%, -0.5
+            </td>
+          
+            <td data-case-id="132">
+                <span class="tooltip">Case ID: 132</span>
+                +0%, -0.5
+            </td>
+          
+            <td data-case-id="141">
+                <span class="tooltip">Case ID: 141</span>
+                +0%, -0.5
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Increasing"><td rowspan="3">P > 1</td><td>Increasing</td>
+            <td data-case-id="113">
+                <span class="tooltip">Case ID: 113</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="122">
+                <span class="tooltip">Case ID: 122</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="131">
+                <span class="tooltip">Case ID: 131</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="140">
+                <span class="tooltip">Case ID: 140</span>
+                -3%, -0.01
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="112">
+                <span class="tooltip">Case ID: 112</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="121">
+                <span class="tooltip">Case ID: 121</span>
+                -3%, -0.01
+            </td>
+          
+            <td data-case-id="130">
+                <span class="tooltip">Case ID: 130</span>
+                -1%, -0.01
+            </td>
+          
+            <td data-case-id="139">
+                <span class="tooltip">Case ID: 139</span>
+                -1%, -0.01
+            </td>
+          </tr><tr data-price="P > 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="111">
+                <span class="tooltip">Case ID: 111</span>
+                -1%, -0.01
+            </td>
+          
+            <td data-case-id="120">
+                <span class="tooltip">Case ID: 120</span>
+                -1%, -0.01
+            </td>
+          
+            <td data-case-id="129">
+                <span class="tooltip">Case ID: 129</span>
+                +0%, -0.01
+            </td>
+          
+            <td data-case-id="138">
+                <span class="tooltip">Case ID: 138</span>
+                +0%, -0.01
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Increasing"><td rowspan="3">P < 1</td><td>Increasing</td>
+            <td data-case-id="110">
+                <span class="tooltip">Case ID: 110</span>
+                +1%, +0.01
+            </td>
+          
+            <td data-case-id="119">
+                <span class="tooltip">Case ID: 119</span>
+                +0%, +0.01
+            </td>
+          
+            <td data-case-id="128">
+                <span class="tooltip">Case ID: 128</span>
+                -05%, +0.02
+            </td>
+          
+            <td data-case-id="137">
+                <span class="tooltip">Case ID: 137</span>
+                -05%, +0.02
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Steady"><td>Steady</td>
+            <td data-case-id="109">
+                <span class="tooltip">Case ID: 109</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="118">
+                <span class="tooltip">Case ID: 118</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="127">
+                <span class="tooltip">Case ID: 127</span>
+                +05%, +0.02
+            </td>
+          
+            <td data-case-id="136">
+                <span class="tooltip">Case ID: 136</span>
+                +05%, +0.02
+            </td>
+          </tr><tr data-price="P < 1" data-demand="Decreasing"><td>Decreasing</td>
+            <td data-case-id="108">
+                <span class="tooltip">Case ID: 108</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="117">
+                <span class="tooltip">Case ID: 117</span>
+                +2%, +0.01
+            </td>
+          
+            <td data-case-id="126">
+                <span class="tooltip">Case ID: 126</span>
+                +1%, +0.02
+            </td>
+          
+            <td data-case-id="135">
+                <span class="tooltip">Case ID: 135</span>
+                +1%, +0.02
+            </td>
+          </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    </div>
+    <script>
+        document.getElementById('caseIdInput').addEventListener('input', function(e) {
+            // Remove previous highlight
+            const previousHighlight = document.querySelector('.highlighted');
+            if (previousHighlight) {
+                previousHighlight.classList.remove('highlighted');
+            }
+
+            const caseId = parseInt(e.target.value);
+            if (isNaN(caseId) || caseId < 0 || caseId > 143) return;
+
+            // Find and highlight the cell
+            const cell = document.querySelector(`td[data-case-id="${caseId}"]`);
+            if (cell) {
+                cell.classList.add('highlighted');
+                // Scroll cell into view
+                cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    </script>
+</body>
+</html>
+  

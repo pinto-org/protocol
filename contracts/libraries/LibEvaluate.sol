@@ -12,6 +12,8 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {System, EvaluationParameters, Weather} from "contracts/beanstalk/storage/System.sol";
+import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 /**
@@ -42,9 +44,14 @@ library LibEvaluate {
     using LibRedundantMath32 for uint32;
 
     /// @dev If all Soil is Sown faster than this, Beanstalk considers demand for Soil to be increasing.
-    uint256 internal constant SOW_TIME_DEMAND_INCR = 600; // seconds
-    uint32 internal constant SOW_TIME_STEADY = 60; // seconds
+    uint256 internal constant SOW_TIME_DEMAND_INCR = 1200; // seconds
+    uint32 internal constant SOW_TIME_STEADY_LOWER = 300; // seconds, lower means closer to the bottom of the hour
+    uint32 internal constant SOW_TIME_STEADY_UPPER = 300; // seconds, upper means closer to the top of the hour
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
+    uint256 internal constant SOIL_PRECISION = 1e6;
+    uint256 internal constant BEAN_PRECISION = 1e6;
+    uint256 internal constant MIN_BEAN_SUPPLY_BOUND = 10e6;
+    uint256 internal constant HIGH_DEMAND_THRESHOLD = 1e18;
 
     struct BeanstalkState {
         Decimal.D256 deltaPodDemand;
@@ -52,7 +59,18 @@ library LibEvaluate {
         Decimal.D256 podRate;
         address largestLiqWell;
         bool oracleFailure;
+        uint256 largestLiquidWellTwapBeanPrice;
+        int256 twaDeltaB;
     }
+
+    event SeasonMetrics(
+        uint256 indexed season,
+        uint256 deltaPodDemand,
+        uint256 lpToSupplyRatio,
+        uint256 podRate,
+        uint256 thisSowTime,
+        uint256 lastSowTime
+    );
 
     /**
      * @notice evaluates the pod rate and returns the caseId
@@ -72,28 +90,16 @@ library LibEvaluate {
     /**
      * @notice updates the caseId based on the price of bean (deltaB)
      * @param deltaB the amount of beans needed to be sold or bought to get bean to peg.
-     * @param well the well address to get the bean price from.
+     * @param beanUsdPrice the price of bean in USD.
      */
-    function evalPrice(int256 deltaB, address well) internal view returns (uint256 caseId) {
+    function evalPrice(int256 deltaB, uint256 beanUsdPrice) internal view returns (uint256 caseId) {
         EvaluationParameters storage ep = LibAppStorage.diamondStorage().sys.evaluationParameters;
-        // p > 1
         if (deltaB > 0) {
-            // Beanstalk will only use the largest liquidity well to compute the Bean price,
-            // and thus will skip the p > EXCESSIVE_PRICE_THRESHOLD check if the well oracle fails to
-            // compute a valid price this Season.
-            // deltaB > 0 implies that address(well) != address(0).
-            uint256 tokenBeanPrice = LibWell.getTokenBeanPriceFromTwaReserves(well);
-            if (tokenBeanPrice > 1) {
-                address nonBeanToken = address(LibWell.getNonBeanTokenFromWell(well));
-                uint256 nonBeanTokenDecimals = IERC20Decimals(nonBeanToken).decimals();
-                uint256 beanUsdPrice = uint256(10 ** (12 + nonBeanTokenDecimals)).div(
-                    LibWell.getUsdTokenPriceForWell(well).mul(tokenBeanPrice)
-                );
-                if (beanUsdPrice > ep.excessivePriceThreshold) {
-                    // p > excessivePriceThreshold
-                    return caseId = 6;
-                }
+            if (beanUsdPrice > ep.excessivePriceThreshold) {
+                // p > excessivePriceThreshold
+                return caseId = 6;
             }
+
             caseId = 3;
         }
         // p < 1 (caseId = 0)
@@ -153,6 +159,16 @@ library LibEvaluate {
     {
         Weather storage w = LibAppStorage.diamondStorage().sys.weather;
 
+        // get the minimum soil sown threshold needed to calculate delta pod demand.
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold();
+
+        // not enough soil sown, consider demand to be decreasing, reset sow times.
+        if (dsoil < minDemandThreshold) {
+            return (Decimal.zero(), w.thisSowTime, type(uint32).max);
+        }
+
+        deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
+
         // `s.weather.thisSowTime` is set to the number of seconds in it took for
         // Soil to sell out during the current Season. If Soil didn't sell out,
         // it remains `type(uint32).max`.
@@ -160,31 +176,42 @@ library LibEvaluate {
             if (
                 w.lastSowTime == type(uint32).max || // Didn't Sow all last Season
                 w.thisSowTime < SOW_TIME_DEMAND_INCR || // Sow'd all instantly this Season
-                (w.lastSowTime > SOW_TIME_STEADY &&
-                    w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY)) // Sow'd all faster
+                (w.lastSowTime > SOW_TIME_STEADY_UPPER &&
+                    w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY_LOWER)) // Sow'd all faster
             ) {
-                deltaPodDemand = Decimal.from(1e18);
-            } else if (w.thisSowTime <= w.lastSowTime.add(SOW_TIME_STEADY)) {
-                // Sow'd all in same time
-                deltaPodDemand = Decimal.one();
-            } else {
-                deltaPodDemand = Decimal.zero();
-            }
-        } else {
-            // Soil didn't sell out
-            uint256 lastDeltaSoil = w.lastDeltaSoil;
-
-            if (dsoil == 0) {
-                deltaPodDemand = Decimal.zero(); // If no one Sow'd
-            } else if (lastDeltaSoil == 0) {
-                deltaPodDemand = Decimal.from(1e18); // If no one Sow'd last Season
-            } else {
-                deltaPodDemand = Decimal.ratio(dsoil, lastDeltaSoil);
+                deltaPodDemand = Decimal.from(HIGH_DEMAND_THRESHOLD);
+            } else if (w.thisSowTime <= w.lastSowTime.add(SOW_TIME_STEADY_UPPER)) {
+                // Soil sold out in the same time.
+                // set a floor for demand to be steady (i.e, demand can either be steady or increasing)
+                if (deltaPodDemand.lessThan(Decimal.one())) {
+                    deltaPodDemand = Decimal.one();
+                }
             }
         }
+        // if the soil didn't sell out, or sold out slower than the previous season,
+        // demand for soil is a function of the amount of soil sown this season.
 
         lastSowTime = w.thisSowTime; // Overwrite last Season
         thisSowTime = type(uint32).max; // Reset for next Season
+    }
+
+    /**
+     * @notice Calculates the change in soil demand from the previous season.
+     * @param soilSownThisSeason The amount of soil sown this season.
+     * @param soilSownLastSeason The amount of soil sown in the previous season.
+     */
+    function getDemand(
+        uint256 soilSownThisSeason,
+        uint256 soilSownLastSeason
+    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+        if (soilSownThisSeason == 0) {
+            deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
+        } else if (soilSownLastSeason == 0) {
+            deltaPodDemand = Decimal.from(HIGH_DEMAND_THRESHOLD); // If no one Sow'd last Season, ∆ demand is infinite.
+        } else {
+            // If both seasons had some soil sown, ∆ demand is the ratio of this season's soil sown to last season's soil sown.
+            deltaPodDemand = Decimal.ratio(soilSownThisSeason, soilSownLastSeason);
+        }
     }
 
     /**
@@ -277,19 +304,35 @@ library LibEvaluate {
             s.sys.fields[s.sys.activeField].pods.sub(s.sys.fields[s.sys.activeField].harvestable),
             beanSupply
         ); // Pod Rate
+
+        // Get Token:Bean Price using largest liquidity well
+        bs.largestLiquidWellTwapBeanPrice = LibWell.getBeanUsdPriceForWell(bs.largestLiqWell);
+
+        emit SeasonMetrics(
+            s.sys.season.current,
+            bs.deltaPodDemand.value,
+            bs.lpToSupplyRatio.value,
+            bs.podRate.value,
+            s.sys.weather.thisSowTime,
+            s.sys.weather.lastSowTime
+        );
     }
 
     /**
      * @notice Evaluates beanstalk based on deltaB, podRate, deltaPodDemand and lpToSupplyRatio.
      * and returns the associated caseId.
      */
-    function evaluateBeanstalk(int256 deltaB, uint256 beanSupply) external returns (uint256, bool) {
+    function evaluateBeanstalk(
+        int256 deltaB,
+        uint256 beanSupply
+    ) external returns (uint256, BeanstalkState memory) {
         BeanstalkState memory bs = updateAndGetBeanstalkState(beanSupply);
+        bs.twaDeltaB = deltaB;
         uint256 caseId = evalPodRate(bs.podRate) // Evaluate Pod Rate
-            .add(evalPrice(deltaB, bs.largestLiqWell))
+            .add(evalPrice(deltaB, bs.largestLiquidWellTwapBeanPrice))
             .add(evalDeltaPodDemand(bs.deltaPodDemand))
             .add(evalLpToSupplyRatio(bs.lpToSupplyRatio)); // Evaluate Price // Evaluate Delta Soil Demand // Evaluate LP to Supply Ratio
-        return (caseId, bs.oracleFailure);
+        return (caseId, bs);
     }
 
     /**
@@ -317,5 +360,35 @@ library LibEvaluate {
         assembly {
             liquidityWeight := mload(add(data, add(0x20, 0)))
         }
+    }
+
+    /**
+     * @notice Calculates the minimum soil sown needed to properly calculate delta pod demand.
+     * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
+     * occurs without substantial cost.
+     * @dev if not max(max(0,001% of supply, 10), 25% of soil issued)
+     * was sown, Beanstalk assumes demand is decreasing.
+     */
+    function calcMinSoilDemandThreshold() internal view returns (uint256 minDemandThreshold) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
+
+        // calculate the minimum threshold of bean to calculate delta pod demand.
+        uint256 calculatedThreshold = (beanSupply *
+            s.sys.extEvaluationParameters.supplyPodDemandScalar) / BEAN_PRECISION;
+
+        // take the maximum of the calculated threshold and the minimum supply bound.
+        uint256 beanSupplyThreshold = calculatedThreshold > MIN_BEAN_SUPPLY_BOUND
+            ? calculatedThreshold
+            : MIN_BEAN_SUPPLY_BOUND;
+
+        // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
+        uint256 scaledInitialSoil = (s.sys.initialSoil *
+            s.sys.extEvaluationParameters.initialSoilPodDemandScalar) / SOIL_PRECISION;
+
+        // take the minimum of the scaled initial soil and the bean supply threshold.
+        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
+            ? beanSupplyThreshold
+            : scaledInitialSoil;
     }
 }

@@ -2,11 +2,13 @@ const { expect } = require("chai");
 const { deploy } = require("../../scripts/deploy.js");
 const { EXTERNAL, INTERNAL, INTERNAL_TOLERANT } = require("./utils/balances.js");
 const { BEAN } = require("./utils/constants");
-const { to6 } = require("./utils/helpers.js");
+const { to6, toX } = require("./utils/helpers.js");
 const { MAX_UINT32 } = require("./utils/constants.js");
 const { takeSnapshot, revertToSnapshot } = require("./utils/snapshot");
 const { getAllBeanstalkContracts } = require("../../utils/contracts");
 const { initializeUsersForToken } = require("./utils/testHelpers.js");
+const { mine } = require("@nomicfoundation/hardhat-network-helpers");
+const { BigNumber } = require("ethers");
 
 // TODO
 // Tests to add
@@ -26,6 +28,9 @@ describe("newField", function () {
     [beanstalk, mockBeanstalk] = await getAllBeanstalkContracts(this.diamond.address);
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
+
+    // Advanced block to get temperature to be max temperature (1%).
+    await mine(400);
   });
 
   beforeEach(async function () {
@@ -269,7 +274,7 @@ describe("newField", function () {
   describe("Morning Auction", async function () {
     it("correctly scales up the temperature", async function () {
       let ScaleValues = [
-        "1000000", // Delta = 0
+        "10000000000", // Delta = 0
         "279415312704", // Delta = 1
         "409336034395", // 2
         "494912626048", // 3
@@ -296,15 +301,20 @@ describe("newField", function () {
         "989825252096", // 24
         "1000000000000" // 25
       ];
-
       // loop from i = 0 to 25:
-      initTemp = 100;
+      initTemp = to6("100");
       for (let i = 0; i <= 25; i++) {
         temperature = await mockBeanstalk.mockGetMorningTemp(to6("100"), i);
         if (i == 0) {
-          expect(temperature).to.be.equal(ScaleValues[i]);
+          // no rounding
+          expect(temperature).to.be.equal(
+            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)));
+        } else if (i == 25) {
+          // max temperature
+          expect(temperature).to.be.equal(initTemp);
         } else {
-          expect(temperature).to.be.equal(ScaleValues[i] * initTemp);
+          // rounding up to the nearest integer
+        expect(temperature).to.be.equal(BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)).add(1));
         }
       }
     });
@@ -319,7 +329,7 @@ describe("newField", function () {
     // ex: if morning temp is 50% of max, then 1 bean is sown for 0.5 soil
     it("decrements soil above peg", async function () {
       const morningTemperature = to6("50");
-      const maxTemperature = 200;
+      const maxTemperature = 200e6;
       await mockBeanstalk.incrementTotalSoilE(to6("10"));
       // 200% temperature
       await mockBeanstalk.setMaxTemp(maxTemperature);
@@ -332,7 +342,7 @@ describe("newField", function () {
       await mockBeanstalk.mockSow(
         to6("10"), // beans burnt
         morningTemperature, // morning temp
-        200, // max temp (note max temp is stored with 1e2 precision)
+        200e6, // max temp (note max temp is stored with 1e6 precision)
         true // above peg?
       );
 
@@ -345,34 +355,25 @@ describe("newField", function () {
   });
 
   describe("complex DPD", async function () {
-    it("Does not set thisSowTime if Soil > 1", async function () {
-      await mockBeanstalk.setSoilE(to6("3"));
+    it("Does not set thisSowTime if Soil > sold_out_threshold", async function () {
+      await mockBeanstalk.setSoilE(to6("10000"));
       await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.equal(parseInt(MAX_UINT32));
     });
 
-    it("Does set thisSowTime if Soil = 1", async function () {
-      await mockBeanstalk.setSoilE(to6("1"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
+    it("Does set thisSowTime if Soil = sold_out_threshold", async function () {
+      await mockBeanstalk.setSoilE(to6("100"));
+      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL);
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });
 
-    it("Does set thisSowTime if Soil < 1", async function () {
-      await mockBeanstalk.setSoilE(to6("1.5"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
+    it("Correctly sets thisSowTime if Soil < sold_out_threshold and Initial Soil < 100", async function () {
+      await mockBeanstalk.setSoilE(to6("80"));
+      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL); // above 50% of intial soil
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
-    });
-
-    it("Does not set thisSowTime if Soil already < 1", async function () {
-      await mockBeanstalk.setSoilE(to6("1.5"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
-      const weather = await beanstalk.weather();
-      await beanstalk.connect(user).sow(to6("0.5"), 0, EXTERNAL);
-      const weather2 = await beanstalk.weather();
-      expect(weather2.thisSowTime).to.be.equal(weather.thisSowTime);
     });
   });
 
@@ -528,9 +529,12 @@ describe("twoField", function () {
 
     // Set active field.
     this.activeField = 1;
-    mockBeanstalk.setActiveField(this.activeField, 1);
+    mockBeanstalk.setActiveField(this.activeField, 1e6);
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
+
+    // Advanced block to get temperature to be max temperature (1%).
+    await mine(400);
   });
 
   beforeEach(async function () {

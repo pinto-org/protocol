@@ -4,7 +4,7 @@ const {
   PINTO,
   PINTO_DIAMOND_DEPLOYER,
   RESERVES_5_PERCENT_MULTISIG,
-  addressToSlotMap,
+  addressToBalanceSlotMap,
   addressToNameMap,
   wellToNonPintoTokenMap,
   wellToChainlinkOracleMap
@@ -37,7 +37,7 @@ async function addLiquidityAndTransfer(
   let nonPintoAmount = toX(amounts[1], tokenDecimals);
   // manipulate balance slot
   if (verbose) console.log("Minting nonPinto token by manipulating the balance slot");
-  const slot = addressToSlotMap[wellTokens[1]];
+  const slot = addressToBalanceSlotMap[wellTokens[1]];
   await setBalanceAtSlot(wellTokens[1], account.address, slot, nonPintoAmount, verbose);
   // log balance of account
   const balance = await nonPintoToken.balanceOf(account.address);
@@ -141,7 +141,7 @@ async function addInitialLiquidityAndDeposit(
     await setBalanceAtSlot(
       nonPintoToken.address,
       account.address,
-      addressToSlotMap[nonPintoToken.address],
+      addressToBalanceSlotMap[nonPintoToken.address],
       nonPintoAmount,
       false
     );
@@ -181,7 +181,9 @@ async function addInitialLiquidityAndDeposit(
   console.log("Depositing initial liquidity in the Silo...");
   const silo = await ethers.getContractAt("SiloFacet", L2_PINTO);
   await wellLPToken.connect(account).approve(silo.address, MAX_UINT256);
-  await silo.connect(account).deposit(wellLPToken.address, lpAmountCalculated, 0, { gasLimit: 10000000 });
+  await silo
+    .connect(account)
+    .deposit(wellLPToken.address, lpAmountCalculated, 0, { gasLimit: 10000000 });
   console.log("Initial liquidity deposited");
   console.log(`-----------------------------------`);
   console.log("Transferring deposit to the 5% reserves multisig...");

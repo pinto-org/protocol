@@ -14,6 +14,7 @@ import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {AdvancedFarmCall, LibFarm} from "contracts/libraries/LibFarm.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
+import {LibTransfer, IERC20} from "contracts/libraries/Token/LibTransfer.sol";
 
 /**
  * @title TractorFacet handles tractor and blueprint operations.
@@ -24,9 +25,21 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
     event PublishRequisition(LibTractor.Requisition requisition);
 
-    event CancelBlueprint(bytes32 blueprintHash);
+    event CancelBlueprint(bytes32 indexed blueprintHash);
 
-    event Tractor(address indexed operator, bytes32 blueprintHash);
+    event Tractor(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
+
+    event TractorExecutionBegan(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
 
     /**
      * @notice Ensure requisition hash matches blueprint data and signer is publisher.
@@ -84,6 +97,11 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     function publishRequisition(
         LibTractor.Requisition calldata requisition
     ) external fundsSafu noNetFlow noSupplyChange verifyRequisition(requisition) nonReentrant {
+        require(
+            LibTractor._getBlueprintNonce(requisition.blueprintHash) <
+                requisition.blueprint.maxNonce,
+            "TractorFacet: maxNonce reached"
+        );
         emit PublishRequisition(requisition);
     }
 
@@ -115,6 +133,19 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     {
         require(requisition.blueprint.data.length > 0, "Tractor: data empty");
 
+        emit TractorExecutionBegan(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            gasleft()
+        );
+
+        // Set current blueprint hash
+        LibTractor._setCurrentBlueprintHash(requisition.blueprintHash);
+
+        // Set operator
+        LibTractor._setOperator(msg.sender);
+
         // Decode and execute advanced farm calls.
         // Cut out blueprint calldata selector.
         AdvancedFarmCall[] memory calls = abi.decode(
@@ -140,7 +171,50 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             require(calls[i].callData.length != 0, "Tractor: empty AdvancedFarmCall");
             results[i] = LibFarm._advancedFarm(calls[i], results);
         }
-        emit Tractor(msg.sender, requisition.blueprintHash);
+
+        // Clear current blueprint hash
+        LibTractor._resetCurrentBlueprintHash();
+
+        // Clear operator
+        LibTractor._resetOperator();
+
+        emit Tractor(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            gasleft()
+        );
+    }
+
+    /**
+     * @notice Transfers a token from `msg.sender` to a `recipient` from the External balance.
+     * @dev When any function is called via Tractor (e.g., from a blueprint), the protocol substitutes
+     * the blueprint publisher as the sender instead of the actual caller.
+     *
+     * Some contracts within a blueprint may need to transfer ERC-20 tokens to an address's
+     * internal balance (e.g., to deposit into the Silo or to sow into the Field).
+     * This function facilitates such transfers.
+     *
+     * Tractor operators should be cautious when using this function, as it may result in
+     * funds being withdrawn from their wallet. To mitigate risks, operators should ensure that:
+     * 1) No ERC-20 permissions are granted to the Beanstalk contract, and/or
+     * 2) This function is not exploited maliciously.
+     *
+     * Operators can check for this function in bytecode via the selector (0xca1e71ae)
+     */
+    function sendTokenToInternalBalance(
+        IERC20 token,
+        address recipient,
+        uint256 amount
+    ) external payable fundsSafu noSupplyChange noOutFlow nonReentrant {
+        LibTransfer.transferToken(
+            token,
+            msg.sender,
+            recipient,
+            amount,
+            LibTransfer.From.EXTERNAL,
+            LibTransfer.To.INTERNAL
+        );
     }
 
     /**
@@ -202,5 +276,25 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         LibTractor.Blueprint calldata blueprint
     ) external view returns (bytes32) {
         return LibTractor._getBlueprintHash(blueprint);
+    }
+
+    /**
+     * @notice Get the hash of the currently executing blueprint
+     * @return The current blueprint hash
+     */
+    function getCurrentBlueprintHash() external view returns (bytes32) {
+        return LibTractor._getCurrentBlueprintHash();
+    }
+
+    /**
+     * @notice Get the user context for tractor operations.
+     * @return user Current user, either active publisher or msg.sender
+     */
+    function tractorUser() external view returns (address payable) {
+        return LibTractor._user();
+    }
+
+    function operator() external view returns (address) {
+        return LibTractor._getOperator();
     }
 }

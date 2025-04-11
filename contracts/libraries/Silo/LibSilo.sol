@@ -176,6 +176,23 @@ library LibSilo {
     }
 
     /**
+     * @notice Mints Roots to `account` and updates the system total.
+     *
+     * @param account the address to min rain roots to
+     * @param rainRoots the amount of rain roots to mint
+     *
+     * @dev Rain roots are minted at the start of a rain season and
+     * after redepositing during a convert operation.
+     */
+    function mintRainRoots(address account, uint256 rainRoots) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // increase user rain roots
+        s.accts[account].sop.rainRoots = s.accts[account].sop.rainRoots + rainRoots;
+        // increase system rain roots
+        s.sys.rain.roots = s.sys.rain.roots + rainRoots;
+    }
+
+    /**
      * @notice mintGerminatingStalk contains logic for minting stalk that is germinating.
      * @dev `germinating stalk` are newly issued stalk that are not eligible for bean mints,
      * until 2 `gm` calls have passed, at which point they are considered `grown stalk`.
@@ -212,9 +229,12 @@ library LibSilo {
     /**
      * @notice Burns stalk and roots from an account.
      */
-    function burnActiveStalk(address account, uint256 stalk) internal returns (uint256 roots) {
+    function burnActiveStalk(
+        address account,
+        uint256 stalk
+    ) internal returns (uint256 roots, uint256 deltaRainRoots) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        if (stalk == 0) return 0;
+        if (stalk == 0) return (0, 0);
 
         // Calculate the amount of Roots for the given amount of Stalk.
         roots = s.sys.silo.roots.mul(stalk).div(s.sys.silo.stalk);
@@ -237,6 +257,8 @@ library LibSilo {
             s.accts[account].sop.rainRoots = s.accts[account].roots;
             // decrease system rain roots
             s.sys.rain.roots = s.sys.rain.roots.sub(deltaRoots);
+            // set the return value to the rain roots that were burned.
+            deltaRainRoots = deltaRoots;
         }
 
         // emit event.
@@ -280,6 +302,7 @@ library LibSilo {
     function transferStalk(address sender, address recipient, uint256 stalk) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 roots;
+        // calc roots to send based on sender roots
         roots = stalk == s.accts[sender].stalk
             ? s.accts[sender].roots
             : s.sys.silo.roots.mul(stalk).sub(1).div(s.sys.silo.stalk).add(1);
@@ -289,11 +312,12 @@ library LibSilo {
         s.accts[sender].roots = s.accts[sender].roots.sub(roots);
         emit StalkBalanceChanged(sender, -int256(stalk), -int256(roots));
 
-        // Rain roots cannot be transferred, burn them
+        // If the senders resulting roots are less than the senders rain roots,
+        // transfer the difference to the recipient.
         if (s.accts[sender].sop.rainRoots > s.accts[sender].roots) {
             uint256 deltaRoots = s.accts[sender].sop.rainRoots.sub(s.accts[sender].roots);
             s.accts[sender].sop.rainRoots = s.accts[sender].roots;
-            s.sys.rain.roots = s.sys.rain.roots.sub(deltaRoots);
+            s.accts[recipient].sop.rainRoots = s.accts[recipient].sop.rainRoots.add(deltaRoots);
         }
 
         // Add Stalk and Roots to the 'recipient' balance.
@@ -346,44 +370,10 @@ library LibSilo {
 
         if (ar.odd.bdv > 0) {
             uint256 initialStalk = ar.odd.bdv.mul(stalkPerBDV);
-            if (token == s.sys.bean) {
-                // check whether the Germinating Stalk transferred exceeds the farmers
-                // Germinating Stalk. If so, the difference is considered from Earned
-                // Beans. Deduct the odd BDV and increment the activeBDV by the difference.
-                (uint256 senderGerminatingStalk, uint256 earnedBeansStalk) = checkForEarnedBeans(
-                    sender,
-                    initialStalk,
-                    GerminationSide.ODD
-                );
-                if (earnedBeansStalk > 0) {
-                    // increment the active stalk by the earned beans active stalk.
-                    // decrement the germinatingStalk stalk by the earned beans active stalk.
-                    ar.active.stalk = ar.active.stalk.add(earnedBeansStalk);
-                    initialStalk = senderGerminatingStalk;
-                }
-            }
             transferGerminatingStalk(sender, recipient, initialStalk, GerminationSide.ODD);
         }
-
         if (ar.even.bdv > 0) {
             uint256 initialStalk = ar.even.bdv.mul(stalkPerBDV);
-            if (token == s.sys.bean) {
-                // check whether the Germinating Stalk transferred exceeds the farmers
-                // Germinating Stalk. If so, the difference is considered from Earned
-                // Beans. Deduct the even BDV and increment the active BDV by the difference.
-                (uint256 senderGerminatingStalk, uint256 earnedBeansStalk) = checkForEarnedBeans(
-                    sender,
-                    initialStalk,
-                    GerminationSide.EVEN
-                );
-                if (earnedBeansStalk > 0) {
-                    // increment the active stalk by the earned beans active stalk.
-                    // decrement the germinatingStalk stalk by the earned beans active stalk.
-                    ar.active.stalk = ar.active.stalk.add(earnedBeansStalk);
-                    initialStalk = senderGerminatingStalk;
-                }
-            }
-
             transferGerminatingStalk(sender, recipient, initialStalk, GerminationSide.EVEN);
         }
 
@@ -759,5 +749,20 @@ library LibSilo {
     ) public view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.accts[owner].depositAllowances[spender][token];
+    }
+
+    /**
+     * @notice Updates the sorted list of deposit IDs for a given account and token
+     * @param account The address of the account to update
+     * @param token The token address to update deposit IDs for
+     * @param sortedDepositIds The sorted list of deposit IDs to store
+     */
+    function _setSortedDepositIds(
+        address account,
+        address token,
+        uint256[] calldata sortedDepositIds
+    ) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.accts[account].depositIdList[token].depositIds = sortedDepositIds;
     }
 }

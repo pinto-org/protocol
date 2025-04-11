@@ -139,8 +139,16 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256 fieldId,
         uint256[] calldata plots,
         LibTransfer.To mode
-    ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant {
-        uint256 beansHarvested = _harvest(fieldId, plots);
+    )
+        external
+        payable
+        fundsSafu
+        noSupplyChange
+        oneOutFlow(s.sys.bean)
+        nonReentrant
+        returns (uint256 beansHarvested)
+    {
+        beansHarvested = _harvest(fieldId, plots);
         LibTransfer.sendToken(BeanstalkERC20(s.sys.bean), beansHarvested, LibTractor._user(), mode);
     }
 
@@ -297,6 +305,20 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns the number of Pods that are not yet Harvestable for the active Field.
+     */
+    function totalUnharvestableForActiveField() public view returns (uint256) {
+        return s.sys.fields[s.sys.activeField].pods - s.sys.fields[s.sys.activeField].harvestable;
+    }
+
+    /**
+     * @notice Returns the number of Pods that were made Harvestable during the last Season as a result of flooding.
+     */
+    function floodHarvestablePods() public view returns (uint256) {
+        return s.sys.rain.floodHarvestablePods;
+    }
+
+    /**
      * @notice Returns true if there exists un-harvestable pods.
      * @param fieldId The index of the Field to query.
      */
@@ -339,9 +361,13 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         return
             LibDibbler.scaleSoilUp(
                 uint256(s.sys.soil), // min soil
-                uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION), // max temperature
+                uint256(s.sys.weather.temp), // max temperature (1e6 precision)
                 LibDibbler.morningTemperature() // temperature adjusted by number of blocks since Sunrise
             );
+    }
+
+    function initialSoil() external view returns (uint256) {
+        return uint256(s.sys.soil);
     }
 
     //////////////////// GETTERS: TEMPERATURE ////////////////////
@@ -356,12 +382,10 @@ contract FieldFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice Returns the max Temperature that Beanstalk is willing to offer this Season.
-     * @dev For gas efficiency, Beanstalk stores `s.weather.t` as a uint32 with precision of 1e2.
-     * Here we convert to uint256 and scale up by TEMPERATURE_PRECISION to match the
-     * precision needed for the Morning Auction functionality.
+     * @dev For gas efficiency, Beanstalk stores `s.sys.weather.temp` as a uint32 with precision of 1e6.
      */
     function maxTemperature() external view returns (uint256) {
-        return uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION);
+        return uint256(s.sys.weather.temp);
     }
 
     //////////////////// GETTERS: PODS ////////////////////

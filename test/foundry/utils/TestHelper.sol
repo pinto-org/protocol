@@ -10,6 +10,7 @@ import "forge-std/Test.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {MockSeasonFacet} from "contracts/mocks/mockFacets/MockSeasonFacet.sol";
+import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 
 ///// TEST HELPERS //////
 import {BeanstalkDeployer} from "test/foundry/utils/BeanstalkDeployer.sol";
@@ -28,6 +29,9 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 
 ///// ECOSYSTEM //////
 import {Pipeline} from "contracts/pipeline/Pipeline.sol";
+
+// OTHER INTERFACES //
+import {IUSDC} from "contracts/interfaces/IUSDC.sol";
 
 /**
  * @title TestHelper
@@ -164,6 +168,42 @@ contract TestHelper is
         MockToken(token).mint(user, amount);
         vm.prank(user);
         MockToken(token).approve(BEANSTALK, type(uint256).max);
+    }
+
+    function mintAndDepositBeanETH(address user, uint256 amountInBeans) public {
+        // We assume bean:eth is 1000:1 here, where it's 1000e6 and 1e18
+        uint256 amountInWETH = amountInBeans * 1e12;
+        mintTokensToUser(user, WETH, amountInWETH);
+        mintTokensToUser(user, BEAN, amountInBeans);
+
+        // Approve spending Bean to well
+        vm.prank(user);
+        MockToken(BEAN).approve(BEAN_ETH_WELL, amountInBeans);
+
+        // Approve spending WETH to well
+        vm.prank(user);
+        MockToken(WETH).approve(BEAN_ETH_WELL, amountInWETH);
+
+        // Deposit LP tokens
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = amountInBeans;
+        tokenAmountsIn[1] = amountInWETH;
+
+        // Approve spending LP tokens to Beanstalk
+        vm.prank(user);
+        MockToken(BEAN_ETH_WELL).approve(address(bs), type(uint256).max);
+
+        vm.prank(user);
+        uint256 lpAmountOut = IWell(BEAN_ETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            user,
+            type(uint256).max
+        );
+
+        vm.prank(user);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut, 0);
+        bs.siloSunrise(0);
     }
 
     function addLiquidityToWell(
@@ -342,8 +382,8 @@ contract TestHelper is
 
     function updateAllChainlinkOraclesWithPreviousData() internal {
         address[] memory lp = bs.getWhitelistedLpTokens();
-        address chainlinkOracle;
         for (uint256 i; i < lp.length; i++) {
+            address chainlinkOracle;
             // oracles will need to be added here,
             // as obtaining the chainlink oracle to well is not feasible on chain.
             if (lp[i] == BEAN_ETH_WELL) {
@@ -351,8 +391,29 @@ contract TestHelper is
             } else if (lp[i] == BEAN_WSTETH_WELL) {
                 chainlinkOracle = chainlinkOracles[1];
             }
-            updateChainlinkOracleWithPreviousData(chainlinkOracle);
+
+            if (chainlinkOracle != address(0)) {
+                updateChainlinkOracleWithPreviousData(chainlinkOracle);
+            } else {
+                // otherwise, assume this is a fork of Base mainnet, get non-bean token from well and update it's oracle
+                (address tokenInWell, ) = bs.getNonBeanTokenAndIndexFromWell(lp[i]);
+                // get chainlink oracle for tokenInWell
+                chainlinkOracle = bs.getOracleImplementationForToken(tokenInWell).target;
+
+                updateForkedChainlinkOracle(chainlinkOracle, tokenInWell);
+            }
         }
+    }
+
+    function updateForkedChainlinkOracle(address chainlinkOracle, address tokenInWell) internal {
+        // save latest answer
+        (, int256 answer, , , ) = MockChainlinkAggregator(chainlinkOracle).latestRoundData();
+
+        // overwrite chainlinkOracle with a MockChainlinkAggregator, add mock rounds
+        deployCodeTo("MockChainlinkAggregator.sol", new bytes(0), chainlinkOracle);
+        MockChainlinkAggregator(chainlinkOracle).setDecimals(6);
+        mockAddRound(chainlinkOracle, answer, 4500);
+        mockAddRound(chainlinkOracle, answer, 900);
     }
 
     function setDeltaBForWellsWithEntropy(
@@ -502,12 +563,239 @@ contract TestHelper is
      * and warps the time to that timestamp.
      */
     function warpToNextSeasonTimestamp() internal noGasMetering {
-        uint256 nextTimestamp = season.getNextSeasonStart();
+        uint256 nextTimestamp = bs.getNextSeasonStart();
         vm.warp(nextTimestamp);
     }
 
     function warpToNextSeasonAndUpdateOracles() internal noGasMetering {
         warpToNextSeasonTimestamp();
         updateAllChainlinkOraclesWithPreviousData();
+    }
+
+    function mintBaseUSDCToAddress(address to, uint256 amount) internal {
+        vm.prank(USDC_MINTER_BASE);
+        IUSDC(USDC_BASE).mint(to, amount);
+    }
+
+    function addNonPintoLiquidityToWell(
+        address well,
+        uint256 amount,
+        address user,
+        address nonPintoToken
+    ) internal {
+        // erc20 approve
+        vm.prank(user);
+        IERC20(nonPintoToken).approve(well, type(uint256).max);
+        // deposit into well
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = 0;
+        tokenAmountsIn[1] = amount;
+        vm.prank(user);
+        IWell(well).addLiquidity(tokenAmountsIn, 0, user, type(uint256).max);
+    }
+
+    /**
+     * @notice Updates oracle timeouts for all whitelisted LP tokens
+     * @dev This is useful for tests that need to ensure oracles are not stale
+     */
+    function updateOracleTimeouts(address beanToken, bool verbose) internal {
+        console.log("Updating oracle timeouts for all whitelisted LP tokens");
+
+        // Get all whitelisted LP tokens
+        address[] memory wells = bs.getWhitelistedWellLpTokens();
+
+        for (uint256 i = 0; i < wells.length; i++) {
+            address well = wells[i];
+            IERC20[] memory tokens = IWell(well).tokens();
+
+            // tokens[0] is usually bean, tokens[1] is the non-bean token
+            // but we'll check to be sure
+            address nonBeanToken;
+            for (uint256 j = 0; j < tokens.length; j++) {
+                if (address(tokens[j]) != beanToken) {
+                    nonBeanToken = address(tokens[j]);
+                    break;
+                }
+            }
+            if (verbose) {
+                console.log("Processing well:", well);
+                console.log("Non-bean token:", nonBeanToken);
+            }
+
+            // Get the current oracle implementation for the non-bean token
+            IMockFBeanstalk.Implementation memory currentImpl = bs.getOracleImplementationForToken(
+                nonBeanToken
+            );
+
+            if (verbose) {
+                console.log("Current oracle implementation:", currentImpl.target);
+                console.log("Current oracle timeout:");
+                console.logBytes(currentImpl.data);
+                console.log("Current oracle selector:", uint32(currentImpl.selector));
+                console.log("Current oracle encode type:", uint8(currentImpl.encodeType));
+            }
+
+            if (currentImpl.target != address(0)) {
+                // Set a 365-day timeout for the oracle implementation
+                uint256 oneYearInSeconds = 365 days;
+
+                // Create a new Implementation struct with the same data as the current one
+                // but with an updated timeout
+                IMockFBeanstalk.Implementation memory newImpl = IMockFBeanstalk.Implementation(
+                    currentImpl.target,
+                    currentImpl.selector,
+                    currentImpl.encodeType,
+                    abi.encode(oneYearInSeconds) // Only update the timeout
+                );
+                if (verbose) {
+                    console.log("New oracle implementation:", newImpl.target);
+                    console.log("New oracle timeout:");
+                    console.logBytes(newImpl.data);
+                    console.log("New oracle selector:", uint32(newImpl.selector));
+                    console.log("New oracle encode type:", uint8(newImpl.encodeType));
+                }
+
+                vm.prank(PINTO);
+                bs.updateOracleImplementationForToken(nonBeanToken, newImpl);
+                if (verbose) {
+                    console.log("Updated oracle timeout for token:", nonBeanToken, "to 365 days");
+                }
+            } else {
+                if (verbose) {
+                    console.log("No oracle found for token:", nonBeanToken);
+                }
+            }
+        }
+        if (verbose) {
+            console.log("Oracle timeouts updated for all whitelisted LP tokens");
+        }
+    }
+
+    function calculateExpectedSoil(
+        int256 twaDeltaB,
+        uint256 lpToSupplyRatio,
+        uint256 cultivationFactor
+    ) internal view returns (uint256 expectedSoil) {
+        // If twaDeltaB is 0, return 0 directly
+        if (twaDeltaB == 0) return 0;
+
+        // 1. Start with base soil (twaDeltaB)
+        uint256 baseSoil = uint256(-twaDeltaB);
+
+        console.log("calculateExpectedSoil: baseSoil =", baseSoil);
+
+        // Convert lpToSupplyRatio from percentage to decimal (0-1)
+
+        console.log("calculateExpectedSoil: lpToSupplyRatio =", lpToSupplyRatio);
+
+        // Get the scalar from extEvaluationParameters
+        uint256 scalar = bs.getExtEvaluationParameters().belowPegSoilL2SRScalar;
+
+        // Calculate scaledL2SR = lpToSupplyRatio * scalar
+        uint256 scaledL2SR = (lpToSupplyRatio * scalar) / 1e6;
+
+        // Cap scaledL2SR at 99% (0.99e18) if it's greater than or equal to that value
+        if (scaledL2SR >= 0.99e18) {
+            scaledL2SR = 0.99e18;
+        }
+
+        console.log("calculateExpectedSoil: scaledL2SR =", scaledL2SR);
+
+        // Calculate (1 - scaledL2SR) * baseSoil
+        uint256 l2srScaled = ((1e18 - scaledL2SR) * baseSoil) / 1e18;
+
+        console.log("calculateExpectedSoil: l2srScaled =", l2srScaled);
+
+        // 3. Scale by hourly distribution (3600 / soilDistributionPeriod)
+        uint256 soilDistributionPeriod = bs.getExtEvaluationParameters().soilDistributionPeriod;
+        uint256 hourlyScaled = (l2srScaled * 3600) / soilDistributionPeriod;
+
+        console.log("calculateExpectedSoil: hourlyScaled =", hourlyScaled);
+
+        // 4. Scale by cultivationFactor
+        expectedSoil = (hourlyScaled * cultivationFactor) / 100e6;
+
+        console.log("calculateExpectedSoil: expectedSoil =", expectedSoil);
+
+        // Ensure expectedSoil is not less than minSoilIssuance
+        if (expectedSoil < bs.getExtEvaluationParameters().minSoilIssuance) {
+            expectedSoil = bs.getExtEvaluationParameters().minSoilIssuance;
+        }
+
+        return expectedSoil;
+    }
+
+    /**
+     * @notice Calculates the expected deltaCultivationFactor value for cultivationFactor updates
+     * @param podRateMultiplier The pod rate multiplier (scaled by 1e6)
+     * @param price The price of Bean (scaled by 1e18)
+     * @param soilSoldOutLastSeason Boolean indicating if soil was sold out last season
+     * @return The expected deltaCultivationFactor value in percentage points (scaled by 1e6)
+     */
+    function calculateDeltaCultivationFactor(
+        uint256 podRateMultiplier,
+        uint256 price,
+        bool soilSoldOutLastSeason
+    ) public pure returns (uint256) {
+        console.log("calculateDeltaCultivationFactor: podRateMultiplier =", podRateMultiplier);
+        console.log("calculateDeltaCultivationFactor: price =", price);
+        console.log(
+            "calculateDeltaCultivationFactor: soilSoldOutLastSeason =",
+            soilSoldOutLastSeason
+        );
+        if (soilSoldOutLastSeason) {
+            // When soil is sold out, cultivationFactor increases: deltaCultivationFactor = podRateMultiplier * price / 1e18
+            // Divide by 1e18 to scale to percentage points (e.g., 1.25e6 = 1.25%)
+            return (podRateMultiplier * price) / 1e18;
+        } else {
+            // When soil is NOT sold out, cultivationFactor decreases: deltaCultivationFactor = 1e6 * 1e6 / (podRateMultiplier * price)
+            // This gives us the expected deltaCultivationFactor in percentage points (e.g., 0.8e6 = 0.8%)
+            return 1e12 / ((podRateMultiplier * price) / 1e18);
+        }
+    }
+
+    function whitelistLPWell(address well, address chainlinkOracle) internal {
+        address beanstalkOwner = bs.owner();
+
+        uint40 stalkIssuedPerBdv = 1e6;
+        uint40 stalkEarnedPerSeason = 1e6;
+        uint128 gaugePoints = 1e18;
+        uint64 optimalPercentDepositedBdv = 1e18;
+
+        bytes4 bdvSelector = IMockFBeanstalk.wellBdv.selector;
+        IMockFBeanstalk.Implementation memory oracleImplementation = IMockFBeanstalk.Implementation(
+            chainlinkOracle,
+            bytes4(0x00),
+            bytes1(0x01),
+            abi.encode(uint256(1234))
+        );
+
+        IMockFBeanstalk.Implementation memory gpImplementation = IMockFBeanstalk.Implementation(
+            address(0),
+            IMockFBeanstalk.defaultGaugePoints.selector,
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        IMockFBeanstalk.Implementation memory lwImplementation = IMockFBeanstalk.Implementation(
+            address(0),
+            IMockFBeanstalk.maxWeight.selector,
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        vm.prank(beanstalkOwner);
+        bs.whitelistToken(
+            well,
+            bdvSelector,
+            stalkIssuedPerBdv,
+            stalkEarnedPerSeason,
+            bytes1(0),
+            gaugePoints,
+            optimalPercentDepositedBdv,
+            oracleImplementation,
+            gpImplementation,
+            lwImplementation
+        );
     }
 }

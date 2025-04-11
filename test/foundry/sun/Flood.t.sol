@@ -6,6 +6,7 @@ import {TestHelper, C} from "test/foundry/utils/TestHelper.sol";
 import {IWell, IERC20, Call} from "contracts/interfaces/basin/IWell.sol";
 import {MockPump} from "contracts/mocks/well/MockPump.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
+import {MockSiloFacet} from "contracts/mocks/mockFacets/MockSiloFacet.sol";
 import {SeasonGettersFacet} from "contracts/beanstalk/facets/sun/SeasonGettersFacet.sol";
 import {SiloGettersFacet} from "contracts/beanstalk/facets/silo/SiloGettersFacet.sol";
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
@@ -22,13 +23,23 @@ contract FloodTest is TestHelper {
     SeasonGettersFacet seasonGetters = SeasonGettersFacet(BEANSTALK);
     MockFieldFacet field = MockFieldFacet(BEANSTALK);
     SiloGettersFacet siloGetters = SiloGettersFacet(BEANSTALK);
+    MockSiloFacet silo = MockSiloFacet(BEANSTALK);
 
     // test accounts
     address[] farmers;
     int96 depositStemBean;
 
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
+    uint256 constant DEPOSIT_AMOUNT = 1000e6;
+
+    event SeasonOfPlentyWell(
+        uint256 indexed season,
+        address well,
+        address token,
+        uint256 amount,
+        uint256 beans
+    );
     event SeasonOfPlentyField(uint256 toField);
+    event RainStatus(uint256 indexed season, bool raining);
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
@@ -59,7 +70,7 @@ contract FloodTest is TestHelper {
         address[] memory depositUsers = new address[](2);
         depositUsers[0] = users[1];
         depositUsers[1] = users[2];
-        depositBeansForUsers(depositUsers, 1_000e6, 10_000e6, true);
+        depositBeansForUsers(depositUsers, DEPOSIT_AMOUNT, 10_000e6, true);
 
         // give user2 some eth
         vm.deal(users[2], 10 ether);
@@ -153,7 +164,33 @@ contract FloodTest is TestHelper {
         assertEq(roots, 0);
     }
 
-    function testBurnsRainRootsUponTransfer() public {
+    function testRainStatusEvent() public {
+        Season memory s = seasonGetters.time();
+        assertFalse(s.raining);
+
+        // Increase Bean price over peg
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
+
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise(); // not raining, caseId 108
+
+        warpToNextSeasonAndUpdateOracles();
+        vm.expectEmit();
+        emit RainStatus(7, true);
+        bs.sunrise(); // raining, caseId 114
+
+        // Decrease Bean price under peg
+        setReserves(BEAN_ETH_WELL, 1000000e6, 900e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 900e18);
+
+        warpToNextSeasonAndUpdateOracles();
+        vm.expectEmit();
+        emit RainStatus(8, false);
+        bs.sunrise(); // not raining, 108
+    }
+
+    function testTransferRainRootsUponTransfer() public {
         setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
         setInstantaneousReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
 
@@ -167,16 +204,17 @@ contract FloodTest is TestHelper {
         assertEq(rainRoots, 10004000000000000000000000000000);
 
         vm.prank(users[1]);
+        // user[1] transfers the whole bean deposit to user[3]
         bs.transferDeposit(users[1], users[3], BEAN, depositStemBean, 1_000e6);
         bs.mow(users[1], BEAN);
 
         // user[1] should have 0 rain roots
         assertEq(bs.balanceOfRainRoots(users[1]), 0);
-        // user[3] should have 0 rain roots, none transferred
-        assertEq(bs.balanceOfRainRoots(users[3]), 0);
+        // user[3] should have the previous rain roots of user[1]
+        assertEq(bs.balanceOfRainRoots(users[3]), 10004000000000000000000000000000);
     }
 
-    function testBurnsHalfOfRainRootsUponHalfTransfer() public {
+    function testTransfersHalfOfRainRootsUponHalfTransfer() public {
         setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
         setInstantaneousReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
 
@@ -195,6 +233,95 @@ contract FloodTest is TestHelper {
 
         // user[1] should be down by 500 rain roots
         assertEq(bs.balanceOfRainRoots(users[1]), 5004000000000000000000000000000);
+        // user[3] should have 500 rain roots
+        assertEq(bs.balanceOfRainRoots(users[3]), 5000000000000000000000000000000);
+    }
+
+    function testFuzzTransferRainRoots(
+        uint256 amountToSend,
+        uint256 amountOfRainRootsToReduce
+    ) public {
+        // bound amount between 0 and the original deposit in setUp
+        amountToSend = bound(amountToSend, 1, DEPOSIT_AMOUNT);
+
+        // bound rain roots reduce amount between 0 and the original user[1] rain roots
+        amountOfRainRootsToReduce = bound(
+            amountOfRainRootsToReduce,
+            0,
+            10004000000000000000000000000000
+        );
+
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setInstantaneousReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+
+        season.rainSunrise(); // start raining
+        season.rainSunrise(); // sop
+
+        // mow both deposit users to get rain roots
+        bs.mow(users[1], BEAN);
+        bs.mow(users[2], BEAN);
+        bs.mow(users[3], BEAN);
+
+        // roots before were 10008000000000000000000000000000
+        // rain roots before were 10004000000000000000000000000000
+        silo.reduceAccountRainRoots(users[1], amountOfRainRootsToReduce);
+
+        // snapshot state before transfer
+        uint256 user1RainRootsBefore = bs.balanceOfRainRoots(users[1]);
+        uint256 user3RainRootsBefore = bs.balanceOfRainRoots(users[3]);
+        uint256 user1RootsBefore = bs.balanceOfRoots(users[1]);
+        uint256 user3RootsBefore = bs.balanceOfRoots(users[3]);
+        // totals
+        uint256 totalRainRootsBefore = bs.totalRainRoots();
+        uint256 totalRootsBefore = bs.totalRoots();
+
+        // transfer
+        vm.prank(users[1]);
+        bs.transferDeposit(users[1], users[3], BEAN, depositStemBean, amountToSend);
+        bs.mow(users[1], BEAN);
+
+        // re-fetch the state after transfer
+        uint256 user1RootsAfter = bs.balanceOfRoots(users[1]);
+        uint256 user3RootsAfter = bs.balanceOfRoots(users[3]);
+        uint256 user1RainRootsAfter = bs.balanceOfRainRoots(users[1]);
+        uint256 user3RainRootsAfter = bs.balanceOfRainRoots(users[3]);
+        uint256 totalRainRootsAfter = bs.totalRainRoots();
+        uint256 totalRootsAfter = bs.totalRoots();
+
+        // total rain roots stay the same
+        assertEq(totalRainRootsAfter, totalRainRootsBefore);
+
+        // total roots stay the same
+        assertEq(totalRootsAfter, totalRootsBefore);
+
+        // the summation of the rain roots of these 3 accounts should be equal to the total rain roots before
+        // (that are the same as after) since these are the only accounts that could have rain roots
+        assertEq(
+            bs.balanceOfRainRoots(users[1]) +
+                bs.balanceOfRainRoots(users[2]) +
+                bs.balanceOfRainRoots(users[3]),
+            totalRainRootsBefore
+        );
+
+        // the summation of the rain roots of the transfer accounts
+        // should be equal to the summation of their rain roots before the transfer
+        assertEq(
+            user1RainRootsBefore + user3RainRootsBefore,
+            user1RainRootsAfter + user3RainRootsAfter
+        );
+
+        if (user1RainRootsBefore < user1RootsAfter) {
+            // if the user sends less than half of his original 1000e6 bean deposit,
+            // then he does not transfer any rain roots so balances stay the same as before snapshot
+            assertEq(bs.balanceOfRainRoots(users[1]), user1RainRootsBefore);
+            assertEq(bs.balanceOfRainRoots(users[3]), user3RainRootsBefore);
+        } else {
+            // if the user sends more than half of his original 1000e6 bean deposit,
+            // then he transfers his difference of rain roots to the recipient
+            uint256 deltaRoots = user1RainRootsBefore - user1RootsAfter;
+            assertEq(bs.balanceOfRainRoots(users[1]), user1RainRootsBefore - deltaRoots);
+            assertEq(bs.balanceOfRainRoots(users[3]), user3RainRootsBefore + deltaRoots);
+        }
     }
 
     function testDoesNotBurnRainRootsUponTransferIfExtraRootsAvailable() public {
@@ -396,7 +523,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen next season
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise();
@@ -473,7 +601,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 2, // flood will happen in two seasons
             sopWell,
             WETH,
-            25900501355272002583
+            25900501355272002583,
+            25290650473
         );
 
         season.rainSunrises(2);
@@ -536,7 +665,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen in two seasons
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise();
@@ -588,44 +718,99 @@ contract FloodTest is TestHelper {
         assertEq(IERC20(WETH).balanceOf(users[2]), 25595575914848452999);
     }
 
-    function testSopUsingRealSunrise() public {
-        address sopWell = BEAN_ETH_WELL;
-        setReserves(sopWell, 1000000e6, 1100e18);
+    /// @dev complete test for real sunrise sop with reasonably high l2sr
+    function testSopUsingRealSunriseReasonablyHighL2SR() public {
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
 
-        // there's only one well, so sop amount into that well will be the current deltaB
-        int256 currentDeltaB = bs.poolCurrentDeltaB(sopWell);
+        // mints beans to first test user
+        uint256 beans = 100_000e6;
+        // increase bean supply so that flood will mint something, but not too much to prevent
+        // lowering l2sr
+        bean.mint(users[1], beans * 10);
+        season.setSoilE(beans); 
+        // sows beans
+        vm.prank(users[1]);
+        bs.sow(beans, 1, 0);
 
-        // log overallCurrentDeltaB
-        // int256 overallCurrentDeltaB = bs.overallCurrentDeltaB();
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise(); // not raining, caseId 74
 
-        // getSwapOut for how much Beanstalk will get for swapping this amount of beans
-        uint256 amountOut = IWell(sopWell).getSwapOut(
-            IERC20(BEAN),
-            IERC20(WETH),
-            uint256(currentDeltaB)
+        // assert that the liquidity to supply ratio is at least, reasonably high
+        assertGt(bs.getLiquidityToSupplyRatio(), 0.4e18);
+
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise(); // start raining, caseId 78
+
+        warpToNextSeasonAndUpdateOracles();
+
+        bs.sunrise(); // sop, caseId 78
+
+        IMockFBeanstalk.Season memory s = bs.time();
+        // verify a sop a happened
+        assertEq(s.lastSop, s.rainStart, "lastSop should be equal to rainStart");
+        assertEq(s.lastSopSeason, s.current, "lastSopSeason should be equal to current season");
+
+        // check amount of soil issued
+        uint256 initialSoil = bs.initialSoil();
+        assertGt(initialSoil, 0, "soil should be issued because we flooded");
+
+        uint256 floodHarvestablePods = bs.floodHarvestablePods();
+        assertGt(
+            floodHarvestablePods,
+            0,
+            "flood should have made some harvestable pods specifically from flooding"
         );
 
-        // take this amount out, multiply by sop precision then divide by rain roots (current roots)
-        uint256 userCalcPlentyPerRoot = (amountOut * C.SOP_PRECISION) / bs.totalRoots(); // 2558534177813719812
+        // call mow to update plenty amount for user
+        bs.mow(users[1], BEAN);
 
-        // user plenty will be plenty per root * user roots
-        uint256 userCalcPlenty = (userCalcPlentyPerRoot * bs.balanceOfRoots(users[1])) /
-            C.SOP_PRECISION; // 25595575914848452999
+        // test claimAllPlenty function
+        vm.prank(users[1]);
+        IMockFBeanstalk.ClaimPlentyData[] memory allPlenty = bs.claimAllPlenty(0);
+        for (uint256 i = 0; i < allPlenty.length; i++) {
+            require(allPlenty[i].plenty > 0, "No plenty found for token");
+            address token = allPlenty[i].token;
+            if (token == WSTETH) {
+                assertEq(allPlenty[i].plenty, 52277442494667773084);
+            }
+            if (token == WETH) {
+                assertEq(allPlenty[i].plenty, 25595575914848452999);
+            }
+        }
+    }
 
-        //
+    /// @dev tests that a flood occurs with excessively high l2sr
+    function testSopUsingRealSunriseExecessivelyHighL2SR() public {
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
+
+        // mints beans to first test user
+        uint256 beans = 100_000e6;
+        // increase bean supply so that flood will mint something, but not too much to prevent
+        // lowering l2sr
+        bean.mint(users[1], beans * 5);
+        season.setSoilE(beans);
+        // sows beans
+        vm.prank(users[1]);
+        bs.sow(beans, 1, 0);
+
         warpToNextSeasonAndUpdateOracles();
-        bs.sunrise(); // not raining, caseId 108
+        bs.sunrise(); // not raining, caseId 110
+
+        // assert that the liquidity to supply ratio is excessively high
+        assertGt(bs.getLiquidityToSupplyRatio(), 0.8e18);
 
         warpToNextSeasonAndUpdateOracles();
         bs.sunrise(); // start raining, caseId 114
-
         warpToNextSeasonAndUpdateOracles();
+
         bs.sunrise(); // sop, caseId 114
 
         IMockFBeanstalk.Season memory s = bs.time();
         // verify a sop a happened
-        assertEq(s.lastSop, s.rainStart);
-        assertEq(s.lastSopSeason, s.current);
+        assertEq(s.lastSop, s.rainStart, "lastSop should be equal to rainStart");
+        assertEq(s.lastSopSeason, s.current, "lastSopSeason should be equal to current season");
     }
 
     function testCalculateSopPerWell() public pure {
@@ -736,7 +921,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen next season
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise(); // first sop
@@ -836,7 +1022,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen next season
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise(); // first sop

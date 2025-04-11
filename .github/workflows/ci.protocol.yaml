@@ -66,3 +66,4 @@ jobs:
         run: yarn hardhat test
         env:
           FORKING_RPC: ${{ secrets.ANVIL_FORK_URL }}
+          BASE_RPC: ${{ secrets.BASE_RPC }}

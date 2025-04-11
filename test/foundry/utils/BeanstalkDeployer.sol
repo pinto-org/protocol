@@ -50,7 +50,9 @@ contract BeanstalkDeployer is Utils {
         "MarketplaceFacet",
         "ClaimFacet",
         "OracleFacet",
-        "GaugeGettersFacet"
+        "GaugeGettersFacet",
+        "TractorFacet",
+        "ApprovalFacet"
     ];
 
     // Facets that have a mock counter part should be appended here.
@@ -286,24 +288,50 @@ contract BeanstalkDeployer is Utils {
         );
     }*/
 
+    function forkMainnetAndUpgradeAllFacets(
+        uint256 blockNumber,
+        string memory forkingUrl,
+        address beanstalkAddress
+    ) internal {
+        forkMainnetAndUpgradeAllFacets(blockNumber, forkingUrl, beanstalkAddress, "");
+    }
+
     /**
      * @notice Forks mainnet at a given block,
      */
-    function forkMainnetAndUpgradeAllFacets(uint256 blockNumber) internal {
-        vm.createSelectFork(vm.envString("FORKING_RPC"), blockNumber);
+    function forkMainnetAndUpgradeAllFacets(
+        uint256 blockNumber,
+        string memory forkingUrl,
+        address beanstalkAddress,
+        string memory initContractName
+    ) internal {
+        vm.createSelectFork(forkingUrl, blockNumber);
+        upgradeAllFacets(beanstalkAddress, initContractName);
+    }
 
+    function upgradeAllFacets(address beanstalkAddress, string memory initContractName) internal {
         setupFacetAddresses(true, false, true);
+
+        // Deploy the init contract if a name is provided
+        address initAddress = address(0);
+        bytes memory initData = new bytes(0);
+
+        if (bytes(initContractName).length > 0) {
+            // Deploy the initialization contract
+            initAddress = address(deployCode(initContractName));
+            initData = abi.encodeWithSignature("init()");
+        }
 
         // upgradeDiamondFacet();
 
         // the idea is to add/upgrade all the facets/mock facets that are in the constants at the top of this file
         // get the list of all current selectors
-        IDiamondLoupe.Facet[] memory currentFacets = IDiamondLoupe(BEANSTALK).facets();
+        IDiamondLoupe.Facet[] memory currentFacets = IDiamondLoupe(beanstalkAddress).facets();
         bytes4[] memory currentSelectors = new bytes4[](1000);
         uint256 selectorsCounter = 0;
         for (uint256 i = 0; i < currentFacets.length; i++) {
             // loop through all selectors in the facet
-            bytes4[] memory selectors = IDiamondLoupe(BEANSTALK).facetFunctionSelectors(
+            bytes4[] memory selectors = IDiamondLoupe(beanstalkAddress).facetFunctionSelectors(
                 currentFacets[i].facetAddress
             );
             for (uint256 j = 0; j < selectors.length; j++) {
@@ -338,9 +366,9 @@ contract BeanstalkDeployer is Utils {
         // generate the diamond cut required to upgrade all facets
         IDiamondCut.FacetCut[] memory cut = generateDiamondCut(currentFacets, newFacets);
 
-        vm.startPrank(IMockFBeanstalk(BEANSTALK).owner());
+        vm.startPrank(IMockFBeanstalk(beanstalkAddress).owner());
         // perform the diamond cut (upgrades Beanstalk)
-        IDiamondCut(BEANSTALK).diamondCut(cut, address(0), new bytes(0));
+        IDiamondCut(beanstalkAddress).diamondCut(cut, initAddress, initData);
         vm.stopPrank();
     }
 

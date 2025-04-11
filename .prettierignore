@@ -3,3 +3,7 @@
 **/.hg
 **/node_modules
 **/dist
+
+# LibCases.sol contains special formatting for readability
+contracts/libraries/LibCases.sol
+**/LibCases.sol

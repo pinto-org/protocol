@@ -15,6 +15,7 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {IInstantaneousPump} from "contracts/interfaces/basin/pumps/IInstantaneousPump.sol";
 
 /**
@@ -33,8 +34,6 @@ library LibWellMinting {
     using LibRedundantMathSigned256 for int256;
     using LibRedundantMath256 for uint256;
 
-    uint256 internal constant ZERO_LOOKBACK = 0;
-
     /**
      * @notice Emitted when a Well Minting Oracle is captured.
      * @param season The season that the Well was captured.
@@ -47,19 +46,26 @@ library LibWellMinting {
     //////////////////// CHECK ////////////////////
 
     /**
+     * @dev Caps the deltaB at the absolute and relative max.
+     * @return deltaB The time weighted average delta B balance since the last `capture` call.
+     */
+    function check(address well) external view returns (int256 deltaB) {
+        deltaB = checkDeltaB(well);
+        deltaB = LibMinting.checkForMaxDeltaB(C.WELL_ABSOLUTE_MAX, C.WELL_RATIO_MAX, deltaB);
+    }
+
+    /**
      * @dev Returns the time weighted average delta B in a given Well
      * since the last Sunrise.
      * @return deltaB The time weighted average delta B balance since the last `capture` call.
      */
-    function check(address well) external view returns (int256 deltaB) {
+    function checkDeltaB(address well) internal view returns (int256 deltaB) {
         bytes memory lastSnapshot = LibAppStorage.diamondStorage().sys.wellOracleSnapshots[well];
         // If the length of the stored Snapshot for a given Well is 0,
         // then the Oracle is not initialized.
         if (lastSnapshot.length > 0) {
             (deltaB, , , ) = twaDeltaB(well, lastSnapshot);
         }
-
-        deltaB = LibMinting.checkForMaxDeltaB(deltaB);
     }
 
     //////////////////// CHECK ////////////////////
@@ -79,7 +85,7 @@ library LibWellMinting {
             initializeOracle(well);
         }
 
-        deltaB = LibMinting.checkForMaxDeltaB(deltaB);
+        deltaB = LibMinting.checkForMaxDeltaB(C.WELL_ABSOLUTE_MAX, C.WELL_RATIO_MAX, deltaB);
     }
 
     //////////////////// Oracle ////////////////////
@@ -240,6 +246,17 @@ library LibWellMinting {
             return (deltaB);
         } catch {
             return 0;
+        }
+    }
+
+    /**
+     * @dev Calculates the total instantaneous delta B for all whitelisted Wells.
+     */
+    function getTotalInstantaneousDeltaB() internal view returns (int256 instDeltaB) {
+        address[] memory tokens = LibWhitelistedTokens.getWhitelistedWellLpTokens();
+        for (uint256 i = 0; i < tokens.length; i++) {
+            int256 wellInstDeltaB = instantaneousDeltaB(tokens[i]);
+            instDeltaB += wellInstDeltaB;
         }
     }
 }

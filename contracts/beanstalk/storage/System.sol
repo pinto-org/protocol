@@ -18,6 +18,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param initialSoil The amount of Soil at the start of the season.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -30,6 +31,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param convertCapacity A mapping from block number to the amount of Beans that can be converted towards peg in this block before stalk penalty becomes applied.
  * @param oracleImplementation A mapping from token to its oracle implementation.
  * @param shipmentRoutes Define the distribution of newly minted Beans.
+ * @param belowPegCrossStems A mapping from token to the stemTip at the time of the last below peg cross.
  * @param _buffer_1 Reserved storage for future additions.
  * @param casesV2 Stores the 144 Weather and seedGauge cases.
  * @param silo See {Silo}.
@@ -39,6 +41,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param rain See {Rain}.
  * @param evaluationParameters See {EvaluationParameters}.
  * @param sop See {SeasonOfPlenty}.
+ * @param gauges See {Gauge}.
  */
 struct System {
     address bean;
@@ -52,7 +55,8 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
-    bytes32[16] _buffer_0;
+    uint256 initialSoil;
+    bytes32[15] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;
@@ -63,7 +67,8 @@ struct System {
     mapping(uint256 => ConvertCapacity) convertCapacity;
     mapping(address => Implementation) oracleImplementation;
     ShipmentRoute[] shipmentRoutes;
-    bytes32[16] _buffer_1;
+    mapping(address => int96) belowPegCrossStems;
+    bytes32[15] _buffer_1;
     bytes32[144] casesV2;
     Silo silo;
     Season season;
@@ -72,12 +77,14 @@ struct System {
     Rain rain;
     EvaluationParameters evaluationParameters;
     SeasonOfPlenty sop;
+    ExtEvaluationParameters extEvaluationParameters;
+    GaugeData gaugeData;
     // A buffer is not included here, bc current layout of AppStorage makes it unnecessary.
 }
 
 /**
  * @notice System-level Silo state variables.
- * @param stalk The total amount of active Stalk (including Earned Stalk, excluding Grown Stalk).
+ * @param stalk The total amount of active Stalk (including Earned Stalk, excluding unmown Grown Stalk).
  * @param roots The total amount of Roots.
  * @param earnedBeans The number of Beans distributed to the Silo that have not yet been Deposited as a result of the Earn function being called.
  * @param balances A mapping from Token address to Silo Balance storage (amount deposited and withdrawn).
@@ -122,9 +129,11 @@ struct Field {
  * @param raining True if it is Raining (P > 1, Pod Rate Excessively Low).
  * @param sunriseBlock The block of the start of the current Season.
  * @param abovePeg Boolean indicating whether the previous Season was above or below peg.
+ * @param pegCrossSeason The last season in which the target was crossed.
  * @param start The timestamp of the Beanstalk deployment rounded down to the nearest hour.
  * @param period The length of each season in Beanstalk in seconds.
  * @param timestamp The timestamp of the start of the current Season.
+ * @param standardMintedBeans The number of Beans minted this season, excluding flood.
  * @param _buffer Reserved storage for future expansion.
  */
 struct Season {
@@ -135,9 +144,11 @@ struct Season {
     bool raining;
     uint64 sunriseBlock;
     bool abovePeg;
+    uint32 pegCrossSeason;
     uint256 start;
     uint256 period;
     uint256 timestamp;
+    uint256 standardMintedBeans;
     bytes32[8] _buffer;
 }
 
@@ -163,6 +174,8 @@ struct Weather {
  * that beanstalk issues each season.
  * @param beanToMaxLpGpPerBdvRatio a scalar of the gauge points(GP) per bdv
  * issued to the largest LP share and Bean. 6 decimal precision.
+ * @param avgGsPerBdvFlag update the average grown stalk per bdv per season, if true.
+ * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should be incentivized the most,
  * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
@@ -170,6 +183,9 @@ struct Weather {
 struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;
     uint128 beanToMaxLpGpPerBdvRatio;
+    bool avgGsPerBdvFlag;
+    uint128 maxTotalGaugePoints;
+    // 15 bytes are left here.
     bytes32[4] _buffer;
 }
 
@@ -182,7 +198,8 @@ struct SeedGauge {
 struct Rain {
     uint256 pods;
     uint256 roots;
-    bytes32[4] _buffer;
+    uint128 floodHarvestablePods;
+    bytes32[3] _buffer;
 }
 
 /**
@@ -253,16 +270,15 @@ struct WhitelistStatus {
  */
 struct AssetSettings {
     bytes4 selector; // ────────────────────┐ 4
-    uint32 stalkEarnedPerSeason; //         │ 4  (8)
-    uint48 stalkIssuedPerBdv; //            │ 6  (14)
-    uint32 milestoneSeason; //              │ 4  (18)
-    int96 milestoneStem; //                 │ 12 (30)
-    bytes1 encodeType; //                   │ 1  (31)
-    // one byte is left here.             ──┘ 1  (32)
-    int32 deltaStalkEarnedPerSeason; // ────┐ 4
-    uint128 gaugePoints; //                 │ 16 (20)
-    uint64 optimalPercentDepositedBdv; //   │ 8  (28)
-    // 4 bytes are left here.             ──┘ 4  (32)
+    uint40 stalkEarnedPerSeason; //         │ 5  (9)
+    uint48 stalkIssuedPerBdv; //            │ 6  (15)
+    uint32 milestoneSeason; //              │ 4  (19)
+    int96 milestoneStem; //                 │ 12 (31)
+    bytes1 encodeType; //                 ──┘ 1  (32)
+    int40 deltaStalkEarnedPerSeason; // ────┐ 5
+    uint128 gaugePoints; //                 │ 16 (21)
+    uint64 optimalPercentDepositedBdv; //   │ 8  (29)
+    // 3 bytes are left here.             ──┘ 3  (32)
     Implementation gaugePointImplementation;
     Implementation liquidityWeightImplementation;
 }
@@ -332,6 +348,81 @@ struct Implementation {
     bytes data;
 }
 
+struct GaugeData {
+    GaugeId[] gaugeIds;
+    mapping(GaugeId => Gauge) gauges;
+    bytes32[16] _buffer;
+}
+
+/**
+ * @notice Gauge is a generic struct that contains the logic for a "gauge".
+ * A "gauge" updates a `value` based on some data and its implementation.
+ * Any parameter that changes as a function of other parameters can be implemented as a gauge.
+ * @param value value(s) being controlled by the gauge. Can be multiple values.
+ * @param target The address in which `selector` is called at.
+ * @param selector The logic that changes the gauge value.
+ * @param data Additional data that the gauge may utilize.
+ */
+struct Gauge {
+    bytes value;
+    address target;
+    bytes4 selector;
+    bytes data;
+}
+
+/**
+ * @notice Evaluation parameters used to determine the state of Beanstalk.
+ * Used as hyperparameters in many aspects of the protocol, incluing the SeedGauge.
+ * --------------------------------------------------------------
+ * @param maxBeanMaxLpGpPerBdvRatio The maximum allowed ratio of the Seeds per BDV reward between
+ * Deposited Bean and the Deposited LP token with the most Seeds.
+ * --------------------------------------------------------------
+ * @param minBeanMaxLpGpPerBdvRatio The minimum allowed ratio of the Seeds per BDV reward between
+ * Deposited Bean and the Deposited LP token with the most Seeds.
+ * --------------------------------------------------------------
+ * @param targetSeasonsToCatchUp Determines the target number of Seasons for a new Deposit with
+ * an average number of Seeds to catch up to the average Grown Stalk per BDV of existing Deposits
+ * at the time of Deposit.
+ * --------------------------------------------------------------
+ * @dev podRate = The protocol debt level (Pod supply) relative to the Pinto supply.
+ * L2SR = the protocol liquidity level relative to the bean supply.
+ * Both metrics are used as a proxy of the protocol's health.
+ * The protocol differentiates between the following 5 states of podRate and L2SR for various evaluations:
+ * - Excessively low podRate/L2SR.
+ * - Reasonably low podRate/L2SR.
+ * - Optimal podRate/L2SR.
+ * - Reasonably high podRate/L2SR.
+ * - Excessively high podRate/L2SR.
+ * The parameters below are used to mark the boundaries between these states.
+ * --------------------------------------------------------------
+ * @param podRateLowerBound The lower bound of the pod rate.
+ * @param podRateOptimal The optimal pod rate.
+ * @param podRateUpperBound The upper bound of the pod rate.
+ * --------------------------------------------------------------
+ * @dev Contrary to podRate and L2SR, there is no delta pod demand that is considered optimal.
+ * @param deltaPodDemandLowerBound The lower bound of the delta pod demand.
+ * @param deltaPodDemandUpperBound The upper bound of the delta pod demand.
+ * --------------------------------------------------------------
+ * @param lpToSupplyRatioUpperBound The upper bound of the LP to supply ratio.
+ * @param lpToSupplyRatioOptimal The optimal LP to supply ratio.
+ * @param lpToSupplyRatioLowerBound The lower bound of the LP to supply ratio.
+ * ----------------------------------------------------------------
+ * @param excessivePriceThreshold The threshold after which the price of bean is considered excessive.
+ * Referenced as Q in the Beanstalk whitepaper. Used to make adjustments in protocol cases.
+ * See {LibEvaluate.evaluateBeanstalk}, {LibCases.setCasesV2}.
+ * --------------------------------------------------------------
+ * @param soilCoefficientHigh The coefficient to scale soil by when
+ * podRate > upperBound and beanstalk is above peg.
+ * @param soilCoefficientLow The coefficient to scale soil by when
+ * podRate < lowerBound and beanstalk is above peg.
+ * --------------------------------------------------------------
+ * @param baseReward The base reward for calling the sunrise function.
+ * Used to calculate the sunrise incentive that increases as the season is delayed.
+ * @param minAvgGsPerBdv The minimum average grown stalk per BDV.
+ * Determines the floor for seeds of a whitelisted token.
+ * @param rainingMinBeanMaxLpGpPerBdvRatio The minimum Bean Max LP GP per BDV ratio when
+ * podRate is excessively low and P > 1.
+ */
 struct EvaluationParameters {
     uint256 maxBeanMaxLpGpPerBdvRatio;
     uint256 minBeanMaxLpGpPerBdvRatio;
@@ -348,6 +439,35 @@ struct EvaluationParameters {
     uint256 soilCoefficientHigh;
     uint256 soilCoefficientLow;
     uint256 baseReward;
+    uint128 minAvgGsPerBdv;
+    uint128 rainingMinBeanMaxLpGpPerBdvRatio;
+}
+
+/**
+ * @notice Extended evaluation parameters.
+ * @param belowPegSoilL2SRScalar The amount to scale L2SR by when adjusting soil below peg.
+ * @param soilCoefficientRelativelyHigh The coefficient to scale soil by when
+ * optimal <= podRate < upperBound and beanstalk is above peg.
+ * @param soilCoefficientRelativelyLow The coefficient to scale soil by when
+ * lowerBound <= podRate < optimal and beanstalk is above peg.
+ * @param abovePegDeltaBSoilScalar The scalar for the time weighted average deltaB when
+ * twaDeltaB is negative but beanstalk ended the season above peg.
+ * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
+ * @param minSoilIssuance The minimum amount of soil that can be issued in a season.
+ * @param supplyPodDemandScalar The scalar to scale the bean supply by when evaluating the delta pod demand.
+ * @param initialSoilPodDemandScalar The scalar to scale the initial soil issuance by when evaluating the delta pod demand.
+ * @param buffer The buffer for future evaluation parameters.
+ */
+struct ExtEvaluationParameters {
+    uint256 belowPegSoilL2SRScalar;
+    uint256 soilCoefficientRelativelyHigh;
+    uint256 soilCoefficientRelativelyLow;
+    uint256 abovePegDeltaBSoilScalar;
+    uint256 soilDistributionPeriod;
+    uint256 minSoilIssuance;
+    uint256 supplyPodDemandScalar;
+    uint256 initialSoilPodDemandScalar;
+    bytes32[59] buffer;
 }
 
 /**
@@ -377,5 +497,15 @@ enum ShipmentRecipient {
     NULL,
     SILO,
     FIELD,
-    DEV
+    INTERNAL_BALANCE,
+    EXTERNAL_BALANCE
+}
+
+/**
+ * @notice The id of the gauge. new gauges should be appended to the end of the enum.
+ */
+enum GaugeId {
+    CULTIVATION_FACTOR,
+    CONVERT_DOWN_PENALTY,
+    CONVERT_UP_BONUS
 }

@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
-import {Season, Weather, Rain, EvaluationParameters, Deposited, AssetSettings} from "contracts/beanstalk/storage/System.sol";
+import {Season, Weather, Rain, EvaluationParameters, ExtEvaluationParameters, Deposited, AssetSettings} from "contracts/beanstalk/storage/System.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibUsdOracle} from "contracts/libraries/Oracle/LibUsdOracle.sol";
@@ -16,6 +16,8 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
+import {C} from "contracts/C.sol";
 
 /**
  * @title SeasonGettersFacet
@@ -89,6 +91,8 @@ contract SeasonGettersFacet {
 
     /**
      * @notice Returns the total Delta B across all whitelisted minting liquidity Wells.
+     * @dev returns the capped deltaB (globally, and per well).
+     * max(max(800k, 4% of total supply), Σ max(200k, 2% of total supply) per well)
      */
     function totalDeltaB() external view returns (int256 deltaB) {
         address[] memory tokens = LibWhitelistedTokens.getWhitelistedLpTokens();
@@ -96,13 +100,38 @@ contract SeasonGettersFacet {
         for (uint256 i = 0; i < tokens.length; i++) {
             deltaB = deltaB.add(LibWellMinting.check(tokens[i]));
         }
+        // cap deltaB to max(800k, 4% of total supply)
+        deltaB = LibMinting.checkForMaxDeltaB(C.GLOBAL_ABSOLUTE_MAX, C.GLOBAL_RATIO_MAX, deltaB);
+    }
+
+    /**
+     * @notice Returns the total Delta B across all whitelisted minting liquidity Wells.
+     * @dev No cap is applied to the deltaB.
+     */
+    function totalDeltaBNoCap() external view returns (int256 deltaB) {
+        address[] memory tokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+        if (tokens.length == 0) return 0;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            deltaB = deltaB.add(LibWellMinting.checkDeltaB(tokens[i]));
+        }
     }
 
     /**
      * @notice Returns the Time Weighted Average Delta B since the start of the Season for the requested pool.
+     * @dev returns the capped deltaB (globally, and per well).
+     * max(max(800k, 4% of total supply), Σ max(200k, 2% of total supply) per well)
      */
     function poolDeltaB(address pool) external view returns (int256) {
         if (LibWell.isWell(pool)) return LibWellMinting.check(pool);
+        revert("Oracle: Pool not supported");
+    }
+
+    /**
+     * @notice Returns the Time Weighted Average Delta B since the start of the Season for the requested pool.
+     * @dev No cap is applied to the deltaB.
+     */
+    function poolDeltaBNoCap(address pool) external view returns (int256) {
+        if (LibWell.isWell(pool)) return LibWellMinting.checkDeltaB(pool);
         revert("Oracle: Pool not supported");
     }
 
@@ -128,6 +157,13 @@ contract SeasonGettersFacet {
         for (uint256 i; i < pools.length; i++) {
             deltaB += poolCurrentDeltaB(pools[i]);
         }
+    }
+
+    /**
+     * @notice Returns the total instantaneous Delta B across all whitelisted Wells.
+     */
+    function totalInstantaneousDeltaB() external view returns (int256) {
+        return LibWellMinting.getTotalInstantaneousDeltaB();
     }
 
     /**
@@ -195,12 +231,14 @@ contract SeasonGettersFacet {
         return LibCases.getDataFromCase(caseId);
     }
 
-    function getChangeFromCaseId(uint256 caseId) public view returns (uint32, int8, uint80, int80) {
+    function getChangeFromCaseId(
+        uint256 caseId
+    ) public view returns (uint32, int32, uint80, int80) {
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
         return (cd.mT, cd.bT, cd.mL, cd.bL);
     }
 
-    function getAbsTemperatureChangeFromCaseId(uint256 caseId) external view returns (int8 t) {
+    function getAbsTemperatureChangeFromCaseId(uint256 caseId) external view returns (int32 t) {
         (, t, , ) = getChangeFromCaseId(caseId);
         return t;
     }
@@ -234,6 +272,10 @@ contract SeasonGettersFacet {
 
     function getEvaluationParameters() external view returns (EvaluationParameters memory) {
         return s.sys.evaluationParameters;
+    }
+
+    function getExtEvaluationParameters() external view returns (ExtEvaluationParameters memory) {
+        return s.sys.extEvaluationParameters;
     }
 
     function getMaxBeanMaxLpGpPerBdvRatio() external view returns (uint256) {
@@ -295,5 +337,9 @@ contract SeasonGettersFacet {
         )
     {
         return LibFlood.getWellsByDeltaB();
+    }
+
+    function getOrderLockedBeans() external view returns (uint256) {
+        return s.sys.orderLockedBeans;
     }
 }

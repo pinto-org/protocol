@@ -34,7 +34,9 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
     /**
@@ -91,7 +93,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         if (cp.fromToken != cp.toToken) LibSilo._mow(cp.account, cp.toToken);
 
         // Withdraw the tokens from the deposit.
-        (pipeData.grownStalk, fromBdv) = LibConvert._withdrawTokens(
+        uint256 deltaRainRoots;
+        (pipeData.grownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
             cp.fromToken,
             stems,
             amounts,
@@ -114,17 +117,46 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
         toBdv = (newBdv > fromBdv || cp.decreaseBDV) ? newBdv : fromBdv;
 
+        // if the Farmer is converting between beans and well LP, check for
+        // potential germination. if the deposit is germinating, issue additional
+        // grown stalk such that the deposit is no longer germinating.
+        if (cp.shouldNotGerminate == true) {
+            pipeData.grownStalk = LibConvert.calculateGrownStalkWithNonGerminatingMin(
+                cp.toToken,
+                pipeData.grownStalk,
+                toBdv
+            );
+        }
+
+        // apply convert penalty/bonus on grown stalk
+        pipeData.grownStalk = LibConvert.applyStalkModifiers(
+            cp.fromToken,
+            cp.toToken,
+            cp.account,
+            toBdv,
+            pipeData.grownStalk
+        );
+
         toStem = LibConvert._depositTokensForConvert(
             cp.toToken,
             cp.toAmount,
             toBdv,
             pipeData.grownStalk,
+            deltaRainRoots,
             cp.account
         );
 
         fromAmount = cp.fromAmount;
         toAmount = cp.toAmount;
 
-        emit Convert(cp.account, cp.fromToken, cp.toToken, cp.fromAmount, cp.toAmount);
+        emit Convert(
+            cp.account,
+            cp.fromToken,
+            cp.toToken,
+            cp.fromAmount,
+            cp.toAmount,
+            fromBdv,
+            toBdv
+        );
     }
 }

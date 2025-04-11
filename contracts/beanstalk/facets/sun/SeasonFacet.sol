@@ -9,10 +9,13 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibGauge} from "contracts/libraries/LibGauge.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {Invariable} from "contracts/beanstalk/Invariable.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 /**
  * @title SeasonFacet
@@ -59,9 +62,9 @@ contract SeasonFacet is Invariable, Weather {
         uint32 season = stepSeason();
         int256 deltaB = stepOracle();
         LibGerminate.endTotalGermination(season, LibWhitelistedTokens.getWhitelistedTokens());
-        uint256 caseId = calcCaseIdandUpdate(deltaB);
-        LibGauge.stepGauge();
-        stepSun(deltaB, caseId);
+        (, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
+        stepGauges(bs);
+        stepSun(bs);
 
         return incentivize(account, mode);
     }
@@ -103,6 +106,16 @@ contract SeasonFacet is Invariable, Weather {
         season = s.sys.season.current;
         s.sys.season.sunriseBlock = uint64(block.number); // Note: will overflow after 2^64 blocks.
         emit Sunrise(season);
+    }
+
+    /**
+     * @notice Steps all gauges in the system.
+     * @param bs The BeanstalkState memory struct containing data of beanstalk's current state.
+     */
+    function stepGauges(LibEvaluate.BeanstalkState memory bs) internal {
+        bytes memory systemData = abi.encode(bs);
+        LibGauge.stepGauge();
+        LibGaugeHelpers.engage(systemData);
     }
 
     /**

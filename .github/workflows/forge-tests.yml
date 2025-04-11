@@ -8,6 +8,8 @@ on:
 env:
   FORKING_RPC: ${{ secrets.ANVIL_FORK_URL }}
   ARBITRUM_FORKING_RPC: ${{ secrets.ARBITRUM_FORKING_RPC }}
+  BASE_RPC: ${{ secrets.BASE_RPC }}
+  ETHEREUM_RPC: ${{ secrets.ETHEREUM_RPC }}
 
 jobs:
   forge-tests:
@@ -37,6 +39,10 @@ jobs:
       - name: Install Dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: yarn install --immutable
+
+      - name: Install Libraries
+        run: |
+          forge install
 
       - name: Run Forge build
         run: |

@@ -20,7 +20,7 @@ const nameToAddressMap = {
   WSOL: "0x1C61629598e4a901136a81BC138E5828dc150d67"
 };
 
-const addressToSlotMap = {
+const addressToBalanceSlotMap = {
   "0xb170000aeeFa790fa61D6e837d1035906839a3c8": 0,
   "0x4200000000000000000000000000000000000006": 3,
   "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452": 1,
@@ -29,6 +29,15 @@ const addressToSlotMap = {
   "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf": 9,
   "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22": 51,
   "0x1C61629598e4a901136a81BC138E5828dc150d67": 5
+};
+
+const addressAllowanceSlotMap = {
+  "0xb170000aeeFa790fa61D6e837d1035906839a3c8": 1,
+  "0x4200000000000000000000000000000000000006": 4,
+  "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22": 52,
+  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": 10,
+  "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf": 10,
+  "0x1C61629598e4a901136a81BC138E5828dc150d67": 6
 };
 
 // Wells
@@ -48,7 +57,7 @@ const BASE_WSOL_CHAINLINK_ORACLE = "0x975043adBb80fc32276CbF9Bbcfd4A601a12462D";
 module.exports = {
   addressToNameMap,
   nameToAddressMap,
-  addressToSlotMap,
+  addressToBalanceSlotMap,
 
   // Diamond Contract
   BEANSTALK: "0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5",
@@ -145,7 +154,8 @@ module.exports = {
 
   addressToNameMap,
   nameToAddressMap,
-  addressToSlotMap,
+  addressToBalanceSlotMap,
+  addressAllowanceSlotMap,
 
   wellToNonPintoTokenMap: {
     [PINTO_WETH_WELL_BASE]: nameToAddressMap["WETH"],

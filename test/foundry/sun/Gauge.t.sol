@@ -100,14 +100,17 @@ contract GaugeTest is TestHelper {
         uint256 scaledRatio = bs.getBeanToMaxLpGpPerBdvRatioScaled();
         uint256 minBeanMaxLpGpPerBdvRatio = bs.getMinBeanMaxLpGpPerBdvRatio();
         uint256 maxBeanMaxLpGpPerBdvRatio = bs.getMaxBeanMaxLpGpPerBdvRatio();
+
         // scaled ratio should never fall below 50%.
         assertGe(scaledRatio, minBeanMaxLpGpPerBdvRatio);
 
-        // scaled ratio should never exceed 100%.
+        // scaled ratio should never exceed 150%.
         assertLe(scaledRatio, maxBeanMaxLpGpPerBdvRatio);
 
-        // the scaledRatio should increase half as fast as the initBeanToMaxLPRatio.
-        assertEq(scaledRatio - minBeanMaxLpGpPerBdvRatio, initBeanToMaxLPRatio / 2);
+        // With the new max of 150%, the scaling formula has changed
+        // The scaledRatio now increases by 1% for every 1% increase in initBeanToMaxLPRatio
+        // Starting from 50% at 0 and reaching 150% at 100%
+        assertEq(scaledRatio, minBeanMaxLpGpPerBdvRatio + initBeanToMaxLPRatio);
     }
 
     ////////////////////// L2SR //////////////////////
@@ -303,13 +306,13 @@ contract GaugeTest is TestHelper {
         // verify that the gauge points remain unchanged.
         assertEq(
             uint256(postLpSettings.gaugePoints),
-            uint256(lpSettings.gaugePoints),
+            bs.getMaxTotalGaugePoints(),
             "invalid lp gauge points"
         );
 
-        // verify bean seeds never exceed lp seeds.
+        // verify bean seeds never exceed 150% of lp seeds (tolerance of 1))
         assertGe(
-            uint256(postLpSettings.stalkEarnedPerSeason),
+            ((uint256(postLpSettings.stalkEarnedPerSeason) * 150) / 100) + 1,
             uint256(postBeanSettings.stalkEarnedPerSeason),
             "bean seeds > lp seeds"
         );
@@ -404,9 +407,11 @@ contract GaugeTest is TestHelper {
         // verify that stalk issued to LP is porportional to gauge point %.
         uint256 avgGrownStalkPerBdvPerSeason = bs.getAverageGrownStalkPerBdvPerSeason();
         uint256 totalStalk = totalDepositedBdv * avgGrownStalkPerBdvPerSeason;
+
         for (uint i; i < tokens.length; i++) {
             if (tokens[i] == BEAN) continue;
-            uint256 percentGaugePoints = (postSettings[i].gaugePoints * 1e18) / totalGaugePoints;
+            uint256 percentGaugePoints = (uint256(postSettings[i].gaugePoints) * 1e18) /
+                totalGaugePoints;
             uint256 tokenDepositedBdv = bs.getTotalDepositedBdv(tokens[i]);
             uint256 stalkToLp = postSettings[i].stalkEarnedPerSeason * tokenDepositedBdv;
             // precise within 1e-6.
@@ -537,7 +542,7 @@ contract GaugeTest is TestHelper {
         }
         if (deltaGaugePoints == 5e18) {
             assertLe(percentDifference, 100e6);
-        } else if (deltaGaugePoints == 3e18) {
+        } else if (deltaGaugePoints == 3e18 && gaugePoints != 3e18) {
             assertLe(percentDifference, 66.666666e6);
             assertGe(percentDifference, 33.333333e6);
         } else if (deltaGaugePoints == 1e18 && gaugePoints != 1e18) {
@@ -671,6 +676,7 @@ contract GaugeTest is TestHelper {
                 0,
                 0,
                 0,
+                0,
                 0
             )
         );
@@ -692,6 +698,7 @@ contract GaugeTest is TestHelper {
         assertEq(ssg.soilCoefficientLow, 0);
         assertEq(ssg.baseReward, 0);
         assertEq(ssg.minAvgGsPerBdv, 0);
+        assertEq(ssg.rainingMinBeanMaxLpGpPerBdvRatio, 0);
 
         // change settings
         vm.prank(BEANSTALK);
@@ -712,7 +719,8 @@ contract GaugeTest is TestHelper {
                 13,
                 14,
                 15,
-                16
+                16,
+                17
             )
         );
 
@@ -733,6 +741,7 @@ contract GaugeTest is TestHelper {
         assertEq(ssg.soilCoefficientLow, 14);
         assertEq(ssg.baseReward, 15);
         assertEq(ssg.minAvgGsPerBdv, 16);
+        assertEq(ssg.rainingMinBeanMaxLpGpPerBdvRatio, 17);
     }
 
     function getPercentDifference(
@@ -749,4 +758,6 @@ contract GaugeTest is TestHelper {
         }
         return percentDifference;
     }
+
+    /////////////////////// GAUGE ///////////////////////
 }

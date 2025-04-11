@@ -420,6 +420,14 @@ library LibGerminate {
     }
 
     /**
+     * @notice returns the highest stem that is not germinating for a token.
+     * @notice requires a minimum stem of 1.
+     */
+    function getHighestNonGerminatingStem(address token) internal view returns (int96 stem) {
+        return getGerminatingStem(token).germinatingStem - 1;
+    }
+
+    /**
      * @notice returns the `germinating` stem of a token.
      * @dev the 'germinating' stem is the stem where deposits that have a stem
      * equal or higher than this value are germinating.
@@ -452,13 +460,13 @@ library LibGerminate {
 
     function getPrevStalkEarnedPerSeason(
         address token
-    ) private view returns (uint32 prevStalkEarnedPerSeason) {
+    ) private view returns (uint40 prevStalkEarnedPerSeason) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         if (s.sys.silo.assetSettings[token].milestoneSeason < s.sys.season.current) {
             prevStalkEarnedPerSeason = s.sys.silo.assetSettings[token].stalkEarnedPerSeason;
         } else {
-            int32 deltaStalkEarnedPerSeason = s
+            int40 deltaStalkEarnedPerSeason = s
                 .sys
                 .silo
                 .assetSettings[token]
@@ -466,11 +474,11 @@ library LibGerminate {
             if (deltaStalkEarnedPerSeason >= 0) {
                 prevStalkEarnedPerSeason =
                     s.sys.silo.assetSettings[token].stalkEarnedPerSeason -
-                    uint32(deltaStalkEarnedPerSeason);
+                    uint40(deltaStalkEarnedPerSeason);
             } else {
                 prevStalkEarnedPerSeason =
                     s.sys.silo.assetSettings[token].stalkEarnedPerSeason +
-                    uint32(-deltaStalkEarnedPerSeason);
+                    uint40(-deltaStalkEarnedPerSeason);
             }
         }
     }

@@ -58,6 +58,13 @@ contract SiloGettersFacet is ReentrancyGuard {
     //////////////////////// GETTERS ////////////////////////
 
     /**
+     * @notice Get the address of the Bean token.
+     */
+    function getBeanToken() external view returns (address) {
+        return s.sys.bean;
+    }
+
+    /**
      * @notice Find the amount and BDV of `token` that `account` has Deposited in stem index `stem`.
      *
      * Returns a deposit tuple `(uint256 amount, uint256 bdv)`.
@@ -215,7 +222,7 @@ contract SiloGettersFacet is ReentrancyGuard {
     //////////////////////// SILO: TOTALS ////////////////////////
 
     /**
-     * @notice Returns the total supply of Stalk. Does NOT include Grown Stalk.
+     * @notice Returns the total supply of Stalk. Does NOT include unmown Grown Stalk.
      */
     function totalStalk() external view returns (uint256) {
         return s.sys.silo.stalk;
@@ -652,6 +659,10 @@ contract SiloGettersFacet is ReentrancyGuard {
         return g.germinatingStem;
     }
 
+    function getHighestNonGerminatingStem(address token) external view returns (int96 stem) {
+        return LibGerminate.getHighestNonGerminatingStem(token);
+    }
+
     /**
      * @notice returns the germinating stem for a list of tokens.
      */
@@ -661,6 +672,15 @@ contract SiloGettersFacet is ReentrancyGuard {
         germinatingStems = new int96[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
             germinatingStems[i] = LibGerminate.getGerminatingStem(tokens[i]).germinatingStem;
+        }
+    }
+
+    function getHighestNonGerminatingStems(
+        address[] memory tokens
+    ) external view returns (int96[] memory highestNonGerminatingStems) {
+        highestNonGerminatingStems = new int96[](tokens.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            highestNonGerminatingStems[i] = LibGerminate.getHighestNonGerminatingStem(tokens[i]);
         }
     }
 
