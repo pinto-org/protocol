@@ -37,7 +37,9 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
     /**
@@ -107,6 +109,15 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             advancedPipeCalls
         );
 
+        // apply convert penalty/bonus on grown stalk
+        grownStalk = LibConvert.applyStalkModifiers(
+            inputToken,
+            outputToken,
+            LibTractor._user(),
+            toBdv,
+            grownStalk
+        );
+
         toStem = LibConvert._depositTokensForConvert(
             outputToken,
             toAmount,
@@ -116,6 +127,14 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             LibTractor._user()
         );
 
-        emit Convert(LibTractor._user(), inputToken, outputToken, fromAmount, toAmount);
+        emit Convert(
+            LibTractor._user(),
+            inputToken,
+            outputToken,
+            fromAmount,
+            toAmount,
+            fromBdv,
+            toBdv
+        );
     }
 }

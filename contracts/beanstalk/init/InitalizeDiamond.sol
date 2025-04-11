@@ -18,6 +18,7 @@ import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
+import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 
 /**
  * @title InitalizeDiamond
@@ -52,7 +53,7 @@ contract InitalizeDiamond {
     uint256 internal constant LP_TO_SUPPLY_RATIO_LOWER_BOUND = 0.12e18; // 12%
 
     // Excessive price threshold constant
-    uint256 internal constant EXCESSIVE_PRICE_THRESHOLD = 1.05e6;
+    uint256 internal constant EXCESSIVE_PRICE_THRESHOLD = 1.025e6;
 
     /// @dev When the Pod Rate is high, issue less Soil.
     uint256 private constant SOIL_COEFFICIENT_HIGH = 0.25e18;
@@ -81,15 +82,6 @@ contract InitalizeDiamond {
 
     // Soil distribution period
     uint256 internal constant SOIL_DISTRIBUTION_PERIOD = 24 * 60 * 60; // 24 hours
-
-    // GAUGE DATA:
-
-    // Cultivation Factor
-    uint256 internal constant INIT_CULTIVATION_FACTOR = 50e6; // 50%
-    uint256 internal constant MIN_DELTA_CULTIVATION_FACTOR = 0.5e6; // 0.5%
-    uint256 internal constant MAX_DELTA_CULTIVATION_FACTOR = 2e6; // 2%
-    uint256 internal constant MIN_CULTIVATION_FACTOR = 1e6; // 1%
-    uint256 internal constant MAX_CULTIVATION_FACTOR = 100e6; // 100%
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
@@ -337,19 +329,11 @@ contract InitalizeDiamond {
             INIT_AVG_GSPBDV,
             INIT_MAX_TOTAL_GAUGE_POINTS
         );
-        // GAUGE //
-        Gauge memory cultivationFactorGauge = Gauge(
-            abi.encode(INIT_CULTIVATION_FACTOR),
-            address(this),
-            IGaugeFacet.cultivationFactor.selector,
-            abi.encode(
-                MIN_DELTA_CULTIVATION_FACTOR,
-                MAX_DELTA_CULTIVATION_FACTOR,
-                MIN_CULTIVATION_FACTOR,
-                MAX_CULTIVATION_FACTOR
-            )
-        );
 
-        LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
+        LibInitGauges.initCultivationFactor(); // add the cultivation factor gauge
+
+        LibInitGauges.initConvertDownPenalty(); // add the convert down penalty gauge
+
+        LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
     }
 }

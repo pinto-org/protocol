@@ -189,7 +189,10 @@ library LibGauge {
                 .mul(s.sys.seedGauge.maxTotalGaugePoints)
                 .div(totalGaugePoints);
             // and calculate the gaugePoints per BDV:
-            uint256 gpPerBdv = normalizedGaugePoints.mul(BDV_PRECISION).div(depositedBdvs[i]);
+            uint256 gpPerBdv;
+            if (depositedBdvs[i] > 0) {
+                gpPerBdv = normalizedGaugePoints.mul(BDV_PRECISION).div(depositedBdvs[i]);
+            }
 
             // Gauge points has 18 decimal precision (GP_PRECISION = 1%)
             // Deposited BDV has 6 decimal precision (1e6 = 1 unit of BDV)

@@ -34,7 +34,9 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
     /**
@@ -126,6 +128,15 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             );
         }
 
+        // apply convert penalty/bonus on grown stalk
+        pipeData.grownStalk = LibConvert.applyStalkModifiers(
+            cp.fromToken,
+            cp.toToken,
+            cp.account,
+            toBdv,
+            pipeData.grownStalk
+        );
+
         toStem = LibConvert._depositTokensForConvert(
             cp.toToken,
             cp.toAmount,
@@ -138,6 +149,14 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         fromAmount = cp.fromAmount;
         toAmount = cp.toAmount;
 
-        emit Convert(cp.account, cp.fromToken, cp.toToken, cp.fromAmount, cp.toAmount);
+        emit Convert(
+            cp.account,
+            cp.fromToken,
+            cp.toToken,
+            cp.fromAmount,
+            cp.toAmount,
+            fromBdv,
+            toBdv
+        );
     }
 }

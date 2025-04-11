@@ -21,6 +21,7 @@ import {Gauge} from "contracts/beanstalk/storage/System.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 
 /**
  * @title Sun
@@ -35,6 +36,7 @@ abstract contract Sun is Oracle, Distribution {
 
     uint256 internal constant SOIL_PRECISION = 1e6;
     uint256 internal constant CULTIVATION_FACTOR_PRECISION = 1e6;
+
     /**
      * @notice Emitted during Sunrise when Beanstalk adjusts the amount of available Soil.
      * @param season The Season in which Soil was adjusted.
@@ -79,8 +81,6 @@ abstract contract Sun is Oracle, Distribution {
                 priorHarvestable +
                 s.sys.rain.floodHarvestablePods;
             setSoilAbovePeg(newHarvestable, bs.podRate);
-
-            s.sys.season.abovePeg = true;
         } else {
             // Below peg
             int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
@@ -96,7 +96,6 @@ abstract contract Sun is Oracle, Distribution {
                 soil = Math.min(uint256(-twaDeltaB), uint256(-instDeltaB));
                 setSoil(scaleSoilBelowPeg(soil, bs.lpToSupplyRatio));
             }
-            s.sys.season.abovePeg = false;
         }
     }
 
