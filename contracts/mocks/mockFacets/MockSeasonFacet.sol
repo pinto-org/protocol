@@ -644,14 +644,20 @@ contract MockSeasonFacet is SeasonFacet {
     function setChangeInSoilDemand(uint256 changeInSoilDemand) public {
         if (changeInSoilDemand == 0) {
             // decreasing demand
+            // 200 beans sown last season, 100 beans sown this season
+            setLastSeasonAndThisSeasonBeanSown(200e6, 100e6);
             s.sys.weather.lastSowTime = 600; // last season, everything was sown in 10 minutes.
             s.sys.weather.thisSowTime = 2400; // this season, everything was sown in 40 minutes.
         } else if (changeInSoilDemand == 1) {
             // steady demand
+            // 100 beans sown last season, 100 beans sown this season
+            setLastSeasonAndThisSeasonBeanSown(100e6, 100e6);
             s.sys.weather.lastSowTime = 60 * 21; // last season, everything was sown in 21 minutes, this is past the 20 minute increasing window
             s.sys.weather.thisSowTime = 60 * 21; // this season, everything was sown in 21 minutes.
         } else {
             // increasing demand
+            // 100 beans sown last season, 200 beans sown this season
+            setLastSeasonAndThisSeasonBeanSown(100e6, 200e6);
             s.sys.weather.lastSowTime = type(uint32).max; // last season, no one sow'd
             s.sys.weather.thisSowTime = type(uint32).max - 1; // this season, someone sow'd
         }
@@ -749,4 +755,15 @@ contract MockSeasonFacet is SeasonFacet {
         emit DeltaB(instDeltaB);
     }
 
+    function setLastSeasonAndThisSeasonBeanSown(
+        uint128 lastSeasonBeanSown,
+        uint128 thisSeasonBeanSown
+    ) public {
+        s.sys.weather.lastDeltaSoil = lastSeasonBeanSown;
+        s.sys.beanSown = thisSeasonBeanSown;
+    }
+
+    function setMinSoilSownDemand(uint256 minSoilSownDemand) public {
+        s.sys.extEvaluationParameters.minSoilSownDemand = minSoilSownDemand;
+    }
 }

@@ -28,10 +28,6 @@ contract MockWhitelistFacet is WhitelistFacet {
         );
     }
 
-    function removeWhitelistStatus(address token) external {
-        LibWhitelistedTokens.removeWhitelistStatus(token);
-    }
-
     function addWhitelistStatus(
         address token,
         bool isWhitelisted,
