@@ -26,8 +26,9 @@ interface IBeanstalkERC20 {
 
 /**
  * @notice Verfifies the deployment parameters of Pinto
+ * @dev This test is marked as LEGACY because it is not used in the current deployment process.
  */
-contract VerifyDeploymentTest is TestHelper {
+contract LEGACY_VerifyDeploymentTest is TestHelper {
     // contracts for testing:
     address constant PRICE = address(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 

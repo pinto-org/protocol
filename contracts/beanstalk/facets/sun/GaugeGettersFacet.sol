@@ -75,6 +75,13 @@ contract GaugeGettersFacet {
     }
 
     /**
+     * @notice Returns the maximum total gauge points.
+     */
+    function getMaxTotalGaugePoints() external view returns (uint256) {
+        return s.sys.seedGauge.maxTotalGaugePoints;
+    }
+
+    /**
      * @notice returns the Gauge Points per BDV for a given token.
      * @param token The token to get the Gauge Points per BDV for.
      */

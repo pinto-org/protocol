@@ -181,7 +181,7 @@ library LibSilo {
      * @param account the address to min rain roots to
      * @param rainRoots the amount of rain roots to mint
      *
-     * @dev Rain roots are minted at the start of a rain season and 
+     * @dev Rain roots are minted at the start of a rain season and
      * after redepositing during a convert operation.
      */
     function mintRainRoots(address account, uint256 rainRoots) internal {
@@ -749,5 +749,20 @@ library LibSilo {
     ) public view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.accts[owner].depositAllowances[spender][token];
+    }
+
+    /**
+     * @notice Updates the sorted list of deposit IDs for a given account and token
+     * @param account The address of the account to update
+     * @param token The token address to update deposit IDs for
+     * @param sortedDepositIds The sorted list of deposit IDs to store
+     */
+    function _setSortedDepositIds(
+        address account,
+        address token,
+        uint256[] calldata sortedDepositIds
+    ) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.accts[account].depositIdList[token].depositIds = sortedDepositIds;
     }
 }

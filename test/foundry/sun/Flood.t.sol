@@ -718,44 +718,38 @@ contract FloodTest is TestHelper {
         assertEq(IERC20(WETH).balanceOf(users[2]), 25595575914848452999);
     }
 
-    function testSopUsingRealSunrise() public {
+    /// @dev complete test for real sunrise sop with reasonably high l2sr
+    function testSopUsingRealSunriseReasonablyHighL2SR() public {
         setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
         setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
 
         // mints beans to first test user
-        uint256 beans = 1000000e6;
-        bean.mint(users[1], beans * 1e5); // increase bean supply so that flood will mint something
-        season.setSoilE(beans);
+        uint256 beans = 100_000e6;
+        // increase bean supply so that flood will mint something, but not too much to prevent
+        // lowering l2sr
+        bean.mint(users[1], beans * 10);
+        season.setSoilE(beans); 
         // sows beans
         vm.prank(users[1]);
         bs.sow(beans, 1, 0);
 
-        //
         warpToNextSeasonAndUpdateOracles();
-        bs.sunrise(); // not raining, caseId 108
+        bs.sunrise(); // not raining, caseId 74
+
+        // assert that the liquidity to supply ratio is at least, reasonably high
+        assertGt(bs.getLiquidityToSupplyRatio(), 0.4e18);
 
         warpToNextSeasonAndUpdateOracles();
-        bs.sunrise(); // start raining, caseId 114
+        bs.sunrise(); // start raining, caseId 78
 
         warpToNextSeasonAndUpdateOracles();
 
-        uint256 totalHarvestableForActiveFieldBefore = bs.totalHarvestableForActiveField();
+        bs.sunrise(); // sop, caseId 78
 
-        bs.sunrise(); // sop, caseId 114
-
-        uint256 totalHarvestableForActiveFieldAfter = bs.totalHarvestableForActiveField();
-
-        uint256 amountMadeHarvestable = totalHarvestableForActiveFieldAfter -
-            totalHarvestableForActiveFieldBefore;
-
-        int256 totalDeltaB = bs.totalDeltaB();
-
-        // it should have made more than capped deltaB harvestable, because we flooded
-        assertGt(
-            amountMadeHarvestable,
-            uint256(totalDeltaB),
-            "amountMadeHarvestable should be greater than totalDeltaB"
-        );
+        IMockFBeanstalk.Season memory s = bs.time();
+        // verify a sop a happened
+        assertEq(s.lastSop, s.rainStart, "lastSop should be equal to rainStart");
+        assertEq(s.lastSopSeason, s.current, "lastSopSeason should be equal to current season");
 
         // check amount of soil issued
         uint256 initialSoil = bs.initialSoil();
@@ -767,11 +761,6 @@ contract FloodTest is TestHelper {
             0,
             "flood should have made some harvestable pods specifically from flooding"
         );
-
-        IMockFBeanstalk.Season memory s = bs.time();
-        // verify a sop a happened
-        assertEq(s.lastSop, s.rainStart);
-        assertEq(s.lastSopSeason, s.current);
 
         // call mow to update plenty amount for user
         bs.mow(users[1], BEAN);
@@ -789,6 +778,39 @@ contract FloodTest is TestHelper {
                 assertEq(allPlenty[i].plenty, 25595575914848452999);
             }
         }
+    }
+
+    /// @dev tests that a flood occurs with excessively high l2sr
+    function testSopUsingRealSunriseExecessivelyHighL2SR() public {
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
+
+        // mints beans to first test user
+        uint256 beans = 100_000e6;
+        // increase bean supply so that flood will mint something, but not too much to prevent
+        // lowering l2sr
+        bean.mint(users[1], beans * 5);
+        season.setSoilE(beans);
+        // sows beans
+        vm.prank(users[1]);
+        bs.sow(beans, 1, 0);
+
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise(); // not raining, caseId 110
+
+        // assert that the liquidity to supply ratio is excessively high
+        assertGt(bs.getLiquidityToSupplyRatio(), 0.8e18);
+
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise(); // start raining, caseId 114
+        warpToNextSeasonAndUpdateOracles();
+
+        bs.sunrise(); // sop, caseId 114
+
+        IMockFBeanstalk.Season memory s = bs.time();
+        // verify a sop a happened
+        assertEq(s.lastSop, s.rainStart, "lastSop should be equal to rainStart");
+        assertEq(s.lastSopSeason, s.current, "lastSopSeason should be equal to current season");
     }
 
     function testCalculateSopPerWell() public pure {

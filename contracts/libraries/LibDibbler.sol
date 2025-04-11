@@ -30,7 +30,7 @@ library LibDibbler {
 
     /// @dev The precision of s.sys.weather.temp
     uint256 internal constant TEMPERATURE_PRECISION = 1e6;
-    
+
     /// @dev The divisor of s.sys.weather.temp in the morning auction
     uint256 internal constant TEMPERATURE_DIVISOR = 1e12;
 
@@ -39,9 +39,10 @@ library LibDibbler {
     /// `pods = beans * (100% + temperature) / 100%`
     uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
-    /// @dev If less than `SOIL_SOLD_OUT_THRESHOLD` Soil is left, consider
-    /// Soil to be "sold out"; affects how Temperature is adjusted.
-    uint256 private constant SOIL_SOLD_OUT_THRESHOLD = 1e6;
+    /// @dev If less than `soilSoldOutThreshold` Soil is left, consider
+    /// Soil to be "sold out"; affects how Temperature is adjusted. 
+    /// This is the maximum amount that `soilSoldOutThreshold` can be set to.
+    uint256 internal constant MAX_SOIL_SOLD_OUT_THRESHOLD = 50e6;
 
     uint256 private constant L1_BLOCK_TIME = 1200;
     uint256 private constant L2_BLOCK_TIME = 200;
@@ -168,7 +169,10 @@ library LibDibbler {
     /**
      * @dev Stores the time elapsed from the start of the Season to the time
      * at which Soil is "sold out", i.e. the remaining Soil is less than a
-     * threshold `SOIL_SOLD_OUT_THRESHOLD`.
+     * threshold. 
+     *
+     * That threshold is calculated based on the soil at the start of the season, set in {setSoil} and is
+     * currently set to 50e6 if the initial soil was >100e6, and 50% of the initial soil otherwise.
      *
      * RATIONALE: Beanstalk utilizes the time elapsed for Soil to "sell out" to
      * gauge demand for Soil, which affects how the Temperature is adjusted. For
@@ -179,7 +183,7 @@ library LibDibbler {
      * Season to be considered increasing in demand.
      *
      * `thisSowTime` should only be updated if:
-     *  (a) there is less than 1 Soil available after this Sow, and
+     *  (a) there is less than the threshold Soil available after this Sow, and
      *  (b) it has not yet been updated this Season.
      *
      * Note that:
@@ -189,8 +193,16 @@ library LibDibbler {
     function _saveSowTime() private {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
+        // If the initial Soil was less than 100e6, set the threshold to 50% of the initial Soil.
+        // Otherwise the threshold is 50e6.
+        uint256 soilSoldOutThreshold = (s.sys.initialSoil < 100e6)
+            ? ((s.sys.initialSoil * 50e6) / 100e6)
+            : MAX_SOIL_SOLD_OUT_THRESHOLD;
+
         // s.sys.soil is now the soil remaining after this Sow.
-        if (s.sys.soil > SOIL_SOLD_OUT_THRESHOLD || s.sys.weather.thisSowTime < type(uint32).max) {
+        if (
+            s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max
+        ) {
             // haven't sold enough soil, or already set thisSowTime for this Season.
             return;
         }
