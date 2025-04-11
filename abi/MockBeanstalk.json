@@ -6444,6 +6444,18 @@
         "internalType": "uint256",
         "name": "toAmount",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "fromBdv",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toBdv",
+        "type": "uint256"
       }
     ],
     "name": "Convert",
@@ -6454,12 +6466,62 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
-        "name": "stalkLost",
+        "name": "grownStalkLost",
         "type": "uint256"
       }
     ],
     "name": "ConvertDownPenalty",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkGained",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvCapacityUsed",
+        "type": "uint256"
+      }
+    ],
+    "name": "ConvertUpBonus",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "UpdatedGaugeData",
     "type": "event"
   },
   {
@@ -6736,6 +6798,50 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getCalculatedBaseBonusStalkPerBdv",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getConvertBonusBdvAmountAndCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getConvertBonusRemainingCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -6767,6 +6873,25 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "getPegCrossStem",
+    "outputs": [
+      {
+        "internalType": "int96",
+        "name": "",
+        "type": "int96"
       }
     ],
     "stateMutability": "view",
@@ -6844,6 +6969,30 @@
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "bdvToConvert",
+        "type": "uint256"
+      }
+    ],
+    "name": "stalkBonus",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "bdvCapacityUsed",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "grownStalkGained",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -7537,8 +7686,21 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "receivedAmount",
+        "name": "newMaxTotalGaugePoints",
         "type": "uint256"
+      }
+    ],
+    "name": "UpdateMaxTotalGaugePoints",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "deltaStalk",
+        "type": "int256"
       },
       {
         "indexed": false,
@@ -8231,13 +8393,18 @@
           },
           {
             "internalType": "uint256",
-            "name": "minSoilSownDemand",
+            "name": "supplyPodDemandScalar",
             "type": "uint256"
           },
           {
-            "internalType": "bytes32[60]",
+            "internalType": "uint256",
+            "name": "initialSoilPodDemandScalar",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32[58]",
             "name": "buffer",
-            "type": "bytes32[60]"
+            "type": "bytes32[58]"
           }
         ],
         "internalType": "struct ExtEvaluationParameters",
@@ -8316,6 +8483,19 @@
   {
     "inputs": [],
     "name": "getMinBeanMaxLpGpPerBdvRatio",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getOrderLockedBeans",
     "outputs": [
       {
         "internalType": "uint256",
@@ -8443,6 +8623,11 @@
             "internalType": "bool",
             "name": "abovePeg",
             "type": "bool"
+          },
+          {
+            "internalType": "uint32",
+            "name": "pegCrossSeason",
+            "type": "uint32"
           },
           {
             "internalType": "uint256",
@@ -8805,6 +8990,11 @@
             "type": "bool"
           },
           {
+            "internalType": "uint32",
+            "name": "pegCrossSeason",
+            "type": "uint32"
+          },
+          {
             "internalType": "uint256",
             "name": "start",
             "type": "uint256"
@@ -8945,6 +9135,101 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "caseId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int80",
+        "name": "absChange",
+        "type": "int80"
+      }
+    ],
+    "name": "BeanToMaxLpGpPerBdvRatioChange",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "Engaged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "EngagedData",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "season",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "abovePeg",
+        "type": "bool"
+      }
+    ],
+    "name": "PegStateUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toField",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonOfPlentyField",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "address",
@@ -9037,6 +9322,31 @@
       }
     ],
     "name": "TemperatureChange",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "tokens",
+        "type": "address[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "int96[]",
+        "name": "stems",
+        "type": "int96[]"
+      }
+    ],
+    "name": "UpdatedBelowPegCrossStems",
     "type": "event"
   },
   {
@@ -9620,6 +9930,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getMaxTotalGaugePoints",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -9660,6 +9983,11 @@
             "type": "bool"
           },
           {
+            "internalType": "uint128",
+            "name": "maxTotalGaugePoints",
+            "type": "uint128"
+          },
+          {
             "internalType": "bytes32[4]",
             "name": "_buffer",
             "type": "bytes32[4]"
@@ -9698,6 +10026,141 @@
     "type": "error"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      }
+    ],
+    "name": "AddedGauge",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      }
+    ],
+    "name": "RemovedGauge",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      }
+    ],
+    "name": "UpdatedGauge",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      }
+    ],
+    "name": "addGauge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes",
@@ -9716,6 +10179,40 @@
       }
     ],
     "name": "convertDownPenaltyGauge",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "systemData",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "gaugeData",
+        "type": "bytes"
+      }
+    ],
+    "name": "convertUpBonusGauge",
     "outputs": [
       {
         "internalType": "bytes",
@@ -9903,6 +10400,86 @@
         "internalType": "enum GaugeId",
         "name": "gaugeId",
         "type": "uint8"
+      },
+      {
+        "internalType": "bytes",
+        "name": "systemData",
+        "type": "bytes"
+      }
+    ],
+    "name": "getGaugeIdResult",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "systemData",
+        "type": "bytes"
+      }
+    ],
+    "name": "getGaugeResult",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
       }
     ],
     "name": "getGaugeValue",
@@ -9990,6 +10567,59 @@
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      }
+    ],
+    "name": "removeGauge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes4",
+            "name": "selector",
+            "type": "bytes4"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Gauge",
+        "name": "gauge",
+        "type": "tuple"
+      }
+    ],
+    "name": "updateGauge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -10345,6 +10975,32 @@
       }
     ],
     "name": "depositForConvertE",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "bdvConverted",
+        "type": "uint256"
+      }
+    ],
+    "name": "mockUpdateBdvConverted",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newBdvCapacity",
+        "type": "uint256"
+      }
+    ],
+    "name": "mockUpdateBonusBdvCapacity",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -11479,6 +12135,19 @@
   {
     "inputs": [
       {
+        "internalType": "uint128",
+        "name": "amount",
+        "type": "uint128"
+      }
+    ],
+    "name": "setBeansSownE",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "price",
         "type": "uint256"
@@ -11646,6 +12315,19 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "capacity",
+        "type": "uint256"
+      }
+    ],
+    "name": "setOverallConvertCapacityUsedForBlock",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "podRate",
         "type": "uint256"
       }
@@ -11701,6 +12383,19 @@
       }
     ],
     "name": "setSunriseBlock",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTotalStalkE",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

@@ -40,6 +40,11 @@ library LibGauge {
      */
     event UpdateAverageStalkPerBdvPerSeason(uint256 newStalkPerBdvPerSeason);
 
+    /**
+     * @notice Emitted when the Max Total Gauge Points Updates.
+     */
+    event UpdateMaxTotalGaugePoints(uint256 newMaxTotalGaugePoints);
+
     struct LpGaugePointData {
         address lpToken;
         uint256 gpPerBdv;
@@ -65,7 +70,6 @@ library LibGauge {
         (
             uint256 maxLpGpPerBdv,
             LpGaugePointData[] memory lpGpData,
-            uint256 totalGaugePoints,
             uint256 totalLpBdv
         ) = updateGaugePoints();
 
@@ -73,7 +77,7 @@ library LibGauge {
         // and the gauge system should be skipped.
         if (totalLpBdv == type(uint256).max) return;
 
-        updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalGaugePoints, totalLpBdv);
+        updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalLpBdv);
     }
 
     /**
@@ -82,12 +86,7 @@ library LibGauge {
      */
     function updateGaugePoints()
         internal
-        returns (
-            uint256 maxLpGpPerBdv,
-            LpGaugePointData[] memory lpGpData,
-            uint256 totalGaugePoints,
-            uint256 totalLpBdv
-        )
+        returns (uint256 maxLpGpPerBdv, LpGaugePointData[] memory lpGpData, uint256 totalLpBdv)
     {
         AppStorage storage s = LibAppStorage.diamondStorage();
         address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
@@ -100,27 +99,38 @@ library LibGauge {
                 LibWell.isWell(whitelistedLpTokens[0]) &&
                 s.sys.usdTokenPrice[whitelistedLpTokens[0]] == 0
             ) {
-                return (maxLpGpPerBdv, lpGpData, totalGaugePoints, type(uint256).max);
+                return (maxLpGpPerBdv, lpGpData, type(uint256).max);
             }
-            uint256 gaugePoints = s.sys.silo.assetSettings[whitelistedLpTokens[0]].gaugePoints;
+
+            // verify the gauge points are the same as the maximum gauge points.
+            if (
+                s.sys.silo.assetSettings[whitelistedLpTokens[0]].gaugePoints !=
+                s.sys.seedGauge.maxTotalGaugePoints
+            ) {
+                s.sys.silo.assetSettings[whitelistedLpTokens[0]].gaugePoints = s
+                    .sys
+                    .seedGauge
+                    .maxTotalGaugePoints;
+            }
 
             lpGpData[0].lpToken = whitelistedLpTokens[0];
             // If nothing has been deposited, skip gauge point update.
             uint128 depositedBdv = s.sys.silo.balances[whitelistedLpTokens[0]].depositedBdv;
-            if (depositedBdv == 0)
-                return (maxLpGpPerBdv, lpGpData, totalGaugePoints, type(uint256).max);
-            lpGpData[0].gpPerBdv = gaugePoints.mul(BDV_PRECISION).div(
-                s.sys.silo.balances[whitelistedLpTokens[0]].depositedBdv
-            );
+            if (depositedBdv == 0) return (maxLpGpPerBdv, lpGpData, type(uint256).max);
+            lpGpData[0].gpPerBdv = uint256(s.sys.seedGauge.maxTotalGaugePoints)
+                .mul(BDV_PRECISION)
+                .div(s.sys.silo.balances[whitelistedLpTokens[0]].depositedBdv);
+
             return (
                 lpGpData[0].gpPerBdv,
                 lpGpData,
-                gaugePoints,
                 s.sys.silo.balances[whitelistedLpTokens[0]].depositedBdv
             );
         }
-
-        // Summate total deposited BDV across all whitelisted LP tokens.
+        // iterate over all the whitelisted LP tokens to fetch:
+        // - deposited BDV
+        // - total deposited BDV
+        uint256[] memory depositedBdvs = new uint256[](whitelistedLpTokens.length);
         uint256 totalOptimalDepositedBdvPercent;
         for (uint256 i; i < whitelistedLpTokens.length; ++i) {
             // Assumes that only Wells use USD price oracles.
@@ -128,12 +138,12 @@ library LibGauge {
                 LibWell.isWell(whitelistedLpTokens[i]) &&
                 s.sys.usdTokenPrice[whitelistedLpTokens[i]] == 0
             ) {
-                return (maxLpGpPerBdv, lpGpData, totalGaugePoints, type(uint256).max);
+                return (maxLpGpPerBdv, lpGpData, type(uint256).max);
             }
-            uint256 depositedBdv = s.sys.silo.balances[whitelistedLpTokens[i]].depositedBdv;
-            if (depositedBdv > 0) {
+            depositedBdvs[i] = s.sys.silo.balances[whitelistedLpTokens[i]].depositedBdv;
+            if (depositedBdvs[i] > 0) {
                 AssetSettings storage ss = s.sys.silo.assetSettings[whitelistedLpTokens[i]];
-                totalLpBdv = totalLpBdv.add(depositedBdv);
+                totalLpBdv = totalLpBdv.add(depositedBdvs[i]);
                 totalOptimalDepositedBdvPercent = totalOptimalDepositedBdvPercent.add(
                     ss.optimalPercentDepositedBdv
                 );
@@ -141,29 +151,47 @@ library LibGauge {
         }
 
         // If nothing has been deposited, skip gauge point update.
-        if (totalLpBdv == 0) return (maxLpGpPerBdv, lpGpData, totalGaugePoints, type(uint256).max);
-        // Calculate and update the gauge points for each LP.
-        // If the depositedBdv is 0, then the gauge points are not included in the total.
+        if (totalLpBdv == 0) return (maxLpGpPerBdv, lpGpData, type(uint256).max);
+
+        // iterate over all the whitelisted LP tokens to calculate the updated gauge points.
+        uint256[] memory gaugePoints = new uint256[](whitelistedLpTokens.length);
+        uint256 totalGaugePoints;
         for (uint256 i; i < whitelistedLpTokens.length; ++i) {
             AssetSettings storage ss = s.sys.silo.assetSettings[whitelistedLpTokens[i]];
-            uint256 depositedBdv = s.sys.silo.balances[whitelistedLpTokens[i]].depositedBdv;
-
             // 1e6 = 1%
-            uint256 percentDepositedBdv = depositedBdv.mul(100e6).div(totalLpBdv);
-
-            uint256 gpPerBdv;
-            uint256 newGaugePoints = ss.gaugePoints;
+            uint256 percentDepositedBdv = depositedBdvs[i].mul(100e6).div(totalLpBdv);
             // If the token does not have any deposited BDV, the gauge points are not updated.
-            if (depositedBdv > 0) {
+            if (depositedBdvs[i] > 0) {
                 // Calculate the new gauge points of the token.
-                newGaugePoints = calcGaugePoints(
+                gaugePoints[i] = calcGaugePoints(
                     ss,
                     percentDepositedBdv,
                     totalOptimalDepositedBdvPercent
                 );
-                // Increment totalGaugePoints and calculate the gaugePoints per BDV:
-                totalGaugePoints = totalGaugePoints.add(newGaugePoints);
-                gpPerBdv = newGaugePoints.mul(BDV_PRECISION).div(depositedBdv);
+
+                // verify that the gauge points are not greater than the cap, and if so, set it to the cap.
+                gaugePoints[i] = capGaugePoints(
+                    gaugePoints[i],
+                    ss.optimalPercentDepositedBdv,
+                    totalOptimalDepositedBdvPercent
+                );
+
+                // Increment totalGaugePoints
+                totalGaugePoints = totalGaugePoints.add(gaugePoints[i]);
+            }
+        }
+
+        // iterate over all the whitelisted LP tokens to calculate the gauge points per BDV.
+        for (uint256 i; i < whitelistedLpTokens.length; ++i) {
+            AssetSettings storage ss = s.sys.silo.assetSettings[whitelistedLpTokens[i]];
+            // normalize the gauge points based on the total gauge points
+            uint256 normalizedGaugePoints = gaugePoints[i]
+                .mul(s.sys.seedGauge.maxTotalGaugePoints)
+                .div(totalGaugePoints);
+            // and calculate the gaugePoints per BDV:
+            uint256 gpPerBdv;
+            if (depositedBdvs[i] > 0) {
+                gpPerBdv = normalizedGaugePoints.mul(BDV_PRECISION).div(depositedBdvs[i]);
             }
 
             // Gauge points has 18 decimal precision (GP_PRECISION = 1%)
@@ -172,8 +200,13 @@ library LibGauge {
             if (gpPerBdv > maxLpGpPerBdv) maxLpGpPerBdv = gpPerBdv;
             lpGpData[i] = LpGaugePointData({lpToken: whitelistedLpTokens[i], gpPerBdv: gpPerBdv});
 
-            ss.gaugePoints = newGaugePoints.toUint128();
-            emit GaugePointChange(s.sys.season.current, whitelistedLpTokens[i], newGaugePoints);
+            // update the gauge points for the token
+            ss.gaugePoints = normalizedGaugePoints.toUint128();
+            emit GaugePointChange(
+                s.sys.season.current,
+                whitelistedLpTokens[i],
+                normalizedGaugePoints
+            );
         }
     }
 
@@ -225,7 +258,6 @@ library LibGauge {
     function updateGrownStalkEarnedPerSeason(
         uint256 maxLpGpPerBdv,
         LpGaugePointData[] memory lpGpData,
-        uint256 totalGaugePoints,
         uint256 totalLpBdv
     ) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -245,7 +277,7 @@ library LibGauge {
         // BeanGpPerBdv and beanToMaxLpGpPerBdvRatio has 18 decimal precision.
         uint256 beanGpPerBdv = maxLpGpPerBdv.mul(beanToMaxLpGpPerBdvRatio).div(100e18);
 
-        totalGaugePoints = totalGaugePoints.add(
+        uint256 totalGaugePoints = uint256(s.sys.seedGauge.maxTotalGaugePoints).add(
             beanGpPerBdv.mul(beanDepositedBdv).div(BDV_PRECISION)
         );
 
@@ -398,5 +430,22 @@ library LibGauge {
             beanToMaxLpGpPerBdvRatio.mul(beanMaxLpGpRatioRange).div(ONE_HUNDRED_PERCENT).add(
                 minBeanMaxLpGpPerBdvRatio
             );
+    }
+
+    /**
+     * @notice Caps the gauge points to the maximum value.
+     * @param gaugePoints the gauge points to cap.
+     * @dev the cap is calculated as 2 * optimal percent deposited BDV * total gauge points
+     */
+    function capGaugePoints(
+        uint256 gaugePoints,
+        uint256 optimalPercentDepositedBdv,
+        uint256 totalOptimalDepositedBdvPercent
+    ) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 cap = (s.sys.seedGauge.maxTotalGaugePoints * optimalPercentDepositedBdv * 2) /
+            (totalOptimalDepositedBdvPercent);
+        if (gaugePoints > cap) return cap;
+        return gaugePoints;
     }
 }

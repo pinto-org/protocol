@@ -18,6 +18,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param initialSoil The amount of Soil at the start of the season.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -30,6 +31,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param convertCapacity A mapping from block number to the amount of Beans that can be converted towards peg in this block before stalk penalty becomes applied.
  * @param oracleImplementation A mapping from token to its oracle implementation.
  * @param shipmentRoutes Define the distribution of newly minted Beans.
+ * @param belowPegCrossStems A mapping from token to the stemTip at the time of the last below peg cross.
  * @param _buffer_1 Reserved storage for future additions.
  * @param casesV2 Stores the 144 Weather and seedGauge cases.
  * @param silo See {Silo}.
@@ -53,7 +55,8 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
-    bytes32[16] _buffer_0;
+    uint256 initialSoil;
+    bytes32[15] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;
@@ -64,7 +67,8 @@ struct System {
     mapping(uint256 => ConvertCapacity) convertCapacity;
     mapping(address => Implementation) oracleImplementation;
     ShipmentRoute[] shipmentRoutes;
-    bytes32[16] _buffer_1;
+    mapping(address => int96) belowPegCrossStems;
+    bytes32[15] _buffer_1;
     bytes32[144] casesV2;
     Silo silo;
     Season season;
@@ -80,7 +84,7 @@ struct System {
 
 /**
  * @notice System-level Silo state variables.
- * @param stalk The total amount of active Stalk (including Earned Stalk, excluding Grown Stalk).
+ * @param stalk The total amount of active Stalk (including Earned Stalk, excluding unmown Grown Stalk).
  * @param roots The total amount of Roots.
  * @param earnedBeans The number of Beans distributed to the Silo that have not yet been Deposited as a result of the Earn function being called.
  * @param balances A mapping from Token address to Silo Balance storage (amount deposited and withdrawn).
@@ -125,6 +129,7 @@ struct Field {
  * @param raining True if it is Raining (P > 1, Pod Rate Excessively Low).
  * @param sunriseBlock The block of the start of the current Season.
  * @param abovePeg Boolean indicating whether the previous Season was above or below peg.
+ * @param pegCrossSeason The last season in which the target was crossed.
  * @param start The timestamp of the Beanstalk deployment rounded down to the nearest hour.
  * @param period The length of each season in Beanstalk in seconds.
  * @param timestamp The timestamp of the start of the current Season.
@@ -139,6 +144,7 @@ struct Season {
     bool raining;
     uint64 sunriseBlock;
     bool abovePeg;
+    uint32 pegCrossSeason;
     uint256 start;
     uint256 period;
     uint256 timestamp;
@@ -169,6 +175,7 @@ struct Weather {
  * @param beanToMaxLpGpPerBdvRatio a scalar of the gauge points(GP) per bdv
  * issued to the largest LP share and Bean. 6 decimal precision.
  * @param avgGsPerBdvFlag update the average grown stalk per bdv per season, if true.
+ * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should be incentivized the most,
  * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
@@ -177,6 +184,8 @@ struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;
     uint128 beanToMaxLpGpPerBdvRatio;
     bool avgGsPerBdvFlag;
+    uint128 maxTotalGaugePoints;
+    // 15 bytes are left here.
     bytes32[4] _buffer;
 }
 
@@ -342,6 +351,7 @@ struct Implementation {
 struct GaugeData {
     GaugeId[] gaugeIds;
     mapping(GaugeId => Gauge) gauges;
+    bytes32[16] _buffer;
 }
 
 /**
@@ -443,8 +453,9 @@ struct EvaluationParameters {
  * @param abovePegDeltaBSoilScalar The scalar for the time weighted average deltaB when
  * twaDeltaB is negative but beanstalk ended the season above peg.
  * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
- * @param minSoilIssuance The minimum amount of soil to issue in a season when below peg.
- * @param minSoilSownDemand The minimum amount of soil that must be sown in a season for demand to be measured.
+ * @param minSoilIssuance The minimum amount of soil that can be issued in a season.
+ * @param supplyPodDemandScalar The scalar to scale the bean supply by when evaluating the delta pod demand.
+ * @param initialSoilPodDemandScalar The scalar to scale the initial soil issuance by when evaluating the delta pod demand.
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
@@ -454,8 +465,9 @@ struct ExtEvaluationParameters {
     uint256 abovePegDeltaBSoilScalar;
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
-    uint256 minSoilSownDemand;
-    bytes32[60] buffer;
+    uint256 supplyPodDemandScalar;
+    uint256 initialSoilPodDemandScalar;
+    bytes32[59] buffer;
 }
 
 /**
@@ -494,5 +506,6 @@ enum ShipmentRecipient {
  */
 enum GaugeId {
     CULTIVATION_FACTOR,
-    CONVERT_DOWN_PENALTY
+    CONVERT_DOWN_PENALTY,
+    CONVERT_UP_BONUS
 }

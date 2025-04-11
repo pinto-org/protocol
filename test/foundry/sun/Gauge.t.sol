@@ -306,7 +306,7 @@ contract GaugeTest is TestHelper {
         // verify that the gauge points remain unchanged.
         assertEq(
             uint256(postLpSettings.gaugePoints),
-            uint256(lpSettings.gaugePoints),
+            bs.getMaxTotalGaugePoints(),
             "invalid lp gauge points"
         );
 
@@ -407,9 +407,11 @@ contract GaugeTest is TestHelper {
         // verify that stalk issued to LP is porportional to gauge point %.
         uint256 avgGrownStalkPerBdvPerSeason = bs.getAverageGrownStalkPerBdvPerSeason();
         uint256 totalStalk = totalDepositedBdv * avgGrownStalkPerBdvPerSeason;
+
         for (uint i; i < tokens.length; i++) {
             if (tokens[i] == BEAN) continue;
-            uint256 percentGaugePoints = (postSettings[i].gaugePoints * 1e18) / totalGaugePoints;
+            uint256 percentGaugePoints = (uint256(postSettings[i].gaugePoints) * 1e18) /
+                totalGaugePoints;
             uint256 tokenDepositedBdv = bs.getTotalDepositedBdv(tokens[i]);
             uint256 stalkToLp = postSettings[i].stalkEarnedPerSeason * tokenDepositedBdv;
             // precise within 1e-6.
