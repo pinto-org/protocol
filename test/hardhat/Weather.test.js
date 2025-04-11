@@ -58,9 +58,6 @@ describe("Complex Weather", function () {
 
     await setEthUsdChainlinkPrice("1000");
     await setWstethUsdPrice("1000");
-
-    // temporary override to allow testing of 0 soil sown until PI-9.
-    await mockBeanstalk.setMinSoilSownDemand(0);
   });
 
   [...Array(numberTests).keys()]
