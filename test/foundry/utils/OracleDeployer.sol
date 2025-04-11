@@ -32,6 +32,7 @@ contract OracleDeployer is Utils {
 
     address constant ETH_USD_CHAINLINK_PRICE_AGGREGATOR =
         0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+
     address constant WSTETH_ETH_CHAINLINK_PRICE_AGGREGATOR =
         0x86392dC19c0b719886221c78AB11eb8Cf5c52812;
 
@@ -229,13 +230,7 @@ contract OracleDeployer is Utils {
                 lsdChainlinkOracle,
                 LSDChainlinkOracle.getPrice.selector,
                 bytes1(0x00),
-                abi.encode(
-                    _ethChainlinkOracle,
-                    _ethTimeout,
-                    tokenChainlinkOracle,
-                    tokenTimeout,
-                    token
-                )
+                abi.encode(_ethChainlinkOracle, _ethTimeout, tokenChainlinkOracle, tokenTimeout)
             )
         );
     }

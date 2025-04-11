@@ -384,8 +384,8 @@ async function setupWstethOracleImplementation() {
     selector: LSDChainlinkOracle.interface.getSighash("getPrice"),
     encodeType: "0x00",
     data: ethers.utils.defaultAbiCoder.encode(
-      ["address", "uint256", "address", "uint256", "address"],
-      [_ethChainlinkOracle, _ethTimeout, _xEthChainlinkOracle, _xEthTimeout, _token]
+      ["address", "uint256", "address", "uint256"],
+      [_ethChainlinkOracle, _ethTimeout, _xEthChainlinkOracle, _xEthTimeout]
     )
   };
 

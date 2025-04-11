@@ -8,9 +8,16 @@ import {Call, IWell, IERC20} from "../../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "../../interfaces/basin/IBeanstalkWellFunction.sol";
 import {C} from "../../C.sol";
 import {IBeanstalk} from "../../interfaces/IBeanstalk.sol";
+import {IMultiFlowPump} from "contracts/interfaces/basin/IMultiFlowPump.sol";
 
 interface dec {
     function decimals() external view returns (uint256);
+}
+
+enum ReservesType {
+    CURRENT_RESERVES,
+    INSTANTANEOUS_RESERVES,
+    CAPPED_RESERVES
 }
 
 contract WellPrice {
@@ -51,12 +58,29 @@ contract WellPrice {
      * Bean in a given Well.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
-    function getWell(address wellAddress) public view returns (P.Pool memory pool) {
+    function getWell(
+        address wellAddress,
+        ReservesType reservesType
+    ) public view returns (P.Pool memory pool) {
         IWell well = IWell(wellAddress);
         pool.pool = wellAddress;
         IERC20[] memory wellTokens = well.tokens();
         pool.tokens = [address(wellTokens[0]), address(wellTokens[1])];
-        uint256[] memory wellBalances = well.getReserves();
+        uint256[] memory wellBalances;
+        if (reservesType == ReservesType.INSTANTANEOUS_RESERVES) {
+            Call memory pump = well.pumps()[0];
+            // Get the readInstantaneousReserves from the pump
+            wellBalances = IMultiFlowPump(pump.target).readInstantaneousReserves(
+                wellAddress,
+                pump.data
+            );
+        } else if (reservesType == ReservesType.CAPPED_RESERVES) {
+            Call memory pump = well.pumps()[0];
+            wellBalances = IMultiFlowPump(pump.target).readCappedReserves(wellAddress, pump.data);
+        } else {
+            // Current reserves
+            wellBalances = well.getReserves();
+        }
         if (wellBalances[0] == 0 || wellBalances[1] == 0) return pool;
         pool.balances = [wellBalances[0], wellBalances[1]];
         uint256 beanIndex = beanstalk.getBeanIndex(wellTokens);
@@ -64,11 +88,11 @@ contract WellPrice {
 
         // swap 1 bean of the opposite asset to get the bean price
         // price = amtOut/tknOutPrice
-        uint256 assetPrice = beanstalk.getUsdTokenPrice(pool.tokens[tknIndex]); // $1 gets assetPrice worth of tokens
+        uint256 assetPrice = beanstalk.getMillionUsdPrice(pool.tokens[tknIndex], 0); // $1000000 gets assetPrice worth of tokens
         if (assetPrice > 0) {
             pool.price = well
                 .getSwapOut(wellTokens[beanIndex], wellTokens[tknIndex], 1e6)
-                .mul(PRICE_PRECISION)
+                .mul(PRICE_PRECISION * PRICE_PRECISION)
                 .div(assetPrice);
         }
 
@@ -76,8 +100,8 @@ contract WellPrice {
         // and the usd value of the non-bean portion of the pool.
 
         pool.beanLiquidity = pool.balances[beanIndex].mul(pool.price).div(PRICE_PRECISION);
-        pool.nonBeanLiquidity = WELL_DECIMALS.div(assetPrice).mul(pool.balances[tknIndex]).div(
-            PRICE_PRECISION * PRICE_PRECISION
+        pool.nonBeanLiquidity = WELL_DECIMALS.mul(pool.balances[tknIndex]).div(assetPrice).div(
+            PRICE_PRECISION
         );
 
         pool.liquidity = pool.beanLiquidity.add(pool.nonBeanLiquidity);

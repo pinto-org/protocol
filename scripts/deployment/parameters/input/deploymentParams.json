@@ -5,7 +5,7 @@
     "avgGsPerBdvFlag": false
   },
   "evaluationParameters": {
-    "maxBeanMaxLpGpPerBdvRatio": "100e18",
+    "maxBeanMaxLpGpPerBdvRatio": "200e18",
     "minBeanMaxLpGpPerBdvRatio": "50e18",
     "targetSeasonsToCatchUp": "4320",
     "podRateLowerBound": "0.05e18",
@@ -25,8 +25,11 @@
   "extEvaluationParameters": {
     "abovePegDeltaBSoilScalar": "0.01e6",
     "soilCoefficientRelativelyHigh": "0.5e18",
-    "soilCoefficientRelativelyLow": "1e18",
-    "belowPegSoilL2SRScalar": "1.0e18"
+    "soilCoefficientRelativelyLow": "1e18S",
+    "belowPegSoilL2SRScalar": "1.0e18",
+    "soilDistributionPeriod": "86400",
+    "minSoilIssuance": "50e6",
+    "minSoilSownDemand": "5e6"
   },
   "whitelistData": {
     "tokens": [

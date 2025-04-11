@@ -202,6 +202,15 @@ describe("Tractor", function () {
       const nonce = await this.tractorFacet.getBlueprintNonce(this.requisition.blueprintHash);
       expect(nonce).to.be.eq(ethers.constants.MaxUint256);
     });
+
+    it("should revert when trying to publish a cancelled requisition", async function () {
+      await signRequisition(this.requisition, publisher);
+      await this.tractorFacet.connect(publisher).cancelBlueprint(this.requisition);
+
+      await expect(
+        this.tractorFacet.connect(publisher).publishRequisition(this.requisition)
+      ).to.be.revertedWith("TractorFacet: maxNonce reached");
+    });
   });
 
   describe("Run Tractor", function () {

@@ -125,7 +125,8 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        bytes32[61] buffer;
+        uint256 minSoilSownDemand;
+        bytes32[60] buffer;
     }
 
     struct Facet {
@@ -419,7 +420,6 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint256[] bdvs
     );
-    event RemoveWhitelistStatus(address token, uint256 index);
     event RetryableTicketCreated(uint256 indexed ticketId);
     event SeasonOfPlentyField(uint256 toField);
     event SeasonOfPlentyWell(
@@ -462,7 +462,18 @@ interface IMockFBeanstalk {
     );
     event TotalGerminatingStalkChanged(uint256 germinationSeason, int256 deltaGerminatingStalk);
     event TotalStalkChangedFromGermination(int256 deltaStalk, int256 deltaRoots);
-    event Tractor(address indexed operator, bytes32 blueprintHash);
+    event Tractor(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
+    event TractorExecutionBegan(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
     event TractorVersionSet(string version);
     event TransferBatch(
         address indexed operator,
@@ -916,6 +927,8 @@ interface IMockFBeanstalk {
 
     function getBeanGaugePointsPerBdv() external view returns (uint256);
 
+    function getBeanToken() external view returns (address);
+
     function getBeanIndex(IERC20[] memory tokens) external view returns (uint256);
 
     function getBeanToMaxLpGpPerBdvRatio() external view returns (uint256);
@@ -935,6 +948,8 @@ interface IMockFBeanstalk {
     ) external view returns (uint32, int32, uint80, int80);
 
     function getCounter(address account, bytes32 counterId) external view returns (uint256 count);
+
+    function getCurrentBlueprintHash() external view returns (bytes32);
 
     function getCurrentHumidity() external view returns (uint128 humidity);
 
@@ -1497,8 +1512,6 @@ interface IMockFBeanstalk {
 
     function removeWhitelistSelector(address token) external;
 
-    function removeWhitelistStatus(address token) external;
-
     function resetPools(address[] memory pools) external;
 
     function resetSeasonStart(uint256 amount) external;
@@ -1594,6 +1607,8 @@ interface IMockFBeanstalk {
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
     function setSunriseBlock(uint256 _block) external;
+
+    function setUnharvestable(uint256 amount) external;
 
     function setUsdEthPrice(uint256 price) external;
 
@@ -1719,6 +1734,12 @@ interface IMockFBeanstalk {
 
     function transferERC721(address token, address to, uint256 id) external payable;
 
+    function sendTokenToInternalBalance(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external payable;
+
     function transferInternalTokenFrom(
         address token,
         address sender,
@@ -1789,6 +1810,12 @@ interface IMockFBeanstalk {
 
     function updateSeedGaugeSettings(EvaluationParameters memory updatedSeedGaugeSettings) external;
 
+    function updateSortedDepositIds(
+        address account,
+        address token,
+        uint256[] calldata sortedDepositIds
+    ) external payable;
+
     function updateStalkPerBdvPerSeasonForToken(
         address token,
         uint40 stalkEarnedPerSeason
@@ -1857,4 +1884,11 @@ interface IMockFBeanstalk {
         uint256 bdvToConvert,
         uint256 grownStalkToConvert
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function setLastSeasonAndThisSeasonBeanSown(
+        uint128 lastSeasonBeanSown,
+        uint128 thisSeasonBeanSown
+    ) external;
+
+    function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
 }
