@@ -467,7 +467,7 @@ struct ExtEvaluationParameters {
     uint256 minSoilIssuance;
     uint256 supplyPodDemandScalar;
     uint256 initialSoilPodDemandScalar;
-    bytes32[58] buffer;
+    bytes32[59] buffer;
 }
 
 /**
