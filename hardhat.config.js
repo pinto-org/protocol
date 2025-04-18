@@ -801,6 +801,39 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
   }
 );
 
+task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "ApprovalFacet",
+      "ClaimFacet",
+      "ConvertFacet",
+      "PipelineConvertFacet",
+      "SiloFacet",
+      "SiloGettersFacet"
+    ],
+    libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
+    facetLibraries: {
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SiloFacet: ["LibSilo", "LibTokenSilo"]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
   async () => {
     console.log("-----------------------------------");

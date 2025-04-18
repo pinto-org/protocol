@@ -763,6 +763,10 @@ library LibSilo {
         uint256[] calldata sortedDepositIds
     ) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
+        // Update the idIndex for each deposit ID
+        for (uint256 i = 0; i < sortedDepositIds.length; i++) {
+            s.accts[account].depositIdList[token].idIndex[sortedDepositIds[i]] = i;
+        }
         s.accts[account].depositIdList[token].depositIds = sortedDepositIds;
     }
 }
