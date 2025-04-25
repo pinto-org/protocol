@@ -801,6 +801,38 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
   }
 );
 
+task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(async function () {
+  console.log("Compiling to make sure artifacts are up to date...");
+  await hre.run("compile");
+
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+
+  console.log("\nDeploying SiloHelpers contract...");
+
+  // Deploy SiloHelpers
+  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
+  const siloHelpersContract = await siloHelpers.deploy(
+    L2_PINTO, // Beanstalk address
+    L2_PCM // Owner address
+  );
+  await siloHelpersContract.deployed();
+
+  console.log("\nSiloHelpers deployed to:", siloHelpersContract.address);
+
+  // To make verification easier later
+  console.log("\nVerification command:");
+  console.log(
+    `npx hardhat verify --network base ${siloHelpersContract.address} ${L2_PINTO} ${L2_PCM}`
+  );
+});
+
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
   async () => {
     console.log("-----------------------------------");
@@ -1655,6 +1687,13 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
     fs.writeFileSync(
       `${outputDir}/TractorHelpers.json`,
       JSON.stringify(tractorHelpersArtifact.abi, null, 2)
+    );
+
+    // Generate SiloHelpers ABI
+    const siloHelpersArtifact = await hre.artifacts.readArtifact("SiloHelpers");
+    fs.writeFileSync(
+      `${outputDir}/SiloHelpers.json`,
+      JSON.stringify(siloHelpersArtifact.abi, null, 2)
     );
 
     // Generate SowBlueprintv0 ABI

@@ -12,6 +12,7 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {AdvancedFarmCall} from "contracts/libraries/LibFarm.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
@@ -23,7 +24,7 @@ import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
-import {console} from "forge-std/console.sol";
+
 /**
  * @notice Tests the functionality of the Oracles.
  */
@@ -31,6 +32,7 @@ contract TractorHelpersTest is TractorHelper {
     address[] farmers;
     BeanstalkPrice beanstalkPrice;
     PriceManipulation priceManipulation;
+    SiloHelpers siloHelpers;
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
@@ -55,6 +57,10 @@ contract TractorHelpersTest is TractorHelper {
             address(priceManipulation)
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
+
+        // Deploy SiloHelpers
+        siloHelpers = new SiloHelpers(address(bs), address(this));
+        vm.label(address(siloHelpers), "SiloHelpers");
 
         // Deploy SowBlueprintv0 with TractorHelpers address
         sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
@@ -180,13 +186,13 @@ contract TractorHelpersTest is TractorHelper {
 
     /**
      * @notice Helper function to setup fork test environment
+     * @param blockOverride Optional block number to fork from (uses default if not specified)
      */
-    function setupForkTest()
-        internal
-        returns (address testWallet, address PINTO_DIAMOND, address PINTO)
-    {
+    function setupForkTest(
+        uint256 blockOverride
+    ) internal returns (address testWallet, address PINTO_DIAMOND, address PINTO) {
         testWallet = 0xFb94D3404c1d3D9D6F08f79e58041d5EA95AccfA;
-        uint256 forkBlock = 25040000;
+        uint256 forkBlock = blockOverride > 0 ? blockOverride : 25040000; // Use override if provided
         vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock);
 
         PINTO_DIAMOND = address(0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f);
@@ -214,6 +220,16 @@ contract TractorHelpersTest is TractorHelper {
         setSowBlueprintv0(address(sowBlueprintv0));
 
         return (testWallet, PINTO_DIAMOND, PINTO);
+    }
+
+    /**
+     * @notice Overload for setupForkTest without a block number (uses default)
+     */
+    function setupForkTest()
+        internal
+        returns (address testWallet, address PINTO_DIAMOND, address PINTO)
+    {
+        return setupForkTest(0); // 0 indicates to use the default block
     }
 
     /**
@@ -1522,5 +1538,106 @@ contract TractorHelpersTest is TractorHelper {
 
         // Verify withdrawal was successful
         assertEq(amountWithdrawn, withdrawAmount, "Incorrect amount withdrawn");
+    }
+
+    function test_sortDepositsWithEmptyDeposits() public {
+        // Test with address that has no deposits
+        address emptyUser = address(0x123);
+        vm.prank(emptyUser);
+        address[] memory result = siloHelpers.sortDeposits(emptyUser);
+
+        // Verify empty array is returned
+        assertEq(result.length, 0, "Should return empty array for user with no deposits");
+    }
+
+    /**
+     * @notice Tests the sortDeposits function on a mainnet fork with a real user's deposits
+     */
+    function test_forkSortDeposits() public {
+        // Set up the fork and get test wallet and contract addresses with a newer block
+        uint256 newBlockNumber = 29413000; // Newer block to test with
+        (address testWallet, address PINTO_DIAMOND, address PINTO) = setupForkTest(newBlockNumber);
+
+        // Deploy SiloHelpers specifically for this test
+        SiloHelpers forkSiloHelpers = new SiloHelpers(PINTO_DIAMOND, address(this));
+        vm.label(address(forkSiloHelpers), "ForkSiloHelpers");
+
+        // Get the tokens that the user has deposits for
+        address[] memory depositedTokens = forkSiloHelpers.getUserDepositedTokens(testWallet);
+
+        // Skip the test if the user has no deposits
+        if (depositedTokens.length == 0) {
+            return;
+        }
+
+        // For each token, get the deposit IDs before sorting
+        uint256[][] memory originalDepositIds = new uint256[][](depositedTokens.length);
+        bool needsSorting = false;
+
+        for (uint256 i = 0; i < depositedTokens.length; i++) {
+            originalDepositIds[i] = IMockFBeanstalk(PINTO_DIAMOND).getTokenDepositIdsForAccount(
+                testWallet,
+                depositedTokens[i]
+            );
+
+            // console.log("Token", i, "has", originalDepositIds[i].length, "deposits");
+
+            // Check if deposits are already sorted
+            bool alreadySorted = true;
+            for (uint256 j = 1; j < originalDepositIds[i].length; j++) {
+                (, int96 stem1) = forkSiloHelpers.getAddressAndStem(originalDepositIds[i][j - 1]);
+                (, int96 stem2) = forkSiloHelpers.getAddressAndStem(originalDepositIds[i][j]);
+
+                if (stem1 > stem2) {
+                    alreadySorted = false;
+                    needsSorting = true;
+                    break;
+                }
+            }
+        }
+
+        // Call sortDeposits
+        vm.prank(testWallet);
+        address[] memory updatedTokens = forkSiloHelpers.sortDeposits(testWallet);
+
+        // Verify the returned array matches what we expect
+        assertEq(
+            updatedTokens.length,
+            depositedTokens.length,
+            "Should return all tokens that had deposits"
+        );
+
+        // For each token, get the deposit IDs after sorting and verify they're properly sorted
+        for (uint256 i = 0; i < depositedTokens.length; i++) {
+            uint256[] memory sortedDepositIds = IMockFBeanstalk(PINTO_DIAMOND)
+                .getTokenDepositIdsForAccount(testWallet, depositedTokens[i]);
+
+            // Verify sorted arrays have the same length as original
+            assertEq(
+                sortedDepositIds.length,
+                originalDepositIds[i].length,
+                "Sorted deposit IDs should have same length as original"
+            );
+
+            // Verify sorted in ascending order by stem
+            for (uint256 j = 1; j < sortedDepositIds.length; j++) {
+                (, int96 prevStem) = forkSiloHelpers.getAddressAndStem(sortedDepositIds[j - 1]);
+                (, int96 currStem) = forkSiloHelpers.getAddressAndStem(sortedDepositIds[j]);
+
+                assertTrue(prevStem < currStem, "Deposit IDs not properly sorted by stem");
+            }
+
+            // Verify all original deposit IDs are present in the sorted array
+            for (uint256 j = 0; j < originalDepositIds[i].length; j++) {
+                bool found = false;
+                for (uint256 k = 0; k < sortedDepositIds.length; k++) {
+                    if (originalDepositIds[i][j] == sortedDepositIds[k]) {
+                        found = true;
+                        break;
+                    }
+                }
+                assertTrue(found, "Original deposit ID not found in sorted array");
+            }
+        }
     }
 }
