@@ -292,6 +292,7 @@ contract ConvertTest is TestHelper {
             assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg should be 0");
 
             uint256 expectedPenaltyRatio = (1e18 * l2sr) / optimalL2sr;
+            assertLe(expectedPenaltyRatio, 1e18, "t=0 penaltyRatio should be le 1");
             assertGt(expectedPenaltyRatio, 0, "t=0 penaltyRatio should be greater than 0");
             assertEq(expectedPenaltyRatio, penaltyRatio, "t=0 penaltyRatio incorrect");
             assertEq(expectedPenaltyRatio, 205850264517589905, "t=0 hardcoded ratio mismatch");
