@@ -65,6 +65,37 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
+        return _convert(convertData, stems, amounts, LibConvert.ZERO_STALK_SLIPPAGE);
+    }
+
+    function convertWithStalkSlippage(
+        bytes calldata convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        uint256 grownStalkSlippage
+    )
+        external
+        payable
+        fundsSafu
+        noSupplyChange
+        nonReentrant
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
+    {
+        return _convert(convertData, stems, amounts, grownStalkSlippage);
+    }
+
+    /**
+     * @notice 18 decimal precision for stalk slippage.
+     */
+    function _convert(
+        bytes calldata convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        uint256 grownStalkSlippage
+    )
+        internal
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
+    {
         // if the convert is a well <> bean convert, cache the state to validate convert.
         LibPipelineConvert.PipelineConvertData memory pipeData = LibPipelineConvert.getConvertState(
             convertData
@@ -94,13 +125,14 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
 
         // Withdraw the tokens from the deposit.
         uint256 deltaRainRoots;
-        (pipeData.grownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
+        (pipeData.initialGrownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
             cp.fromToken,
             stems,
             amounts,
             cp.fromAmount,
             cp.account
         );
+        pipeData.grownStalk = pipeData.initialGrownStalk;
 
         // check for potential penalty
         LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
@@ -135,6 +167,13 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             cp.account,
             toBdv,
             pipeData.grownStalk
+        );
+
+        // check for stalk slippage
+        LibConvert.checkGrownStalkSlippage(
+            pipeData.grownStalk,
+            pipeData.initialGrownStalk,
+            grownStalkSlippage
         );
 
         toStem = LibConvert._depositTokensForConvert(
