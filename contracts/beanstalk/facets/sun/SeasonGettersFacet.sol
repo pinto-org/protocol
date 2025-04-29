@@ -6,7 +6,7 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {Season, Weather, Rain, EvaluationParameters, ExtEvaluationParameters, Deposited, AssetSettings} from "contracts/beanstalk/storage/System.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {LibUsdOracle} from "contracts/libraries/Oracle/LibUsdOracle.sol";
+import {LibUsdOracle, IERC20Decimals} from "contracts/libraries/Oracle/LibUsdOracle.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
@@ -176,10 +176,17 @@ contract SeasonGettersFacet {
 
     /**
      * @notice returns the twa liquidity for a well, using the values stored in beanstalk.
+     * @dev normalized to 18 decimal places.
      */
     function getTwaLiquidityForWell(address well) public view returns (uint256) {
         (address token, ) = LibWell.getNonBeanTokenAndIndexFromWell(well);
-        return LibWell.getTwaLiquidityFromPump(well, LibUsdOracle.getTokenPrice(token));
+        uint256 twaLiquidity = LibWell.getTwaLiquidityFromPump(
+            well,
+            LibUsdOracle.getTokenPrice(token)
+        );
+        // normalize the twa liquidity to 18 decimal places
+        uint256 decimals = IERC20Decimals(token).decimals();
+        return twaLiquidity.mul(1e18).div(10 ** decimals);
     }
 
     /**
