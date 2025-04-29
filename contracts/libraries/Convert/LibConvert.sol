@@ -28,7 +28,6 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
-
 /**
  * @title LibConvert
  */
@@ -38,6 +37,9 @@ library LibConvert {
     using LibWell for address;
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
+
+    uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
+    uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
@@ -240,7 +242,7 @@ library LibConvert {
 
         // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
         stalkPenaltyBdv = min(
-            max(spd.higherAmountAgainstPeg,spd.convertCapacityPenalty),
+            max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty),
             bdvConverted
         );
 
@@ -777,6 +779,27 @@ library LibConvert {
 
         // Encode and store updated gauge data
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
+    }
+
+    /**
+     * @notice Checks for stalk slippage.
+     * @param newGrownStalk The grown stalk of the deposit after applying the various penalty/bonus.
+     * @param originalGrownStalk The original grown stalk of the deposit(s) that were converted.
+     * @param grownStalkSlippage The slippage percentage. 100% = 1e18.
+     * @dev assumes the user is willing to take positive grown stalk slippage.
+     */
+    function checkGrownStalkSlippage(
+        uint256 newGrownStalk,
+        uint256 originalGrownStalk,
+        uint256 grownStalkSlippage
+    ) internal view {
+        // cap grown stalk slippage at 100%
+        if (grownStalkSlippage > MAX_GROWN_STALK_SLIPPAGE)
+            grownStalkSlippage = MAX_GROWN_STALK_SLIPPAGE;
+        uint256 minimumStalk = originalGrownStalk
+            .mul(MAX_GROWN_STALK_SLIPPAGE - grownStalkSlippage)
+            .div(MAX_GROWN_STALK_SLIPPAGE);
+        require(newGrownStalk >= minimumStalk, "Convert: Stalk slippage");
     }
 
     function abs(int256 a) internal pure returns (uint256) {

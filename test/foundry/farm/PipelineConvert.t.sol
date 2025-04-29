@@ -629,6 +629,34 @@ contract PipelineConvertTest is TestHelper {
         );
     }
 
+    function testPipelineConvertWithStalkSlippage(uint256 amount) public {
+        amount = bound(amount, 10e6, 100e6);
+
+        setDeltaBforWell(int256(amount), beanEthWell, WETH);
+
+        int96 stem = depositBeanAndPassGermination(amount, users[1]);
+
+        // verify revert when grown stalk slippage is 0
+        uint256 snapshot = vm.snapshot();
+        vm.expectRevert("Convert: Stalk slippage");
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 0);
+        vm.revertTo(snapshot);
+
+        // verify no revert when grown stalk slippage is 100%
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 1e18);
+
+        vm.revertTo(snapshot);
+
+        // verify no revert when grown stalk slippage is 1%
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 0.01e18);
+
+        vm.revertTo(snapshot);
+
+        // verify revert when grown stalk slippage is <0.01%
+        vm.expectRevert("Convert: Stalk slippage");
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 0.0001e18);
+    }
+
     function testFlashloanManipulationLoseGrownStalkBecauseZeroConvertCapacity(
         uint256 amount,
         uint256 ethAmount
@@ -1642,6 +1670,38 @@ contract PipelineConvertTest is TestHelper {
             stems, // stems
             amounts, // amount
             beanEthWell, // token out
+            beanToLPPipeCalls // pipeData
+        );
+    }
+
+    function beanToLPDoConvertWithStalkSlippage(
+        uint256 amount,
+        int96 stem,
+        address user,
+        uint256 grownStalkSlippage
+    ) public returns (int96 outputStem, uint256 outputAmount) {
+        // do the convert
+
+        // Create arrays for stem and amount. Tried just passing in [stem] and it's like nope.
+        int96[] memory stems = new int96[](1);
+        stems[0] = stem;
+
+        AdvancedPipeCall[] memory beanToLPPipeCalls = createBeanToLPPipeCalls(
+            amount,
+            new AdvancedPipeCall[](0)
+        );
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount;
+
+        vm.resumeGasMetering();
+        vm.prank(user);
+        (outputStem, outputAmount, , , ) = pipelineConvert.pipelineConvertWithStalkSlippage(
+            BEAN, // input token
+            stems, // stems
+            amounts, // amount
+            beanEthWell, // token out
+            grownStalkSlippage, // stalk slippage
             beanToLPPipeCalls // pipeData
         );
     }

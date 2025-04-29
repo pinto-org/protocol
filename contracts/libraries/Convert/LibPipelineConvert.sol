@@ -31,6 +31,7 @@ library LibPipelineConvert {
         address user;
         uint256 newBdv;
         uint256[] initialLpSupply;
+        uint256 initialGrownStalk;
     }
 
     function executePipelineConvert(
