@@ -164,8 +164,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
         }
 
-        // Scale L2SR by the optimal L2SR.
-        uint256 l2srRatio = (1e18 * bs.lpToSupplyRatio.value) /
+        // Scale L2SR by the optimal L2SR. Cap the current L2SR at the optimal L2SR.
+        uint256 l2srRatio = (1e18 *
+            Math.min(bs.lpToSupplyRatio.value, s.sys.evaluationParameters.lpToSupplyRatioOptimal)) /
             s.sys.evaluationParameters.lpToSupplyRatioOptimal;
 
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
