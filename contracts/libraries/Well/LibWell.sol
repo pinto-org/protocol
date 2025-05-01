@@ -226,7 +226,7 @@ library LibWell {
     }
 
     /**
-     * @notice Returns the USD / TKN price stored in {AppStorage.usdTokenPrice}.
+     * @notice Returns the TKN / USD price stored in {AppStorage.usdTokenPrice}.
      * @dev assumes TKN has 18 decimals.
      */
     function getUsdTokenPriceForWell(address well) internal view returns (uint tokenUsd) {
@@ -303,7 +303,7 @@ library LibWell {
     }
 
     /**
-     * @notice Returns the TKN / USD price stored in {AppStorage.usdTokenPrice}.
+     * @notice Returns the stored twaReserves stored in {AppStorage.twaReserves}.
      * @dev assumes TKN has 18 decimals.
      */
     function getTwaReservesForWell(
