@@ -248,9 +248,13 @@ library LibDibbler {
      * the formula `log2(A * CHUNKS_ELAPSED + 1)/log2(A * MAX_CHUNKS + 1)` is applied, where:
      * `A = 0.1`
      * `MAX_CHUNKS = 25`
-     * @dev The chunks create a Previously, the chunks were chosen with the Ethereum L1 block time in mind.
+     * @dev This function implements the log formula in a discrete fashion (in chunks),
+     * rather than in an continous manner. Previously, these chunks were chosen with
+     * the Ethereum L1 block time in mind, such that the duration of the morning auction
+     * was 5 minutes.
+     
      * When deploying a beanstalk on other EVM chains/layers, `L2_BLOCK_TIME` will need
-     * to be adjusted such that the duration of the morning is constant.
+     * to be adjusted such that the duration of the morning auction is constant.
      * An additional divisior is implemented such that the duration can be adjusted independent of the
      * block times.
      */
