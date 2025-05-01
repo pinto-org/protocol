@@ -40,7 +40,7 @@ library LibDibbler {
     uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
     /// @dev If less than `soilSoldOutThreshold` Soil is left, consider
-    /// Soil to be "sold out"; affects how Temperature is adjusted. 
+    /// Soil to be "sold out"; affects how Temperature is adjusted.
     /// This is the maximum amount that `soilSoldOutThreshold` can be set to.
     uint256 internal constant MAX_SOIL_SOLD_OUT_THRESHOLD = 50e6;
 
@@ -169,7 +169,7 @@ library LibDibbler {
     /**
      * @dev Stores the time elapsed from the start of the Season to the time
      * at which Soil is "sold out", i.e. the remaining Soil is less than a
-     * threshold. 
+     * threshold.
      *
      * That threshold is calculated based on the soil at the start of the season, set in {setSoil} and is
      * currently set to 50e6 if the initial soil was >100e6, and 50% of the initial soil otherwise.
@@ -200,9 +200,7 @@ library LibDibbler {
             : MAX_SOIL_SOLD_OUT_THRESHOLD;
 
         // s.sys.soil is now the soil remaining after this Sow.
-        if (
-            s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max
-        ) {
+        if (s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max) {
             // haven't sold enough soil, or already set thisSowTime for this Season.
             return;
         }
@@ -245,13 +243,16 @@ library LibDibbler {
     //////////////////// TEMPERATURE ////////////////////
 
     /**
-     * @dev Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
+     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
      * Precision level 1e6, as soil has 1e6 precision (1% = 1e6)
-     * the formula `log3.5(A * MAX_BLOCK_ELAPSED + 1)` is applied, where:
+     * the formula `log2(A * CHUNKS_ELAPSED + 1)/log2(A * MAX_CHUNKS + 1)` is applied, where:
      * `A = 0.1`
-     * `MAX_BLOCK_ELAPSED = 25`
-     * @dev L2 block times are signifncatly shorter than L1. To adjust for this,
-     * `delta` is scaled down by the ratio of L2 block time to L1 block time.
+     * `MAX_CHUNKS = 25`
+     * @dev The chunks create a Previously, the chunks were chosen with the Ethereum L1 block time in mind.
+     * When deploying a beanstalk on other EVM chains/layers, `L2_BLOCK_TIME` will need
+     * to be adjusted such that the duration of the morning is constant.
+     * An additional divisior is implemented such that the duration can be adjusted independent of the
+     * block times.
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
