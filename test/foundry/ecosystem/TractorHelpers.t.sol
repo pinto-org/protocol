@@ -19,7 +19,7 @@ import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {P} from "contracts/ecosystem/price/P.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
@@ -27,7 +27,7 @@ import {console} from "forge-std/console.sol";
 /**
  * @notice Tests the functionality of the Oracles.
  */
-contract TractorHelpersTest is TractorHelper {
+contract TractorHelpersTest is TractorTestHelper {
     address[] farmers;
     BeanstalkPrice beanstalkPrice;
     PriceManipulation priceManipulation;
