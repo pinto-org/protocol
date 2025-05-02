@@ -413,7 +413,7 @@ library LibTokenSilo {
         }
 
         assembly {
-            bdv := mload(add(data, add(0x20, 0)))
+            bdv := mload(add(data, 0x20))
         }
     }
 
