@@ -177,7 +177,7 @@ library LibTokenSilo {
 
     /**
      * @dev Increment the total amount and bdv of `token` deposited in the Silo.
-     * @dev `IncrementTotalDeposited` should be used when removing deposits that are
+     * @dev `IncrementTotalDeposited` should be used when adding deposits that are
      * >= 2 seasons old (ex. when a user converts).
      */
     function incrementTotalDeposited(address token, uint256 amount, uint256 bdv) internal {
