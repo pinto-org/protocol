@@ -452,13 +452,6 @@ library LibFlood {
             return wellDeltaBs;
         }
 
-        if (totalPositiveDeltaB < totalNegativeDeltaB) {
-            for (uint256 i = 0; i < positiveDeltaBCount; i++) {
-                wellDeltaBs[i].deltaB = 0;
-            }
-            return wellDeltaBs;
-        }
-
         uint256 shaveToLevel = totalNegativeDeltaB / positiveDeltaBCount;
 
         // Loop through positive deltaB wells starting at the highest, re-use the deltaB value slot
