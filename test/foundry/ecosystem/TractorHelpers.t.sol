@@ -24,8 +24,9 @@ import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {console} from "forge-std/console.sol";
+
 /**
- * @notice Tests the functionality of the Oracles.
+ * @notice Tests the functionality of TractorHelpers.
  */
 contract TractorHelpersTest is TractorTestHelper {
     address[] farmers;
