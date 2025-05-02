@@ -358,7 +358,7 @@ library LibEvaluate {
 
         if (!success) return 0;
         assembly {
-            liquidityWeight := mload(add(data, add(0x20, 0)))
+            liquidityWeight := mload(add(data, 0x20))
         }
     }
 
