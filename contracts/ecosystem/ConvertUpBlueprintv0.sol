@@ -7,6 +7,7 @@ import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 
 /**
  * @title ConvertUpBlueprintv0
@@ -19,13 +20,11 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @notice Event emitted when a convert up order is complete
      * @param blueprintHash The hash of the blueprint
      * @param publisher The address of the publisher
-     * @param tokenFrom The address of the token being converted from
      * @param amountConverted The amount that was converted
      */
     event ConvertUpOrderComplete(
         bytes32 indexed blueprintHash,
         address indexed publisher,
-        address tokenFrom,
         uint256 amountConverted
     );
 
@@ -34,7 +33,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @param orderHash Hash of the current blueprint order
      * @param account Address of the user's account (current Tractor user), not operator
      * @param tipAddress Address to send tip to
-     * @param tokenFrom Address of token being converted from (determined from sourceTokenIndices)
      * @param currentTimestamp Current block timestamp
      * @param lastExecution Last time this blueprint was executed
      * @param pdvLeftToConvert Amount of PDV left to convert from the total
@@ -47,7 +45,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         bytes32 orderHash;
         address account;
         address tipAddress;
-        address tokenFrom;
         uint256 currentTimestamp;
         uint256 lastExecution;
         uint256 pdvLeftToConvert;
@@ -183,14 +180,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             vars.tipAddress = params.opParams.tipAddress;
         }
 
-        // Determine source token from sourceTokenIndices (first token for now as placeholder)
-        // In the future, we'll need logic to select the best source token
-        // vars.tokenFrom = getTokenFromSourceIndices(params.convertUpParams.sourceTokenIndices);
-
-        // For now, use the first source token index as a placeholder
-        // This would be replaced with proper logic to select the token
-        vars.tokenFrom = address(0); // Placeholder - to be implemented
-
         // Get current PDV left to convert
         vars.pdvLeftToConvert = getPdvLeftToConvert(vars.orderHash);
 
@@ -199,14 +188,14 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             vars.pdvLeftToConvert = params.convertUpParams.totalConvertPdv;
         }
 
-        // Determine current convert amount based on constraints (in the future this will take into account convert bonus capacity)
+        // Determine current convert amount based on constraints
         vars.currentPdvToConvert = determineConvertAmount(
             vars.pdvLeftToConvert,
             params.convertUpParams.minConvertPdvPerExecution,
             params.convertUpParams.maxConvertPdvPerExecution
         );
 
-        // Get current price and check price constraints using BeanstalkPrice, instantaneous reserves are the MEV-resistant reserves
+        // Get current price and check price constraints using BeanstalkPrice
         BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
         vars.currentPrice = p.price;
 
@@ -217,24 +206,13 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             params.convertUpParams.maxPriceToConvertUp
         );
 
-        // Check convert bonus capacity
-        // validateConvertBonusCapacity(vars.tokenFrom, beanstalk.getBeanToken(), params.convertUpParams.minConvertBonusCapacity);
-
-        // Get withdrawal plan
-        // vars.withdrawalPlan = getWithdrawalPlan(
-        //     vars.account,
-        //     params.convertUpParams.sourceTokenIndices,
-        //     vars.currentPdvToConvert,
-        //     params.convertUpParams.maxGrownStalkPerBdv,
-        //     params.convertUpParams.grownStalkPerBdvBonusThreshold
-        // );
-
-        // Execute the conversion
-        // vars.amountConverted = executeConvertUp(
-        //     vars,
-        //     params.convertUpParams.slippageRatio,
-        //     params.convertUpParams.maxGrownStalkPerPdvPenalty
-        // );
+        // Get withdrawal plan for the tokens to convert
+        vars.withdrawalPlan = tractorHelpers.getWithdrawalPlan(
+            vars.account,
+            params.convertUpParams.sourceTokenIndices,
+            vars.currentPdvToConvert,
+            params.convertUpParams.maxGrownStalkPerBdv
+        );
 
         // Apply slippage ratio if needed
         uint256 slippageRatio = params.convertUpParams.slippageRatio;
@@ -242,14 +220,17 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             slippageRatio = DEFAULT_SLIPPAGE_RATIO;
         }
 
-        // For now, this is a placeholder implementation until we add the actual conversion logic
-        vars.amountConverted = 0;
+        // Execute the conversion using Beanstalk's convert function
+        vars.amountConverted = executeConvertUp(
+            vars,
+            slippageRatio,
+            params.convertUpParams.maxGrownStalkPerPdvPenalty
+        );
 
         // Update the state
         // If all PDV has been converted, set to max to indicate completion
         if (vars.pdvLeftToConvert - vars.currentPdvToConvert == 0) {
             updatePdvLeftToConvert(vars.orderHash, type(uint256).max);
-            // Order is complete, emit a completion event
         } else {
             // Update the PDV left to convert
             updatePdvLeftToConvert(
@@ -272,12 +253,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         updateLastExecutedTimestamp(vars.orderHash, vars.currentTimestamp);
 
         // Emit completion event
-        emit ConvertUpOrderComplete(
-            vars.orderHash,
-            vars.account,
-            vars.tokenFrom,
-            vars.amountConverted
-        );
+        emit ConvertUpOrderComplete(vars.orderHash, vars.account, vars.amountConverted);
     }
 
     /**
@@ -409,5 +385,65 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             currentPrice <= maxPriceToConvertUp,
             "Current price above maximum price for convert up"
         );
+    }
+
+    /**
+     * @notice Executes the convert up operation using Beanstalk's convert function
+     * @param vars Local variables containing the necessary data for execution
+     * @param slippageRatio Slippage tolerance ratio for the conversion
+     * @param maxGrownStalkPerPdvPenalty Maximum grown stalk per PDV penalty to accept
+     * @return totalAmountConverted The total amount converted across all token types
+     */
+    function executeConvertUp(
+        ConvertUpLocalVars memory vars,
+        uint256 slippageRatio,
+        uint256 maxGrownStalkPerPdvPenalty
+    ) internal returns (uint256 totalAmountConverted) {
+        address beanToken = beanstalk.getBeanToken();
+        totalAmountConverted = 0;
+
+        // Process each token type in the withdrawal plan
+        for (uint256 i = 0; i < vars.withdrawalPlan.tokens.length; i++) {
+            address token = vars.withdrawalPlan.tokens[i];
+            if (token == address(0) || token == beanToken) continue; // Skip empty tokens or Bean tokens, perhaps enforce this at a different level, or no need to check at all since Beanstalk does?
+
+            // Get stems and amounts from the withdrawal plan for this token
+            uint256 depositCount = vars.withdrawalPlan.depositsByToken[token].length;
+            if (depositCount == 0) continue;
+
+            int96[] memory stems = new int96[](depositCount);
+            uint256[] memory amounts = new uint256[](depositCount);
+            uint256 tokenAmountToConvert = 0;
+
+            // Populate stems and amounts from the withdrawal plan
+            for (uint256 j = 0; j < depositCount; j++) {
+                stems[j] = vars.withdrawalPlan.depositsByToken[token][j].stem;
+                amounts[j] = vars.withdrawalPlan.depositsByToken[token][j].amount;
+                tokenAmountToConvert += amounts[j];
+            }
+
+            if (tokenAmountToConvert == 0) continue;
+
+            // Calculate minimum output amount based on slippage
+            uint256 expectedOutput = beanstalk.getAmountOut(token, beanToken, tokenAmountToConvert);
+            uint256 minAmountOut = (expectedOutput * (1e18 - slippageRatio)) / 1e18;
+
+            // Create convert data for WELL_LP_TO_BEANS conversion
+            // Format: ConvertKind, amountIn, minAmountOut, token address
+            bytes memory convertData = abi.encode(
+                LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
+                tokenAmountToConvert,
+                minAmountOut,
+                token
+            );
+
+            // Call Beanstalk's convert function to convert LP tokens to Beans
+            (, , uint256 amountConverted, , ) = beanstalk.convert(convertData, stems, amounts);
+
+            // Add to total amount converted
+            totalAmountConverted += amountConverted;
+        }
+
+        return totalAmountConverted;
     }
 }
