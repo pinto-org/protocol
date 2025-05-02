@@ -134,7 +134,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
     }
 
     // Combined state mapping for order info
-    mapping(bytes32 => OrderInfo) private orderInfo;
+    mapping(bytes32 => OrderInfo) public orderInfo;
 
     constructor(
         address _beanstalk,
@@ -199,18 +199,23 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             vars.pdvLeftToConvert = params.convertUpParams.totalConvertPdv;
         }
 
-        // Determine current convert amount based on constraints
+        // Determine current convert amount based on constraints (in the future this will take into account convert bonus capacity)
         vars.currentPdvToConvert = determineConvertAmount(
             vars.pdvLeftToConvert,
             params.convertUpParams.minConvertPdvPerExecution,
             params.convertUpParams.maxConvertPdvPerExecution
         );
 
-        // Get current price and check price constraints using BeanstalkPrice
-        // vars.currentPrice = beanstalkPrice.price();
+        // Get current price and check price constraints using BeanstalkPrice, instantaneous reserves are the MEV-resistant reserves
+        BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
+        vars.currentPrice = p.price;
 
         // Check if price is within acceptable range
-        // validatePriceRange(vars.currentPrice, params.convertUpParams.minPriceToConvertUp, params.convertUpParams.maxPriceToConvertUp);
+        validatePriceRange(
+            vars.currentPrice,
+            params.convertUpParams.minPriceToConvertUp,
+            params.convertUpParams.maxPriceToConvertUp
+        );
 
         // Check convert bonus capacity
         // validateConvertBonusCapacity(vars.tokenFrom, beanstalk.getBeanToken(), params.convertUpParams.minConvertBonusCapacity);
@@ -383,5 +388,26 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      */
     function updateLastExecutedTimestamp(bytes32 orderHash, uint256 timestamp) internal {
         orderInfo[orderHash].lastExecutedTimestamp = timestamp;
+    }
+
+    /**
+     * @notice Validates that the current price is within the acceptable range for converting up
+     * @param currentPrice The current price from BeanstalkPrice
+     * @param minPriceToConvertUp Minimum price at which to convert up
+     * @param maxPriceToConvertUp Maximum price at which to convert up
+     */
+    function validatePriceRange(
+        uint256 currentPrice,
+        uint256 minPriceToConvertUp,
+        uint256 maxPriceToConvertUp
+    ) internal pure {
+        require(
+            currentPrice >= minPriceToConvertUp,
+            "Current price below minimum price for convert up"
+        );
+        require(
+            currentPrice <= maxPriceToConvertUp,
+            "Current price above maximum price for convert up"
+        );
     }
 }
