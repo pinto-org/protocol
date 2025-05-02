@@ -843,4 +843,17 @@ contract TestHelper is
         // Call setReserves to adjust the well
         setReserves(well, requiredBeanReserve, ethReserves);
     }
+
+    /**
+     * @notice Mock the price by setting the reserves directly
+     * @param targetPrice The desired price in 1e6 format (e.g., 0.95e6 for $0.95)
+     */
+    function mockPrice(uint256 targetPrice) internal {
+        // Set reserves to achieve the target price
+        // We'll maintain 10 ETH in reserves for consistency
+
+        uint256 ethReserves = 10 ether;
+        setReservesForPrice(BEAN_ETH_WELL, targetPrice, ethReserves);
+        setReservesForPrice(BEAN_WSTETH_WELL, targetPrice, ethReserves);
+    }
 }
