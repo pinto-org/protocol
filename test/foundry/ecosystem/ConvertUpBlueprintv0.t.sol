@@ -159,6 +159,17 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
+        // Check that user has no Bean deposits before conversion
+        uint256[] memory initialBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+        assertEq(
+            initialBeanDeposits.length,
+            0,
+            "User should not have Bean deposits before conversion"
+        );
+
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
             BlueprintParams({
                 user: state.user,
@@ -180,14 +191,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price to be within the acceptable range
-        mockPrice(0.95e6); // Price of 1.0
+        mockPrice(0.95e6); // Price of 0.95
 
         // Execute the conversion
         executeRequisition(state.operator, req, address(bs));
 
-        // Verify conversion worked
-        uint256 beanBalance = bs.getInternalBalance(state.user, state.beanToken);
-        assertTrue(beanBalance > 0, "User should have received beans from conversion");
+        // Verify conversion worked by checking for Bean deposits
+        uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+
+        // Verify the user received exactly one deposit
+        assertEq(
+            finalBeanDeposits.length,
+            1,
+            "User should have received exactly one Bean deposit from conversion"
+        );
 
         // Verify tip was sent
         uint256 operatorBalance = bs.getInternalBalance(state.operator, state.beanToken);
@@ -204,6 +224,17 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
 
+        // Check that user has no Bean deposits before conversion
+        uint256[] memory initialBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+        assertEq(
+            initialBeanDeposits.length,
+            0,
+            "User should not have Bean deposits before conversion"
+        );
+
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
             BlueprintParams({
                 user: state.user,
@@ -225,14 +256,26 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price to be within the acceptable range
-        mockPrice(0.95e6); // Price of 1.0
+        mockPrice(0.95e6); // Price of 0.95
 
         // Execute the conversion
         executeRequisition(state.operator, req, address(bs));
 
-        // Verify conversion worked
-        uint256 beanBalance = bs.getInternalBalance(state.user, state.beanToken);
-        assertTrue(beanBalance > 0, "User should have received beans from conversion");
+        // Verify conversion worked by checking for Bean deposits
+        uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+
+        // Verify the user received exactly one deposit
+        assertEq(
+            finalBeanDeposits.length,
+            1,
+            "User should have received exactly one Bean deposit from conversion"
+        );
+
+        // Log the deposit for debugging
+        console.log("Bean deposit from conversion: %s", finalBeanDeposits[0]);
     }
 
     function test_convertUpBlueprintv0_PriceOutOfRange() public {
@@ -252,8 +295,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
                 grownStalkPerBdvBonusThreshold: 0,
-                minPriceToConvertUp: 0.99e18,
-                maxPriceToConvertUp: 1.01e18,
+                minPriceToConvertUp: 0.99e6,
+                maxPriceToConvertUp: 1.01e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -262,7 +305,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price to be outside the acceptable range
-        mockPrice(1.02e18); // Price of 1.02, just outside max range
+        mockPrice(1.02e6); // Price of 1.02, just outside max range
 
         // Should revert due to price being out of range
         vm.expectRevert("Current price above maximum price for convert up");
@@ -281,7 +324,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 sourceTokenIndices: sourceTokenIndices,
                 totalConvertPdv: state.convertAmount,
                 minConvertPdvPerExecution: state.convertAmount / 4,
-                maxConvertPdvPerExecution: state.convertAmount,
+                maxConvertPdvPerExecution: state.convertAmount / 4,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
@@ -298,8 +341,12 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Mock the price
         mockPrice(0.95e6);
 
+        console.log("Executing first conversion");
+
         // Execute the first conversion
         executeRequisition(state.operator, req, address(bs));
+
+        console.log("First conversion executed");
 
         // Try to execute it again immediately, should revert due to time constraint
         vm.expectRevert("Too soon after last execution");
@@ -316,9 +363,9 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         TestState memory state = setupConvertUpBlueprintv0Test();
 
         // Set a smaller amount to convert so we can test multiple conversions
-        uint256 totalConvertPdv = 1900e6; // 1900 BEAN worth of PDV
-        uint256 maxPerExecution = 500e6; // 500 BEAN per execution
-        uint256 tipAmount = 10e6; // 10 BEAN
+        uint256 totalConvertPdv = 40e6; // 40 BEAN worth of PDV total
+        uint256 maxPerExecution = 10e6; // 10 BEAN per execution
+        uint256 tipAmount = 1e6; // 1 BEAN
         uint256 counter;
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
@@ -356,6 +403,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Verify counter has been updated
         counter = convertUpBlueprintv0.getPdvLeftToConvert(orderHash);
+        console.log("Counter after first conversion: %s", counter);
         assertEq(
             counter,
             totalConvertPdv - maxPerExecution,
@@ -371,11 +419,20 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Advance time for next conversion
         vm.warp(block.timestamp + 301); // 301 seconds later
 
+        console.log("Counter after time warp: %s", counter);
+
+        // Log current price
+        console.log(
+            "Current price: %s",
+            beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES).price
+        );
+
         // Second conversion - should succeed
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
         counter = convertUpBlueprintv0.getPdvLeftToConvert(orderHash);
+        console.log("Counter after second conversion: %s", counter);
         assertEq(
             counter,
             totalConvertPdv - (maxPerExecution * 2),
@@ -385,11 +442,14 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Advance time for next conversion
         vm.warp(block.timestamp + 301); // 301 seconds later
 
+        console.log("executing third conversion");
+
         // Third conversion - should succeed
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
         counter = convertUpBlueprintv0.getPdvLeftToConvert(orderHash);
+        console.log("Counter after third conversion: %s", counter);
         assertEq(
             counter,
             totalConvertPdv - (maxPerExecution * 3),
@@ -404,13 +464,14 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Verify counter is set to max
         counter = convertUpBlueprintv0.getPdvLeftToConvert(orderHash);
+        console.log("Counter after fourth conversion: %s", counter);
         assertEq(counter, type(uint256).max, "Counter should be max uint256 after completion");
 
         // Advance time for attempting another conversion
         vm.warp(block.timestamp + 301); // 301 seconds later
 
         // Attempt another conversion - should revert as order is already complete
-        vm.expectRevert("Not enough PDV left to convert");
+        vm.expectRevert("Order has already been completed");
         executeRequisition(state.operator, req, address(bs));
     }
 
@@ -558,33 +619,5 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     // Helper function to get token index from token address
     function getTokenIndex(address token) internal view returns (uint8) {
         return tractorHelpers.getTokenIndex(token);
-    }
-
-    /**
-     * @notice Mock the price by setting the reserves directly
-     * @param targetPrice The desired price in 1e18 format (e.g., 0.95e18 for $0.95)
-     */
-    function mockPrice(uint256 targetPrice) internal {
-        // Get the well address
-        address well = BEAN_ETH_WELL;
-
-        // Set reserves to achieve the target price
-        // We'll maintain 10 ETH in reserves for consistency
-        uint256 ethReserves = 10 ether;
-        setReservesForPrice(well, targetPrice, ethReserves);
-
-        // Also mock the BeanstalkPrice contract's price function to return the same value
-        // This ensures both price sources are consistent
-        BeanstalkPrice.Prices memory mockPrices;
-        mockPrices.price = targetPrice;
-
-        vm.mockCall(
-            address(beanstalkPrice),
-            abi.encodeWithSelector(
-                bytes4(keccak256("price(uint8)")),
-                ReservesType.INSTANTANEOUS_RESERVES
-            ),
-            abi.encode(mockPrices)
-        );
     }
 }

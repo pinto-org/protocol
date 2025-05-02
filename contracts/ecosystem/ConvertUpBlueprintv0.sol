@@ -10,7 +10,7 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "./price/WellPrice.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
-
+import {console} from "forge-std/console.sol";
 /**
  * @title ConvertUpBlueprintv0
  * @author FordPinto
@@ -157,6 +157,10 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         ConvertUpLocalVars memory vars;
         vars.currentTimestamp = block.timestamp;
 
+        // log min and max convert pdv per execution
+        console.log("minConvertPdvPerExecution", params.convertUpParams.minConvertPdvPerExecution);
+        console.log("maxConvertPdvPerExecution", params.convertUpParams.maxConvertPdvPerExecution);
+
         // Get order hash
         vars.orderHash = beanstalk.getCurrentBlueprintHash();
 
@@ -184,6 +188,13 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
 
         // Get current PDV left to convert
         vars.pdvLeftToConvert = getPdvLeftToConvert(vars.orderHash);
+
+        console.log("stored pdvLeftToConvert", vars.pdvLeftToConvert);
+
+        // If pdvLeftToConvert is max, revert, as the order has already been completed
+        if (vars.pdvLeftToConvert == type(uint256).max) {
+            revert("Order has already been completed");
+        }
 
         // If pdvLeftToConvert is 0, initialize it with the total amount
         if (vars.pdvLeftToConvert == 0) {
@@ -243,6 +254,10 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             slippageRatio,
             params.convertUpParams.maxGrownStalkPerPdvPenalty
         );
+
+        // log pdv left to convert and current pdv to convert
+        console.log("pdvLeftToConvert", vars.pdvLeftToConvert);
+        console.log("currentPdvToConvert", vars.currentPdvToConvert);
 
         // Update the state
         // If all PDV has been converted, set to max to indicate completion
@@ -362,6 +377,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @param amount The new PDV left to convert
      */
     function updatePdvLeftToConvert(bytes32 orderHash, uint256 amount) internal {
+        console.log("Updating pdvLeftToConvert", amount);
         orderInfo[orderHash].pdvLeftToConvert = amount;
     }
 
