@@ -5,7 +5,6 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
-import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 
 /**
