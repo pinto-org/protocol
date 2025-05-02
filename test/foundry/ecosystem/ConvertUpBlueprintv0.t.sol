@@ -38,6 +38,24 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         uint256 currentPrice;
     }
 
+    struct BlueprintParams {
+        address user;
+        uint8[] sourceTokenIndices;
+        uint256 totalConvertPdv;
+        uint256 minConvertPdvPerExecution;
+        uint256 maxConvertPdvPerExecution;
+        uint256 minTimeBetweenConverts;
+        uint256 minConvertBonusCapacity;
+        uint256 maxGrownStalkPerBdv;
+        uint256 grownStalkPerBdvBonusThreshold;
+        uint256 minPriceToConvertUp;
+        uint256 maxPriceToConvertUp;
+        uint256 maxGrownStalkPerPdvPenalty;
+        uint256 slippageRatio;
+        int256 tipAmount;
+        address tipAddress;
+    }
+
     function setUp() public {
         initializeBeanstalkTestState(true, false);
         farmers = createUsers(2);
@@ -99,26 +117,16 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Set price for testing
         state.currentPrice = 1e18; // Price of 1.0
 
-        // Mint LP tokens to the user and deposit them to Beanstalk
-        uint256 lpMinted = mintBeanLPtoUser(state.user, 5000e6, state.wellToken);
-        state.initialWellBalance = lpMinted;
+        // Use mintAndDepositBeanETH to mint and deposit LP tokens
+        mintAndDepositBeanETH(state.user, 5000e6);
 
-        // Approve well token for deposit
-        vm.prank(state.user);
-        IERC20(state.wellToken).approve(address(bs), type(uint256).max);
-
-        // Deposit LP tokens into Beanstalk
-        vm.prank(state.user);
-        bs.deposit(state.wellToken, lpMinted, uint8(LibTransfer.From.EXTERNAL));
+        // Store initial well balance for the user
+        state.initialWellBalance = IERC20(state.wellToken).balanceOf(state.user);
 
         // For farmer 1, also mint and deposit LP
-        mintBeanLPtoUser(farmers[1], 1000e6, state.wellToken);
-        vm.prank(farmers[1]);
-        IERC20(state.wellToken).approve(address(bs), type(uint256).max);
-        vm.prank(farmers[1]);
-        bs.deposit(state.wellToken, 1000e6, uint8(LibTransfer.From.EXTERNAL));
+        mintAndDepositBeanETH(farmers[1], 1000e6);
 
-        // Make sure LP has germinated
+        // Make sure LP has germinated - already handled by mintAndDepositBeanETH which calls siloSunrise
         passGermination();
 
         return state;
@@ -131,21 +139,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            state.user,
-            sourceTokenIndices,
-            state.convertAmount, // PDV to convert
-            state.convertAmount / 4, // Min PDV per execution
-            state.convertAmount, // Max PDV per execution
-            300, // 5 minutes between converts
-            0, // No min convert bonus capacity
-            MAX_GROWN_STALK_PER_BDV,
-            0, // No grownStalkPerBdvBonusThreshold
-            0.95e18, // minPriceToConvertUp
-            1.05e18, // maxPriceToConvertUp
-            MAX_GROWN_STALK_PER_BDV, // Max penalty
-            0.01e18, // 1% slippage
-            state.tipAmount,
-            state.operator
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.95e18,
+                maxPriceToConvertUp: 1.05e18,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
         );
 
         // Mock the price to be within the acceptable range
@@ -174,21 +184,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         sourceTokenIndices[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
 
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            state.user,
-            sourceTokenIndices,
-            state.convertAmount, // PDV to convert
-            state.convertAmount / 4, // Min PDV per execution
-            state.convertAmount, // Max PDV per execution
-            300, // 5 minutes between converts
-            0, // No min convert bonus capacity
-            MAX_GROWN_STALK_PER_BDV,
-            0, // No grownStalkPerBdvBonusThreshold
-            0.95e18, // minPriceToConvertUp
-            1.05e18, // maxPriceToConvertUp
-            MAX_GROWN_STALK_PER_BDV, // Max penalty
-            0.01e18, // 1% slippage
-            state.tipAmount,
-            state.operator
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.95e18,
+                maxPriceToConvertUp: 1.05e18,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
         );
 
         // Mock the price to be within the acceptable range
@@ -209,21 +221,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            state.user,
-            sourceTokenIndices,
-            state.convertAmount, // PDV to convert
-            state.convertAmount / 4, // Min PDV per execution
-            state.convertAmount, // Max PDV per execution
-            300, // 5 minutes between converts
-            0, // No min convert bonus capacity
-            MAX_GROWN_STALK_PER_BDV,
-            0, // No grownStalkPerBdvBonusThreshold
-            0.99e18, // minPriceToConvertUp
-            1.01e18, // maxPriceToConvertUp
-            MAX_GROWN_STALK_PER_BDV, // Max penalty
-            0.01e18, // 1% slippage
-            state.tipAmount,
-            state.operator
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.99e18,
+                maxPriceToConvertUp: 1.01e18,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
         );
 
         // Mock the price to be outside the acceptable range
@@ -241,21 +255,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            state.user,
-            sourceTokenIndices,
-            state.convertAmount, // PDV to convert
-            state.convertAmount / 4, // Min PDV per execution
-            state.convertAmount, // Max PDV per execution
-            300, // 5 minutes between converts
-            0, // No min convert bonus capacity
-            MAX_GROWN_STALK_PER_BDV,
-            0, // No grownStalkPerBdvBonusThreshold
-            0.95e18, // minPriceToConvertUp
-            1.05e18, // maxPriceToConvertUp
-            MAX_GROWN_STALK_PER_BDV, // Max penalty
-            0.01e18, // 1% slippage
-            state.tipAmount,
-            state.operator
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.95e18,
+                maxPriceToConvertUp: 1.05e18,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
         );
 
         // Mock the price
@@ -289,21 +305,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Create blueprint once and reuse it
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            state.user,
-            sourceTokenIndices,
-            totalConvertPdv, // Total PDV to convert
-            maxPerExecution, // Min PDV per execution
-            maxPerExecution, // Max PDV per execution
-            300, // 5 minutes between converts
-            0, // No min convert bonus capacity
-            MAX_GROWN_STALK_PER_BDV,
-            0, // No grownStalkPerBdvBonusThreshold
-            0.95e18, // minPriceToConvertUp
-            1.05e18, // maxPriceToConvertUp
-            MAX_GROWN_STALK_PER_BDV, // Max penalty
-            0.01e18, // 1% slippage
-            int256(tipAmount),
-            state.operator
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: totalConvertPdv,
+                minConvertPdvPerExecution: maxPerExecution,
+                maxConvertPdvPerExecution: maxPerExecution,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.95e18,
+                maxPriceToConvertUp: 1.05e18,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                slippageRatio: 0.01e18,
+                tipAmount: int256(tipAmount),
+                tipAddress: state.operator
+            })
         );
 
         // Mock the price
@@ -386,21 +404,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Create blueprint with whitelisted operator
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            state.user,
-            sourceTokenIndices,
-            state.convertAmount, // PDV to convert
-            state.convertAmount / 4, // Min PDV per execution
-            state.convertAmount, // Max PDV per execution
-            300, // 5 minutes between converts
-            0, // No min convert bonus capacity
-            MAX_GROWN_STALK_PER_BDV,
-            0, // No grownStalkPerBdvBonusThreshold
-            0.95e18, // minPriceToConvertUp
-            1.05e18, // maxPriceToConvertUp
-            MAX_GROWN_STALK_PER_BDV, // Max penalty
-            0.01e18, // 1% slippage
-            state.tipAmount,
-            whitelistedOperator
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.95e18,
+                maxPriceToConvertUp: 1.05e18,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: whitelistedOperator
+            })
         );
 
         // Mock the price
@@ -428,21 +448,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
      * @notice Sets up a blueprint for Convert Up operations
      */
     function setupConvertUpBlueprintBlueprint(
-        address user,
-        uint8[] memory sourceTokenIndices,
-        uint256 totalConvertPdv,
-        uint256 minConvertPdvPerExecution,
-        uint256 maxConvertPdvPerExecution,
-        uint256 minTimeBetweenConverts,
-        uint256 minConvertBonusCapacity,
-        uint256 maxGrownStalkPerBdv,
-        uint256 grownStalkPerBdvBonusThreshold,
-        uint256 minPriceToConvertUp,
-        uint256 maxPriceToConvertUp,
-        uint256 maxGrownStalkPerPdvPenalty,
-        uint256 slippageRatio,
-        int256 tipAmount,
-        address tipAddress
+        BlueprintParams memory params
     )
         internal
         returns (
@@ -453,18 +459,18 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Create the ConvertUpParams struct
         ConvertUpBlueprintv0.ConvertUpParams memory convertUpParams = ConvertUpBlueprintv0
             .ConvertUpParams({
-                sourceTokenIndices: sourceTokenIndices,
-                totalConvertPdv: totalConvertPdv,
-                minConvertPdvPerExecution: minConvertPdvPerExecution,
-                maxConvertPdvPerExecution: maxConvertPdvPerExecution,
-                minTimeBetweenConverts: minTimeBetweenConverts,
-                minConvertBonusCapacity: minConvertBonusCapacity,
-                maxGrownStalkPerBdv: maxGrownStalkPerBdv,
-                grownStalkPerBdvBonusThreshold: grownStalkPerBdvBonusThreshold,
-                maxPriceToConvertUp: maxPriceToConvertUp,
-                minPriceToConvertUp: minPriceToConvertUp,
-                maxGrownStalkPerPdvPenalty: maxGrownStalkPerPdvPenalty,
-                slippageRatio: slippageRatio
+                sourceTokenIndices: params.sourceTokenIndices,
+                totalConvertPdv: params.totalConvertPdv,
+                minConvertPdvPerExecution: params.minConvertPdvPerExecution,
+                maxConvertPdvPerExecution: params.maxConvertPdvPerExecution,
+                minTimeBetweenConverts: params.minTimeBetweenConverts,
+                minConvertBonusCapacity: params.minConvertBonusCapacity,
+                maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,
+                grownStalkPerBdvBonusThreshold: params.grownStalkPerBdvBonusThreshold,
+                maxPriceToConvertUp: params.maxPriceToConvertUp,
+                minPriceToConvertUp: params.minPriceToConvertUp,
+                maxGrownStalkPerPdvPenalty: params.maxGrownStalkPerPdvPenalty,
+                slippageRatio: params.slippageRatio
             });
 
         // Create the operator whitelist array
@@ -474,8 +480,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Create the OperatorParams struct
         ConvertUpBlueprintv0.OperatorParams memory opParams = ConvertUpBlueprintv0.OperatorParams({
             whitelistedOperators: whitelistedOperators,
-            tipAddress: tipAddress,
-            operatorTipAmount: tipAmount
+            tipAddress: params.tipAddress,
+            operatorTipAmount: params.tipAmount
         });
 
         // Create the complete ConvertUpBlueprintStruct
@@ -489,13 +495,13 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Create the requisition using the pipe call data
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
-            user,
+            params.user,
             pipeCallData,
             address(bs)
         );
 
         // Publish the requisition
-        vm.prank(user);
+        vm.prank(params.user);
         bs.publishRequisition(req);
 
         return (req, paramStruct);
@@ -542,37 +548,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         vm.mockCall(
             address(beanstalkPrice),
             abi.encodeWithSelector(
-                beanstalkPrice.price.selector,
+                bytes4(keccak256("price(uint8)")),
                 ReservesType.INSTANTANEOUS_RESERVES
             ),
             abi.encode(mockPrices)
         );
-    }
-
-    // Helper to mint LP to user
-    function mintBeanLPtoUser(
-        address account,
-        uint256 beansAmount,
-        address wellToken
-    ) internal returns (uint256) {
-        address beanToken = bs.getBeanToken();
-
-        // Get well tokens
-        IERC20[] memory tokens = IWell(wellToken).tokens();
-        address nonBeanToken;
-
-        // Determine which token is not bean
-        if (address(tokens[0]) == beanToken) {
-            nonBeanToken = address(tokens[1]);
-        } else {
-            nonBeanToken = address(tokens[0]);
-        }
-
-        // Mint tokens to the well
-        MockToken(beanToken).mint(wellToken, beansAmount);
-        MockToken(nonBeanToken).mint(wellToken, beansAmount / 1000); // Approximate ratio
-
-        // Sync the well and mint LP to the user
-        return IWell(wellToken).sync(account, 0);
     }
 }

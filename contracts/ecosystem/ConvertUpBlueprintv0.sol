@@ -9,6 +9,7 @@ import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "./price/WellPrice.sol";
+import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 
 /**
  * @title ConvertUpBlueprintv0
@@ -424,15 +425,17 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             if (tokenAmountToConvert == 0) continue;
 
             // Calculate minimum output amount based on slippage
-            uint256 expectedOutput = beanstalk.getAmountOut(token, beanToken, tokenAmountToConvert);
-            uint256 minAmountOut = (expectedOutput * (1e18 - slippageRatio)) / 1e18;
+            uint256 expectedOutput = IWell(token).getRemoveLiquidityOneTokenOut(
+                tokenAmountToConvert,
+                IERC20(beanToken)
+            );
 
             // Create convert data for WELL_LP_TO_BEANS conversion
-            // Format: ConvertKind, amountIn, minAmountOut, token address
+            // Format: ConvertKind, amountIn, expectedOutput, token address
             bytes memory convertData = abi.encode(
                 LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
                 tokenAmountToConvert,
-                minAmountOut,
+                expectedOutput,
                 token
             );
 
