@@ -9,11 +9,11 @@ import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {PerFunctionPausable} from "contracts/ecosystem/PerFunctionPausable.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 
-contract PerFunctionPausableTest is TractorHelper {
+contract PerFunctionPausableTest is TractorTestHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
 

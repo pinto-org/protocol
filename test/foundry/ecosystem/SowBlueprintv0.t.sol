@@ -9,12 +9,12 @@ import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 
-contract SowBlueprintv0Test is TractorHelper {
+contract SowBlueprintv0Test is TractorTestHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
     BeanstalkPrice beanstalkPrice;

@@ -8,6 +8,7 @@ import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
+import {ReservesType} from "./price/WellPrice.sol";
 
 /**
  * @title ConvertUpBlueprintv0
@@ -403,22 +404,20 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         totalAmountConverted = 0;
 
         // Process each token type in the withdrawal plan
-        for (uint256 i = 0; i < vars.withdrawalPlan.tokens.length; i++) {
-            address token = vars.withdrawalPlan.tokens[i];
-            if (token == address(0) || token == beanToken) continue; // Skip empty tokens or Bean tokens, perhaps enforce this at a different level, or no need to check at all since Beanstalk does?
+        for (uint256 i = 0; i < vars.withdrawalPlan.sourceTokens.length; i++) {
+            address token = vars.withdrawalPlan.sourceTokens[i];
+            if (token == address(0) || token == beanToken) continue; // Skip empty tokens or Bean tokens
 
             // Get stems and amounts from the withdrawal plan for this token
-            uint256 depositCount = vars.withdrawalPlan.depositsByToken[token].length;
-            if (depositCount == 0) continue;
+            if (vars.withdrawalPlan.stems[i].length == 0) continue;
 
-            int96[] memory stems = new int96[](depositCount);
-            uint256[] memory amounts = new uint256[](depositCount);
+            // Use the stems and amounts for this token directly from the withdrawal plan
+            int96[] memory stems = vars.withdrawalPlan.stems[i];
+            uint256[] memory amounts = vars.withdrawalPlan.amounts[i];
             uint256 tokenAmountToConvert = 0;
 
-            // Populate stems and amounts from the withdrawal plan
-            for (uint256 j = 0; j < depositCount; j++) {
-                stems[j] = vars.withdrawalPlan.depositsByToken[token][j].stem;
-                amounts[j] = vars.withdrawalPlan.depositsByToken[token][j].amount;
+            // Calculate total amount to convert for this token
+            for (uint256 j = 0; j < amounts.length; j++) {
                 tokenAmountToConvert += amounts[j];
             }
 

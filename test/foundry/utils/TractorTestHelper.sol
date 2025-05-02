@@ -7,7 +7,7 @@ import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 
-contract TractorHelper is TestHelper {
+contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprintv0 internal sowBlueprintv0;
