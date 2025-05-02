@@ -172,7 +172,7 @@ contract TestHelper is
 
     function mintAndDepositBeanETH(address user, uint256 amountInBeans) public {
         // We assume bean:eth is 1000:1 here, where it's 1000e6 and 1e18
-        uint256 amountInWETH = amountInBeans * 1e12;
+        uint256 amountInWETH = (amountInBeans * 1e12) / 1000;
         mintTokensToUser(user, WETH, amountInWETH);
         mintTokensToUser(user, BEAN, amountInBeans);
 
@@ -271,17 +271,26 @@ contract TestHelper is
 
         uint256[] memory removedTokens = new uint256[](2);
 
+        // Log current reserves
+        console.log("Current reserves: %s", reserves[beanIndex], reserves[tknIndex]);
+
         // calculate amount of tokens to remove.
         if (reserves[beanIndex] > beanAmount) {
             removedTokens[beanIndex] = reserves[beanIndex] - beanAmount;
+            console.log("Removed bean amount: %s", removedTokens[beanIndex]);
         }
 
         if (reserves[tknIndex] > nonBeanTokenAmount) {
             removedTokens[tknIndex] = reserves[tknIndex] - nonBeanTokenAmount;
+            console.log("Removed non-bean token amount: %s", removedTokens[tknIndex]);
         }
 
         // liquidity is removed first.
         if (removedTokens[0] > 0 || removedTokens[1] > 0) {
+            // Log users[0] balance of well token before removing liquidity
+            uint256 userBalanceBefore = IERC20(well).balanceOf(users[0]);
+            console.log("User balance before removing liquidity: %s", userBalanceBefore);
+
             IWell(well).removeLiquidityImbalanced(
                 type(uint256).max,
                 removedTokens,
@@ -797,5 +806,37 @@ contract TestHelper is
             gpImplementation,
             lwImplementation
         );
+    }
+
+    /**
+     * @notice Sets well reserves to achieve a target price
+     * @param well The address of the well to modify
+     * @param targetPrice The desired price in 1e18 format (e.g., 0.95e18 for $0.95)
+     * @param ethReserves The amount of ETH reserves to maintain in the well
+     */
+    function setReservesForPrice(address well, uint256 targetPrice, uint256 ethReserves) public {
+        // Get the bean token and the non-bean token in the well
+        address beanToken = bs.getBeanToken();
+        (address tokenInWell, ) = bs.getNonBeanTokenAndIndexFromWell(well);
+
+        // Get the tokens array to find indices
+        IERC20[] memory tokens = IWell(well).tokens();
+        uint256 beanIndex = bs.getBeanIndex(tokens);
+        uint256 ethIndex = beanIndex == 1 ? 0 : 1;
+
+        // ETH price is assumed to be $1000 in our tests
+        uint256 ethPriceInUsd = 1000e6;
+
+        // Calculate the Bean reserves needed for the target price
+        // price = (ethReserve * ethPriceInUsd) / beanReserve
+        // beanReserve = (ethReserve * ethPriceInUsd) / price
+        uint256 requiredBeanReserve = (ethReserves * ethPriceInUsd) / targetPrice / 1e12;
+
+        console.log("Setting reserves for price %s:", targetPrice);
+        console.log("- Required BEAN reserves: %s", requiredBeanReserve);
+        console.log("- ETH reserves: %s", ethReserves);
+
+        // Call setReserves to adjust the well
+        setReserves(well, requiredBeanReserve, ethReserves);
     }
 }

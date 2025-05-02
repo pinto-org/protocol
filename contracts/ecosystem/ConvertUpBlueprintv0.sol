@@ -208,7 +208,22 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             params.convertUpParams.maxPriceToConvertUp
         );
 
+        // First withdraw Beans from which to tip Operator (using a newer deposit burns less stalk)
+        if (params.opParams.operatorTipAmount > 0) {
+            LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+            tractorHelpers.withdrawBeansFromSources(
+                vars.account,
+                params.convertUpParams.sourceTokenIndices,
+                uint256(params.opParams.operatorTipAmount),
+                params.convertUpParams.maxGrownStalkPerBdv,
+                params.convertUpParams.slippageRatio,
+                LibTransfer.To.INTERNAL,
+                emptyPlan
+            );
+        }
+
         // Get withdrawal plan for the tokens to convert
+
         vars.withdrawalPlan = tractorHelpers.getWithdrawalPlan(
             vars.account,
             params.convertUpParams.sourceTokenIndices,

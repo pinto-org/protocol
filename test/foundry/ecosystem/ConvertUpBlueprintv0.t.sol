@@ -15,6 +15,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
+import {console} from "forge-std/console.sol";
 
 contract ConvertUpBlueprintv0Test is TractorTestHelper {
     address[] farmers;
@@ -91,15 +92,17 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Add liquidity to wells for testing
         addLiquidityToWell(
             BEAN_ETH_WELL,
-            10000e6, // 10,000 Beans
+            10_000e6, // 10,000 Beans
             10 ether // 10 ether.
         );
 
         addLiquidityToWell(
             BEAN_WSTETH_WELL,
-            10010e6, // 10,010 Beans
+            10_000e6, // 10,000 Beans
             10 ether // 10 ether.
         );
+
+        // Set price to be ~0.975
     }
 
     // Break out the setup into a separate function
@@ -111,20 +114,38 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         state.wellToken = BEAN_ETH_WELL;
         state.initialUserBeanBalance = IERC20(state.beanToken).balanceOf(state.user);
         state.initialOperatorBeanBalance = bs.getInternalBalance(state.operator, state.beanToken);
-        state.convertAmount = 1000e6; // Amount to convert
+        state.convertAmount = 100e6; // Amount to convert
         state.tipAmount = 10e6; // 10 BEAN
-
-        // Set price for testing
-        state.currentPrice = 1e18; // Price of 1.0
-
-        // Use mintAndDepositBeanETH to mint and deposit LP tokens
-        mintAndDepositBeanETH(state.user, 5000e6);
 
         // Store initial well balance for the user
         state.initialWellBalance = IERC20(state.wellToken).balanceOf(state.user);
 
+        // Log reserves of both wells before test
+        console.log(
+            "BEAN_ETH_WELL reserves before test: %s, %s",
+            IWell(BEAN_ETH_WELL).getReserves()[0],
+            IWell(BEAN_ETH_WELL).getReserves()[1]
+        );
+        console.log(
+            "BEAN_WSTETH_WELL reserves before test: %s, %s",
+            IWell(BEAN_WSTETH_WELL).getReserves()[0],
+            IWell(BEAN_WSTETH_WELL).getReserves()[1]
+        );
+
         // For farmer 1, also mint and deposit LP
-        mintAndDepositBeanETH(farmers[1], 1000e6);
+        mintAndDepositBeanETH(state.user, 500e6);
+
+        // Log reserves of both wells before test
+        console.log(
+            "BEAN_ETH_WELL reserves after mintAndDepositBeanETH: %s, %s",
+            IWell(BEAN_ETH_WELL).getReserves()[0],
+            IWell(BEAN_ETH_WELL).getReserves()[1]
+        );
+        console.log(
+            "BEAN_WSTETH_WELL reserves after mintAndDepositBeanETH: %s, %s",
+            IWell(BEAN_WSTETH_WELL).getReserves()[0],
+            IWell(BEAN_WSTETH_WELL).getReserves()[1]
+        );
 
         // Make sure LP has germinated - already handled by mintAndDepositBeanETH which calls siloSunrise
         passGermination();
@@ -149,8 +170,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
                 grownStalkPerBdvBonusThreshold: 0,
-                minPriceToConvertUp: 0.95e18,
-                maxPriceToConvertUp: 1.05e18,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -159,7 +180,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price to be within the acceptable range
-        mockPrice(1e18); // Price of 1.0
+        mockPrice(0.95e6); // Price of 1.0
 
         // Execute the conversion
         executeRequisition(state.operator, req, address(bs));
@@ -194,8 +215,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
                 grownStalkPerBdvBonusThreshold: 0,
-                minPriceToConvertUp: 0.95e18,
-                maxPriceToConvertUp: 1.05e18,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -204,7 +225,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price to be within the acceptable range
-        mockPrice(1e18); // Price of 1.0
+        mockPrice(0.95e6); // Price of 1.0
 
         // Execute the conversion
         executeRequisition(state.operator, req, address(bs));
@@ -265,8 +286,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
                 grownStalkPerBdvBonusThreshold: 0,
-                minPriceToConvertUp: 0.95e18,
-                maxPriceToConvertUp: 1.05e18,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -275,7 +296,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price
-        mockPrice(1e18);
+        mockPrice(0.95e6);
 
         // Execute the first conversion
         executeRequisition(state.operator, req, address(bs));
@@ -315,8 +336,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
                 grownStalkPerBdvBonusThreshold: 0,
-                minPriceToConvertUp: 0.95e18,
-                maxPriceToConvertUp: 1.05e18,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
                 slippageRatio: 0.01e18,
                 tipAmount: int256(tipAmount),
@@ -325,7 +346,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price
-        mockPrice(1e18);
+        mockPrice(0.95e6);
 
         // Get the blueprint hash from the mock beanstalk contract
         bytes32 orderHash = req.blueprintHash;
@@ -414,8 +435,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
                 grownStalkPerBdvBonusThreshold: 0,
-                minPriceToConvertUp: 0.95e18,
-                maxPriceToConvertUp: 1.05e18,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -424,7 +445,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         // Mock the price
-        mockPrice(1e18);
+        mockPrice(0.975e6);
 
         // Should succeed with whitelisted operator
         executeRequisition(whitelistedOperator, req, address(bs));
@@ -539,12 +560,24 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         return tractorHelpers.getTokenIndex(token);
     }
 
-    // Helper function to mock the price
-    function mockPrice(uint256 price) internal {
-        BeanstalkPrice.Prices memory mockPrices;
-        mockPrices.price = price;
+    /**
+     * @notice Mock the price by setting the reserves directly
+     * @param targetPrice The desired price in 1e18 format (e.g., 0.95e18 for $0.95)
+     */
+    function mockPrice(uint256 targetPrice) internal {
+        // Get the well address
+        address well = BEAN_ETH_WELL;
 
-        // Mock the price call
+        // Set reserves to achieve the target price
+        // We'll maintain 10 ETH in reserves for consistency
+        uint256 ethReserves = 10 ether;
+        setReservesForPrice(well, targetPrice, ethReserves);
+
+        // Also mock the BeanstalkPrice contract's price function to return the same value
+        // This ensures both price sources are consistent
+        BeanstalkPrice.Prices memory mockPrices;
+        mockPrices.price = targetPrice;
+
         vm.mockCall(
             address(beanstalkPrice),
             abi.encodeWithSelector(
