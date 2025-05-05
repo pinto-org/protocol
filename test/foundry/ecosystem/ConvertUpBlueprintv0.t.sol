@@ -15,7 +15,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
-import {console} from "forge-std/console.sol";
+import "forge-std/console.sol";
 
 contract ConvertUpBlueprintv0Test is TractorTestHelper {
     address[] farmers;
@@ -153,7 +153,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         return state;
     }
 
-    function test_convertUpBlueprintv0_PurePintoWithTip() public {
+    function test_convertUpBlueprintv0_BasicTest() public {
         TestState memory state = setupConvertUpBlueprintv0Test();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
@@ -235,13 +235,15 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             "User should not have Bean deposits before conversion"
         );
 
+        console.log("state.convertAmount: %s", state.convertAmount);
+
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertPdv: state.convertAmount,
-                minConvertPdvPerExecution: state.convertAmount / 4,
-                maxConvertPdvPerExecution: state.convertAmount,
+                totalConvertPdv: (state.convertAmount * 3) / 2,
+                minConvertPdvPerExecution: state.convertAmount / 100, // this way we'll always convert whatever's left
+                maxConvertPdvPerExecution: state.convertAmount / 2,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
@@ -276,6 +278,108 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Log the deposit for debugging
         console.log("Bean deposit from conversion: %s", finalBeanDeposits[0]);
+
+        // logTokenPrices();
+        // logUsersDeposits(state.user);
+
+        for (uint256 i = 0; i < 10; i++) {
+            // logTokenPrices();
+            logUsersDeposits(state.user);
+
+            // Fast forward time
+            vm.warp(block.timestamp + 301);
+
+            // Execute the conversion again
+            executeRequisition(state.operator, req, address(bs));
+        }
+
+        // logTokenPrices();
+        // logUsersDeposits(state.user);
+    }
+
+    function logTokenPrices() internal {
+        try tractorHelpers.getTokensAscendingPrice() returns (
+            uint8[] memory priceOrderedTokensAfter,
+            uint256[] memory prices
+        ) {
+            // Log each token index
+            for (uint8 i = 0; i < priceOrderedTokensAfter.length; i++) {
+                try tractorHelpers.getWhitelistStatusAddresses() returns (
+                    address[] memory tokenAddresses
+                ) {
+                    // Log token index and the corresponding token address
+                    console.log(
+                        "Token index: %s, Token address: %s, Price: %s",
+                        priceOrderedTokensAfter[i],
+                        tokenAddresses[priceOrderedTokensAfter[i]],
+                        prices[i]
+                    );
+                } catch {
+                    console.log(
+                        "Token index: %s, Price: %s (Failed to get address)",
+                        priceOrderedTokensAfter[i],
+                        prices[i]
+                    );
+                }
+            }
+        } catch {
+            console.log("Failed to get token prices");
+        }
+    }
+
+    function logUsersDeposits(address user) internal {
+        console.log("--------------------------------");
+        console.log("Bean deposits for user: %s", user);
+
+        // Use try/catch for Bean deposits
+        try tractorHelpers.getSortedDeposits(user, BEAN) returns (
+            int96[] memory beanStems,
+            uint256[] memory beanAmounts
+        ) {
+            for (uint256 i = 0; i < beanStems.length; i++) {
+                console.log("Stem");
+                console.logInt(beanStems[i]);
+                console.log("Amount");
+                console.logUint(beanAmounts[i]);
+            }
+        } catch {
+            console.log("No Bean deposits found");
+        }
+        console.log("--------------------------------");
+
+        // Log ETH well deposits for user
+        console.log("ETH well deposits for user: %s", user);
+        try tractorHelpers.getSortedDeposits(user, BEAN_ETH_WELL) returns (
+            int96[] memory ethStems,
+            uint256[] memory ethAmounts
+        ) {
+            for (uint256 i = 0; i < ethStems.length; i++) {
+                console.log("Stem");
+                console.logInt(ethStems[i]);
+                console.log("Amount");
+                console.logUint(ethAmounts[i]);
+            }
+        } catch {
+            console.log("No ETH well deposits found");
+        }
+        console.log("--------------------------------");
+
+        // log WSTETH well deposits for user
+        console.log("WSTETH well deposits for user: %s", user);
+        try tractorHelpers.getSortedDeposits(user, BEAN_WSTETH_WELL) returns (
+            int96[] memory wstethStems,
+            uint256[] memory wstethAmounts
+        ) {
+            for (uint256 i = 0; i < wstethStems.length; i++) {
+                console.log("Stem");
+                console.logInt(wstethStems[i]);
+                console.log("Amount");
+                console.logUint(wstethAmounts[i]);
+            }
+        } catch {
+            console.log("No WSTETH well deposits found");
+        }
+        console.log("--------------------------------");
     }
 
     function test_convertUpBlueprintv0_PriceOutOfRange() public {
