@@ -32,7 +32,7 @@ library LibGaugeHelpers {
      * @notice Struct for Convert Bonus Gauge Data
      * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
      * - deltaC: The delta used in adjusting the convertBonusFactor.
-     * - deltaT: The delta used in adjusting the convertCapacityFactor.
+     * - deltaD: The delta used in adjusting the convertCapacityFactor.
      * - minConvertBonusFactor: The minimum value of the conversion factor.
      * - maxConvertBonusFactor: The maximum value of the conversion factor.
      * - minCapacityFactor: The minimum value of the convert bonus bdv capacity factor.
@@ -44,7 +44,7 @@ library LibGaugeHelpers {
      */
     struct ConvertBonusGaugeData {
         uint256 deltaC;
-        uint256 deltaT;
+        uint256 deltaD;
         uint256 minConvertBonusFactor;
         uint256 maxConvertBonusFactor;
         uint256 minCapacityFactor;
