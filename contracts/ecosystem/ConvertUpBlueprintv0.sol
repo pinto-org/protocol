@@ -30,6 +30,10 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         uint256 amountConverted
     );
 
+    // Constants for specifying token selection strategies
+    uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
+    uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
+
     /**
      * @notice Struct to hold local variables for the convert up operation to avoid stack too deep errors
      * @param orderHash Hash of the current blueprint order
@@ -233,11 +237,89 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             );
         }
 
-        // Get withdrawal plan for the tokens to convert
+        // Create a memory copy of source token indices that we can modify
+        uint8[] memory sourceTokenIndices = new uint8[](
+            params.convertUpParams.sourceTokenIndices.length
+        );
+        for (uint256 i = 0; i < params.convertUpParams.sourceTokenIndices.length; i++) {
+            sourceTokenIndices[i] = params.convertUpParams.sourceTokenIndices[i];
+        }
 
+        // If strategy is LOWEST_PRICE_STRATEGY or LOWEST_SEED_STRATEGY, we need to get the withdrawal plan for the source tokens, and remove the Bean token from it
+        if (
+            sourceTokenIndices.length > 0 &&
+            (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY ||
+                sourceTokenIndices[0] == LOWEST_SEED_STRATEGY)
+        ) {
+            // If lowest price strategy, get the tokens in ascending price order
+            if (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY) {
+                (uint8[] memory priceOrderedTokens, ) = tractorHelpers.getTokensAscendingPrice();
+
+                // Copy the sorted tokens to our memory array
+                sourceTokenIndices = new uint8[](priceOrderedTokens.length);
+                for (uint256 i = 0; i < priceOrderedTokens.length; i++) {
+                    sourceTokenIndices[i] = priceOrderedTokens[i];
+                }
+
+                // Get the index of the Bean token
+                uint8 beanTokenIndex = tractorHelpers.getTokenIndex(beanstalk.getBeanToken());
+
+                // Loop through and find the index of the Bean token, remove it from sourceTokenIndices
+                for (uint256 i = 0; i < sourceTokenIndices.length; i++) {
+                    if (sourceTokenIndices[i] == beanTokenIndex) {
+                        // Replace with the last element
+                        sourceTokenIndices[i] = sourceTokenIndices[sourceTokenIndices.length - 1];
+
+                        // Create a new array with one less element (equivalent to pop)
+                        uint8[] memory newSourceTokenIndices = new uint8[](
+                            sourceTokenIndices.length - 1
+                        );
+                        for (uint256 j = 0; j < newSourceTokenIndices.length; j++) {
+                            newSourceTokenIndices[j] = sourceTokenIndices[j];
+                        }
+                        sourceTokenIndices = newSourceTokenIndices;
+                        break;
+                    }
+                }
+            }
+
+            // If lowest seed strategy, get the tokens in ascending seed order
+            if (sourceTokenIndices[0] == LOWEST_SEED_STRATEGY) {
+                (uint8[] memory seedOrderedTokens, ) = tractorHelpers.getTokensAscendingSeeds();
+
+                // Copy the sorted tokens to our memory array
+                sourceTokenIndices = new uint8[](seedOrderedTokens.length);
+                for (uint256 i = 0; i < seedOrderedTokens.length; i++) {
+                    sourceTokenIndices[i] = seedOrderedTokens[i];
+                }
+
+                // Get the index of the Bean token
+                uint8 beanTokenIndex = tractorHelpers.getTokenIndex(beanstalk.getBeanToken());
+
+                // Loop through and find the index of the Bean token, remove it from sourceTokenIndices
+                for (uint256 i = 0; i < sourceTokenIndices.length; i++) {
+                    if (sourceTokenIndices[i] == beanTokenIndex) {
+                        // Replace with the last element
+                        sourceTokenIndices[i] = sourceTokenIndices[sourceTokenIndices.length - 1];
+
+                        // Create a new array with one less element (equivalent to pop)
+                        uint8[] memory newSourceTokenIndices = new uint8[](
+                            sourceTokenIndices.length - 1
+                        );
+                        for (uint256 j = 0; j < newSourceTokenIndices.length; j++) {
+                            newSourceTokenIndices[j] = sourceTokenIndices[j];
+                        }
+                        sourceTokenIndices = newSourceTokenIndices;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Get withdrawal plan for the tokens to convert
         vars.withdrawalPlan = tractorHelpers.getWithdrawalPlan(
             vars.account,
-            params.convertUpParams.sourceTokenIndices,
+            sourceTokenIndices,
             vars.currentPdvToConvert,
             params.convertUpParams.maxGrownStalkPerBdv
         );
@@ -438,6 +520,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         // Process each token type in the withdrawal plan
         for (uint256 i = 0; i < vars.withdrawalPlan.sourceTokens.length; i++) {
             address token = vars.withdrawalPlan.sourceTokens[i];
+            console.log("executeConvertUp, converting token:", token);
             if (token == address(0) || token == beanToken) continue; // Skip empty tokens or Bean tokens
 
             // Get stems and amounts from the withdrawal plan for this token
