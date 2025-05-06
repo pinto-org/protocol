@@ -512,7 +512,12 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             );
 
             // Call Beanstalk's convert function to convert LP tokens to Beans
-            (, , uint256 amountConverted, , ) = beanstalk.convert(convertData, stems, amounts);
+            (, , uint256 amountConverted, , ) = beanstalk.convertWithStalkSlippage(
+                convertData,
+                stems,
+                amounts,
+                maxGrownStalkPerPdvPenalty
+            );
 
             // Add to total amount converted
             totalAmountConverted += amountConverted;

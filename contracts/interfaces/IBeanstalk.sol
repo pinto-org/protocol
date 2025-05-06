@@ -107,6 +107,22 @@ interface IBeanstalk {
             uint256 toBdv
         );
 
+    function convertWithStalkSlippage(
+        bytes calldata convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        uint256 grownStalkSlippage
+    )
+        external
+        payable
+        returns (
+            int96 toStem,
+            uint256 fromAmount,
+            uint256 toAmount,
+            uint256 fromBdv,
+            uint256 toBdv
+        );
+
     function deposit(
         address token,
         uint256 _amount,

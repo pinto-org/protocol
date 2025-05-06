@@ -25,6 +25,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
+    uint256 constant MAX_GROWN_STALK_PER_PDV_PENALTY = 1e18;
 
     struct TestState {
         address user;
@@ -271,7 +272,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 grownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
-                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
                 tipAddress: state.operator
