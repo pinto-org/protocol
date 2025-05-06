@@ -171,6 +171,8 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         // Get user account
         vars.account = beanstalk.tractorUser();
 
+        console.log("convertUpBlueprintv0 vars.account: %s", vars.account);
+
         // Get the last execution timestamp
         vars.lastExecution = getLastExecutedTimestamp(vars.orderHash);
 
@@ -212,6 +214,10 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             params.convertUpParams.maxConvertPdvPerExecution
         );
 
+        console.log("pdv to convert this time: %s", vars.currentPdvToConvert);
+        // log pdv left to convert
+        console.log("pdv left to convert: %s", vars.pdvLeftToConvert);
+
         // Get current price and check price constraints using BeanstalkPrice
         BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
         vars.currentPrice = p.price;
@@ -237,83 +243,16 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             );
         }
 
-        // Create a memory copy of source token indices that we can modify
-        uint8[] memory sourceTokenIndices = new uint8[](
-            params.convertUpParams.sourceTokenIndices.length
+        // Process source token indices based on strategy
+        uint8[] memory sourceTokenIndices = processSourceTokenIndices(
+            params.convertUpParams.sourceTokenIndices
         );
-        for (uint256 i = 0; i < params.convertUpParams.sourceTokenIndices.length; i++) {
-            sourceTokenIndices[i] = params.convertUpParams.sourceTokenIndices[i];
-        }
 
-        // If strategy is LOWEST_PRICE_STRATEGY or LOWEST_SEED_STRATEGY, we need to get the withdrawal plan for the source tokens, and remove the Bean token from it
-        if (
-            sourceTokenIndices.length > 0 &&
-            (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY ||
-                sourceTokenIndices[0] == LOWEST_SEED_STRATEGY)
-        ) {
-            // If lowest price strategy, get the tokens in ascending price order
-            if (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY) {
-                (uint8[] memory priceOrderedTokens, ) = tractorHelpers.getTokensAscendingPrice();
-
-                // Copy the sorted tokens to our memory array
-                sourceTokenIndices = new uint8[](priceOrderedTokens.length);
-                for (uint256 i = 0; i < priceOrderedTokens.length; i++) {
-                    sourceTokenIndices[i] = priceOrderedTokens[i];
-                }
-
-                // Get the index of the Bean token
-                uint8 beanTokenIndex = tractorHelpers.getTokenIndex(beanstalk.getBeanToken());
-
-                // Loop through and find the index of the Bean token, remove it from sourceTokenIndices
-                for (uint256 i = 0; i < sourceTokenIndices.length; i++) {
-                    if (sourceTokenIndices[i] == beanTokenIndex) {
-                        // Replace with the last element
-                        sourceTokenIndices[i] = sourceTokenIndices[sourceTokenIndices.length - 1];
-
-                        // Create a new array with one less element (equivalent to pop)
-                        uint8[] memory newSourceTokenIndices = new uint8[](
-                            sourceTokenIndices.length - 1
-                        );
-                        for (uint256 j = 0; j < newSourceTokenIndices.length; j++) {
-                            newSourceTokenIndices[j] = sourceTokenIndices[j];
-                        }
-                        sourceTokenIndices = newSourceTokenIndices;
-                        break;
-                    }
-                }
-            }
-
-            // If lowest seed strategy, get the tokens in ascending seed order
-            if (sourceTokenIndices[0] == LOWEST_SEED_STRATEGY) {
-                (uint8[] memory seedOrderedTokens, ) = tractorHelpers.getTokensAscendingSeeds();
-
-                // Copy the sorted tokens to our memory array
-                sourceTokenIndices = new uint8[](seedOrderedTokens.length);
-                for (uint256 i = 0; i < seedOrderedTokens.length; i++) {
-                    sourceTokenIndices[i] = seedOrderedTokens[i];
-                }
-
-                // Get the index of the Bean token
-                uint8 beanTokenIndex = tractorHelpers.getTokenIndex(beanstalk.getBeanToken());
-
-                // Loop through and find the index of the Bean token, remove it from sourceTokenIndices
-                for (uint256 i = 0; i < sourceTokenIndices.length; i++) {
-                    if (sourceTokenIndices[i] == beanTokenIndex) {
-                        // Replace with the last element
-                        sourceTokenIndices[i] = sourceTokenIndices[sourceTokenIndices.length - 1];
-
-                        // Create a new array with one less element (equivalent to pop)
-                        uint8[] memory newSourceTokenIndices = new uint8[](
-                            sourceTokenIndices.length - 1
-                        );
-                        for (uint256 j = 0; j < newSourceTokenIndices.length; j++) {
-                            newSourceTokenIndices[j] = sourceTokenIndices[j];
-                        }
-                        sourceTokenIndices = newSourceTokenIndices;
-                        break;
-                    }
-                }
-            }
+        console.log("sourceTokenIndices: ");
+        for (uint256 i = 0; i < sourceTokenIndices.length; i++) {
+            // log i
+            console.log("----- i: %s", i);
+            console.log(sourceTokenIndices[i]);
         }
 
         // Get withdrawal plan for the tokens to convert
@@ -338,8 +277,8 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         );
 
         // log pdv left to convert and current pdv to convert
-        console.log("pdvLeftToConvert", vars.pdvLeftToConvert);
-        console.log("currentPdvToConvert", vars.currentPdvToConvert);
+        // console.log("pdvLeftToConvert", vars.pdvLeftToConvert);
+        // console.log("currentPdvToConvert", vars.currentPdvToConvert);
 
         // Update the state
         // If all PDV has been converted, set to max to indicate completion
@@ -459,7 +398,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @param amount The new PDV left to convert
      */
     function updatePdvLeftToConvert(bytes32 orderHash, uint256 amount) internal {
-        console.log("Updating pdvLeftToConvert", amount);
+        // console.log("Updating pdvLeftToConvert", amount);
         orderInfo[orderHash].pdvLeftToConvert = amount;
     }
 
@@ -517,6 +456,11 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         address beanToken = beanstalk.getBeanToken();
         totalAmountConverted = 0;
 
+        console.log(
+            "executeConvertUp, vars.withdrawalPlan.sourceTokens.length: %s",
+            vars.withdrawalPlan.sourceTokens.length
+        );
+
         // Process each token type in the withdrawal plan
         for (uint256 i = 0; i < vars.withdrawalPlan.sourceTokens.length; i++) {
             address token = vars.withdrawalPlan.sourceTokens[i];
@@ -529,6 +473,17 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             // Use the stems and amounts for this token directly from the withdrawal plan
             int96[] memory stems = vars.withdrawalPlan.stems[i];
             uint256[] memory amounts = vars.withdrawalPlan.amounts[i];
+
+            // Log stems and amounts
+            console.log("stems: ");
+            for (uint256 j = 0; j < stems.length; j++) {
+                console.logInt(stems[j]);
+            }
+            console.log("amounts: ");
+            for (uint256 j = 0; j < amounts.length; j++) {
+                console.log(amounts[j]);
+            }
+
             uint256 tokenAmountToConvert = 0;
 
             // Calculate total amount to convert for this token
@@ -543,6 +498,9 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
                 tokenAmountToConvert,
                 IERC20(beanToken)
             );
+
+            console.log("expectedOutput: ", expectedOutput);
+            console.log("tokenAmountToConvert: ", tokenAmountToConvert);
 
             // Create convert data for WELL_LP_TO_BEANS conversion
             // Format: ConvertKind, amountIn, expectedOutput, token address
@@ -561,5 +519,101 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         }
 
         return totalAmountConverted;
+    }
+
+    /**
+     * @notice Processes source token indices
+     * @param originalSourceTokenIndices Indices of source tokens to use for conversion
+     * @return sourceTokenIndices Processed source token indices with any strategies resolved
+     */
+    function processSourceTokenIndices(
+        uint8[] memory originalSourceTokenIndices
+    ) internal returns (uint8[] memory sourceTokenIndices) {
+        // Create a memory copy of source token indices that we can modify
+        sourceTokenIndices = new uint8[](originalSourceTokenIndices.length);
+        for (uint256 i = 0; i < originalSourceTokenIndices.length; i++) {
+            sourceTokenIndices[i] = originalSourceTokenIndices[i];
+        }
+
+        // If strategy is LOWEST_PRICE_STRATEGY or LOWEST_SEED_STRATEGY, we need to get the withdrawal plan for the source tokens, and remove the Bean token from it
+        if (
+            sourceTokenIndices.length > 0 &&
+            (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY ||
+                sourceTokenIndices[0] == LOWEST_SEED_STRATEGY)
+        ) {
+            // If lowest price strategy, get the tokens in ascending price order
+            if (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY) {
+                (uint8[] memory priceOrderedTokens, ) = tractorHelpers.getTokensAscendingPrice();
+
+                // Copy the sorted tokens to our memory array
+                sourceTokenIndices = new uint8[](priceOrderedTokens.length);
+                for (uint256 i = 0; i < priceOrderedTokens.length; i++) {
+                    sourceTokenIndices[i] = priceOrderedTokens[i];
+                }
+
+                // Remove Bean token from the array
+                sourceTokenIndices = removeBeanToken(sourceTokenIndices);
+            }
+
+            // If lowest seed strategy, get the tokens in ascending seed order
+            if (sourceTokenIndices[0] == LOWEST_SEED_STRATEGY) {
+                (uint8[] memory seedOrderedTokens, ) = tractorHelpers.getTokensAscendingSeeds();
+
+                // Copy the sorted tokens to our memory array
+                sourceTokenIndices = new uint8[](seedOrderedTokens.length);
+                for (uint256 i = 0; i < seedOrderedTokens.length; i++) {
+                    sourceTokenIndices[i] = seedOrderedTokens[i];
+                }
+
+                // Remove Bean token from the array
+                sourceTokenIndices = removeBeanToken(sourceTokenIndices);
+            }
+        }
+
+        return sourceTokenIndices;
+    }
+
+    /**
+     * @notice Helper function to remove Bean token from an array of token indices
+     * @param tokenIndices Array of token indices
+     * @return result Array with Bean token removed
+     */
+    function removeBeanToken(
+        uint8[] memory tokenIndices
+    ) internal view returns (uint8[] memory result) {
+        // Get the index of the Bean token
+        uint8 beanTokenIndex = tractorHelpers.getTokenIndex(beanstalk.getBeanToken());
+
+        // First check if the Bean token is in the array
+        bool foundBean = false;
+        uint256 beanPosition = 0;
+
+        for (uint256 i = 0; i < tokenIndices.length; i++) {
+            if (tokenIndices[i] == beanTokenIndex) {
+                foundBean = true;
+                beanPosition = i;
+                break;
+            }
+        }
+
+        // If Bean not found, return original array
+        if (!foundBean) {
+            return tokenIndices;
+        }
+
+        // Create a new array with one less element
+        result = new uint8[](tokenIndices.length - 1);
+
+        // Copy elements before Bean
+        for (uint256 i = 0; i < beanPosition; i++) {
+            result[i] = tokenIndices[i];
+        }
+
+        // Copy elements after Bean
+        for (uint256 i = beanPosition + 1; i < tokenIndices.length; i++) {
+            result[i - 1] = tokenIndices[i];
+        }
+
+        return result;
     }
 }

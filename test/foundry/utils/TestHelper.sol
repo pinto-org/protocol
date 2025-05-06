@@ -206,6 +206,47 @@ contract TestHelper is
         bs.siloSunrise(0);
     }
 
+    function mintAndDepositBeanUSDC(address user, uint256 amountInBeans) public {
+        // We assume bean:usdc is 1:1 here, where both are 1e6 decimals
+        uint256 amountInUSDC = amountInBeans;
+        mintTokensToUser(user, USDC, amountInUSDC);
+        mintTokensToUser(user, BEAN, amountInBeans);
+
+        // Approve spending Bean to well
+        vm.prank(user);
+        MockToken(BEAN).approve(BEAN_USDC_WELL, amountInBeans);
+
+        // Approve spending USDC to well
+        vm.prank(user);
+        MockToken(USDC).approve(BEAN_USDC_WELL, amountInUSDC);
+
+        // Deposit LP tokens
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = amountInBeans;
+        tokenAmountsIn[1] = amountInUSDC;
+
+        // Approve spending LP tokens to Beanstalk
+        vm.prank(user);
+        MockToken(BEAN_USDC_WELL).approve(address(bs), type(uint256).max);
+
+        vm.prank(user);
+        uint256 lpAmountOut = IWell(BEAN_USDC_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            user,
+            type(uint256).max
+        );
+
+        vm.prank(user);
+        bs.deposit(BEAN_USDC_WELL, lpAmountOut, 0);
+
+        // Pass germination period
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        console.log("mintAndDepositBeanUSDC user deposited lpAmountOut: %s", lpAmountOut);
+    }
+
     function addLiquidityToWell(
         address well,
         uint256 beanAmount,
@@ -776,7 +817,7 @@ contract TestHelper is
             chainlinkOracle,
             bytes4(0x00),
             bytes1(0x01),
-            abi.encode(uint256(1234))
+            abi.encode(uint256(123456)) // High enough number that it doesn't timeout for tests
         );
 
         IMockFBeanstalk.Implementation memory gpImplementation = IMockFBeanstalk.Implementation(
@@ -799,7 +840,7 @@ contract TestHelper is
             bdvSelector,
             stalkIssuedPerBdv,
             stalkEarnedPerSeason,
-            bytes1(0),
+            bytes1(0x01),
             gaugePoints,
             optimalPercentDepositedBdv,
             oracleImplementation,
@@ -812,9 +853,14 @@ contract TestHelper is
      * @notice Sets well reserves to achieve a target price
      * @param well The address of the well to modify
      * @param targetPrice The desired price in 1e18 format (e.g., 0.95e18 for $0.95)
-     * @param ethReserves The amount of ETH reserves to maintain in the well
+     * @param nonBeanReserves The amount of ETH reserves to maintain in the well
      */
-    function setReservesForPrice(address well, uint256 targetPrice, uint256 ethReserves) public {
+    function setReservesForPrice(
+        address well,
+        uint256 targetPrice,
+        uint256 nonBeanReserves,
+        bool isUSDC
+    ) public {
         // Get the bean token and the non-bean token in the well
         address beanToken = bs.getBeanToken();
         (address tokenInWell, ) = bs.getNonBeanTokenAndIndexFromWell(well);
@@ -825,19 +871,25 @@ contract TestHelper is
         uint256 ethIndex = beanIndex == 1 ? 0 : 1;
 
         // ETH price is assumed to be $1000 in our tests
-        uint256 ethPriceInUsd = 1000e6;
+        uint256 nonBeanPriceInUsd = 1000e6;
+        if (isUSDC) {
+            nonBeanPriceInUsd = 1e6;
+        }
 
         // Calculate the Bean reserves needed for the target price
-        // price = (ethReserve * ethPriceInUsd) / beanReserve
-        // beanReserve = (ethReserve * ethPriceInUsd) / price
-        uint256 requiredBeanReserve = (ethReserves * ethPriceInUsd) / targetPrice / 1e12;
+        // price = (ethReserve * nonBeanPriceInUsd) / beanReserve
+        // beanReserve = (ethReserve * nonBeanPriceInUsd) / price
+        uint256 requiredBeanReserve = (nonBeanReserves * nonBeanPriceInUsd) / targetPrice / 1e12;
+        if (isUSDC) {
+            requiredBeanReserve = (nonBeanReserves * nonBeanPriceInUsd) / targetPrice;
+        }
 
         console.log("Setting reserves for price %s:", targetPrice);
         console.log("- Required BEAN reserves: %s", requiredBeanReserve);
-        console.log("- ETH reserves: %s", ethReserves);
+        console.log("- non-Bean reserves: %s", nonBeanReserves);
 
         // Call setReserves to adjust the well
-        setReserves(well, requiredBeanReserve, ethReserves);
+        setReserves(well, requiredBeanReserve, nonBeanReserves);
     }
 
     /**
@@ -848,8 +900,10 @@ contract TestHelper is
         // Set reserves to achieve the target price
         // We'll maintain 10 ETH in reserves for consistency
 
-        uint256 ethReserves = 10 ether;
-        setReservesForPrice(BEAN_ETH_WELL, targetPrice, ethReserves);
-        setReservesForPrice(BEAN_WSTETH_WELL, targetPrice, ethReserves);
+        uint256 nonBeanReserves = 10 ether;
+        setReservesForPrice(BEAN_ETH_WELL, targetPrice, nonBeanReserves, false);
+        setReservesForPrice(BEAN_WSTETH_WELL, targetPrice, nonBeanReserves, false);
+        nonBeanReserves = 10_000e6;
+        setReservesForPrice(BEAN_USDC_WELL, targetPrice, nonBeanReserves, true);
     }
 }
