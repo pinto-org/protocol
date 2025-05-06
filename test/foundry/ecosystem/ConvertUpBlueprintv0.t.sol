@@ -219,7 +219,24 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     }
 
     function test_convertUpBlueprintv0_LowestPriceStrategy() public {
+        deployExtraWells(true, true);
+
+        addLiquidityToWell(
+            BEAN_USDC_WELL,
+            10_000e6, // 10,000 Beans
+            10_000e6 // 10,000 USDC
+        );
+
+        whitelistLPWell(BEAN_USDC_WELL, USDC_USD_CHAINLINK_PRICE_AGGREGATOR);
+
+        // Let a few seasons pass so Oracle gets setup
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
         TestState memory state = setupConvertUpBlueprintv0Test();
+
+        // Mint and deposit 500e6 USDC
+        mintAndDepositBeanUSDC(state.user, 500e6);
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
@@ -236,14 +253,18 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
 
         console.log("state.convertAmount: %s", state.convertAmount);
+        state.convertAmount = 800e6;
+
+        // Log token balances before conversion
+        logTokenBalances(state.user);
 
         (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertPdv: (state.convertAmount * 3) / 2,
-                minConvertPdvPerExecution: state.convertAmount / 100, // this way we'll always convert whatever's left
-                maxConvertPdvPerExecution: state.convertAmount / 2,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: 1, // this way we'll always convert whatever's left
+                maxConvertPdvPerExecution: 100e6,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
@@ -263,6 +284,9 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Execute the conversion
         executeRequisition(state.operator, req, address(bs));
 
+        // Log token balances after conversion
+        logTokenBalances(state.user);
+
         // Verify conversion worked by checking for Bean deposits
         uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
             state.user,
@@ -279,22 +303,53 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Log the deposit for debugging
         console.log("Bean deposit from conversion: %s", finalBeanDeposits[0]);
 
-        // logTokenPrices();
-        // logUsersDeposits(state.user);
-
-        for (uint256 i = 0; i < 10; i++) {
-            // logTokenPrices();
+        for (uint256 i = 0; i < 8; i++) {
+            console.log("==================== Iteration %s ====================", i);
+            logTokenPrices();
             logUsersDeposits(state.user);
 
             // Fast forward time
             vm.warp(block.timestamp + 301);
 
+            console.log("-- Executing convert blueprint");
             // Execute the conversion again
             executeRequisition(state.operator, req, address(bs));
         }
+    }
 
-        // logTokenPrices();
-        // logUsersDeposits(state.user);
+    /**
+     * @notice Helper function to get a human-readable token name
+     * @param tokenAddress The address of the token
+     * @param fallbackName A fallback name if the token name cannot be identified
+     * @return A string representing the token name
+     */
+    function getTokenName(
+        address tokenAddress,
+        string memory fallbackName
+    ) internal view returns (string memory) {
+        // Check against known token addresses
+        if (tokenAddress == BEAN) {
+            return "Bean";
+        } else if (tokenAddress == BEAN_ETH_WELL) {
+            return "BEAN-ETH Well";
+        } else if (tokenAddress == BEAN_WSTETH_WELL) {
+            return "BEAN-WSTETH Well";
+        } else if (tokenAddress == BEAN_USDC_WELL) {
+            return "BEAN-USDC Well";
+        } else if (tokenAddress == WETH) {
+            return "WETH";
+        } else if (tokenAddress == WSTETH) {
+            return "WSTETH";
+        } else if (tokenAddress == USDC) {
+            return "USDC";
+        } else if (tokenAddress == USDT) {
+            return "USDT";
+        } else if (tokenAddress == WBTC) {
+            return "WBTC";
+        } else {
+            // If we don't recognize the address, use the fallback name
+            return fallbackName;
+        }
     }
 
     function logTokenPrices() internal {
@@ -302,16 +357,23 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             uint8[] memory priceOrderedTokensAfter,
             uint256[] memory prices
         ) {
+            console.log("------------ Token prices: ------------");
             // Log each token index
             for (uint8 i = 0; i < priceOrderedTokensAfter.length; i++) {
                 try tractorHelpers.getWhitelistStatusAddresses() returns (
                     address[] memory tokenAddresses
                 ) {
-                    // Log token index and the corresponding token address
+                    // Get token address
+                    address tokenAddress = tokenAddresses[priceOrderedTokensAfter[i]];
+
+                    // Get token name using the helper function
+                    string memory tokenName = getTokenName(tokenAddress, "Unknown");
+
+                    // Log token index, token name and price
                     console.log(
-                        "Token index: %s, Token address: %s, Price: %s",
+                        "Token index: %s, Token: %s Price: %s",
                         priceOrderedTokensAfter[i],
-                        tokenAddresses[priceOrderedTokensAfter[i]],
+                        tokenName,
                         prices[i]
                     );
                 } catch {
@@ -329,7 +391,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
     function logUsersDeposits(address user) internal {
         console.log("--------------------------------");
-        console.log("Bean deposits for user: %s", user);
+
+        // Log Bean deposits
+        string memory beanName = getTokenName(BEAN, "Bean");
+        console.log("BEAN (%s) deposits for user: %s", beanName, user);
 
         // Use try/catch for Bean deposits
         try tractorHelpers.getSortedDeposits(user, BEAN) returns (
@@ -347,8 +412,9 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         }
         console.log("--------------------------------");
 
-        // Log ETH well deposits for user
-        console.log("ETH well deposits for user: %s", user);
+        // Log ETH well deposits
+        string memory ethWellName = getTokenName(BEAN_ETH_WELL, "BEAN-ETH Well");
+        console.log("ETH well (%s) deposits for user: %s", ethWellName, user);
         try tractorHelpers.getSortedDeposits(user, BEAN_ETH_WELL) returns (
             int96[] memory ethStems,
             uint256[] memory ethAmounts
@@ -364,8 +430,9 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         }
         console.log("--------------------------------");
 
-        // log WSTETH well deposits for user
-        console.log("WSTETH well deposits for user: %s", user);
+        // Log WSTETH well deposits
+        string memory wstethWellName = getTokenName(BEAN_WSTETH_WELL, "BEAN-WSTETH Well");
+        console.log("WSTETH well (%s) deposits for user: %s", wstethWellName, user);
         try tractorHelpers.getSortedDeposits(user, BEAN_WSTETH_WELL) returns (
             int96[] memory wstethStems,
             uint256[] memory wstethAmounts
@@ -378,6 +445,24 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             }
         } catch {
             console.log("No WSTETH well deposits found");
+        }
+        console.log("--------------------------------");
+
+        // Log USDC well deposits
+        string memory usdcWellName = getTokenName(BEAN_USDC_WELL, "BEAN-USDC Well");
+        console.log("USDC well (%s) deposits for user: %s", usdcWellName, user);
+        try tractorHelpers.getSortedDeposits(user, BEAN_USDC_WELL) returns (
+            int96[] memory usdcStems,
+            uint256[] memory usdcAmounts
+        ) {
+            for (uint256 i = 0; i < usdcStems.length; i++) {
+                console.log("Stem");
+                console.logInt(usdcStems[i]);
+                console.log("Amount");
+                console.logUint(usdcAmounts[i]);
+            }
+        } catch {
+            console.log("No USDC well deposits found");
         }
         console.log("--------------------------------");
     }
@@ -723,5 +808,57 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     // Helper function to get token index from token address
     function getTokenIndex(address token) internal view returns (uint8) {
         return tractorHelpers.getTokenIndex(token);
+    }
+
+    /**
+     * @notice Helper function to log token balances for a user
+     * @param user The address of the user
+     */
+    function logTokenBalances(address user) internal {
+        console.log("========== Token Balances for %s ==========", user);
+
+        // Log Bean balance
+        string memory beanName = getTokenName(BEAN, "Bean");
+        uint256 beanBalance = IERC20(BEAN).balanceOf(user);
+        uint256 beanInternalBalance = bs.getInternalBalance(user, BEAN);
+        console.log("%s: %s (external), %s (internal)", beanName, beanBalance, beanInternalBalance);
+
+        // Log BEAN-ETH Well LP token balance
+        string memory ethWellName = getTokenName(BEAN_ETH_WELL, "BEAN-ETH Well");
+        uint256 ethWellBalance = IERC20(BEAN_ETH_WELL).balanceOf(user);
+        uint256 ethWellInternalBalance = bs.getInternalBalance(user, BEAN_ETH_WELL);
+        console.log(
+            "%s: %s (external), %s (internal)",
+            ethWellName,
+            ethWellBalance,
+            ethWellInternalBalance
+        );
+
+        // Log BEAN-WSTETH Well LP token balance
+        string memory wstethWellName = getTokenName(BEAN_WSTETH_WELL, "BEAN-WSTETH Well");
+        uint256 wstethWellBalance = IERC20(BEAN_WSTETH_WELL).balanceOf(user);
+        uint256 wstethWellInternalBalance = bs.getInternalBalance(user, BEAN_WSTETH_WELL);
+        console.log(
+            "%s: %s (external), %s (internal)",
+            wstethWellName,
+            wstethWellBalance,
+            wstethWellInternalBalance
+        );
+
+        // Log BEAN-USDC Well LP token balance if it exists
+        try IERC20(BEAN_USDC_WELL).balanceOf(user) returns (uint256 usdcWellBalance) {
+            string memory usdcWellName = getTokenName(BEAN_USDC_WELL, "BEAN-USDC Well");
+            uint256 usdcWellInternalBalance = bs.getInternalBalance(user, BEAN_USDC_WELL);
+            console.log(
+                "%s: %s (external), %s (internal)",
+                usdcWellName,
+                usdcWellBalance,
+                usdcWellInternalBalance
+            );
+        } catch {
+            // BEAN_USDC_WELL may not be deployed in all tests
+        }
+
+        console.log("===========================================");
     }
 }
