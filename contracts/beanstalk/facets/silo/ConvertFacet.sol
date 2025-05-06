@@ -134,20 +134,21 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         );
         pipeData.grownStalk = pipeData.initialGrownStalk;
 
+        // Calculate the bdv of the new deposit.
+        toBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
+
+        // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
+        toBdv = (toBdv > fromBdv || cp.decreaseBDV) ? toBdv : fromBdv;
+
         // check for potential penalty
-        LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
+        pipeData.grownStalk = LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
             pipeData,
             convertData,
             cp.fromToken,
             cp.toToken,
-            fromBdv
+            fromBdv,
+            toBdv
         );
-
-        // Calculate the bdv of the new deposit.
-        uint256 newBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
-
-        // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
-        toBdv = (newBdv > fromBdv || cp.decreaseBDV) ? newBdv : fromBdv;
 
         // if the Farmer is converting between beans and well LP, check for
         // potential germination. if the deposit is germinating, issue additional
