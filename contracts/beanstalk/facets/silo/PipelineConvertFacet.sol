@@ -86,6 +86,8 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice See {_pipelineConvert()}.
+     * a variant of the pipelineConvert function that allows a
+     * user to specify a grown stalk slippage tolerance.
      */
     function pipelineConvertWithStalkSlippage(
         address inputToken,
@@ -126,7 +128,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
      * @param stems The stems of the deposits to convert from.
      * @param amounts The amounts of the deposits to convert from.
      * @param outputToken The token to convert to.
-     * @param grownStalkSlippage The slippage percentage. 100% = 1e18.
+     * @param grownStalkSlippage The slippage percentage. Controls the maximum amount of grown stalk that can be lost. 100% = 1e18.
      * @param advancedPipeCalls The pipe calls to execute.
      * @return returnParams containing the return values of the convert. see {pipelineReturnParams}
      */
