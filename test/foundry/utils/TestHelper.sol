@@ -903,7 +903,18 @@ contract TestHelper is
         uint256 nonBeanReserves = 10 ether;
         setReservesForPrice(BEAN_ETH_WELL, targetPrice, nonBeanReserves, false);
         setReservesForPrice(BEAN_WSTETH_WELL, targetPrice, nonBeanReserves, false);
-        nonBeanReserves = 10_000e6;
-        setReservesForPrice(BEAN_USDC_WELL, targetPrice, nonBeanReserves, true);
+        // First determine if the BEAN_USDC_WELL is whitelisted, if not, don't need to set reserves
+        address[] memory whitelistedTokens = bs.getWhitelistedTokens();
+        bool isWhitelisted = false;
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            if (whitelistedTokens[i] == BEAN_USDC_WELL) {
+                isWhitelisted = true;
+                break;
+            }
+        }
+        if (isWhitelisted) {
+            nonBeanReserves = 10_000e6;
+            setReservesForPrice(BEAN_USDC_WELL, targetPrice, nonBeanReserves, true);
+        }
     }
 }
