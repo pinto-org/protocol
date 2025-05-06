@@ -68,6 +68,10 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         return _convert(convertData, stems, amounts, LibConvert.ZERO_STALK_SLIPPAGE);
     }
 
+    /**
+     * @notice convertWithStalkSlippage is a variant of the convert
+     * function that allows a userto specify a grown stalk slippage tolerance.
+     */
     function convertWithStalkSlippage(
         bytes calldata convertData,
         int96[] memory stems,
@@ -85,7 +89,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
     }
 
     /**
-     * @notice 18 decimal precision for stalk slippage.
+     * @notice  Internal Convert functionality.
+     * 18 decimal precision for stalk slippage. 100% = 1e18.
      */
     function _convert(
         bytes calldata convertData,
@@ -134,20 +139,21 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         );
         pipeData.grownStalk = pipeData.initialGrownStalk;
 
+        // Calculate the bdv of the new deposit.
+        toBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
+
+        // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
+        toBdv = (toBdv > fromBdv || cp.decreaseBDV) ? toBdv : fromBdv;
+
         // check for potential penalty
-        LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
+        pipeData.grownStalk = LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
             pipeData,
             convertData,
             cp.fromToken,
             cp.toToken,
-            fromBdv
+            fromBdv,
+            toBdv
         );
-
-        // Calculate the bdv of the new deposit.
-        uint256 newBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
-
-        // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
-        toBdv = (newBdv > fromBdv || cp.decreaseBDV) ? newBdv : fromBdv;
 
         // if the Farmer is converting between beans and well LP, check for
         // potential germination. if the deposit is germinating, issue additional
