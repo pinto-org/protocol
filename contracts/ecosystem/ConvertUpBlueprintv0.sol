@@ -533,92 +533,30 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      */
     function processSourceTokenIndices(
         uint8[] memory originalSourceTokenIndices
-    ) internal returns (uint8[] memory sourceTokenIndices) {
+    ) internal view returns (uint8[] memory sourceTokenIndices) {
         // Create a memory copy of source token indices that we can modify
         sourceTokenIndices = new uint8[](originalSourceTokenIndices.length);
         for (uint256 i = 0; i < originalSourceTokenIndices.length; i++) {
             sourceTokenIndices[i] = originalSourceTokenIndices[i];
         }
 
-        // If strategy is LOWEST_PRICE_STRATEGY or LOWEST_SEED_STRATEGY, we need to get the withdrawal plan for the source tokens, and remove the Bean token from it
+        // If strategy is LOWEST_PRICE_STRATEGY or LOWEST_SEED_STRATEGY, use the appropriate strategy with Bean excluded
         if (
             sourceTokenIndices.length > 0 &&
             (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY ||
                 sourceTokenIndices[0] == LOWEST_SEED_STRATEGY)
         ) {
-            // If lowest price strategy, get the tokens in ascending price order
+            // If lowest price strategy, get the tokens in ascending price order with Bean excluded
             if (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY) {
-                (uint8[] memory priceOrderedTokens, ) = tractorHelpers.getTokensAscendingPrice();
-
-                // Copy the sorted tokens to our memory array
-                sourceTokenIndices = new uint8[](priceOrderedTokens.length);
-                for (uint256 i = 0; i < priceOrderedTokens.length; i++) {
-                    sourceTokenIndices[i] = priceOrderedTokens[i];
-                }
-
-                // Remove Bean token from the array
-                sourceTokenIndices = removeBeanToken(sourceTokenIndices);
+                (sourceTokenIndices, ) = tractorHelpers.getTokensAscendingPrice(true);
             }
 
-            // If lowest seed strategy, get the tokens in ascending seed order
+            // If lowest seed strategy, get the tokens in ascending seed order with Bean excluded
             if (sourceTokenIndices[0] == LOWEST_SEED_STRATEGY) {
-                (uint8[] memory seedOrderedTokens, ) = tractorHelpers.getTokensAscendingSeeds();
-
-                // Copy the sorted tokens to our memory array
-                sourceTokenIndices = new uint8[](seedOrderedTokens.length);
-                for (uint256 i = 0; i < seedOrderedTokens.length; i++) {
-                    sourceTokenIndices[i] = seedOrderedTokens[i];
-                }
-
-                // Remove Bean token from the array
-                sourceTokenIndices = removeBeanToken(sourceTokenIndices);
+                (sourceTokenIndices, ) = tractorHelpers.getTokensAscendingSeeds(true);
             }
         }
 
         return sourceTokenIndices;
-    }
-
-    /**
-     * @notice Helper function to remove Bean token from an array of token indices
-     * @param tokenIndices Array of token indices
-     * @return result Array with Bean token removed
-     */
-    function removeBeanToken(
-        uint8[] memory tokenIndices
-    ) internal view returns (uint8[] memory result) {
-        // Get the index of the Bean token
-        uint8 beanTokenIndex = tractorHelpers.getTokenIndex(beanstalk.getBeanToken());
-
-        // First check if the Bean token is in the array
-        bool foundBean = false;
-        uint256 beanPosition = 0;
-
-        for (uint256 i = 0; i < tokenIndices.length; i++) {
-            if (tokenIndices[i] == beanTokenIndex) {
-                foundBean = true;
-                beanPosition = i;
-                break;
-            }
-        }
-
-        // If Bean not found, return original array
-        if (!foundBean) {
-            return tokenIndices;
-        }
-
-        // Create a new array with one less element
-        result = new uint8[](tokenIndices.length - 1);
-
-        // Copy elements before Bean
-        for (uint256 i = 0; i < beanPosition; i++) {
-            result[i] = tokenIndices[i];
-        }
-
-        // Copy elements after Bean
-        for (uint256 i = beanPosition + 1; i < tokenIndices.length; i++) {
-            result[i - 1] = tokenIndices[i];
-        }
-
-        return result;
     }
 }
