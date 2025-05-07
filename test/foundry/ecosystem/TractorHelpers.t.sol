@@ -366,6 +366,7 @@ contract TractorHelpersTest is TractorTestHelper {
                 sourceTokenIndices,
                 totalBeansToWithdraw,
                 MAX_GROWN_STALK_PER_BDV,
+                false,
                 plan
             );
 
@@ -1405,6 +1406,7 @@ contract TractorHelpersTest is TractorTestHelper {
                 sourceTokenIndices,
                 (beanAmount * 1.2e6) / 1e6,
                 MAX_GROWN_STALK_PER_BDV,
+                false,
                 plan
             );
 

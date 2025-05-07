@@ -80,6 +80,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param excludeBean Whether to exclude the Bean token when using special strategies
      * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
@@ -88,6 +89,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
+        bool excludeBean,
         LibTractorHelpers.WithdrawalPlan memory excludingPlan
     ) public view returns (LibTractorHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
@@ -102,10 +104,10 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         if (tokenIndices.length == 1) {
             if (tokenIndices[0] == LOWEST_PRICE_STRATEGY) {
                 // Use ascending price strategy
-                (tokenIndices, ) = getTokensAscendingPrice();
+                (tokenIndices, ) = getTokensAscendingPrice(excludeBean);
             } else if (tokenIndices[0] == LOWEST_SEED_STRATEGY) {
                 // Use ascending seeds strategy
-                (tokenIndices, ) = getTokensAscendingSeeds();
+                (tokenIndices, ) = getTokensAscendingSeeds(excludeBean);
             }
         }
 
@@ -249,6 +251,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
                 tokenIndices,
                 targetAmount,
                 maxGrownStalkPerBdv,
+                false,
                 emptyPlan
             );
     }
