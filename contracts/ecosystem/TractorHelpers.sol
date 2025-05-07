@@ -703,22 +703,27 @@ contract TractorHelpers is Junction, PerFunctionPausable {
 
     /**
      * @notice Returns all whitelisted tokens sorted by price (ascending)
+     * @param excludeBean If true, excludes the Bean token from the returned arrays
      * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by price (ascending)
      * @return prices Array of corresponding prices
      */
-    function getTokensAscendingPrice()
-        public
-        view
-        returns (uint8[] memory tokenIndices, uint256[] memory prices)
-    {
+    function getTokensAscendingPrice(
+        bool excludeBean
+    ) public view returns (uint8[] memory tokenIndices, uint256[] memory prices) {
         // Get whitelisted tokens with their status
         IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
         require(whitelistStatuses.length > 0, "No whitelisted tokens");
+
+        address beanToken = beanstalk.getBeanToken();
 
         // Count active whitelisted tokens (not dewhitelisted)
         uint256 whitelistedCount = 0;
         for (uint256 i = 0; i < whitelistStatuses.length; i++) {
             if (whitelistStatuses[i].isWhitelisted) {
+                // Skip Bean token if excludeBean is true
+                if (excludeBean && whitelistStatuses[i].token == beanToken) {
+                    continue;
+                }
                 whitelistedCount++;
             }
         }
@@ -736,6 +741,10 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         uint256 activeIndex = 0;
         for (uint256 i = 0; i < whitelistStatuses.length; i++) {
             if (whitelistStatuses[i].isWhitelisted) {
+                // Skip Bean token if excludeBean is true
+                if (excludeBean && whitelistStatuses[i].token == beanToken) {
+                    continue;
+                }
                 // Keep the original index from whitelistStatuses for tokenIndices
                 tokenIndices[activeIndex] = uint8(i);
                 prices[activeIndex] = getTokenPrice(whitelistStatuses[i].token, p);
@@ -747,6 +756,19 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         (tokenIndices, prices) = sortTokenIndices(tokenIndices, prices);
 
         return (tokenIndices, prices);
+    }
+
+    /**
+     * @notice Returns all whitelisted tokens sorted by price (ascending)
+     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by price (ascending)
+     * @return prices Array of corresponding prices
+     */
+    function getTokensAscendingPrice()
+        public
+        view
+        returns (uint8[] memory tokenIndices, uint256[] memory prices)
+    {
+        return getTokensAscendingPrice(false);
     }
 
     /**

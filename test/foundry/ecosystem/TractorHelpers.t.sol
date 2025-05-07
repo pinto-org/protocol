@@ -800,6 +800,53 @@ contract TractorHelpersTest is TractorTestHelper {
         }
     }
 
+    function test_getTokensAscendingPriceExcludeBean() public {
+        // Get sorted tokens with Bean excluded
+        (uint8[] memory tokenIndices, uint256[] memory prices) = tractorHelpers
+            .getTokensAscendingPrice(true);
+
+        // Verify arrays are not empty and have same length
+        assertGt(tokenIndices.length, 0, "Should have at least one token");
+        assertEq(tokenIndices.length, prices.length, "Arrays should have same length");
+
+        // Get all token addresses
+        address[] memory allTokenAddresses = tractorHelpers.getWhitelistStatusAddresses();
+        address beanToken = bs.getBeanToken();
+
+        // Verify Bean token is not included
+        for (uint256 i = 0; i < tokenIndices.length; i++) {
+            assertNotEq(
+                allTokenAddresses[tokenIndices[i]],
+                beanToken,
+                "Bean token should be excluded"
+            );
+        }
+
+        // Verify arrays are sorted by price (ascending)
+        for (uint256 i = 0; i < prices.length - 1; i++) {
+            assertTrue(prices[i] <= prices[i + 1], "Prices should be sorted in ascending order");
+        }
+
+        // Verify indices correspond to whitelisted tokens (excluding Bean)
+        address[] memory whitelistedTokens = bs.getWhitelistedTokens();
+        uint256 expectedLength = 0;
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            if (whitelistedTokens[i] != beanToken) {
+                expectedLength++;
+            }
+        }
+        assertEq(
+            tokenIndices.length,
+            expectedLength,
+            "Should return all whitelisted tokens except Bean"
+        );
+
+        // Verify prices are non-zero
+        for (uint256 i = 0; i < prices.length; i++) {
+            assertGt(prices[i], 0, "Prices should be non-zero");
+        }
+    }
+
     function test_getAscendingPriceSeedsWithDewhitelistedTokens() public {
         // Deploy and set up a BEAN-USDC well to ensure more diversity in prices
         // Use the existing constant from Utils.sol
