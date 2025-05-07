@@ -656,22 +656,27 @@ contract TractorHelpers is Junction, PerFunctionPausable {
 
     /**
      * @notice Returns all whitelisted tokens sorted by seed value (ascending)
+     * @param excludeBean If true, excludes the Bean token from the returned arrays
      * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
      * @return seeds Array of corresponding seed values
      */
-    function getTokensAscendingSeeds()
-        public
-        view
-        returns (uint8[] memory tokenIndices, uint256[] memory seeds)
-    {
+    function getTokensAscendingSeeds(
+        bool excludeBean
+    ) public view returns (uint8[] memory tokenIndices, uint256[] memory seeds) {
         // Get whitelisted tokens with their status
         IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
         require(whitelistStatuses.length > 0, "No whitelisted tokens");
+
+        address beanToken = beanstalk.getBeanToken();
 
         // Count active whitelisted tokens (not dewhitelisted)
         uint256 whitelistedCount = 0;
         for (uint256 i = 0; i < whitelistStatuses.length; i++) {
             if (whitelistStatuses[i].isWhitelisted) {
+                // Skip Bean token if excludeBean is true
+                if (excludeBean && whitelistStatuses[i].token == beanToken) {
+                    continue;
+                }
                 whitelistedCount++;
             }
         }
@@ -686,6 +691,10 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         uint256 activeIndex = 0;
         for (uint256 i = 0; i < whitelistStatuses.length; i++) {
             if (whitelistStatuses[i].isWhitelisted) {
+                // Skip Bean token if excludeBean is true
+                if (excludeBean && whitelistStatuses[i].token == beanToken) {
+                    continue;
+                }
                 // Keep the original index from whitelistStatuses for tokenIndices
                 tokenIndices[activeIndex] = uint8(i);
                 seeds[activeIndex] = beanstalk
@@ -699,6 +708,19 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         (tokenIndices, seeds) = sortTokenIndices(tokenIndices, seeds);
 
         return (tokenIndices, seeds);
+    }
+
+    /**
+     * @notice Returns all whitelisted tokens sorted by seed value (ascending)
+     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
+     * @return seeds Array of corresponding seed values
+     */
+    function getTokensAscendingSeeds()
+        public
+        view
+        returns (uint8[] memory tokenIndices, uint256[] memory seeds)
+    {
+        return getTokensAscendingSeeds(false);
     }
 
     /**
