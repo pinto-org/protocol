@@ -230,8 +230,8 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         );
 
         // First withdraw Beans from which to tip Operator (using a newer deposit burns less stalk)
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
         if (params.opParams.operatorTipAmount > 0) {
-            LibTractorHelpers.WithdrawalPlan memory emptyPlan;
             tractorHelpers.withdrawBeansFromSources(
                 vars.account,
                 params.convertUpParams.sourceTokenIndices,
@@ -243,24 +243,14 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             );
         }
 
-        // Process source token indices based on strategy
-        uint8[] memory sourceTokenIndices = processSourceTokenIndices(
-            params.convertUpParams.sourceTokenIndices
-        );
-
-        console.log("sourceTokenIndices: ");
-        for (uint256 i = 0; i < sourceTokenIndices.length; i++) {
-            // log i
-            console.log("----- i: %s", i);
-            console.log(sourceTokenIndices[i]);
-        }
-
         // Get withdrawal plan for the tokens to convert
-        vars.withdrawalPlan = tractorHelpers.getWithdrawalPlan(
+        vars.withdrawalPlan = tractorHelpers.getWithdrawalPlanExcludingPlan(
             vars.account,
-            sourceTokenIndices,
+            params.convertUpParams.sourceTokenIndices,
             vars.currentPdvToConvert,
-            params.convertUpParams.maxGrownStalkPerBdv
+            params.convertUpParams.maxGrownStalkPerBdv,
+            true, // excludeBean from the withdrawal plan (only applies if using a strategy)
+            emptyPlan
         );
 
         // Apply slippage ratio if needed
@@ -524,39 +514,5 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         }
 
         return totalAmountConverted;
-    }
-
-    /**
-     * @notice Processes source token indices
-     * @param originalSourceTokenIndices Indices of source tokens to use for conversion
-     * @return sourceTokenIndices Processed source token indices with any strategies resolved
-     */
-    function processSourceTokenIndices(
-        uint8[] memory originalSourceTokenIndices
-    ) internal view returns (uint8[] memory sourceTokenIndices) {
-        // Create a memory copy of source token indices that we can modify
-        sourceTokenIndices = new uint8[](originalSourceTokenIndices.length);
-        for (uint256 i = 0; i < originalSourceTokenIndices.length; i++) {
-            sourceTokenIndices[i] = originalSourceTokenIndices[i];
-        }
-
-        // If strategy is LOWEST_PRICE_STRATEGY or LOWEST_SEED_STRATEGY, use the appropriate strategy with Bean excluded
-        if (
-            sourceTokenIndices.length > 0 &&
-            (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY ||
-                sourceTokenIndices[0] == LOWEST_SEED_STRATEGY)
-        ) {
-            // If lowest price strategy, get the tokens in ascending price order with Bean excluded
-            if (sourceTokenIndices[0] == LOWEST_PRICE_STRATEGY) {
-                (sourceTokenIndices, ) = tractorHelpers.getTokensAscendingPrice(true);
-            }
-
-            // If lowest seed strategy, get the tokens in ascending seed order with Bean excluded
-            if (sourceTokenIndices[0] == LOWEST_SEED_STRATEGY) {
-                (sourceTokenIndices, ) = tractorHelpers.getTokensAscendingSeeds(true);
-            }
-        }
-
-        return sourceTokenIndices;
     }
 }
