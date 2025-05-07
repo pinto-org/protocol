@@ -432,4 +432,8 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
         }
     }
+
+    function beanSown() external view returns (uint256) {
+        return s.sys.beanSown;
+    }
 }

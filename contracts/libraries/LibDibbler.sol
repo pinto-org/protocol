@@ -16,7 +16,6 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
 import {C} from "contracts/C.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title LibDibbler
@@ -70,7 +69,6 @@ library LibDibbler {
     ) internal returns (uint256 pods) {
         // `soil` is the remaining Soil
         (uint256 soil, uint256 _morningTemperature, bool abovePeg) = _totalSoilAndTemperature();
-        console.log("_morningTemperature", _morningTemperature);
 
         require(soil >= minSoil && beans >= minSoil, "Field: Soil Slippage");
         require(_morningTemperature >= minTemperature, "Field: Temperature Slippage");
@@ -259,28 +257,37 @@ library LibDibbler {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 maxTemperature = s.sys.weather.temp;
         uint256 delta = block.timestamp - s.sys.season.timestamp;
-        console.log("delta", delta);
-        console.log("maxTemperature", maxTemperature);
-        if (delta >= 600) {
+        uint256 morningDuration = s.sys.weather.morningDuration;
+        if (delta >= morningDuration) {
             return maxTemperature;
         }
 
-        uint256 morningTemperature = _scaleTemperature(delta);
+        uint256 scaledTemperature = _scaleTemperature(maxTemperature, morningDuration, delta);
 
         // set a temperature floor of 1% of max temperature
-        if (morningTemperature < maxTemperature / 100) {
+        if (scaledTemperature < maxTemperature / 100) {
             return maxTemperature / 100;
         }
 
-        return morningTemperature;
+        return scaledTemperature;
     }
 
-    function _scaleTemperature(uint256 delta) internal view returns (uint256) {
+    /**
+     * Formula:
+     * T * log2(delta * c + 1) / log2(morningDuration * c + 1)
+     * where c <= morningDuration.
+     */
+    function _scaleTemperature(
+        uint256 maxTemperature,
+        uint256 morningDuration,
+        uint256 delta
+    ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 maxTemperature = s.sys.weather.temp;
+        uint256 c = s.sys.weather.morningControl;
         return
-            (maxTemperature * PRBMathUD60x18.log2((((delta * 1e18)) / 240) + 1e18)) /
-            PRBMathUD60x18.log2((600e18 / 240) + 1e18);
+            (maxTemperature *
+                PRBMathUD60x18.log2(((delta * C.PRECISION * c) / C.PRECISION) + C.PRECISION)) /
+            PRBMathUD60x18.log2(((morningDuration * C.PRECISION * c) / C.PRECISION) + C.PRECISION);
     }
 
     /**

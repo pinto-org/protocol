@@ -19,6 +19,7 @@ import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
 import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title InitalizeDiamond
@@ -165,6 +166,8 @@ contract InitalizeDiamond {
 
         // init tractor.
         LibTractor._tractorStorage().activePublisher = payable(address(1));
+
+        console.log("morningTemperature", s.sys.weather.temp);
     }
 
     /**
@@ -188,7 +191,8 @@ contract InitalizeDiamond {
         s.sys.weather.temp = 1e6;
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
-
+        s.sys.weather.morningDuration = 600; // 10 minutes
+        s.sys.weather.morningControl = uint256(1e18) / 240; // 1 / 240 = 0.004166666667
         s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
     }
 

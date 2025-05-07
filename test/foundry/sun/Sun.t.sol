@@ -158,6 +158,7 @@ contract SunTest is TestHelper {
         uint256 beansToField;
         uint256 beansToSilo;
         if (deltaB > 0) {
+            bs.setSeasonAbovePeg(true);
             (beansToField, beansToSilo) = calcBeansToFieldAndSilo(uint256(deltaB), podsInField);
             beanstalkState.podRate = Decimal.ratio(podRate, 1e18);
             (soilIssuedAfterMorningAuction, soilIssuedRightNow) = getSoilIssuedAbovePeg(
@@ -200,6 +201,7 @@ contract SunTest is TestHelper {
         // needed to equal the newly paid off pods (scaled up or down).
         // 3) totalunharvestable() should decrease by the amount issued to the field.
         if (deltaB >= 0) {
+            console.log(bs.totalSoil());
             assertEq(bean.balanceOf(BEANSTALK), uint256(deltaB), "invalid bean minted +deltaB");
             assertEq(bs.totalSoil(), soilIssuedRightNow, "invalid soil @ +deltaB");
             assertEq(
@@ -211,6 +213,7 @@ contract SunTest is TestHelper {
         // if deltaB is negative, soil is issued equal to deltaB.
         // no bean should be minted.
         if (deltaB <= 0) {
+            bs.setSeasonAbovePeg(false);
             assertEq(
                 initialBeanBalance - bean.balanceOf(BEANSTALK),
                 0,
@@ -288,6 +291,7 @@ contract SunTest is TestHelper {
             // needed to equal the newly paid off pods (scaled up or down).
             // 3) totalunharvestable() should decrease by the amount issued to the field.
             if (deltaB >= 0) {
+                bs.setSeasonAbovePeg(true);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
                     uint256(deltaB),
@@ -345,6 +349,7 @@ contract SunTest is TestHelper {
             // if deltaB is negative, soil is issued equal to deltaB.
             // no bean should be minted.
             if (deltaB <= 0) {
+                bs.setSeasonAbovePeg(false);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
                     0,
@@ -430,6 +435,7 @@ contract SunTest is TestHelper {
             // needed to equal the newly paid off pods (scaled up or down).
             // 3) totalunharvestable() should decrease by the amount issued to the field.
             if (deltaB > 0) {
+                bs.setSeasonAbovePeg(true);
                 assertGe(
                     bean.balanceOf(BEANSTALK) - priorBeanInBeanstalk,
                     (uint256(deltaB) * 2) / 100, // Payback contract Bean are sent externally.
@@ -555,6 +561,7 @@ contract SunTest is TestHelper {
             // if deltaB is negative, soil is issued equal to deltaB.
             // no bean should be minted.
             if (deltaB <= 0) {
+                bs.setSeasonAbovePeg(false);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeanInBeanstalk,
                     0,
@@ -1607,10 +1614,11 @@ contract SunTest is TestHelper {
         soilIssuedAfterMorningAuction =
             (podsRipened * ONE_HUNDRED_TEMP) /
             (ONE_HUNDRED_TEMP + (bs.maxTemperature()));
+        console.log("soilIssuedAfterMorningAuction:", soilIssuedAfterMorningAuction);
 
         // scale soil issued above peg.
         soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, podRate);
-
+        console.log("bs.temperature():", bs.temperature());
         soilIssuedRightNow = soilIssuedAfterMorningAuction.mulDiv(
             bs.maxTemperature() + ONE_HUNDRED_TEMP,
             bs.temperature() + ONE_HUNDRED_TEMP
