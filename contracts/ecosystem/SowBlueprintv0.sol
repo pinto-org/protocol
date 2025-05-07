@@ -190,6 +190,8 @@ contract SowBlueprintv0 is PerFunctionPausable {
             params.sowParams.sourceTokenIndices,
             vars.totalBeansNeeded,
             params.sowParams.maxGrownStalkPerBdv,
+            false,
+            false,
             slippageRatio,
             LibTransfer.To.INTERNAL,
             vars.withdrawalPlan
@@ -438,6 +440,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,
             params.sowParams.maxGrownStalkPerBdv,
+            false,
             false,
             plan // Passed in plan is empty
         );

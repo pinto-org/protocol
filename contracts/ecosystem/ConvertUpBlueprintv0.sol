@@ -237,6 +237,8 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
                 params.convertUpParams.sourceTokenIndices,
                 uint256(params.opParams.operatorTipAmount),
                 params.convertUpParams.maxGrownStalkPerBdv,
+                true, // excludeBean from the withdrawal plan (only applies if using a strategy)
+                true, // excludeGerminatingDeposits from the withdrawal plan
                 params.convertUpParams.slippageRatio,
                 LibTransfer.To.INTERNAL,
                 emptyPlan
@@ -250,6 +252,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             vars.currentPdvToConvert,
             params.convertUpParams.maxGrownStalkPerBdv,
             true, // excludeBean from the withdrawal plan (only applies if using a strategy)
+            true, // excludeGerminatingDeposits from the withdrawal plan
             emptyPlan
         );
 

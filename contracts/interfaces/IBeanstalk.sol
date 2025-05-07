@@ -151,6 +151,12 @@ interface IBeanstalk {
         int96 stem
     ) external view returns (uint256, uint256);
 
+    function getHighestNonGerminatingStem(address token) external view returns (int96 stem);
+
+    function getHighestNonGerminatingStems(
+        address[] memory tokens
+    ) external view returns (int96[] memory highestNonGerminatingStems);
+
     function getMowStatus(
         address account,
         address[] calldata tokens

@@ -60,6 +60,32 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         uint256 totalAvailableBeans;
     }
 
+    struct WithdrawBeansLocalVars {
+        uint256 amountWithdrawn;
+        address beanToken;
+        address sourceToken;
+        address nonBeanToken;
+        uint256 totalLPAmount;
+        uint256 i;
+        uint256 j;
+    }
+
+    struct GetDepositStemsAndAmountsVars {
+        uint256[] depositIds;
+        int96 highestNonGerminatingStem;
+        uint256 remainingBeansNeeded;
+        uint256 currentIndex;
+        uint256 availableAmount;
+        address token;
+        int96 stem;
+        uint256 depositAmount;
+        uint256 remainingAmount;
+        uint256 amountFromDeposit;
+        uint256 i;
+        uint256 j;
+        uint256 k;
+    }
+
     constructor(
         address _beanstalk,
         address _beanstalkPrice,
@@ -81,6 +107,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @param excludeBean Whether to exclude the Bean token when using special strategies
+     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
      * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
@@ -90,6 +117,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
         bool excludeBean,
+        bool excludeGerminatingDeposits,
         LibTractorHelpers.WithdrawalPlan memory excludingPlan
     ) public view returns (LibTractorHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
@@ -142,6 +170,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
                     sourceToken,
                     vars.remainingBeansNeeded,
                     minStem,
+                    excludeGerminatingDeposits,
                     excludingPlan
                 );
 
@@ -175,6 +204,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
                     sourceToken,
                     vars.lpNeeded,
                     minStem,
+                    excludeGerminatingDeposits,
                     excludingPlan
                 );
 
@@ -242,7 +272,9 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
-        uint256 maxGrownStalkPerBdv
+        uint256 maxGrownStalkPerBdv,
+        bool excludeBean,
+        bool excludeGerminatingDeposits
     ) public view returns (LibTractorHelpers.WithdrawalPlan memory plan) {
         LibTractorHelpers.WithdrawalPlan memory emptyPlan;
         return
@@ -251,7 +283,8 @@ contract TractorHelpers is Junction, PerFunctionPausable {
                 tokenIndices,
                 targetAmount,
                 maxGrownStalkPerBdv,
-                false,
+                excludeBean,
+                excludeGerminatingDeposits,
                 emptyPlan
             );
     }
@@ -265,6 +298,8 @@ contract TractorHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param excludeBean Whether to exclude the Bean token when using special strategies
+     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
      * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
      * @param mode The transfer mode for sending tokens back to user
      * @param plan The withdrawal plan to use, or null to generate one
@@ -275,32 +310,43 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
+        bool excludeBean,
+        bool excludeGerminatingDeposits,
         uint256 slippageRatio,
         LibTransfer.To mode,
         LibTractorHelpers.WithdrawalPlan memory plan
     ) external payable whenFunctionNotPaused returns (uint256) {
+        WithdrawBeansLocalVars memory vars;
+
         // If passed in plan is empty, get one
         if (plan.sourceTokens.length == 0) {
-            plan = getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv);
+            plan = getWithdrawalPlan(
+                account,
+                tokenIndices,
+                targetAmount,
+                maxGrownStalkPerBdv,
+                excludeBean,
+                excludeGerminatingDeposits
+            );
         }
 
-        uint256 amountWithdrawn = 0;
-        address beanToken = beanstalk.getBeanToken();
+        vars.amountWithdrawn = 0;
+        vars.beanToken = beanstalk.getBeanToken();
 
         // Execute withdrawal plan
-        for (uint256 i = 0; i < plan.sourceTokens.length; i++) {
-            address sourceToken = plan.sourceTokens[i];
+        for (vars.i = 0; vars.i < plan.sourceTokens.length; vars.i++) {
+            vars.sourceToken = plan.sourceTokens[vars.i];
 
             // Skip Bean token for price manipulation check since it's not a Well
-            if (sourceToken != beanToken) {
+            if (vars.sourceToken != vars.beanToken) {
                 // Check for price manipulation in the Well
-                (address nonBeanToken, ) = IBeanstalk(beanstalk).getNonBeanTokenAndIndexFromWell(
-                    sourceToken
+                (vars.nonBeanToken, ) = IBeanstalk(beanstalk).getNonBeanTokenAndIndexFromWell(
+                    vars.sourceToken
                 );
                 require(
                     priceManipulation.isValidSlippage(
-                        IWell(sourceToken),
-                        IERC20(nonBeanToken),
+                        IWell(vars.sourceToken),
+                        IERC20(vars.nonBeanToken),
                         slippageRatio
                     ),
                     "Price manipulation detected"
@@ -308,39 +354,44 @@ contract TractorHelpers is Junction, PerFunctionPausable {
             }
 
             // If source is bean token, withdraw directly
-            if (sourceToken == beanToken) {
-                beanstalk.withdrawDeposits(sourceToken, plan.stems[i], plan.amounts[i], mode);
-                amountWithdrawn += plan.availableBeans[i];
+            if (vars.sourceToken == vars.beanToken) {
+                beanstalk.withdrawDeposits(
+                    vars.sourceToken,
+                    plan.stems[vars.i],
+                    plan.amounts[vars.i],
+                    mode
+                );
+                vars.amountWithdrawn += plan.availableBeans[vars.i];
             } else {
                 // For LP tokens, first withdraw LP tokens to the user's internal balance
                 beanstalk.withdrawDeposits(
-                    sourceToken,
-                    plan.stems[i],
-                    plan.amounts[i],
+                    vars.sourceToken,
+                    plan.stems[vars.i],
+                    plan.amounts[vars.i],
                     LibTransfer.To.INTERNAL
                 );
 
                 // Calculate total amount of LP tokens to transfer
-                uint256 totalLPAmount = 0;
-                for (uint256 j = 0; j < plan.amounts[i].length; j++) {
-                    totalLPAmount += plan.amounts[i][j];
+                vars.totalLPAmount = 0;
+                for (vars.j = 0; vars.j < plan.amounts[vars.i].length; vars.j++) {
+                    vars.totalLPAmount += plan.amounts[vars.i][vars.j];
                 }
 
                 // Transfer LP tokens to this contract's external balance
                 beanstalk.transferInternalTokenFrom(
-                    IERC20(sourceToken),
+                    IERC20(vars.sourceToken),
                     account,
                     address(this),
-                    totalLPAmount, // Use the total sum of all amounts
+                    vars.totalLPAmount, // Use the total sum of all amounts
                     LibTransfer.To.EXTERNAL
                 );
 
                 // Then remove liquidity to get Beans
-                IERC20(sourceToken).approve(sourceToken, totalLPAmount);
-                IWell(sourceToken).removeLiquidityOneToken(
-                    totalLPAmount,
-                    IERC20(beanToken),
-                    plan.availableBeans[i],
+                IERC20(vars.sourceToken).approve(vars.sourceToken, vars.totalLPAmount);
+                IWell(vars.sourceToken).removeLiquidityOneToken(
+                    vars.totalLPAmount,
+                    IERC20(vars.beanToken),
+                    plan.availableBeans[vars.i],
                     address(this),
                     type(uint256).max
                 );
@@ -348,20 +399,20 @@ contract TractorHelpers is Junction, PerFunctionPausable {
                 // Transfer from this contract's external balance to the user's internal/external balance depending on mode
                 if (mode == LibTransfer.To.INTERNAL) {
                     // approve spending of Beans from this contract's external balance
-                    IERC20(beanToken).approve(address(beanstalk), plan.availableBeans[i]);
+                    IERC20(vars.beanToken).approve(address(beanstalk), plan.availableBeans[vars.i]);
                     beanstalk.sendTokenToInternalBalance(
-                        beanToken,
+                        vars.beanToken,
                         account,
-                        plan.availableBeans[i]
+                        plan.availableBeans[vars.i]
                     );
                 } else {
-                    IERC20(beanToken).transfer(account, plan.availableBeans[i]);
+                    IERC20(vars.beanToken).transfer(account, plan.availableBeans[vars.i]);
                 }
-                amountWithdrawn += plan.availableBeans[i];
+                vars.amountWithdrawn += plan.availableBeans[vars.i];
             }
         }
 
-        return amountWithdrawn;
+        return vars.amountWithdrawn;
     }
 
     /**
@@ -496,6 +547,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
      * @param token The token to get deposits for
      * @param amount The amount of tokens to withdraw
      * @param minStem The minimum stem value to consider for withdrawal
+     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
      * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return stems Array of stems in descending order
      * @return amounts Array of corresponding amounts for each stem
@@ -506,80 +558,99 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         address token,
         uint256 amount,
         int96 minStem,
+        bool excludeGerminatingDeposits,
         LibTractorHelpers.WithdrawalPlan memory excludingPlan
     )
         public
         view
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
-        uint256[] memory depositIds = beanstalk.getTokenDepositIdsForAccount(account, token);
-        if (depositIds.length == 0) return (new int96[](0), new uint256[](0), 0);
+        GetDepositStemsAndAmountsVars memory vars;
+        vars.token = token;
+        vars.depositIds = beanstalk.getTokenDepositIdsForAccount(account, token);
+        if (vars.depositIds.length == 0) return (new int96[](0), new uint256[](0), 0);
+
+        // Get the highest non-germinating stem for the token if needed
+        if (excludeGerminatingDeposits) {
+            vars.highestNonGerminatingStem = beanstalk.getHighestNonGerminatingStem(token);
+        }
 
         // Initialize arrays with max possible size
-        stems = new int96[](depositIds.length);
-        amounts = new uint256[](depositIds.length);
+        int96[] memory tempStems = new int96[](vars.depositIds.length);
+        uint256[] memory tempAmounts = new uint256[](vars.depositIds.length);
 
         // Track state
-        uint256 remainingBeansNeeded = amount;
-        uint256 currentIndex;
-        availableAmount = 0;
+        vars.remainingBeansNeeded = amount;
+        vars.currentIndex = 0;
+        vars.availableAmount = 0;
 
         // Process deposits in reverse order (highest stem to lowest)
-        for (uint256 i = depositIds.length; i > 0; i--) {
-            (, int96 stem) = getAddressAndStem(depositIds[i - 1]);
+        for (vars.i = vars.depositIds.length; vars.i > 0; vars.i--) {
+            (, vars.stem) = getAddressAndStem(vars.depositIds[vars.i - 1]);
 
             // Skip if stem is less than minStem
-            if (stem < minStem) {
+            if (vars.stem < minStem) {
                 continue;
             }
 
-            (uint256 depositAmount, ) = beanstalk.getDeposit(account, token, stem);
+            // Skip if deposit is germinating and excludeGerminatingDeposits is true
+            if (excludeGerminatingDeposits && vars.stem > vars.highestNonGerminatingStem) {
+                continue;
+            }
+
+            (vars.depositAmount, ) = beanstalk.getDeposit(account, token, vars.stem);
 
             // Check if this deposit is in the existing plan and calculate remaining amount
-            uint256 remainingAmount = depositAmount;
-            for (uint256 j = 0; j < excludingPlan.sourceTokens.length; j++) {
-                if (excludingPlan.sourceTokens[j] == token) {
-                    for (uint256 k = 0; k < excludingPlan.stems[j].length; k++) {
-                        if (excludingPlan.stems[j][k] == stem) {
+            vars.remainingAmount = vars.depositAmount;
+            for (vars.j = 0; vars.j < excludingPlan.sourceTokens.length; vars.j++) {
+                if (excludingPlan.sourceTokens[vars.j] == token) {
+                    for (vars.k = 0; vars.k < excludingPlan.stems[vars.j].length; vars.k++) {
+                        if (excludingPlan.stems[vars.j][vars.k] == vars.stem) {
                             // If the deposit was fully used in the existing plan, skip it
-                            if (excludingPlan.amounts[j][k] >= depositAmount) {
-                                remainingAmount = 0;
+                            if (excludingPlan.amounts[vars.j][vars.k] >= vars.depositAmount) {
+                                vars.remainingAmount = 0;
                                 break;
                             }
                             // Otherwise, subtract the used amount from the remaining amount
-                            remainingAmount = depositAmount - excludingPlan.amounts[j][k];
+                            vars.remainingAmount =
+                                vars.depositAmount -
+                                excludingPlan.amounts[vars.j][vars.k];
                             break;
                         }
                     }
-                    if (remainingAmount == 0) break;
+                    if (vars.remainingAmount == 0) break;
                 }
             }
 
             // Skip if no remaining amount available
-            if (remainingAmount == 0) continue;
+            if (vars.remainingAmount == 0) continue;
 
             // Calculate amount to take from this deposit
-            uint256 amountFromDeposit = remainingAmount;
-            if (remainingAmount > remainingBeansNeeded) {
-                amountFromDeposit = remainingBeansNeeded;
+            vars.amountFromDeposit = vars.remainingAmount;
+            if (vars.remainingAmount > vars.remainingBeansNeeded) {
+                vars.amountFromDeposit = vars.remainingBeansNeeded;
             }
 
-            stems[currentIndex] = stem;
-            amounts[currentIndex] = amountFromDeposit;
-            availableAmount += amountFromDeposit;
-            remainingBeansNeeded -= amountFromDeposit;
-            currentIndex++;
+            tempStems[vars.currentIndex] = vars.stem;
+            tempAmounts[vars.currentIndex] = vars.amountFromDeposit;
+            vars.availableAmount += vars.amountFromDeposit;
+            vars.remainingBeansNeeded -= vars.amountFromDeposit;
+            vars.currentIndex++;
 
-            if (remainingBeansNeeded == 0) break;
+            if (vars.remainingBeansNeeded == 0) break;
         }
 
-        // Resize arrays using assembly to match currentIndex
-        assembly {
-            mstore(stems, currentIndex)
-            mstore(amounts, currentIndex)
+        // Create new arrays with the correct size
+        stems = new int96[](vars.currentIndex);
+        amounts = new uint256[](vars.currentIndex);
+
+        // Copy data to the resized arrays
+        for (vars.i = 0; vars.i < vars.currentIndex; vars.i++) {
+            stems[vars.i] = tempStems[vars.i];
+            amounts[vars.i] = tempAmounts[vars.i];
         }
 
-        return (stems, amounts, availableAmount);
+        return (stems, amounts, vars.availableAmount);
     }
 
     /**
@@ -604,7 +675,8 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
         LibTractorHelpers.WithdrawalPlan memory emptyPlan;
-        return getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, emptyPlan);
+        return
+            getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, false, emptyPlan);
     }
 
     /**

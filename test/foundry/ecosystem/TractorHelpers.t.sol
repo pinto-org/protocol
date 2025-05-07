@@ -129,6 +129,7 @@ contract TractorHelpersTest is TractorTestHelper {
                         BEAN,
                         testAmounts[i],
                         minStems[j],
+                        false,
                         emptyPlan
                     );
 
@@ -173,7 +174,7 @@ contract TractorHelpersTest is TractorTestHelper {
 
         // Test with non-existent account
         (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = tractorHelpers
-            .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, emptyPlan);
+            .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, false, emptyPlan);
         assertEq(noStems.length, 0, "Should return empty stems array for non-existent account");
         assertEq(noAmounts.length, 0, "Should return empty amounts array for non-existent account");
         assertEq(noAvailable, 0, "Should return 0 available for non-existent account");
@@ -231,7 +232,14 @@ contract TractorHelpersTest is TractorTestHelper {
 
         // Get deposit stems and amounts to withdraw
         (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = tractorHelpers
-            .getDepositStemsAndAmountsToWithdraw(testWallet, PINTO, requestAmount, 0, emptyPlan);
+            .getDepositStemsAndAmountsToWithdraw(
+                testWallet,
+                PINTO,
+                requestAmount,
+                0,
+                false,
+                emptyPlan
+            );
 
         // uint256 gasUsed = gasBefore - gasleft();
         // console.log("Gas used for getDepositStemsAndAmountsToWithdraw:", gasUsed);
@@ -356,7 +364,9 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV
+            MAX_GROWN_STALK_PER_BDV,
+            false,
+            false
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
@@ -366,6 +376,7 @@ contract TractorHelpersTest is TractorTestHelper {
                 sourceTokenIndices,
                 totalBeansToWithdraw,
                 MAX_GROWN_STALK_PER_BDV,
+                false,
                 false,
                 plan
             );
@@ -455,7 +466,7 @@ contract TractorHelpersTest is TractorTestHelper {
         );
     }
 
-    function test_withdrawBeansHelper() public {
+    function test_withdrawBeansHelperBasic() public {
         // Setup: Create deposits in both Bean and LP tokens
         uint256 beanAmount = 1000e6;
 
@@ -585,7 +596,9 @@ contract TractorHelpersTest is TractorTestHelper {
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV
+                MAX_GROWN_STALK_PER_BDV,
+                false,
+                false
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
@@ -594,6 +607,8 @@ contract TractorHelpersTest is TractorTestHelper {
                 sourceTokenIndices,
                 withdrawAmount,
                 MAX_GROWN_STALK_PER_BDV,
+                false,
+                false,
                 0.01e18, // 1%
                 LibTransfer.To.EXTERNAL,
                 plan
@@ -1290,7 +1305,9 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV
+            MAX_GROWN_STALK_PER_BDV,
+            false,
+            false
         );
 
         // totalAvailableBeans should be 1900e6
@@ -1396,7 +1413,9 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV
+            MAX_GROWN_STALK_PER_BDV,
+            false,
+            false
         );
 
         // Get the second plan excluding the first plan
@@ -1406,6 +1425,7 @@ contract TractorHelpersTest is TractorTestHelper {
                 sourceTokenIndices,
                 (beanAmount * 1.2e6) / 1e6,
                 MAX_GROWN_STALK_PER_BDV,
+                false,
                 false,
                 plan
             );
