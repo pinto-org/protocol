@@ -219,6 +219,38 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
     }
 
+    /**
+     * @notice Helper function to get deposit amounts for BEAN-ETH and BEAN-USDC wells
+     * @param user The address of the user
+     * @return beanEthAmount The amount of BEAN-ETH deposited
+     * @return beanUsdcAmount The amount of BEAN-USDC deposited
+     */
+    function getWellDepositAmounts(
+        address user
+    ) internal view returns (uint256 beanEthAmount, uint256 beanUsdcAmount) {
+        // Get BEAN-ETH deposit
+        uint256[] memory beanEthDeposits = bs.getTokenDepositIdsForAccount(user, BEAN_ETH_WELL);
+        if (beanEthDeposits.length > 0) {
+            (uint256 stem, uint256 amount) = bs.getDeposit(
+                user,
+                BEAN_ETH_WELL,
+                int96(uint96(beanEthDeposits[0]))
+            );
+            beanEthAmount = amount;
+        }
+
+        // Get BEAN-USDC deposit
+        uint256[] memory beanUsdcDeposits = bs.getTokenDepositIdsForAccount(user, BEAN_USDC_WELL);
+        if (beanUsdcDeposits.length > 0) {
+            (uint256 stem, uint256 amount) = bs.getDeposit(
+                user,
+                BEAN_USDC_WELL,
+                int96(uint96(beanUsdcDeposits[0]))
+            );
+            beanUsdcAmount = amount;
+        }
+    }
+
     function test_convertUpBlueprintv0_LowestPriceStrategy() public {
         deployExtraWells(true, true);
 
@@ -239,6 +271,11 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         // Mint and deposit 500e6 USDC
         mintAndDepositBeanUSDC(state.user, 500e6);
 
+        // Get initial deposit amounts
+        (uint256 initialBeanEthAmount, uint256 initialBeanUsdcAmount) = getWellDepositAmounts(
+            state.user
+        );
+
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
 
@@ -253,7 +290,6 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             "User should not have Bean deposits before conversion"
         );
 
-        console.log("state.convertAmount: %s", state.convertAmount);
         state.convertAmount = 800e6;
 
         // Log token balances before conversion
@@ -301,21 +337,28 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             "User should have received exactly one Bean deposit from conversion"
         );
 
-        // Log the deposit for debugging
-        console.log("Bean deposit from conversion: %s", finalBeanDeposits[0]);
-
-        for (uint256 i = 0; i < 8; i++) {
-            console.log("==================== Iteration %s ====================", i);
-            logTokenPrices();
-            logUsersDeposits(state.user);
-
+        for (uint256 i = 0; i < 7; i++) {
             // Fast forward time
             vm.warp(block.timestamp + 301);
 
-            console.log("-- Executing convert blueprint");
             // Execute the conversion again
             executeRequisition(state.operator, req, address(bs));
         }
+
+        // Get final deposit amounts
+        (uint256 finalBeanEthAmount, uint256 finalBeanUsdcAmount) = getWellDepositAmounts(
+            state.user
+        );
+
+        // Verify that both amounts have decreased
+        assertTrue(
+            finalBeanEthAmount < initialBeanEthAmount,
+            "BEAN-ETH deposit amount should have decreased"
+        );
+        assertTrue(
+            finalBeanUsdcAmount < initialBeanUsdcAmount,
+            "BEAN-USDC deposit amount should have decreased"
+        );
     }
 
     /**
