@@ -72,7 +72,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             stems,
             amounts,
             outputToken,
-            LibConvert.MAX_GROWN_STALK_SLIPPAGE,
+            int256(LibConvert.MAX_GROWN_STALK_SLIPPAGE),
             advancedPipeCalls
         );
         return (
@@ -94,7 +94,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         int96[] calldata stems,
         uint256[] calldata amounts,
         address outputToken,
-        uint256 grownStalkSlippage,
+        int256 grownStalkSlippage,
         AdvancedPipeCall[] memory advancedPipeCalls
     )
         external
@@ -137,7 +137,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         int96[] calldata stems,
         uint256[] calldata amounts,
         address outputToken,
-        uint256 grownStalkSlippage,
+        int256 grownStalkSlippage,
         AdvancedPipeCall[] memory advancedPipeCalls
     ) internal returns (pipelineReturnParams memory returnParams) {
         // Require that input and output tokens be wells.

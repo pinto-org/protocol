@@ -22,7 +22,7 @@ import "forge-std/console.sol";
  * peg maintainence. See {LibConvert} for more infomation on specific convert types.
  */
 contract ConvertTest is TestHelper {
-    uint256 MAX_GROWN_STALK_SLIPPAGE = 1e18;
+    int256 MAX_GROWN_STALK_SLIPPAGE = 1e18;
     struct ConvertData {
         uint256 initalWellBeanBalance;
         uint256 initalLPbalance;
