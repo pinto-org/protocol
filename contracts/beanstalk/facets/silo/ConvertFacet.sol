@@ -65,7 +65,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
-        return _convert(convertData, stems, amounts, LibConvert.ZERO_STALK_SLIPPAGE);
+        return _convert(convertData, stems, amounts, int256(LibConvert.ZERO_STALK_SLIPPAGE));
     }
 
     /**
@@ -76,7 +76,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         bytes calldata convertData,
         int96[] memory stems,
         uint256[] memory amounts,
-        uint256 grownStalkSlippage
+        int256 grownStalkSlippage
     )
         external
         payable
@@ -96,7 +96,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         bytes calldata convertData,
         int96[] memory stems,
         uint256[] memory amounts,
-        uint256 grownStalkSlippage
+        int256 grownStalkSlippage
     )
         internal
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
@@ -151,7 +151,6 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             convertData,
             cp.fromToken,
             cp.toToken,
-            fromBdv,
             toBdv
         );
 

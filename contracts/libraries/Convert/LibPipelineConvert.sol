@@ -87,7 +87,7 @@ library LibPipelineConvert {
         address outputToken,
         LibConvert.DeltaBStorage memory dbs,
         uint256 overallConvertCapacity,
-        uint256 fromBdv,
+        uint256 toBdv,
         uint256[] memory initialLpSupply
     ) public returns (uint256) {
         dbs.afterOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
@@ -114,7 +114,7 @@ library LibPipelineConvert {
         return
             LibConvert.applyStalkPenalty(
                 dbs,
-                fromBdv,
+                toBdv,
                 overallConvertCapacity,
                 inputToken,
                 outputToken
@@ -182,7 +182,6 @@ library LibPipelineConvert {
         bytes calldata convertData,
         address fromToken,
         address toToken,
-        uint256 fromBdv,
         uint256 toBdv
     ) public returns (uint256 grownStalk) {
         LibConvertData.ConvertKind kind = convertData.convertKind();
@@ -197,7 +196,7 @@ library LibPipelineConvert {
                 toToken,
                 pipeData.deltaB,
                 pipeData.overallConvertCapacity,
-                fromBdv,
+                toBdv,
                 pipeData.initialLpSupply
             );
 
