@@ -1678,7 +1678,7 @@ contract PipelineConvertTest is TestHelper {
         uint256 amount,
         int96 stem,
         address user,
-        uint256 grownStalkSlippage
+        int256 grownStalkSlippage
     ) public returns (int96 outputStem, uint256 outputAmount) {
         // do the convert
 

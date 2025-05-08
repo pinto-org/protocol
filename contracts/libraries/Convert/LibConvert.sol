@@ -786,19 +786,30 @@ library LibConvert {
      * @param newGrownStalk The grown stalk of the deposit after applying the various penalty/bonus.
      * @param originalGrownStalk The original grown stalk of the deposit(s) that were converted.
      * @param grownStalkSlippage The slippage percentage. 100% = 1e18.
-     * @dev assumes the user is willing to take positive grown stalk slippage.
+     * @dev a negative grownStalkSlippage implies the user requires less grown stalk than they started with. (i.e a bonus)
      */
     function checkGrownStalkSlippage(
         uint256 newGrownStalk,
         uint256 originalGrownStalk,
-        uint256 grownStalkSlippage
+        int256 grownStalkSlippage
     ) internal view {
-        // cap grown stalk slippage at 100%
-        if (grownStalkSlippage > MAX_GROWN_STALK_SLIPPAGE)
-            grownStalkSlippage = MAX_GROWN_STALK_SLIPPAGE;
-        uint256 minimumStalk = originalGrownStalk
-            .mul(MAX_GROWN_STALK_SLIPPAGE - grownStalkSlippage)
-            .div(MAX_GROWN_STALK_SLIPPAGE);
+        uint256 minimumStalk;
+
+        if (grownStalkSlippage > 0) {
+            // if the slippage is greater than 100%, any grown stalk is acceptable.
+            if (uint256(grownStalkSlippage) >= MAX_GROWN_STALK_SLIPPAGE) {
+                return;
+            }
+            minimumStalk =
+                (originalGrownStalk * (MAX_GROWN_STALK_SLIPPAGE - uint256(grownStalkSlippage))) /
+                MAX_GROWN_STALK_SLIPPAGE;
+        } else {
+            // negative slippage implies the user requires more grown stalk than they started with.
+            minimumStalk =
+                (originalGrownStalk * (MAX_GROWN_STALK_SLIPPAGE + uint256(-grownStalkSlippage))) /
+                MAX_GROWN_STALK_SLIPPAGE;
+        }
+
         require(newGrownStalk >= minimumStalk, "Convert: Stalk slippage");
     }
 
