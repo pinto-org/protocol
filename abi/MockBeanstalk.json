@@ -6930,7 +6930,7 @@
   },
   {
     "inputs": [],
-    "name": "getConvertBonusBdvAmountAndCapacity",
+    "name": "getConvertStalkPerBdvBonusAndMaximumCapacity",
     "outputs": [
       {
         "internalType": "uint256",
@@ -6948,7 +6948,7 @@
   },
   {
     "inputs": [],
-    "name": "getConvertBonusBdvAmountAndRemainingCapacity",
+    "name": "getConvertStalkPerBdvBonusAndRemainingCapacity",
     "outputs": [
       {
         "internalType": "uint256",
