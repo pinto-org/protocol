@@ -32,7 +32,6 @@ import {Pipeline} from "contracts/pipeline/Pipeline.sol";
 
 // OTHER INTERFACES //
 import {IUSDC} from "contracts/interfaces/IUSDC.sol";
-
 /**
  * @title TestHelper
  * @notice Test helper contract for Beanstalk tests.

@@ -1912,4 +1912,5 @@ interface IMockFBeanstalk {
         uint128 thisSeasonBeanSown
     ) external;
 
+    function setSeasonAbovePeg(bool abovePeg) external;
 }
