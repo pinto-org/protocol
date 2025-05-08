@@ -107,7 +107,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     }
 
     // Break out the setup into a separate function
-    function setupConvertUpBlueprintv0Test() internal returns (TestState memory) {
+    function setupConvertUpBlueprintv0Test(bool germinate) internal returns (TestState memory) {
         TestState memory state;
         state.user = farmers[0];
         state.operator = address(this);
@@ -148,9 +148,17 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             IWell(BEAN_WSTETH_WELL).getReserves()[1]
         );
 
-        // Make sure LP has germinated - already handled by mintAndDepositBeanETH which calls siloSunrise
-        passGermination();
+        if (germinate) {
+            // Make sure LP has germinated - already handled by mintAndDepositBeanETH which calls siloSunrise
+            passGermination();
+        }
 
+        return state;
+    }
+
+    // Helper for when we need to pass germination
+    function setupConvertUpBlueprintv0Test() internal returns (TestState memory) {
+        TestState memory state = setupConvertUpBlueprintv0Test(true);
         return state;
     }
 

@@ -1344,6 +1344,209 @@ contract TractorHelpersTest is TractorTestHelper {
         console.log("Total available beans:", plan.totalAvailableBeans);*/
     }
 
+    function test_getWithdrawalPlanWithExclusions() public {
+        uint256 beanAmount = 1000e6;
+
+        // Deposit Beans
+        mintTokensToUser(farmers[0], BEAN, beanAmount * 2);
+
+        // Deposit LP tokens in BEAN_ETH_WELL
+        vm.prank(farmers[0]);
+        MockToken(BEAN).approve(BEAN_ETH_WELL, beanAmount);
+
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = beanAmount;
+        tokenAmountsIn[1] = 0;
+
+        vm.prank(farmers[0]);
+        uint256 lpAmountOut = IWell(BEAN_ETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            farmers[0],
+            type(uint256).max
+        );
+
+        vm.prank(farmers[0]);
+        MockToken(BEAN_ETH_WELL).approve(address(bs), lpAmountOut);
+
+        // First create some fully germinated deposits
+        // Deposit both Bean and LP tokens
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Advance at least 2 seasons to complete germination
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        // Deposit again
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Advance again to complete second set of deposits
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        // Now create deposits that will remain germinating
+        // Create two more deposits that will remain germinating
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Create one more set of germinating deposits in the next season
+        bs.siloSunrise(0); // Advance one season
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Do NOT advance seasons after these last deposits to ensure they remain germinating
+
+        uint256 withdrawalAmount = 2000e6; // Request more than available
+        uint8[] memory strategyIndices = new uint8[](2);
+        strategyIndices[0] = 0; // BEAN
+        strategyIndices[1] = 1; // BEAN_ETH_WELL
+
+        // Test case 1: No exclusions (both false)
+        LibTractorHelpers.WithdrawalPlan memory planNoExclusions = tractorHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndices,
+            withdrawalAmount,
+            MAX_GROWN_STALK_PER_BDV,
+            false, // Don't exclude Bean
+            false // Don't exclude germinating deposits
+        );
+
+        // Verify both BEAN and BEAN_ETH_WELL are included
+        assertEq(planNoExclusions.sourceTokens.length, 2, "Should include both token types");
+        bool hasBeanToken = false;
+        bool hasLpToken = false;
+
+        for (uint i = 0; i < planNoExclusions.sourceTokens.length; i++) {
+            if (planNoExclusions.sourceTokens[i] == BEAN) hasBeanToken = true;
+            if (planNoExclusions.sourceTokens[i] == BEAN_ETH_WELL) hasLpToken = true;
+        }
+
+        assertTrue(hasBeanToken, "Should include Bean token without exclusions");
+        assertTrue(hasLpToken, "Should include LP token without exclusions");
+
+        // Should include all 4 deposits of each token type (both germinating and non-germinating)
+        uint8 beanIndex = hasBeanToken ? (planNoExclusions.sourceTokens[0] == BEAN ? 0 : 1) : 0;
+        uint8 lpIndex = hasLpToken
+            ? (planNoExclusions.sourceTokens[0] == BEAN_ETH_WELL ? 0 : 1)
+            : 0;
+
+        if (hasBeanToken) {
+            assertEq(
+                planNoExclusions.stems[beanIndex].length,
+                4,
+                "Should include all Bean deposits"
+            );
+        }
+
+        if (hasLpToken) {
+            assertEq(planNoExclusions.stems[lpIndex].length, 4, "Should include all LP deposits");
+        }
+
+        // Test case 2: Exclude Bean only - use LOWEST_PRICE_STRATEGY (type(uint8).max)
+        uint8[] memory strategyIndex = new uint8[](1);
+        strategyIndex[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
+
+        LibTractorHelpers.WithdrawalPlan memory planExcludeBean = tractorHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndex,
+            withdrawalAmount,
+            MAX_GROWN_STALK_PER_BDV,
+            true, // Exclude Bean
+            false // Don't exclude germinating deposits
+        );
+
+        // Verify only BEAN_ETH_WELL is included
+        assertEq(planExcludeBean.sourceTokens.length, 1, "Should only include LP token");
+        assertEq(planExcludeBean.sourceTokens[0], BEAN_ETH_WELL, "Should only include LP token");
+
+        // Should still include all 4 LP deposits
+        assertEq(planExcludeBean.stems[0].length, 4, "Should include all LP deposits");
+
+        // Test case 3: Exclude germinating deposits only
+        LibTractorHelpers.WithdrawalPlan memory planExcludeGerminating = tractorHelpers
+            .getWithdrawalPlan(
+                farmers[0],
+                strategyIndices,
+                withdrawalAmount,
+                MAX_GROWN_STALK_PER_BDV,
+                false, // Don't exclude Bean
+                true // Exclude germinating deposits
+            );
+
+        // Should still include both token types
+        assertEq(planExcludeGerminating.sourceTokens.length, 2, "Should include both token types");
+
+        hasBeanToken = false;
+        hasLpToken = false;
+
+        for (uint i = 0; i < planExcludeGerminating.sourceTokens.length; i++) {
+            if (planExcludeGerminating.sourceTokens[i] == BEAN) hasBeanToken = true;
+            if (planExcludeGerminating.sourceTokens[i] == BEAN_ETH_WELL) hasLpToken = true;
+        }
+
+        assertTrue(hasBeanToken, "Should include Bean token");
+        assertTrue(hasLpToken, "Should include LP token");
+
+        // Calculate indices again for this plan
+        beanIndex = hasBeanToken ? (planExcludeGerminating.sourceTokens[0] == BEAN ? 0 : 1) : 0;
+        lpIndex = hasLpToken
+            ? (planExcludeGerminating.sourceTokens[0] == BEAN_ETH_WELL ? 0 : 1)
+            : 0;
+
+        // Should only include non-germinating deposits (2 of each token type)
+        if (hasBeanToken) {
+            assertEq(
+                planExcludeGerminating.stems[beanIndex].length,
+                2,
+                "Should only include non-germinating Bean deposits"
+            );
+        }
+
+        if (hasLpToken) {
+            assertEq(
+                planExcludeGerminating.stems[lpIndex].length,
+                2,
+                "Should only include non-germinating LP deposits"
+            );
+        }
+
+        // Test case 4: Exclude both Bean and germinating deposits
+        LibTractorHelpers.WithdrawalPlan memory planExcludeBoth = tractorHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndex, // Use LOWEST_PRICE_STRATEGY
+            withdrawalAmount,
+            MAX_GROWN_STALK_PER_BDV,
+            true, // Exclude Bean
+            true // Exclude germinating deposits
+        );
+
+        // Verify only BEAN_ETH_WELL is included
+        assertEq(planExcludeBoth.sourceTokens.length, 1, "Should only include LP token");
+        assertEq(planExcludeBoth.sourceTokens[0], BEAN_ETH_WELL, "Should only include LP token");
+
+        // Should only include non-germinating LP deposits (2)
+        assertEq(
+            planExcludeBoth.stems[0].length,
+            2,
+            "Should only include non-germinating LP deposits"
+        );
+    }
+
     function test_withdrawBeansHelperMultipleTokensExcludeExistingPlan() public {
         // Setup: Create deposits in both Bean and LP tokens
         uint256 beanAmount = 1000e6;
