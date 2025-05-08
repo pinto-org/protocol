@@ -79,7 +79,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @param minTimeBetweenConverts Minimum time (in seconds) between convert executions
      * @param minConvertBonusCapacity Minimum capacity required for convert bonus
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV to withdraw from deposits
-     * @param grownStalkPerBdvBonusThreshold Threshold for considering a deposit to have a good stalk-to-BDV ratio
+     * @param minGrownStalkPerBdvBonusThreshold Threshold for considering a deposit to have a good stalk-to-BDV ratio
      * @param maxPriceToConvertUp Maximum price at which to convert up (for MEV resistance)
      * @param minPriceToConvertUp Minimum price at which to convert up (for range targeting)
      * @param maxGrownStalkPerPdvPenalty Maximum grown stalk per PDV penalty to accept
@@ -97,12 +97,12 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         // Bonus/capacity parameters
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 grownStalkPerBdvBonusThreshold;
+        uint256 minGrownStalkPerBdvBonusThreshold;
         // Price constraints
         uint256 maxPriceToConvertUp;
         uint256 minPriceToConvertUp;
         // Penalty tolerance
-        uint256 maxGrownStalkPerPdvPenalty;
+        int256 maxGrownStalkPerPdvPenalty;
         // Execution parameters
         uint256 slippageRatio;
     }
@@ -350,6 +350,32 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
                 "Too soon after last execution"
             );
         }
+
+        // Check convert bonus conditions
+        if (
+            params.convertUpParams.minGrownStalkPerBdvBonusThreshold > 0 ||
+            params.convertUpParams.minConvertBonusCapacity > 0
+        ) {
+            // Get current bonus amount and remaining capacity
+            (uint256 bonusStalkPerBdv, uint256 remainingCapacity) = beanstalk
+                .getConvertBonusBdvAmountAndRemainingCapacity();
+
+            // Check if bonus amount meets threshold
+            if (params.convertUpParams.minGrownStalkPerBdvBonusThreshold > 0) {
+                require(
+                    bonusStalkPerBdv >= params.convertUpParams.minGrownStalkPerBdvBonusThreshold,
+                    "Convert bonus amount below threshold"
+                );
+            }
+
+            // Check if remaining capacity meets minimum
+            if (params.convertUpParams.minConvertBonusCapacity > 0) {
+                require(
+                    remainingCapacity >= params.convertUpParams.minConvertBonusCapacity,
+                    "Convert bonus capacity below minimum"
+                );
+            }
+        }
     }
 
     /**
@@ -444,7 +470,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
     function executeConvertUp(
         ConvertUpLocalVars memory vars,
         uint256 slippageRatio,
-        uint256 maxGrownStalkPerPdvPenalty
+        int256 maxGrownStalkPerPdvPenalty
     ) internal returns (uint256 totalAmountConverted) {
         address beanToken = beanstalk.getBeanToken();
         totalAmountConverted = 0;

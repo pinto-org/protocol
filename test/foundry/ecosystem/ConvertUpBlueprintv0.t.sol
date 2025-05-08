@@ -25,7 +25,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
-    uint256 constant MAX_GROWN_STALK_PER_PDV_PENALTY = 1e18;
+    int256 constant MAX_GROWN_STALK_PER_PDV_PENALTY = 1e18;
 
     struct TestState {
         address user;
@@ -49,10 +49,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         uint256 minTimeBetweenConverts;
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 grownStalkPerBdvBonusThreshold;
+        uint256 minGrownStalkPerBdvBonusThreshold;
         uint256 minPriceToConvertUp;
         uint256 maxPriceToConvertUp;
-        uint256 maxGrownStalkPerPdvPenalty;
+        int256 maxGrownStalkPerPdvPenalty;
         uint256 slippageRatio;
         int256 tipAmount;
         address tipAddress;
@@ -189,10 +189,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
-                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
                 tipAddress: state.operator
@@ -313,7 +313,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
@@ -535,10 +535,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.99e6,
                 maxPriceToConvertUp: 1.01e6,
-                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
                 tipAddress: state.operator
@@ -569,10 +569,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
-                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
                 tipAddress: state.operator
@@ -623,10 +623,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
-                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: int256(tipAmount),
                 tipAddress: state.operator
@@ -736,10 +736,10 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonusThreshold: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
-                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_BDV,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
                 tipAddress: whitelistedOperator
@@ -789,7 +789,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: params.minTimeBetweenConverts,
                 minConvertBonusCapacity: params.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,
-                grownStalkPerBdvBonusThreshold: params.grownStalkPerBdvBonusThreshold,
+                minGrownStalkPerBdvBonusThreshold: params.minGrownStalkPerBdvBonusThreshold,
                 maxPriceToConvertUp: params.maxPriceToConvertUp,
                 minPriceToConvertUp: params.minPriceToConvertUp,
                 maxGrownStalkPerPdvPenalty: params.maxGrownStalkPerPdvPenalty,
@@ -912,5 +912,112 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         }
 
         console.log("===========================================");
+    }
+
+    function test_convertUpBlueprintv0_BonusCapacityCheck() public {
+        TestState memory state = setupConvertUpBlueprintv0Test();
+
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = getTokenIndex(state.wellToken);
+
+        // Mock getConvertBonusBdvAmountAndRemainingCapacity to return specific values
+        // Returns 5e16 bonus stalk per BDV and 1000e6 remaining capacity
+        vm.mockCall(
+            address(bs),
+            abi.encodeWithSelector(
+                IBeanstalk.getConvertBonusBdvAmountAndRemainingCapacity.selector
+            ),
+            abi.encode(5e16, 1000e6)
+        );
+
+        // Create a blueprint requiring minimum bonus stalk per BDV of 6e16 (higher than available)
+        (IMockFBeanstalk.Requisition memory failReqStalk, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0, // No minimum capacity requirement
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                minGrownStalkPerBdvBonusThreshold: 6e16, // Higher than available 5e16
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        // Mock the price to be within acceptable range
+        mockPrice(0.95e6);
+
+        // Should revert due to insufficient bonus stalk per BDV
+        vm.expectRevert("Convert bonus amount below threshold");
+        executeRequisition(state.operator, failReqStalk, address(bs));
+
+        // Create a blueprint requiring minimum capacity of 2000e6 (higher than available)
+        (IMockFBeanstalk.Requisition memory failReqCapacity, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 2000e6, // Higher than available 1000e6
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                minGrownStalkPerBdvBonusThreshold: 0, // No minimum stalk per BDV requirement
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        // Should revert due to insufficient bonus capacity
+        vm.expectRevert("Convert bonus capacity below minimum");
+        executeRequisition(state.operator, failReqCapacity, address(bs));
+
+        // Create a blueprint with acceptable bonus requirements
+        (IMockFBeanstalk.Requisition memory successReq, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 500e6, // Lower than available 1000e6
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                minGrownStalkPerBdvBonusThreshold: 4e16, // Lower than available 5e16
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        // Should succeed with acceptable bonus requirements
+        executeRequisition(state.operator, successReq, address(bs));
+
+        // Verify conversion succeeded by checking for Bean deposits
+        uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+
+        // Verify the user received exactly one deposit
+        assertEq(
+            finalBeanDeposits.length,
+            1,
+            "User should have received exactly one Bean deposit from conversion"
+        );
     }
 }

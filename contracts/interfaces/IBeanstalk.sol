@@ -111,7 +111,7 @@ interface IBeanstalk {
         bytes calldata convertData,
         int96[] memory stems,
         uint256[] memory amounts,
-        uint256 grownStalkSlippage
+        int256 grownStalkSlippage
     )
         external
         payable
@@ -134,6 +134,11 @@ interface IBeanstalk {
     function getBeanIndex(IERC20[] calldata tokens) external view returns (uint256);
 
     function getBeanToken() external view returns (address);
+
+    function getConvertBonusBdvAmountAndRemainingCapacity()
+        external
+        view
+        returns (uint256, uint256);
 
     function getCounter(address account, bytes32 counterId) external view returns (uint256);
 
