@@ -367,7 +367,7 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "bytes32",
         "name": "blueprintHash",
         "type": "bytes32"
@@ -522,13 +522,50 @@
         "type": "address"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "bytes32",
         "name": "blueprintHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasleft",
+        "type": "uint256"
       }
     ],
     "name": "Tractor",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "publisher",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "blueprintHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasleft",
+        "type": "uint256"
+      }
+    ],
+    "name": "TractorExecutionBegan",
     "type": "event"
   },
   {
@@ -6604,6 +6641,87 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "inputToken",
+        "type": "address"
+      },
+      {
+        "internalType": "int96[]",
+        "name": "stems",
+        "type": "int96[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "outputToken",
+        "type": "address"
+      },
+      {
+        "internalType": "int256",
+        "name": "grownStalkSlippage",
+        "type": "int256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "target",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes",
+            "name": "callData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "bytes",
+            "name": "clipboard",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct AdvancedPipeCall[]",
+        "name": "advancedPipeCalls",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "pipelineConvertWithStalkSlippage",
+    "outputs": [
+      {
+        "internalType": "int96",
+        "name": "toStem",
+        "type": "int96"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fromAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fromBdv",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toBdv",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "well",
         "type": "address"
       },
@@ -6812,7 +6930,7 @@
   },
   {
     "inputs": [],
-    "name": "getConvertBonusBdvAmountAndCapacity",
+    "name": "getConvertStalkPerBdvBonusAndMaximumCapacity",
     "outputs": [
       {
         "internalType": "uint256",
@@ -6830,8 +6948,13 @@
   },
   {
     "inputs": [],
-    "name": "getConvertBonusRemainingCapacity",
+    "name": "getConvertStalkPerBdvBonusAndRemainingCapacity",
     "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
       {
         "internalType": "uint256",
         "name": "",
@@ -7014,6 +7137,60 @@
       }
     ],
     "name": "convert",
+    "outputs": [
+      {
+        "internalType": "int96",
+        "name": "toStem",
+        "type": "int96"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fromAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fromBdv",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toBdv",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "convertData",
+        "type": "bytes"
+      },
+      {
+        "internalType": "int96[]",
+        "name": "stems",
+        "type": "int96[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "int256",
+        "name": "grownStalkSlippage",
+        "type": "int256"
+      }
+    ],
+    "name": "convertWithStalkSlippage",
     "outputs": [
       {
         "internalType": "int96",
@@ -7678,12 +7855,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "enum ShipmentRecipient",
-        "name": "recipient",
-        "type": "uint8"
-      },
-      {
         "indexed": false,
         "internalType": "uint256",
         "name": "newMaxTotalGaugePoints",
@@ -7697,10 +7868,16 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "enum ShipmentRecipient",
+        "name": "recipient",
+        "type": "uint8"
+      },
+      {
         "indexed": false,
-        "internalType": "int256",
-        "name": "deltaStalk",
-        "type": "int256"
+        "internalType": "uint256",
+        "name": "receivedAmount",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -7970,7 +8147,7 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "enum GaugeId",
         "name": "gaugeId",
         "type": "uint8"
@@ -8011,7 +8188,7 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "enum GaugeId",
         "name": "gaugeId",
         "type": "uint8"
@@ -8030,7 +8207,26 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
         "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "EngagedData",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
         "internalType": "enum GaugeId",
         "name": "gaugeId",
         "type": "uint8"
@@ -8043,7 +8239,7 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "enum GaugeId",
         "name": "gaugeId",
         "type": "uint8"
@@ -8402,9 +8598,9 @@
             "type": "uint256"
           },
           {
-            "internalType": "bytes32[58]",
+            "internalType": "bytes32[59]",
             "name": "buffer",
-            "type": "bytes32[58]"
+            "type": "bytes32[59]"
           }
         ],
         "internalType": "struct ExtEvaluationParameters",
@@ -9135,69 +9331,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "season",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "caseId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "int80",
-        "name": "absChange",
-        "type": "int80"
-      }
-    ],
-    "name": "BeanToMaxLpGpPerBdvRatioChange",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      }
-    ],
-    "name": "Engaged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "EngagedData",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": false,
         "internalType": "uint32",
         "name": "season",
@@ -9211,19 +9344,6 @@
       }
     ],
     "name": "PegStateUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "toField",
-        "type": "uint256"
-      }
-    ],
-    "name": "SeasonOfPlentyField",
     "type": "event"
   },
   {
@@ -10024,101 +10144,6 @@
     ],
     "name": "PRBMathUD60x18__LogInputTooSmall",
     "type": "error"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "value",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes4",
-            "name": "selector",
-            "type": "bytes4"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "indexed": false,
-        "internalType": "struct Gauge",
-        "name": "gauge",
-        "type": "tuple"
-      }
-    ],
-    "name": "AddedGauge",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      }
-    ],
-    "name": "RemovedGauge",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "value",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes4",
-            "name": "selector",
-            "type": "bytes4"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "indexed": false,
-        "internalType": "struct Gauge",
-        "name": "gauge",
-        "type": "tuple"
-      }
-    ],
-    "name": "UpdatedGauge",
-    "type": "event"
   },
   {
     "inputs": [
@@ -12281,19 +12306,6 @@
       }
     ],
     "name": "setMaxTempE",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "minSoilSownDemand",
-        "type": "uint256"
-      }
-    ],
-    "name": "setMinSoilSownDemand",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
