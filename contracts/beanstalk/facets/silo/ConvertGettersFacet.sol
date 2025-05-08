@@ -176,7 +176,11 @@ contract ConvertGettersFacet {
         return (bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
-    function getConvertBonusRemainingCapacity() external view returns (uint256) {
+    function getConvertBonusBdvAmountAndRemainingCapacity()
+        external
+        view
+        returns (uint256, uint256)
+    {
         AppStorage storage s = LibAppStorage.diamondStorage();
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
@@ -188,11 +192,14 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
+        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
+            C.PRECISION;
+
         if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
-            return 0;
+            return (bonusStalkPerBdv, 0);
         }
 
-        return gv.maxConvertCapacity - gd.thisSeasonBdvConverted;
+        return (bonusStalkPerBdv, gv.maxConvertCapacity - gd.thisSeasonBdvConverted);
     }
 
     /**
