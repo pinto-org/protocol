@@ -358,7 +358,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         ) {
             // Get current bonus amount and remaining capacity
             (uint256 bonusStalkPerBdv, uint256 remainingCapacity) = beanstalk
-                .getConvertBonusBdvAmountAndRemainingCapacity();
+                .getConvertStalkPerBdvBonusAndRemainingCapacity();
 
             // Check if bonus amount meets threshold
             if (params.convertUpParams.minGrownStalkPerBdvBonusThreshold > 0) {

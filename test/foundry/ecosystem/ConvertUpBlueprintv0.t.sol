@@ -920,12 +920,12 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
-        // Mock getConvertBonusBdvAmountAndRemainingCapacity to return specific values
+        // Mock getConvertStalkPerBdvBonusAndRemainingCapacity to return specific values
         // Returns 5e16 bonus stalk per BDV and 1000e6 remaining capacity
         vm.mockCall(
             address(bs),
             abi.encodeWithSelector(
-                IBeanstalk.getConvertBonusBdvAmountAndRemainingCapacity.selector
+                IBeanstalk.getConvertStalkPerBdvBonusAndRemainingCapacity.selector
             ),
             abi.encode(5e16, 1000e6)
         );

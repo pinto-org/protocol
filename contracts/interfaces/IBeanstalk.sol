@@ -135,7 +135,7 @@ interface IBeanstalk {
 
     function getBeanToken() external view returns (address);
 
-    function getConvertBonusBdvAmountAndRemainingCapacity()
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
         external
         view
         returns (uint256, uint256);
