@@ -309,6 +309,32 @@ contract SiloTest is TestHelper {
             unsortedDepositIds[swapIndex]
         );
 
+        // verify the idIndex is updated correctly
+        for (uint256 i; i < numDeposits; i++) {
+            assertEq(bs.getIndexForDepositId(farmers[0], BEAN, newDepositIds[i]), i);
+        }
+
+        uint256 snapshot = vm.snapshot();
+        {
+            IMockFBeanstalk.TokenDepositId memory deposit = bs.getTokenDepositsForAccount(
+                farmers[0],
+                BEAN
+            );
+            // verify a user can withdraw all deposits
+
+            vm.prank(farmers[0]);
+            int96[] memory stems = new int96[](numDeposits);
+            uint256[] memory amounts = new uint256[](numDeposits);
+            for (uint256 i; i < numDeposits; i++) {
+                (address token, int96 stem) = LibBytes.unpackAddressAndStem(deposit.depositIds[i]);
+                stems[i] = stem;
+                amounts[i] = deposit.tokenDeposits[i].amount;
+            }
+            bs.withdrawDeposits(BEAN, stems, amounts, 0);
+        }
+
+        vm.revertTo(snapshot);
+
         // Verify that updating with unsorted IDs reverts
         vm.prank(farmers[0]);
         vm.expectRevert("Deposit IDs not sorted");
