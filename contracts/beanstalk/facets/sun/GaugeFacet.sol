@@ -188,7 +188,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @return gaugeData
      *  The gaugeData are encoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData:
      *     - deltaC - the delta used in adjusting convertBonusFactor.
-     *     - deltaT - the delta used in adjusting the convert bonus bdv capacity factor.
+     *     - deltaD - the delta used in adjusting the convert bonus bdv capacity factor.
      *     - minConvertBonusFactor - the minimum value of the conversion factor (0).
      *     - maxConvertBonusFactor - the maximum value of the conversion factor (1e18).
      *     - minCapacityFactor - the minimum value of the convert bonus bdv capacity factor.
@@ -296,7 +296,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             gv.convertCapacityFactor = LibGaugeHelpers.linear256(
                 gv.convertCapacityFactor,
                 !increasingDemand,
-                gd.deltaT,
+                gd.deltaD,
                 gd.minCapacityFactor,
                 gd.maxCapacityFactor
             );
