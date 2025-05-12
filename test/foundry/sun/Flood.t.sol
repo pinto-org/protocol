@@ -13,7 +13,6 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {Season} from "contracts/beanstalk/storage/System.sol";
 import {Rain} from "contracts/beanstalk/storage/System.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
-import {console} from "forge-std/console.sol";
 /**
  * @title FloodTest
  * @notice Tests the `flood` functionality.
@@ -43,7 +42,6 @@ contract FloodTest is TestHelper {
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
-        console.log("maxTemperature", bs.maxTemperature());
         // init user.
         farmers.push(users[1]);
         vm.prank(farmers[0]);

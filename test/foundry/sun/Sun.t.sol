@@ -201,7 +201,6 @@ contract SunTest is TestHelper {
         // needed to equal the newly paid off pods (scaled up or down).
         // 3) totalunharvestable() should decrease by the amount issued to the field.
         if (deltaB >= 0) {
-            console.log(bs.totalSoil());
             assertEq(bean.balanceOf(BEANSTALK), uint256(deltaB), "invalid bean minted +deltaB");
             assertEq(bs.totalSoil(), soilIssuedRightNow, "invalid soil @ +deltaB");
             assertEq(
@@ -1618,7 +1617,6 @@ contract SunTest is TestHelper {
 
         // scale soil issued above peg.
         soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, podRate);
-        console.log("bs.temperature():", bs.temperature());
         soilIssuedRightNow = soilIssuedAfterMorningAuction.mulDiv(
             bs.maxTemperature() + ONE_HUNDRED_TEMP,
             bs.temperature() + ONE_HUNDRED_TEMP
