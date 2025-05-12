@@ -35,7 +35,6 @@ abstract contract Sun is Oracle, Distribution {
     using Decimal for Decimal.D256;
 
     uint256 internal constant SOIL_PRECISION = 1e6;
-    uint256 internal constant CULTIVATION_FACTOR_PRECISION = 1e6;
 
     /**
      * @notice Emitted during Sunrise when Beanstalk adjusts the amount of available Soil.
@@ -127,7 +126,7 @@ abstract contract Sun is Oracle, Distribution {
         uint256 soilAmount,
         Decimal.D256 memory podRate
     ) internal view returns (uint256) {
-        // Apply cultivationFactor scaling 
+        // Apply cultivationFactor scaling
         // (cultivationFactor is a percentage with 6 decimal places, where 100e6 = 100%)
         uint256 cultivationFactor = abi.decode(
             LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),

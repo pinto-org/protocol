@@ -692,30 +692,6 @@ library LibSilo {
         return beans;
     }
 
-    /**
-     * @notice Returns the amount of Germinating Stalk
-     * for a given GerminationSide enum.
-     * @dev When a Farmer attempts to withdraw Beans from a Deposit that has a Germinating Stem,
-     * `checkForEarnedBeans` is called to determine how many of the Beans were Planted vs Deposited.
-     * If a Farmer withdraws a Germinating Deposit with Earned Beans, only subtract the Germinating Beans
-     * from the Germinating Balances
-     * @return germinatingStalk stalk that is germinating for a given GerminationSide enum.
-     * @return earnedBeanStalk the earned bean portion of stalk for a given GerminationSide enum.
-     */
-    function checkForEarnedBeans(
-        address account,
-        uint256 stalk,
-        GerminationSide side
-    ) internal view returns (uint256 germinatingStalk, uint256 earnedBeanStalk) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 farmerGerminatingStalk = s.accts[account].germinatingStalk[side];
-        if (stalk > farmerGerminatingStalk) {
-            return (farmerGerminatingStalk, stalk.sub(farmerGerminatingStalk));
-        } else {
-            return (stalk, 0);
-        }
-    }
-
     //////////////////////// APPROVE ////////////////////////
 
     function _spendDepositAllowance(
@@ -763,6 +739,10 @@ library LibSilo {
         uint256[] calldata sortedDepositIds
     ) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
+        // Update the idIndex for each deposit ID
+        for (uint256 i = 0; i < sortedDepositIds.length; i++) {
+            s.accts[account].depositIdList[token].idIndex[sortedDepositIds[i]] = i;
+        }
         s.accts[account].depositIdList[token].depositIds = sortedDepositIds;
     }
 }

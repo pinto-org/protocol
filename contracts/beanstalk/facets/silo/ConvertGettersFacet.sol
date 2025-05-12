@@ -161,10 +161,14 @@ contract ConvertGettersFacet {
     }
 
     /**
-     * @notice Returns the bonus stalk per bdv and the convert capacity left to receive the convert up bonus.
+     * @notice Returns the bonus stalk per bdv and the maximum convert capacity.
      * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
-    function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256) {
+    function getConvertStalkPerBdvBonusAndMaximumCapacity()
+        external
+        view
+        returns (uint256, uint256)
+    {
         AppStorage storage s = LibAppStorage.diamondStorage();
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
@@ -176,7 +180,15 @@ contract ConvertGettersFacet {
         return (bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
-    function getConvertBonusRemainingCapacity() external view returns (uint256) {
+    /**
+     * @notice Returns the bonus stalk per bdv and the remaining convert capacity.
+     * @dev The convert up bonus kicks in after 12 seasons below peg.
+     */
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256, uint256)
+    {
         AppStorage storage s = LibAppStorage.diamondStorage();
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
@@ -188,11 +200,14 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
+        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
+            C.PRECISION;
+
         if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
-            return 0;
+            return (bonusStalkPerBdv, 0);
         }
 
-        return gv.maxConvertCapacity - gd.thisSeasonBdvConverted;
+        return (bonusStalkPerBdv, gv.maxConvertCapacity - gd.thisSeasonBdvConverted);
     }
 
     /**

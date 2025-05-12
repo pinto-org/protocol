@@ -358,7 +358,7 @@ library LibEvaluate {
 
         if (!success) return 0;
         assembly {
-            liquidityWeight := mload(add(data, add(0x20, 0)))
+            liquidityWeight := mload(add(data, 0x20))
         }
     }
 
@@ -366,7 +366,7 @@ library LibEvaluate {
      * @notice Calculates the minimum soil sown needed to properly calculate delta pod demand.
      * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
      * occurs without substantial cost.
-     * @dev if not max(max(0,001% of supply, 10), 25% of soil issued)
+     * @dev if not min(max(0,001% of supply, 10), 25% of soil issued)
      * was sown, Beanstalk assumes demand is decreasing.
      */
     function calcMinSoilDemandThreshold() internal view returns (uint256 minDemandThreshold) {
