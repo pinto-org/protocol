@@ -373,6 +373,11 @@ library LibWell {
         returns (uint256 lpTokenSupply) {
             address nonBeanToken = address(IWell(well).tokens()[nonBeanIndex]);
             uint256 oldReserve = reserves[nonBeanIndex];
+
+            // if the bean reserves are less than the minimum balance, calculating a real price
+            // is difficult and thus this returns a price of 0.
+            if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) return 0;
+
             reserves[beanIndex] = reserves[beanIndex] + BEAN_UNIT;
 
             try
