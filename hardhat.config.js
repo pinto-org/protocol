@@ -1764,6 +1764,13 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
       JSON.stringify(tractorHelpersArtifact.abi, null, 2)
     );
 
+    // Generate SiloHelpers ABI
+    const siloHelpersArtifact = await hre.artifacts.readArtifact("SiloHelpers");
+    fs.writeFileSync(
+      `${outputDir}/SiloHelpers.json`,
+      JSON.stringify(siloHelpersArtifact.abi, null, 2)
+    );
+
     // Generate SowBlueprintv0 ABI
     const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0");
     fs.writeFileSync(
