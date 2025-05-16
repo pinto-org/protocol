@@ -772,4 +772,8 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.weather.lastDeltaSoil = lastSeasonBeanSown;
         s.sys.beanSown = thisSeasonBeanSown;
     }
+
+    function setSeasonAbovePeg(bool abovePeg) public {
+        s.sys.season.abovePeg = abovePeg;
+    }
 }
