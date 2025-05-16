@@ -433,6 +433,9 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice Returns the number of Beans that have been Sown this season.
+     */
     function beanSown() external view returns (uint256) {
         return s.sys.beanSown;
     }
