@@ -261,7 +261,7 @@ contract FieldTest is TestHelper {
 
         assertEq(field.totalPods(0), totalPodsIssued, "invalid total pods");
         assertEq(field.totalUnharvestable(0), totalPodsIssued, "invalid unharvestable");
-        assertEq(field.podIndex(0), totalPodsIssued, "invalid pod index");  
+        assertEq(field.podIndex(0), totalPodsIssued, "invalid pod index");
 
         assertEq(field.totalSoil(), soilAvailable - totalAmountSown);
     }
@@ -569,6 +569,25 @@ contract FieldTest is TestHelper {
         verifyPlotIndexAndPlotLengths(farmers[0], activeField, 0);
 
         assertGt(field.fieldCount(), 1, "field count");
+    }
+
+    function test_morningAuctionTemperature() public {
+        bool verbose = false;
+        uint256 temperature = field.temperature();
+        uint256 maxTemperature = bs.maxTemperature();
+        for (uint256 i; i < 605; i++) {
+            uint256 temperature = field.temperature();
+            assertGe(temperature, temperature, "temperature is not increasing");
+            if (i >= 600) {
+                assertEq(temperature, maxTemperature, "temperature != max temperature");
+            } else {
+                assertLe(temperature, maxTemperature, "temperature > max temperature");
+            }
+            if (verbose) {
+                console.log("temp", temperature, "seconds since sunrise", i);
+            }
+            vm.warp(block.timestamp + 1);
+        }
     }
 
     // field helpers.
