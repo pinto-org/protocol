@@ -158,14 +158,18 @@ struct Season {
  * @param lastSowTime The number of seconds it took for Soil to sell out last Season.
  * @param thisSowTime The number of seconds it took for Soil to sell out this Season.
  * @param temp Temperature is max interest rate in current Season for sowing Beans in Soil. Adjusted each Season.
+ * @param morningDuration the duration of the morning auction, expressed in seconds (1 = 1 second).
+ * @param morningControl the control variable that determines the morning auction temperature curve. See {LibDibbler._scaleTemperature} 18 decimal precision. (1 = 1e18)
  * @param _buffer Reserved storage for future expansion.
  */
 struct Weather {
     uint128 lastDeltaSoil; // ───┐ 16 (16)
     uint32 lastSowTime; //       │ 4  (20)
     uint32 thisSowTime; //       │ 4  (24)
-    uint32 temp; // ─────────────┘ 4  (28/32)
-    bytes32[4] _buffer;
+    uint32 temp; //              │ 4  (28)
+    uint16 morningDuration; // ──┘ 2  (30/32)
+    uint256 morningControl;
+    bytes32[3] _buffer;
 }
 
 /**
