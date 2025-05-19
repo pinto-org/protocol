@@ -202,6 +202,8 @@ library LibConvert {
             .add(outputTokenAmountUsed);
     }
 
+    ////// Stalk Penalty Calculations //////
+
     /**
      * @notice Calculates the percentStalkPenalty for a given convert.
      */
@@ -435,6 +437,39 @@ library LibConvert {
     }
 
     /**
+     * @notice applies the stalk modifiers to a user's grown stalk and redeposits the converted tokens.
+     */
+    function applyStalkModifiersAndDeposit(
+        ConvertParams memory cp,
+        uint256 toBdv,
+        uint256 initialGrownStalk,
+        uint256 grownStalk,
+        int256 grownStalkSlippage,
+        uint256 deltaRainRoots
+    ) external returns (uint256 newGrownStalk, int96 newStem) {
+        // apply convert penalty/bonus on grown stalk
+        newGrownStalk = applyStalkModifiers(
+            cp.fromToken,
+            cp.toToken,
+            cp.account,
+            toBdv,
+            grownStalk
+        );
+
+        // check for stalk slippage
+        checkGrownStalkSlippage(newGrownStalk, initialGrownStalk, grownStalkSlippage);
+
+        newStem = _depositTokensForConvert(
+            cp.toToken,
+            cp.toAmount,
+            toBdv,
+            newGrownStalk,
+            deltaRainRoots,
+            cp.account
+        );
+    }
+
+    /**
      * @notice removes the deposits from user and returns the
      * grown stalk and bdv removed.
      *
@@ -449,7 +484,6 @@ library LibConvert {
         uint256 maxTokens,
         address user
     ) internal returns (uint256, uint256, uint256) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
         require(stems.length == amounts.length, "Convert: stems, amounts are diff lengths.");
 
         AssetsRemovedConvert memory a;
@@ -574,6 +608,8 @@ library LibConvert {
             LibTokenSilo.Transfer.emitTransferSingle
         );
     }
+
+    ////// Stalk Modifiers //////
 
     /**
      * @notice Applies the penalty/bonus on grown stalk for a convert.
@@ -792,7 +828,7 @@ library LibConvert {
         uint256 newGrownStalk,
         uint256 originalGrownStalk,
         int256 grownStalkSlippage
-    ) internal view {
+    ) internal pure {
         uint256 minimumStalk;
 
         if (grownStalkSlippage > 0) {
@@ -812,6 +848,8 @@ library LibConvert {
 
         require(newGrownStalk >= minimumStalk, "Convert: Stalk slippage");
     }
+
+    ////// Math Functions //////
 
     function abs(int256 a) internal pure returns (uint256) {
         return a >= 0 ? uint256(a) : uint256(-a);

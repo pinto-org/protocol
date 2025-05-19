@@ -345,7 +345,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     function getGaugeResult(
         Gauge memory gauge,
         bytes memory systemData
-    ) external returns (bytes memory, bytes memory) {
+    ) external view returns (bytes memory, bytes memory) {
         return LibGaugeHelpers.getGaugeResult(gauge, systemData);
     }
 
@@ -355,7 +355,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     function getGaugeIdResult(
         GaugeId gaugeId,
         bytes memory systemData
-    ) external returns (bytes memory, bytes memory) {
+    ) external view returns (bytes memory, bytes memory) {
         Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
         return LibGaugeHelpers.getGaugeResult(g, systemData);
     }

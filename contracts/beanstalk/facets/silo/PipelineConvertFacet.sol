@@ -181,25 +181,24 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
                 advancedPipeCalls
             );
 
-        // apply convert penalty/bonus on grown stalk
-        grownStalk = LibConvert.applyStalkModifiers(
-            inputToken,
-            outputToken,
-            LibTractor._user(),
-            returnParams.toBdv,
-            grownStalk
-        );
+        // create convert params.
+        LibConvert.ConvertParams memory cp = LibConvert.ConvertParams({
+            fromToken: inputToken,
+            toToken: outputToken,
+            fromAmount: returnParams.fromAmount,
+            toAmount: returnParams.toAmount,
+            account: LibTractor._user(),
+            decreaseBDV: true,
+            shouldNotGerminate: false
+        });
 
-        // check for stalk slippage
-        LibConvert.checkGrownStalkSlippage(grownStalk, initialGrownStalk, grownStalkSlippage);
-
-        returnParams.toStem = LibConvert._depositTokensForConvert(
-            outputToken,
-            returnParams.toAmount,
+        (grownStalk, returnParams.toStem) = LibConvert.applyStalkModifiersAndDeposit(
+            cp,
             returnParams.toBdv,
+            initialGrownStalk,
             grownStalk,
-            deltaRainRoots,
-            LibTractor._user()
+            grownStalkSlippage,
+            deltaRainRoots
         );
 
         emit Convert(
