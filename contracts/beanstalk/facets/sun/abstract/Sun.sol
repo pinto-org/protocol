@@ -21,7 +21,6 @@ import {Gauge} from "contracts/beanstalk/storage/System.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 
 /**
  * @title Sun
@@ -95,6 +94,7 @@ abstract contract Sun is Oracle, Distribution {
                 soil = Math.min(uint256(-twaDeltaB), uint256(-instDeltaB));
                 setSoil(scaleSoilBelowPeg(soil, bs.lpToSupplyRatio));
             }
+            s.sys.season.abovePeg = false;
         }
     }
 

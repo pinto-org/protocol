@@ -137,6 +137,7 @@ contract SowBlueprintv0Test is TractorHelper {
                 state.operator,
                 state.user,
                 req.blueprintHash,
+                bs.getBlueprintNonce(req.blueprintHash),
                 gasleft()
             );
 

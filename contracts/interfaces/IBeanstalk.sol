@@ -197,6 +197,12 @@ interface IBeanstalk {
 
     function update(address account) external payable;
 
+    function updateSortedDepositIds(
+        address account,
+        address token,
+        uint256[] calldata sortedDepositIds
+    ) external payable;
+
     function withdrawDeposits(
         address token,
         int96[] calldata stems,

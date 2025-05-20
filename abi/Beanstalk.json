@@ -530,6 +530,12 @@
       {
         "indexed": false,
         "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
         "name": "gasleft",
         "type": "uint256"
       }
@@ -557,6 +563,12 @@
         "internalType": "bytes32",
         "name": "blueprintHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -6511,6 +6523,12 @@
         "indexed": false,
         "internalType": "uint256",
         "name": "grownStalkLost",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
         "type": "uint256"
       }
     ],

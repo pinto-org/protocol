@@ -675,6 +675,10 @@ contract TestHelper is
         uint256 lpToSupplyRatio,
         uint256 cultivationFactor
     ) internal view returns (uint256 expectedSoil) {
+        console.log("calculateExpectedSoil: twaDeltaB =", twaDeltaB);
+        console.log("calculateExpectedSoil: lpToSupplyRatio =", lpToSupplyRatio);
+        console.log("calculateExpectedSoil: cultivationFactor =", cultivationFactor);
+
         // If twaDeltaB is 0, return 0 directly
         if (twaDeltaB == 0) return 0;
 

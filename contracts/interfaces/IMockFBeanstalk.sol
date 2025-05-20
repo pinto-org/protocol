@@ -469,12 +469,14 @@ interface IMockFBeanstalk {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
     event TractorExecutionBegan(
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
     event TractorVersionSet(string version);
@@ -1583,8 +1585,6 @@ interface IMockFBeanstalk {
     ) external returns (int256 deltaB);
 
     function setBpf(uint128 bpf) external;
-
-    function setTotalStalkE(uint256 amount) external;
 
     function setChangeInSoilDemand(uint256 changeInSoilDemand) external;
 

@@ -6512,6 +6512,12 @@
         "internalType": "uint256",
         "name": "grownStalkLost",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
+        "type": "uint256"
       }
     ],
     "name": "ConvertDownPenalty",

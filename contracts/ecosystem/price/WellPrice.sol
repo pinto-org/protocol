@@ -54,9 +54,17 @@ contract WellPrice {
     }
 
     /**
-     * @notice Returns the non-manipulation resistant on-chain liquidiy, deltaB and price data for
+     * @notice Returns the non-manipulation resistant on-chain liquidity, deltaB and price data for
      * Bean in a given Well.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
+     **/
+    function getWell(address wellAddress) public view returns (P.Pool memory) {
+        return getWell(wellAddress, ReservesType.CURRENT_RESERVES);
+    }
+
+    /**
+     * @notice Returns the on-chain liquidity according to the passed in reservesType, deltaB and price data for
+     * Bean in a given Well.
      **/
     function getWell(
         address wellAddress,

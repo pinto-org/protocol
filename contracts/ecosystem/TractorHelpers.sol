@@ -883,38 +883,14 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         address[] memory tokens,
         uint256[] memory index
     ) internal pure returns (address[] memory, uint256[] memory) {
-        for (uint256 i = 0; i < tokens.length - 1; i++) {
-            for (uint256 j = 0; j < tokens.length - i - 1; j++) {
-                uint256 j1 = j + 1;
-                if (index[j] < index[j1]) {
-                    // Swap index
-                    (index[j], index[j1]) = (index[j1], index[j]);
-
-                    // Swap corresponding tokens
-                    (tokens[j], tokens[j1]) = (tokens[j1], tokens[j]);
-                }
-            }
-        }
-        return (tokens, index);
+        return LibTractorHelpers.sortTokens(tokens, index);
     }
 
     function sortTokenIndices(
         uint8[] memory tokenIndices,
         uint256[] memory index
     ) internal pure returns (uint8[] memory, uint256[] memory) {
-        for (uint256 i = 0; i < tokenIndices.length - 1; i++) {
-            for (uint256 j = 0; j < tokenIndices.length - i - 1; j++) {
-                uint256 j1 = j + 1;
-                if (index[j] > index[j1]) {
-                    // Swap index
-                    (index[j], index[j1]) = (index[j1], index[j]);
-
-                    // Swap token indices
-                    (tokenIndices[j], tokenIndices[j1]) = (tokenIndices[j1], tokenIndices[j]);
-                }
-            }
-        }
-        return (tokenIndices, index);
+        return LibTractorHelpers.sortTokenIndices(tokenIndices, index);
     }
 
     /**
@@ -955,41 +931,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
     function isOperatorWhitelisted(
         address[] calldata whitelistedOperators
     ) external view returns (bool) {
-        // If there are no whitelisted operators, pass in, accept any operator
-        if (whitelistedOperators.length == 0) {
-            return true;
-        }
-
-        address currentOperator = beanstalk.operator();
-        for (uint256 i = 0; i < whitelistedOperators.length; i++) {
-            address checkAddress = whitelistedOperators[i];
-            if (checkAddress == currentOperator) {
-                return true;
-            } else {
-                // Skip if address is a precompiled contract (address < 0x20)
-                if (uint160(checkAddress) <= 0x20) continue;
-
-                // Check if the address is a contract before attempting staticcall
-                uint256 size;
-                assembly {
-                    size := extcodesize(checkAddress)
-                }
-
-                if (size > 0) {
-                    try
-                        IOperatorWhitelist(checkAddress).checkOperatorWhitelist(currentOperator)
-                    returns (bool success) {
-                        if (success) {
-                            return true;
-                        }
-                    } catch {
-                        // If the call fails, continue to the next address
-                        continue;
-                    }
-                }
-            }
-        }
-        return false;
+        return LibTractorHelpers.isOperatorWhitelisted(whitelistedOperators, beanstalk);
     }
 
     /**

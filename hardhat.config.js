@@ -728,7 +728,6 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
     const sowBlueprintContract = await sowBlueprint.deploy(
       L2_PINTO, // diamond address
-      beanstalkPriceContract.address, // price contract
       L2_PCM, // owner address
       tractorHelpersContract.address // tractorHelpers contract address
     );
@@ -741,25 +740,27 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     console.log("\nStarting diamond upgrade...");
 
     /////////////////////// Diamond Upgrade ///////////////////////
-    
+
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: [
         "SiloFacet",
         "SiloGettersFacet",
+        "ConvertFacet",
+        "PipelineConvertFacet",
         "TractorFacet",
         "FieldFacet",
+        "ApprovalFacet",
+        "ConvertGettersFacet",
+        "GaugeFacet",
+        "GaugeGettersFacet",
+        "SeasonFacet",
+        "SeasonGettersFacet",
         "TokenFacet",
         "TokenSupportFacet",
         "MarketplaceFacet",
-        "ApprovalFacet",
         "ClaimFacet",
-        "ConvertFacet",
-        "PipelineConvertFacet",
-        "SeasonFacet",
-        "WhitelistFacet",
-        "GaugeGettersFacet",
-        "SeasonGettersFacet"
+        "WhitelistFacet"
       ],
       libraryNames: [
         "LibSilo",
@@ -776,7 +777,6 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
       ],
       facetLibraries: {
         SiloFacet: ["LibSilo", "LibTokenSilo"],
-        ClaimFacet: ["LibSilo", "LibTokenSilo"],
         ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
         PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
         SeasonFacet: [
@@ -788,8 +788,12 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
           "LibFlood",
           "LibGerminate"
         ],
-        SeasonGettersFacet: ["LibWellMinting"]
+        SeasonGettersFacet: ["LibWellMinting"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"]
       },
+      initArgs: [],
+      selectorsToRemove: ["0x2444561c"],
+      initFacetName: "InitPI8",
       object: !mock,
       verbose: true,
       account: owner
@@ -797,7 +801,7 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
   }
 );
 
-task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
+task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -806,90 +810,23 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   } else {
     owner = (await ethers.getSigners())[0];
   }
-
-  // Deploy contracts in correct order
-  const priceManipulation = await ethers.getContractFactory("PriceManipulation");
-  const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
-  await priceManipulationContract.deployed();
-  console.log("PriceManipulation deployed to:", priceManipulationContract.address);
-
-  // Deploy LibTractorHelpers first
-  const LibTractorHelpers = await ethers.getContractFactory("LibTractorHelpers");
-  console.log("LibTractorHelpers factory deployed");
-  const libTractorHelpers = await LibTractorHelpers.deploy();
-  await libTractorHelpers.deployed();
-  console.log("LibTractorHelpers deployed to:", libTractorHelpers.address);
-
-  // Deploy TractorHelpers with library linking
-  const TractorHelpers = await ethers.getContractFactory("TractorHelpers", {
-    libraries: {
-      LibTractorHelpers: libTractorHelpers.address
-    }
-  });
-  const tractorHelpersContract = await TractorHelpers.deploy(
-    L2_PINTO,
-    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
-    await owner.getAddress(), // owner address
-    priceManipulationContract.address // price manipulation contract address
-  );
-  await tractorHelpersContract.deployed();
-  console.log("TractorHelpers deployed to:", tractorHelpersContract.address);
-
-  // Deploy SowBlueprintv0 and connect it to the existing TractorHelpers
-  const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
-  const sowBlueprintContract = await sowBlueprint.deploy(
-    L2_PINTO,
-    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
-    await owner.getAddress(), // owner address
-    tractorHelpersContract.address // tractorHelpers contract address
-  );
-  await sowBlueprintContract.deployed();
-  console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
-
-  // Rest of the facet upgrades...
+  // upgrade facets
   await upgradeWithNewFacets({
     diamondAddress: L2_PINTO,
     facetNames: [
-      "TokenFacet",
-      "TractorFacet",
-      "FieldFacet",
-      "SiloFacet",
-      "SiloGettersFacet",
-      "TokenSupportFacet",
-      "MarketplaceFacet",
       "ApprovalFacet",
       "ClaimFacet",
       "ConvertFacet",
       "PipelineConvertFacet",
-      "SeasonFacet"
+      "SiloFacet",
+      "SiloGettersFacet"
     ],
-    libraryNames: [
-      "LibSilo",
-      "LibTokenSilo",
-      "LibConvert",
-      "LibPipelineConvert",
-      "LibEvaluate",
-      "LibGauge",
-      "LibIncentive",
-      "LibShipping",
-      "LibWellMinting",
-      "LibFlood",
-      "LibGerminate"
-    ],
+    libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
     facetLibraries: {
-      SiloFacet: ["LibSilo", "LibTokenSilo"],
       ClaimFacet: ["LibSilo", "LibTokenSilo"],
       ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
       PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-      SeasonFacet: [
-        "LibEvaluate",
-        "LibGauge",
-        "LibIncentive",
-        "LibShipping",
-        "LibWellMinting",
-        "LibFlood",
-        "LibGerminate"
-      ]
+      SiloFacet: ["LibSilo", "LibTokenSilo"]
     },
     object: !mock,
     verbose: true,
@@ -1842,12 +1779,30 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
       JSON.stringify(tractorHelpersArtifact.abi, null, 2)
     );
 
+    // Generate SiloHelpers ABI
+    const siloHelpersArtifact = await hre.artifacts.readArtifact("SiloHelpers");
+    fs.writeFileSync(
+      `${outputDir}/SiloHelpers.json`,
+      JSON.stringify(siloHelpersArtifact.abi, null, 2)
+    );
+
     // Generate SowBlueprintv0 ABI
     const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0");
     fs.writeFileSync(
       `${outputDir}/SowBlueprintv0.json`,
       JSON.stringify(sowBlueprintArtifact.abi, null, 2)
     );
+
+    // Generate BeanstalkPrice ABI
+    const beanstalkPriceArtifact = await hre.artifacts.readArtifact("BeanstalkPrice");
+    fs.writeFileSync(
+      `${outputDir}/BeanstalkPrice.json`,
+      JSON.stringify(beanstalkPriceArtifact.abi, null, 2)
+    );
+
+    // Generate WellPrice ABI (parent contract of BeanstalkPrice)
+    const wellPriceArtifact = await hre.artifacts.readArtifact("WellPrice");
+    fs.writeFileSync(`${outputDir}/WellPrice.json`, JSON.stringify(wellPriceArtifact.abi, null, 2));
 
     console.log("ABIs generated successfully in", outputDir);
   } catch (error) {

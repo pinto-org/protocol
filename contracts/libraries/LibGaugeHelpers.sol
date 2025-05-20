@@ -62,41 +62,28 @@ library LibGaugeHelpers {
      * @param gaugeId The id of the Gauge that was engaged.
      * @param value The value of the Gauge after it was engaged.
      */
-    event Engaged(GaugeId indexed gaugeId, bytes value);
-
-    /**
-     * @notice Emitted when a Gauge is engaged (i.e. its value is updated).
-     * @param gaugeId The id of the Gauge that was engaged.
-     * @param data The data of the Gauge after it was engaged.
-     */
-    event EngagedData(GaugeId indexed gaugeId, bytes data);
+    event Engaged(GaugeId gaugeId, bytes value);
 
     /**
      * @notice Emitted when a Gauge is added.
      * @param gaugeId The id of the Gauge that was added.
      * @param gauge The Gauge that was added.
      */
-    event AddedGauge(GaugeId indexed gaugeId, Gauge gauge);
+    event AddedGauge(GaugeId gaugeId, Gauge gauge);
 
     /**
      * @notice Emitted when a Gauge is removed.
      * @param gaugeId The id of the Gauge that was removed.
      */
-    event RemovedGauge(GaugeId indexed gaugeId);
+    event RemovedGauge(GaugeId gaugeId);
 
     /**
      * @notice Emitted when a Gauge is updated.
      * @param gaugeId The id of the Gauge that was updated.
      * @param gauge The Gauge that was updated.
      */
-    event UpdatedGauge(GaugeId indexed gaugeId, Gauge gauge);
+    event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
 
-    /**
-     * @notice Emitted when a Gauge's data is updated.
-     * @param gaugeId The id of the Gauge that was updated.
-     * @param data The data of the Gauge that was updated.
-     */
-    event UpdatedGaugeData(GaugeId indexed gaugeId, bytes data);
     /**
      * @notice Calls all generalized Gauges, and updates their values.
      * @param systemData The system data to pass to the Gauges.
@@ -120,9 +107,8 @@ library LibGaugeHelpers {
             s.sys.gaugeData.gauges[gaugeId].data
         ) = getGaugeResult(g, systemData);
 
-        // emit change in gauge value and data
+        // emit change in gauge value
         emit Engaged(gaugeId, s.sys.gaugeData.gauges[gaugeId].value);
-        emit EngagedData(gaugeId, s.sys.gaugeData.gauges[gaugeId].data);
     }
 
     /**
@@ -172,13 +158,6 @@ library LibGaugeHelpers {
         s.sys.gaugeData.gauges[gaugeId] = g;
 
         emit UpdatedGauge(gaugeId, g);
-    }
-
-    function updateGaugeData(GaugeId gaugeId, bytes memory data) internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        s.sys.gaugeData.gauges[gaugeId].data = data;
-
-        emit UpdatedGaugeData(gaugeId, data);
     }
 
     function removeGauge(GaugeId gaugeId) internal {
@@ -238,22 +217,6 @@ library LibGaugeHelpers {
         }
 
         return currentValue;
-    }
-
-    /**
-     * @notice linear256 is uint256 version of linear.
-     */
-    function linear256(
-        uint256 currentValue,
-        bool increase,
-        uint256 amount,
-        uint256 minValue,
-        uint256 maxValue
-    ) internal pure returns (uint256) {
-        return
-            uint256(
-                linear(int256(currentValue), increase, amount, int256(minValue), int256(maxValue))
-            );
     }
 
     /**
