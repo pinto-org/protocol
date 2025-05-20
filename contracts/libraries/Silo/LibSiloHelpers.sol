@@ -8,7 +8,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
  * @author FordPinto
  * @notice Library with helper functions for Silo operations
  */
-library LibTractorHelpers {
+library LibSiloHelpers {
     struct WithdrawalPlan {
         address[] sourceTokens;
         int96[][] stems;

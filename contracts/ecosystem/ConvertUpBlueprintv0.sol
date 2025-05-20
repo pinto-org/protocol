@@ -6,10 +6,11 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "./price/WellPrice.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
+import {SiloHelpers} from "./SiloHelpers.sol";
 import {console} from "forge-std/console.sol";
 /**
  * @title ConvertUpBlueprintv0
@@ -57,7 +58,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         uint256 currentPdvToConvert;
         uint256 currentPrice;
         uint256 amountConverted;
-        LibTractorHelpers.WithdrawalPlan withdrawalPlan;
+        LibSiloHelpers.WithdrawalPlan withdrawalPlan;
     }
 
     /**
@@ -122,6 +123,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
     IBeanstalk immutable beanstalk;
     TractorHelpers public immutable tractorHelpers;
     BeanstalkPrice public immutable beanstalkPrice;
+    SiloHelpers public immutable siloHelpers;
 
     // Default slippage ratio for conversions (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -143,10 +145,12 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
+        address _siloHelpers,
         address _beanstalkPrice
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
         tractorHelpers = TractorHelpers(_tractorHelpers);
+        siloHelpers = SiloHelpers(_siloHelpers);
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
     }
 
@@ -230,9 +234,9 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         );
 
         // First withdraw Beans from which to tip Operator (using a newer deposit burns less stalk)
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         if (params.opParams.operatorTipAmount > 0) {
-            tractorHelpers.withdrawBeansFromSources(
+            siloHelpers.withdrawBeansFromSources(
                 vars.account,
                 params.convertUpParams.sourceTokenIndices,
                 uint256(params.opParams.operatorTipAmount),
@@ -246,7 +250,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         }
 
         // Get withdrawal plan for the tokens to convert
-        vars.withdrawalPlan = tractorHelpers.getWithdrawalPlanExcludingPlan(
+        vars.withdrawalPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
             vars.account,
             params.convertUpParams.sourceTokenIndices,
             vars.currentPdvToConvert,

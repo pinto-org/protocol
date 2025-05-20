@@ -23,7 +23,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {console} from "forge-std/console.sol";
 
 /**
@@ -114,7 +114,7 @@ contract TractorHelpersTest is TractorTestHelper {
         testAmounts[5] = 50000e6; // All 50 full withdrawal
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         for (uint256 i; i < testAmounts.length; i++) {
             for (uint256 j; j < minStems.length; j++) {
@@ -234,7 +234,7 @@ contract TractorHelpersTest is TractorTestHelper {
         // uint256 gasBefore = gasleft();
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get deposit stems and amounts to withdraw
         (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = tractorHelpers
@@ -363,10 +363,10 @@ contract TractorHelpersTest is TractorTestHelper {
         sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the plan that we would use to withdraw the total amount of beans
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
@@ -376,7 +376,7 @@ contract TractorHelpersTest is TractorTestHelper {
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
-        LibTractorHelpers.WithdrawalPlan memory newPlan = tractorHelpers
+        LibSiloHelpers.WithdrawalPlan memory newPlan = tractorHelpers
             .getWithdrawalPlanExcludingPlan(
                 farmers[0],
                 sourceTokenIndices,
@@ -388,12 +388,14 @@ contract TractorHelpersTest is TractorTestHelper {
             );
 
         // Combine the plans and verify the result
-        LibTractorHelpers.WithdrawalPlan[]
-            memory plansToCombine = new LibTractorHelpers.WithdrawalPlan[](2);
+        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
+            2
+        );
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        LibTractorHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers
-            .combineWithdrawalPlans(plansToCombine);
+        LibSiloHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers.combineWithdrawalPlans(
+            plansToCombine
+        );
 
         // Verify the combined plan
         assertEq(combinedPlan.sourceTokens.length, 1, "Should have one source token");
@@ -595,10 +597,10 @@ contract TractorHelpersTest is TractorTestHelper {
             sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN);
 
             // Create empty plan
-            LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+            LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
             // Get withdrawal plan
-            LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+            LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
@@ -1305,9 +1307,9 @@ contract TractorHelpersTest is TractorTestHelper {
         strategyIndices[1] = 1;
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
@@ -1423,7 +1425,7 @@ contract TractorHelpersTest is TractorTestHelper {
         strategyIndices[1] = 1; // BEAN_ETH_WELL
 
         // Test case 1: No exclusions (both false)
-        LibTractorHelpers.WithdrawalPlan memory planNoExclusions = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory planNoExclusions = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
@@ -1467,7 +1469,7 @@ contract TractorHelpersTest is TractorTestHelper {
         uint8[] memory strategyIndex = new uint8[](1);
         strategyIndex[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
 
-        LibTractorHelpers.WithdrawalPlan memory planExcludeBean = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory planExcludeBean = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndex,
             withdrawalAmount,
@@ -1484,7 +1486,7 @@ contract TractorHelpersTest is TractorTestHelper {
         assertEq(planExcludeBean.stems[0].length, 4, "Should include all LP deposits");
 
         // Test case 3: Exclude germinating deposits only
-        LibTractorHelpers.WithdrawalPlan memory planExcludeGerminating = tractorHelpers
+        LibSiloHelpers.WithdrawalPlan memory planExcludeGerminating = tractorHelpers
             .getWithdrawalPlan(
                 farmers[0],
                 strategyIndices,
@@ -1532,7 +1534,7 @@ contract TractorHelpersTest is TractorTestHelper {
         }
 
         // Test case 4: Exclude both Bean and germinating deposits
-        LibTractorHelpers.WithdrawalPlan memory planExcludeBoth = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory planExcludeBoth = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndex, // Use LOWEST_PRICE_STRATEGY
             withdrawalAmount,
@@ -1615,10 +1617,10 @@ contract TractorHelpersTest is TractorTestHelper {
         sourceTokenIndices[2] = tractorHelpers.getTokenIndex(BEAN_WSTETH_WELL);
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the first plan for a smaller amount
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
@@ -1628,7 +1630,7 @@ contract TractorHelpersTest is TractorTestHelper {
         );
 
         // Get the second plan excluding the first plan
-        LibTractorHelpers.WithdrawalPlan memory newPlan = tractorHelpers
+        LibSiloHelpers.WithdrawalPlan memory newPlan = tractorHelpers
             .getWithdrawalPlanExcludingPlan(
                 farmers[0],
                 sourceTokenIndices,
@@ -1640,12 +1642,14 @@ contract TractorHelpersTest is TractorTestHelper {
             );
 
         // Combine the plans and verify the result
-        LibTractorHelpers.WithdrawalPlan[]
-            memory plansToCombine = new LibTractorHelpers.WithdrawalPlan[](2);
+        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
+            2
+        );
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        LibTractorHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers
-            .combineWithdrawalPlans(plansToCombine);
+        LibSiloHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers.combineWithdrawalPlans(
+            plansToCombine
+        );
 
         // Verify the combined plan has all source tokens
         assertEq(combinedPlan.sourceTokens.length, 3, "Should have three source tokens");

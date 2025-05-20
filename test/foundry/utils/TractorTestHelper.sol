@@ -5,7 +5,8 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
 contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
@@ -90,7 +91,7 @@ contract TractorTestHelper is TestHelper {
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
             target: address(tractorHelpers),
             callData: abi.encodeWithSelector(
-                TractorHelpers.withdrawBeansFromSources.selector,
+                SiloHelpers.withdrawBeansFromSources.selector,
                 account,
                 sourceTokenIndices,
                 withdrawAmount,
@@ -99,7 +100,7 @@ contract TractorTestHelper is TestHelper {
                 false,
                 0.01e18, // 1%
                 uint8(mode),
-                LibTractorHelpers.WithdrawalPlan(
+                LibSiloHelpers.WithdrawalPlan(
                     new address[](0),
                     new int96[][](0),
                     new uint256[][](0),
