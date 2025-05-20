@@ -13,7 +13,7 @@ import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {System, EvaluationParameters, Weather} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 /**
@@ -203,7 +203,7 @@ library LibEvaluate {
     function getDemand(
         uint256 soilSownThisSeason,
         uint256 soilSownLastSeason
-    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+    ) internal pure returns (Decimal.D256 memory deltaPodDemand) {
         if (soilSownThisSeason == 0) {
             deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
         } else if (soilSownLastSeason == 0) {
