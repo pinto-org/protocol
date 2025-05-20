@@ -164,8 +164,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
         }
 
-        // Scale L2SR by the optimal L2SR.
-        uint256 l2srRatio = (1e18 * bs.lpToSupplyRatio.value) /
+        // Scale L2SR by the optimal L2SR. Cap the current L2SR at the optimal L2SR.
+        uint256 l2srRatio = (1e18 *
+            Math.min(bs.lpToSupplyRatio.value, s.sys.evaluationParameters.lpToSupplyRatioOptimal)) /
             s.sys.evaluationParameters.lpToSupplyRatioOptimal;
 
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
@@ -188,7 +189,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @return gaugeData
      *  The gaugeData are encoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData:
      *     - deltaC - the delta used in adjusting convertBonusFactor.
-     *     - deltaT - the delta used in adjusting the convert bonus bdv capacity factor.
+     *     - deltaD - the delta used in adjusting the convert bonus bdv capacity factor.
      *     - minConvertBonusFactor - the minimum value of the conversion factor (0).
      *     - maxConvertBonusFactor - the maximum value of the conversion factor (1e18).
      *     - minCapacityFactor - the minimum value of the convert bonus bdv capacity factor.
@@ -296,7 +297,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             gv.convertCapacityFactor = LibGaugeHelpers.linear256(
                 gv.convertCapacityFactor,
                 !increasingDemand,
-                gd.deltaT,
+                gd.deltaD,
                 gd.minCapacityFactor,
                 gd.maxCapacityFactor
             );
@@ -344,7 +345,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     function getGaugeResult(
         Gauge memory gauge,
         bytes memory systemData
-    ) external returns (bytes memory, bytes memory) {
+    ) external view returns (bytes memory, bytes memory) {
         return LibGaugeHelpers.getGaugeResult(gauge, systemData);
     }
 
@@ -354,7 +355,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     function getGaugeIdResult(
         GaugeId gaugeId,
         bytes memory systemData
-    ) external returns (bytes memory, bytes memory) {
+    ) external view returns (bytes memory, bytes memory) {
         Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
         return LibGaugeHelpers.getGaugeResult(g, systemData);
     }

@@ -28,7 +28,6 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
-
 /**
  * @title LibConvert
  */
@@ -38,6 +37,9 @@ library LibConvert {
     using LibWell for address;
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
+
+    uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
+    uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
@@ -200,6 +202,8 @@ library LibConvert {
             .add(outputTokenAmountUsed);
     }
 
+    ////// Stalk Penalty Calculations //////
+
     /**
      * @notice Calculates the percentStalkPenalty for a given convert.
      */
@@ -240,7 +244,7 @@ library LibConvert {
 
         // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
         stalkPenaltyBdv = min(
-            max(spd.higherAmountAgainstPeg,spd.convertCapacityPenalty),
+            max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty),
             bdvConverted
         );
 
@@ -433,6 +437,39 @@ library LibConvert {
     }
 
     /**
+     * @notice applies the stalk modifiers to a user's grown stalk and redeposits the converted tokens.
+     */
+    function applyStalkModifiersAndDeposit(
+        ConvertParams memory cp,
+        uint256 toBdv,
+        uint256 initialGrownStalk,
+        uint256 grownStalk,
+        int256 grownStalkSlippage,
+        uint256 deltaRainRoots
+    ) external returns (uint256 newGrownStalk, int96 newStem) {
+        // apply convert penalty/bonus on grown stalk
+        newGrownStalk = applyStalkModifiers(
+            cp.fromToken,
+            cp.toToken,
+            cp.account,
+            toBdv,
+            grownStalk
+        );
+
+        // check for stalk slippage
+        checkGrownStalkSlippage(newGrownStalk, initialGrownStalk, grownStalkSlippage);
+
+        newStem = _depositTokensForConvert(
+            cp.toToken,
+            cp.toAmount,
+            toBdv,
+            newGrownStalk,
+            deltaRainRoots,
+            cp.account
+        );
+    }
+
+    /**
      * @notice removes the deposits from user and returns the
      * grown stalk and bdv removed.
      *
@@ -447,7 +484,6 @@ library LibConvert {
         uint256 maxTokens,
         address user
     ) internal returns (uint256, uint256, uint256) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
         require(stems.length == amounts.length, "Convert: stems, amounts are diff lengths.");
 
         AssetsRemovedConvert memory a;
@@ -572,6 +608,8 @@ library LibConvert {
             LibTokenSilo.Transfer.emitTransferSingle
         );
     }
+
+    ////// Stalk Modifiers //////
 
     /**
      * @notice Applies the penalty/bonus on grown stalk for a convert.
@@ -778,6 +816,40 @@ library LibConvert {
         // Encode and store updated gauge data
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
     }
+
+    /**
+     * @notice Checks for stalk slippage.
+     * @param newGrownStalk The grown stalk of the deposit after applying the various penalty/bonus.
+     * @param originalGrownStalk The original grown stalk of the deposit(s) that were converted.
+     * @param grownStalkSlippage The slippage percentage. 100% = 1e18.
+     * @dev a negative grownStalkSlippage implies the user requires less grown stalk than they started with. (i.e a bonus)
+     */
+    function checkGrownStalkSlippage(
+        uint256 newGrownStalk,
+        uint256 originalGrownStalk,
+        int256 grownStalkSlippage
+    ) internal pure {
+        uint256 minimumStalk;
+
+        if (grownStalkSlippage > 0) {
+            // if the slippage is greater than 100%, any grown stalk is acceptable.
+            if (uint256(grownStalkSlippage) >= MAX_GROWN_STALK_SLIPPAGE) {
+                return;
+            }
+            minimumStalk =
+                (originalGrownStalk * (MAX_GROWN_STALK_SLIPPAGE - uint256(grownStalkSlippage))) /
+                MAX_GROWN_STALK_SLIPPAGE;
+        } else {
+            // negative slippage implies the user requires more grown stalk than they started with.
+            minimumStalk =
+                (originalGrownStalk * (MAX_GROWN_STALK_SLIPPAGE + uint256(-grownStalkSlippage))) /
+                MAX_GROWN_STALK_SLIPPAGE;
+        }
+
+        require(newGrownStalk >= minimumStalk, "Convert: Stalk slippage");
+    }
+
+    ////// Math Functions //////
 
     function abs(int256 a) internal pure returns (uint256) {
         return a >= 0 ? uint256(a) : uint256(-a);

@@ -22,6 +22,7 @@ import "forge-std/console.sol";
  * peg maintainence. See {LibConvert} for more infomation on specific convert types.
  */
 contract ConvertTest is TestHelper {
+    int256 MAX_GROWN_STALK_SLIPPAGE = 1e18;
     struct ConvertData {
         uint256 initalWellBeanBalance;
         uint256 initalLPbalance;
@@ -292,6 +293,7 @@ contract ConvertTest is TestHelper {
             assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg should be 0");
 
             uint256 expectedPenaltyRatio = (1e18 * l2sr) / optimalL2sr;
+            assertLe(expectedPenaltyRatio, 1e18, "t=0 penaltyRatio should be le 1");
             assertGt(expectedPenaltyRatio, 0, "t=0 penaltyRatio should be greater than 0");
             assertEq(expectedPenaltyRatio, penaltyRatio, "t=0 penaltyRatio incorrect");
             assertEq(expectedPenaltyRatio, 205850264517589905, "t=0 hardcoded ratio mismatch");
@@ -322,7 +324,12 @@ contract ConvertTest is TestHelper {
             // emit ConvertDownPenalty(farmers[0], grownStalk, grownStalkLost);
 
             vm.prank(farmers[0]);
-            (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+            (int96 toStem, , , , ) = convert.convertWithStalkSlippage(
+                convertData,
+                stems,
+                amounts,
+                MAX_GROWN_STALK_SLIPPAGE
+            );
 
             assertGt(toStem, int96(0), "toStem should be larger than initial");
             uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
@@ -372,7 +379,12 @@ contract ConvertTest is TestHelper {
             // emit ConvertDownPenalty(farmers[0], grownStalk, grownStalkLost);
 
             vm.prank(farmers[0]);
-            (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+            (int96 toStem, , , , ) = convert.convertWithStalkSlippage(
+                convertData,
+                stems,
+                amounts,
+                MAX_GROWN_STALK_SLIPPAGE
+            );
 
             assertGt(toStem, int96(0), "toStem should be larger than initial");
             uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
@@ -443,7 +455,12 @@ contract ConvertTest is TestHelper {
         // vm.expectEmit(false, false, false, false);
         // emit ConvertDownPenalty(farmers[0], 40000010000000, 1); // Do not check value match.
         vm.prank(farmers[0]);
-        (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+        (int96 toStem, , , , ) = convert.convertWithStalkSlippage(
+            convertData,
+            stems,
+            amounts,
+            MAX_GROWN_STALK_SLIPPAGE
+        );
 
         uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
         uint256 stalkLost = grownStalkConverting - newGrownStalk;
@@ -556,7 +573,12 @@ contract ConvertTest is TestHelper {
             l2sr = bs.getLiquidityToSupplyRatio();
 
             vm.prank(farmers[0]);
-            (int96 toStem, , , uint256 fromBdv, ) = convert.convert(convertData, stems, amounts);
+            (int96 toStem, , , uint256 fromBdv, ) = convert.convertWithStalkSlippage(
+                convertData,
+                stems,
+                amounts,
+                MAX_GROWN_STALK_SLIPPAGE
+            );
 
             if (i > 0) {
                 assertLt(newPenaltyRatio, lastPenaltyRatio, "penalty ought to be getting smaller");
@@ -626,6 +648,55 @@ contract ConvertTest is TestHelper {
         );
         assertEq(grownStalkLost, 0, "no penalty when P > Q");
         assertEq(newGrownStalk, 10_000e18, "stalk same when P > Q");
+    }
+
+    /**
+     * @notice general convert test and verify down convert penalty, checking slippage.
+     */
+    function test_convertBeanToWellWithPenaltySlippageRevert() public {
+        bean.mint(farmers[0], 20_000e6);
+        bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 10_000e6, 0);
+        sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
+        passGermination();
+
+        // Wait some seasons to allow stem tip to advance. More grown stalk to lose.
+        for (uint256 i; i < 580; i++) {
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            bs.sunrise();
+        }
+
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+
+        // create encoding for a bean -> well convert.
+        uint256 beansToConvert = 5e6;
+        (
+            bytes memory convertData,
+            int96[] memory stems,
+            uint256[] memory amounts
+        ) = getConvertDownData(well, beansToConvert);
+
+        // verify convert succeeds with max slippage.
+        uint256 snapshot = vm.snapshot();
+        vm.prank(farmers[0]);
+        (int96 toStem, , , uint256 fromBdv, ) = convert.convertWithStalkSlippage(
+            convertData,
+            stems,
+            amounts,
+            MAX_GROWN_STALK_SLIPPAGE
+        );
+        vm.revertTo(snapshot);
+
+        // verify convert reverts with slippage > max slippage.
+        vm.prank(farmers[0]);
+        vm.expectRevert("Convert: Stalk slippage");
+        convert.convertWithStalkSlippage(convertData, stems, amounts, 0.19e18);
+
+        // verify convert reverts with slippage < max slippage.
+        vm.prank(farmers[0]);
+        convert.convertWithStalkSlippage(convertData, stems, amounts, 0.21e18);
     }
 
     ////////////////////// Convert Up Bonus //////////////////////

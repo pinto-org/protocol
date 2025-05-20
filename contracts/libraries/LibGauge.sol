@@ -246,7 +246,7 @@ library LibGauge {
 
         if (!success) return ss.gaugePoints;
         assembly {
-            newGaugePoints := mload(add(data, add(0x20, 0)))
+            newGaugePoints := mload(add(data, 0x20))
         }
     }
 

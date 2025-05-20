@@ -65,6 +65,42 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
+        return _convert(convertData, stems, amounts, int256(LibConvert.ZERO_STALK_SLIPPAGE));
+    }
+
+    /**
+     * @notice convertWithStalkSlippage is a variant of the convert
+     * function that allows a userto specify a grown stalk slippage tolerance.
+     */
+    function convertWithStalkSlippage(
+        bytes calldata convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        int256 grownStalkSlippage
+    )
+        external
+        payable
+        fundsSafu
+        noSupplyChange
+        nonReentrant
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
+    {
+        return _convert(convertData, stems, amounts, grownStalkSlippage);
+    }
+
+    /**
+     * @notice  Internal Convert functionality.
+     * 18 decimal precision for stalk slippage. 100% = 1e18.
+     */
+    function _convert(
+        bytes calldata convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        int256 grownStalkSlippage
+    )
+        internal
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
+    {
         // if the convert is a well <> bean convert, cache the state to validate convert.
         LibPipelineConvert.PipelineConvertData memory pipeData = LibPipelineConvert.getConvertState(
             convertData
@@ -94,28 +130,29 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
 
         // Withdraw the tokens from the deposit.
         uint256 deltaRainRoots;
-        (pipeData.grownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
+        (pipeData.initialGrownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
             cp.fromToken,
             stems,
             amounts,
             cp.fromAmount,
             cp.account
         );
+        pipeData.grownStalk = pipeData.initialGrownStalk;
+
+        // Calculate the bdv of the new deposit.
+        toBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
+
+        // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
+        toBdv = (toBdv > fromBdv || cp.decreaseBDV) ? toBdv : fromBdv;
 
         // check for potential penalty
-        LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
+        pipeData.grownStalk = LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
             pipeData,
             convertData,
             cp.fromToken,
             cp.toToken,
-            fromBdv
+            toBdv
         );
-
-        // Calculate the bdv of the new deposit.
-        uint256 newBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
-
-        // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
-        toBdv = (newBdv > fromBdv || cp.decreaseBDV) ? newBdv : fromBdv;
 
         // if the Farmer is converting between beans and well LP, check for
         // potential germination. if the deposit is germinating, issue additional
@@ -128,22 +165,13 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             );
         }
 
-        // apply convert penalty/bonus on grown stalk
-        pipeData.grownStalk = LibConvert.applyStalkModifiers(
-            cp.fromToken,
-            cp.toToken,
-            cp.account,
+        (pipeData.grownStalk, toStem) = LibConvert.applyStalkModifiersAndDeposit(
+            cp,
             toBdv,
-            pipeData.grownStalk
-        );
-
-        toStem = LibConvert._depositTokensForConvert(
-            cp.toToken,
-            cp.toAmount,
-            toBdv,
+            pipeData.initialGrownStalk,
             pipeData.grownStalk,
-            deltaRainRoots,
-            cp.account
+            grownStalkSlippage,
+            deltaRainRoots
         );
 
         fromAmount = cp.fromAmount;

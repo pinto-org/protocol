@@ -13,7 +13,7 @@ import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {System, EvaluationParameters, Weather} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 /**
@@ -203,7 +203,7 @@ library LibEvaluate {
     function getDemand(
         uint256 soilSownThisSeason,
         uint256 soilSownLastSeason
-    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+    ) internal pure returns (Decimal.D256 memory deltaPodDemand) {
         if (soilSownThisSeason == 0) {
             deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
         } else if (soilSownLastSeason == 0) {
@@ -358,7 +358,7 @@ library LibEvaluate {
 
         if (!success) return 0;
         assembly {
-            liquidityWeight := mload(add(data, add(0x20, 0)))
+            liquidityWeight := mload(add(data, 0x20))
         }
     }
 
@@ -366,7 +366,7 @@ library LibEvaluate {
      * @notice Calculates the minimum soil sown needed to properly calculate delta pod demand.
      * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
      * occurs without substantial cost.
-     * @dev if not max(max(0,001% of supply, 10), 25% of soil issued)
+     * @dev if not min(max(0,001% of supply, 10), 25% of soil issued)
      * was sown, Beanstalk assumes demand is decreasing.
      */
     function calcMinSoilDemandThreshold() internal view returns (uint256 minDemandThreshold) {

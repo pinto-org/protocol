@@ -245,13 +245,20 @@ library LibDibbler {
     //////////////////// TEMPERATURE ////////////////////
 
     /**
-     * @dev Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
+     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
      * Precision level 1e6, as soil has 1e6 precision (1% = 1e6)
-     * the formula `log3.5(A * MAX_BLOCK_ELAPSED + 1)` is applied, where:
+     * the formula `log2(A * CHUNKS_ELAPSED + 1)/log2(A * MAX_CHUNKS + 1)` is applied, where:
      * `A = 0.1`
-     * `MAX_BLOCK_ELAPSED = 25`
-     * @dev L2 block times are signifncatly shorter than L1. To adjust for this,
-     * `delta` is scaled down by the ratio of L2 block time to L1 block time.
+     * `MAX_CHUNKS = 25`
+     * @dev This function implements the log formula in a discrete fashion (in chunks),
+     * rather than in an continous manner. Previously, these chunks were chosen with
+     * the Ethereum L1 block time in mind, such that the duration of the morning auction
+     * was 5 minutes.
+     
+     * When deploying a beanstalk on other EVM chains/layers, `L2_BLOCK_TIME` will need
+     * to be adjusted such that the duration of the morning auction is constant.
+     * An additional divisior is implemented such that the duration can be adjusted independent of the
+     * block times.
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
