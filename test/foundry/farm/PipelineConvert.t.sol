@@ -90,7 +90,9 @@ contract PipelineConvertTest is TestHelper {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
     event RemoveDeposits(
@@ -199,7 +201,7 @@ contract PipelineConvertTest is TestHelper {
 
         // verify convert
         vm.expectEmit(true, false, false, true);
-        emit Convert(users[1], BEAN, beanEthWell, amount, wellAmountOut);
+        emit Convert(users[1], BEAN, beanEthWell, amount, wellAmountOut, amount, bdvOfAmountOut);
 
         vm.resumeGasMetering();
         vm.prank(users[1]); // do this as user 1
@@ -395,7 +397,9 @@ contract PipelineConvertTest is TestHelper {
             pd.inputWell,
             pd.outputWell,
             pd.amountOfDepositedLP,
-            pd.wellAmountOut
+            pd.wellAmountOut,
+            bdvAmountsDeposited[0],
+            pd.bdvOfAmountOut
         );
 
         vm.resumeGasMetering();
@@ -627,6 +631,34 @@ contract PipelineConvertTest is TestHelper {
             calculatedNewStalk,
             "stalk beyond the convert down penalty was lost"
         );
+    }
+
+    function testPipelineConvertWithStalkSlippage(uint256 amount) public {
+        amount = bound(amount, 10e6, 100e6);
+
+        setDeltaBforWell(int256(amount), beanEthWell, WETH);
+
+        int96 stem = depositBeanAndPassGermination(amount, users[1]);
+
+        // verify revert when grown stalk slippage is 0
+        uint256 snapshot = vm.snapshot();
+        vm.expectRevert("Convert: Stalk slippage");
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 0);
+        vm.revertTo(snapshot);
+
+        // verify no revert when grown stalk slippage is 100%
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 1e18);
+
+        vm.revertTo(snapshot);
+
+        // verify no revert when grown stalk slippage is 1%
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 0.01e18);
+
+        vm.revertTo(snapshot);
+
+        // verify revert when grown stalk slippage is <0.01%
+        vm.expectRevert("Convert: Stalk slippage");
+        beanToLPDoConvertWithStalkSlippage(amount, stem, users[1], 0.0001e18);
     }
 
     function testFlashloanManipulationLoseGrownStalkBecauseZeroConvertCapacity(
@@ -1337,8 +1369,6 @@ contract PipelineConvertTest is TestHelper {
         dbs.beforeInputTokenDeltaB = 100;
         dbs.beforeOutputTokenDeltaB = 100;
 
-        console.log("doing calculateStalkPenalty: ", bdvConverted);
-
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
             bdvConverted,
@@ -1413,6 +1443,52 @@ contract PipelineConvertTest is TestHelper {
             outputToken
         );
         assertEq(stalkPenaltyBdv, 100);
+    }
+
+    function testCalcStalkPenaltyCapBdvAllNonZero() public {
+        (
+            IMockFBeanstalk.DeltaBStorage memory dbs,
+            address inputToken,
+            address outputToken,
+            uint256 bdvConverted,
+            uint256 overallConvertCapacity
+        ) = setupTowardsPegDeltaBStorageNegative();
+
+        // Ensure `higherAmountAgainstPeg` is greater than `convertCapacityPenalty`
+        dbs.beforeInputTokenDeltaB = -200;
+        dbs.afterInputTokenDeltaB = -50;
+        dbs.beforeOutputTokenDeltaB = -100;
+        dbs.afterOutputTokenDeltaB = -500;
+        dbs.beforeOverallDeltaB = -300;
+        dbs.afterOverallDeltaB = -250;
+
+        overallConvertCapacity = 100; // Set low to force penalty
+
+        // Set the overall convert capacity used higher than the total convert capacity
+        bs.setOverallConvertCapacityUsedForBlock(overallConvertCapacity * 2);
+
+        inputToken = BEAN;
+        outputToken = beanEthWell;
+
+        // spd.higherAmountAgainstPeg = 400
+        // spd.convertCapacityPenalty = 50
+        // spd.convertCapacityPenalty should be > 0 now
+        bdvConverted = 75; // Less than max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty)
+
+        (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
+            dbs,
+            bdvConverted,
+            overallConvertCapacity,
+            inputToken,
+            outputToken
+        );
+
+        // final calculation
+        // max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty) = 400
+        // min(400, bdvConverted) = 75
+
+        // Ensure penalty is capped at `bdvConverted`
+        assertEq(stalkPenaltyBdv, bdvConverted);
     }
 
     function testConvertFromFarmCall() public {
@@ -1598,6 +1674,38 @@ contract PipelineConvertTest is TestHelper {
             stems, // stems
             amounts, // amount
             beanEthWell, // token out
+            beanToLPPipeCalls // pipeData
+        );
+    }
+
+    function beanToLPDoConvertWithStalkSlippage(
+        uint256 amount,
+        int96 stem,
+        address user,
+        int256 grownStalkSlippage
+    ) public returns (int96 outputStem, uint256 outputAmount) {
+        // do the convert
+
+        // Create arrays for stem and amount. Tried just passing in [stem] and it's like nope.
+        int96[] memory stems = new int96[](1);
+        stems[0] = stem;
+
+        AdvancedPipeCall[] memory beanToLPPipeCalls = createBeanToLPPipeCalls(
+            amount,
+            new AdvancedPipeCall[](0)
+        );
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount;
+
+        vm.resumeGasMetering();
+        vm.prank(user);
+        (outputStem, outputAmount, , , ) = pipelineConvert.pipelineConvertWithStalkSlippage(
+            BEAN, // input token
+            stems, // stems
+            amounts, // amount
+            beanEthWell, // token out
+            grownStalkSlippage, // stalk slippage
             beanToLPPipeCalls // pipeData
         );
     }
