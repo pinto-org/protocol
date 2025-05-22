@@ -14,7 +14,7 @@ import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-
+import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 /**
  * @title GaugeFacet
  * @notice Calculates the gaugePoints for whitelisted Silo LP tokens.
@@ -38,6 +38,12 @@ interface IGaugeFacet {
         bytes memory,
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory);
+
+    function convertUpBonusGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory);
 }
 
 /**
@@ -46,6 +52,8 @@ interface IGaugeFacet {
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
+    uint256 internal constant INCREASING_CONVERT_DEMAND = 1e36;
+    uint256 internal constant MIN_BDV_CONVERTED = 50e6;
 
     /**
      * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
@@ -161,7 +169,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
             PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
 
-        penaltyRatio = Math.min(1e18, l2srRatio * (1e18 - timeRatio) / 1e18);
+        penaltyRatio = Math.min(1e18, (l2srRatio * (1e18 - timeRatio)) / 1e18);
         return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
     }
 

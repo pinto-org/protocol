@@ -18,6 +18,7 @@ import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
+import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 
 /**
  * @title InitalizeDiamond
@@ -81,25 +82,6 @@ contract InitalizeDiamond {
 
     // Soil distribution period
     uint256 internal constant SOIL_DISTRIBUTION_PERIOD = 24 * 60 * 60; // 24 hours
-
-    // GAUGE DATA:
-
-    // Cultivation Factor
-    uint256 internal constant INIT_CULTIVATION_FACTOR = 50e6; // 50%
-    uint256 internal constant MIN_DELTA_CULTIVATION_FACTOR = 0.5e6; // 0.5%
-    uint256 internal constant MAX_DELTA_CULTIVATION_FACTOR = 2e6; // 2%
-    uint256 internal constant MIN_CULTIVATION_FACTOR = 1e6; // 1%
-    uint256 internal constant MAX_CULTIVATION_FACTOR = 100e6; // 100%
-
-    // Rolling Seasons Above Peg.
-    // The % penalty to be applied to grown stalk when down converting.
-    uint256 internal constant INIT_CONVERT_DOWN_PENALTY_RATIO = 0;
-    // Rolling count of seasons with a twap above peg.
-    uint256 internal constant INIT_ROLLING_SEASONS_ABOVE_PEG = 0;
-    // Max magnitude for rolling seasons above peg count.
-    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12;
-    // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
-    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
@@ -349,25 +331,10 @@ contract InitalizeDiamond {
             INIT_MAX_TOTAL_GAUGE_POINTS
         );
 
-        Gauge memory cultivationFactorGauge = Gauge(
-            abi.encode(INIT_CULTIVATION_FACTOR),
-            address(this),
-            IGaugeFacet.cultivationFactor.selector,
-            abi.encode(
-                MIN_DELTA_CULTIVATION_FACTOR,
-                MAX_DELTA_CULTIVATION_FACTOR,
-                MIN_CULTIVATION_FACTOR,
-                MAX_CULTIVATION_FACTOR
-            )
-        );
-        LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
+        LibInitGauges.initCultivationFactor(); // add the cultivation factor gauge
 
-        Gauge memory convertDownPenaltyGauge = Gauge(
-            abi.encode(INIT_CONVERT_DOWN_PENALTY_RATIO, INIT_ROLLING_SEASONS_ABOVE_PEG),
-            address(this),
-            IGaugeFacet.convertDownPenaltyGauge.selector,
-            abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
-        );
-        LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
+        LibInitGauges.initConvertDownPenalty(); // add the convert down penalty gauge
+
+        LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
     }
 }
