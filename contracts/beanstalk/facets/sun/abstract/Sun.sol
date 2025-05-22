@@ -94,7 +94,6 @@ abstract contract Sun is Oracle, Distribution {
                 soil = Math.min(uint256(-twaDeltaB), uint256(-instDeltaB));
                 setSoil(scaleSoilBelowPeg(soil, bs.lpToSupplyRatio));
             }
-            s.sys.season.abovePeg = false;
         }
     }
 
