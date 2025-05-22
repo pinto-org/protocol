@@ -14,13 +14,12 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {GerminationSide, GaugeId, ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
@@ -613,6 +612,51 @@ library LibConvert {
     ////// Stalk Modifiers //////
 
     /**
+     * @notice Applies the penalty/bonus on grown stalk for a convert.
+     * @param inputToken The token being converted from.
+     * @param outputToken The token being converted to.
+     * @param toBdv The bdv of the deposit to convert.
+     * @param grownStalk The grown stalk of the deposit to convert.
+     * @return newGrownStalk The new grown stalk to assign the deposit, after applying the penalty/bonus.
+     */
+    function applyStalkModifiers(
+        address inputToken,
+        address outputToken,
+        address account,
+        uint256 toBdv,
+        uint256 grownStalk
+    ) internal returns (uint256 newGrownStalk) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // penalty down for BEAN -> WELL
+        if (inputToken == s.sys.bean && LibWell.isWell(outputToken)) {
+            uint256 grownStalkLost;
+            (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
+                outputToken,
+                toBdv,
+                grownStalk
+            );
+            emit ConvertDownPenalty(account, grownStalkLost);
+        } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
+            // bonus up for WELL -> BEAN
+            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
+
+            // update how much bdv was converted this season.
+            updateBdvConverted(toBdv);
+            if (bdvCapacityUsed > 0) {
+                // update the grown stalk by the amount of grown stalk gained
+                newGrownStalk = grownStalk + grownStalkGained;
+                emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed);
+            } else {
+                newGrownStalk = grownStalk;
+            }
+        } else {
+            // no penalty/bonus
+            newGrownStalk = grownStalk;
+        }
+        return newGrownStalk;
+    }
+
+    /**
      * @notice Computes new grown stalk after downward convert penalty.
      * No penalty if P > Q or grown stalk below germination threshold.
      * @dev Inbound must not be germinating, will return germinating amount of grown stalk.
@@ -655,6 +699,12 @@ library LibConvert {
         grownStalkLost = grownStalk - newGrownStalk;
     }
 
+    /**
+     * @notice Checks if the price of the well is greater than Q.
+     * Q is a threshold above the price target at which the protocol deems the price excessive.
+     * @param well The address of the well to check.
+     * @return true if the price is greater than Q, false otherwise.
+     */
     function pGreaterThanQ(address well) internal view returns (bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
