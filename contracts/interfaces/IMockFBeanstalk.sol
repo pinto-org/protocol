@@ -220,6 +220,7 @@ interface IMockFBeanstalk {
         bool raining;
         uint64 sunriseBlock;
         bool abovePeg;
+        uint32 pegCrossSeason;
         uint256 start;
         uint256 period;
         uint256 timestamp;
@@ -1913,4 +1914,9 @@ interface IMockFBeanstalk {
     ) external;
 
     function setSeasonAbovePeg(bool abovePeg) external;
+
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
 }

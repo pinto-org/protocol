@@ -204,11 +204,13 @@ contract ConvertGettersFacet {
         uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
             C.PRECISION;
 
-        if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
+        uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
+
+        if (gd.thisSeasonBdvConverted >= convertCapacity) {
             return (bonusStalkPerBdv, 0);
         }
 
-        return (bonusStalkPerBdv, gv.maxConvertCapacity - gd.thisSeasonBdvConverted);
+        return (bonusStalkPerBdv, convertCapacity - gd.thisSeasonBdvConverted);
     }
 
     /**

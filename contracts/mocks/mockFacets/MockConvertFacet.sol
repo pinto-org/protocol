@@ -84,7 +84,7 @@ contract MockConvertFacet is ConvertFacet {
     }
 
     function mockUpdateBdvConverted(uint256 bdvConverted) external {
-        LibConvert.updateBdvConverted(bdvConverted);
+        LibConvert.updateBdvConverted(bdvConverted, bdvConverted);
     }
 
     function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external {
