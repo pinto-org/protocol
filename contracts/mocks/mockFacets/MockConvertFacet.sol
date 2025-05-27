@@ -27,7 +27,7 @@ contract MockConvertFacet is ConvertFacet {
     ) external {
         LibSilo._mow(msg.sender, token);
         // if (account == address(0)) account = msg.sender;
-        (uint256 stalkRemoved, uint256 bdvRemoved, ) = LibConvert._withdrawTokens(
+        (uint256 stalkRemoved, uint256 bdvRemoved, , ) = LibConvert._withdrawTokens(
             token,
             stems,
             amounts,

@@ -48,6 +48,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         uint256 toAmount;
         uint256 fromBdv;
         uint256 toBdv;
+        uint256 grownStalk;
     }
 
     /**
@@ -161,23 +162,26 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
 
         // withdraw tokens from deposits and calculate the total grown stalk and bdv.
         uint256 deltaRainRoots;
-        uint256 initialGrownStalk;
-        (initialGrownStalk, returnParams.fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
-            inputToken,
-            stems,
-            amounts,
-            returnParams.fromAmount,
-            LibTractor._user()
-        );
-        uint256 grownStalk = initialGrownStalk;
 
-        (returnParams.toAmount, grownStalk, returnParams.toBdv) = LibPipelineConvert
+        uint256[] memory bdvsRemoved = new uint256[](stems.length);
+        (returnParams.grownStalk, returnParams.fromBdv, deltaRainRoots, bdvsRemoved) = LibConvert
+            ._withdrawTokens(
+                inputToken,
+                stems,
+                amounts,
+                returnParams.fromAmount,
+                LibTractor._user()
+            );
+
+        // cache the initial grown stalk.
+        uint256 initialGrownStalk = returnParams.grownStalk;
+        (returnParams.toAmount, returnParams.grownStalk, returnParams.toBdv) = LibPipelineConvert
             .executePipelineConvert(
                 inputToken,
                 outputToken,
                 returnParams.fromAmount,
                 returnParams.fromBdv,
-                grownStalk,
+                returnParams.grownStalk,
                 advancedPipeCalls
             );
 
@@ -192,11 +196,13 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             shouldNotGerminate: false
         });
 
-        (grownStalk, returnParams.toStem) = LibConvert.applyStalkModifiersAndDeposit(
+        returnParams.toStem = LibConvert.applyStalkModifiersAndDeposit(
             cp,
             returnParams.toBdv,
+            stems,
+            bdvsRemoved,
             initialGrownStalk,
-            grownStalk,
+            returnParams.grownStalk,
             grownStalkSlippage,
             deltaRainRoots
         );
