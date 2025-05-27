@@ -649,7 +649,11 @@ library LibConvert {
             emit ConvertDownPenalty(account, grownStalkLost);
         } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
-            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(stems, bdvs);
+            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(
+                inputToken,
+                stems,
+                bdvs
+            );
 
             // update how much bdv was converted this season.
             updateBdvConverted(toBdv, bdvCapacityUsed);
@@ -755,6 +759,7 @@ library LibConvert {
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
+        address inputToken,
         int96[] memory stems,
         uint256[] memory bdvs
     ) internal view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
@@ -776,8 +781,8 @@ library LibConvert {
         if (gd.thisSeasonBdvConvertedBonus >= convertCapacity) {
             return (0, 0);
         }
-
-        uint256 totalBdv = getEligibleBdv(stems, bdvs);
+        uint256 totalBdv;
+        (, , totalBdv) = getEligibleBdv(inputToken, stems, bdvs);
 
         // limit the bdv that can get the bonus
         uint256 remainingCapacity = convertCapacity - gd.thisSeasonBdvConvertedBonus;
@@ -795,14 +800,22 @@ library LibConvert {
 
     /**
      * @notice Calculates the bdv of the set of the deposits that are eligible for the bonus.
+     * @param inputToken The token that is being converted.
      * @param stems The stems of the deposits that are converting.
      * @param bdvs The bdvs of the deposits that are converting.
-     * @return totalBdv The bdv of the set of the deposits that are eligible for the bonus.
+     * @return validStems The stems of the deposits that are eligible for the bonus.
+     * @return validBdv The bdvs of the deposits that are eligible for the bonus.
+     * @return totalBdv The total bdv that is eligible for the bonus.
      */
     function getEligibleBdv(
+        address inputToken,
         int96[] memory stems,
         uint256[] memory bdvs
-    ) internal view returns (uint256 totalBdv) {
+    )
+        internal
+        view
+        returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv)
+    {
         for (uint256 i = 0; i < stems.length; i++) {
             totalBdv = totalBdv.add(bdvs[i]);
         }

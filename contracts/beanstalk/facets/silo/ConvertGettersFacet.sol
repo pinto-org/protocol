@@ -232,15 +232,32 @@ contract ConvertGettersFacet {
     /**
      * @notice Returns the amount of grown stalk gained from the convert up bonus.
      * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
+     * @param fromToken The token that is being converted.
      * @param stems The stems of the deposits that are converting.
      * @param bdvs The bdvs of the deposits that are converting.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
+        address fromToken,
         int96[] memory stems,
         uint256[] memory bdvs
     ) external view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
-        return LibConvert.stalkBonus(stems, bdvs);
+        return LibConvert.stalkBonus(fromToken, stems, bdvs);
+    }
+
+    /**
+     * @notice Given a set of stems, returns the valid stems for the bonus.
+     */
+    function getValidStemsForBonus(
+        address fromToken,
+        int96[] memory stems,
+        uint256[] memory bdvs
+    )
+        external
+        view
+        returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv)
+    {
+        return LibConvert.getEligibleBdv(fromToken, stems, bdvs);
     }
 }
