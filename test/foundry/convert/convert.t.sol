@@ -184,7 +184,7 @@ contract ConvertTest is TestHelper {
 
     /**
      * @notice Bean -> Well convert cannot convert beyond peg.
-     * @dev if minOut is not contrained, the convert will succeed,
+     * @dev if minOut is not constrained, the convert will succeed,
      * but only to the amount of beans that can be converted to the peg.
      */
     function test_convertBeanToWell_beyondPeg(uint256 beansRemovedFromWell) public {
@@ -723,7 +723,7 @@ contract ConvertTest is TestHelper {
         // set deltaB negative
         setDeltaBforWell(int256(-10000e6), BEAN_ETH_WELL, WETH);
 
-        // decreasing demand for convert behaviour.
+        // decreasing demand for convert behavior.
 
         // verify convert factor does not change < 12 seasons below peg.
         // verify convert factor increases after.
@@ -797,7 +797,7 @@ contract ConvertTest is TestHelper {
         for (uint256 i = 1; i < 111; i++) {
             // simulate converting 100 bdv.
             if (i < 101) {
-                // increasing demand for convert behaviour.
+                // increasing demand for convert behavior.
                 baseBdvConverted = (baseBdvConverted * 106) / 100;
                 warpToNextSeasonAndUpdateOracles();
                 bs.mockUpdateBdvConverted(baseBdvConverted);
@@ -812,7 +812,7 @@ contract ConvertTest is TestHelper {
                     (LibGaugeHelpers.ConvertBonusGaugeValue)
                 );
 
-                // verify behaviour:
+                // verify behavior:
                 assertEq(
                     gv.convertCapacityFactor,
                     gd.minCapacityFactor + (0.004e18 * i),
@@ -837,7 +837,7 @@ contract ConvertTest is TestHelper {
 
                 // TODO: measure stalk gained
             } else {
-                // steady demand for convert behaviour.
+                // steady demand for convert behavior.
                 warpToNextSeasonAndUpdateOracles();
                 bs.mockUpdateBdvConverted(baseBdvConverted);
                 vm.roll(block.number + 1800);
@@ -851,7 +851,7 @@ contract ConvertTest is TestHelper {
                     (LibGaugeHelpers.ConvertBonusGaugeValue)
                 );
 
-                // verify behaviour:
+                // verify behavior:
                 assertEq(
                     gv.convertCapacityFactor,
                     gd.maxCapacityFactor,
@@ -877,7 +877,7 @@ contract ConvertTest is TestHelper {
         }
     }
 
-    // verfies the convert capacity increases over the course of a season.
+    // verifies the convert capacity increases over the course of a season.
     function test_convertUpBonus_time() public {
         // set deltaB negative
         setDeltaBforWell(int256(-10000e6), BEAN_ETH_WELL, WETH);
@@ -1182,8 +1182,8 @@ contract ConvertTest is TestHelper {
 
         // stalk bonus gauge data
 
-        // update bdv capacity to allow for more bdv to get the bonus
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        // update bdv capacity such that any convert will get the bonus
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore = abi.decode(
             bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
@@ -1311,7 +1311,7 @@ contract ConvertTest is TestHelper {
     //////////// LAMBDA/LAMBDA ////////////
 
     /**
-     * @notice lamda_lamda convert increases BDV.
+     * @notice lambda_lambda convert increases BDV.
      */
     function test_lambdaLambda_increaseBDV(uint256 deltaB) public {
         uint256 lpMinted = multipleWellDepositSetup();
@@ -1327,7 +1327,7 @@ contract ConvertTest is TestHelper {
 
         uint256 amtToConvert = lpMinted / 2;
 
-        // create lamda_lamda encoding.
+        // create lambda_lambda encoding.
         bytes memory convertData = convertEncoder(
             LibConvertData.ConvertKind.LAMBDA_LAMBDA,
             well,
@@ -1357,7 +1357,7 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice lamda_lamda convert does not decrease BDV.
+     * @notice lambda_lambda convert does not decrease BDV.
      */
     function test_lamdaLamda_decreaseBDV(uint256 deltaB) public {
         uint256 lpMinted = multipleWellDepositSetup();
@@ -1372,7 +1372,7 @@ contract ConvertTest is TestHelper {
         IWell(well).shift(IERC20(bean), 0, farmers[0]);
         uint256 amtToConvert = lpMinted / 2;
 
-        // create lamda_lamda encoding.
+        // create lambda_lambda encoding.
         bytes memory convertData = convertEncoder(
             LibConvertData.ConvertKind.LAMBDA_LAMBDA,
             well,
@@ -1399,13 +1399,13 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice lamda_lamda convert combines deposits.
+     * @notice lambda_lambda convert combines deposits.
      */
-    function test_lamdaLamda_combineDeposits(uint256 lpCombined) public {
+    function test_lambdaLambda_combineDeposits(uint256 lpCombined) public {
         uint256 lpMinted = multipleWellDepositSetup();
         lpCombined = bound(lpCombined, 2, lpMinted);
 
-        // create lamda_lamda encoding.
+        // create lambda_lambda encoding.
         bytes memory convertData = convertEncoder(
             LibConvertData.ConvertKind.LAMBDA_LAMBDA,
             well,

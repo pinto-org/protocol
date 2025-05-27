@@ -19,6 +19,7 @@ import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedToken
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import "forge-std/console.sol";
 
 /**
  * @title GaugeFacet
@@ -180,7 +181,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     /**
      * @notice Calculates the stalk per pdv the protocol is willing to issue along with the
-     * correspoinding pdv capacity.
+     * corresponding pdv capacity.
      * ----------------------------------------------------------------
      * @return value
      *  The gauge value is encoded as (uint256, uint256, uint256, uint256):

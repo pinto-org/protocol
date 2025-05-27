@@ -785,7 +785,7 @@ library LibConvert {
     /**
      * @notice Gets the time weighted convert capacity for the current season
      * @dev the amount of bdv that can be converted with a bonus ramps up linearly over the course of the season,
-     * allowing converts to be more efficent and have a lower slippage.
+     * allowing converts to be more efficient and incur less slippage.
      * the initial capacity starts at 10% of the max capacity and ramps up linearly to 100% of the max capacity at 75% of the season.
      */
     function getConvertCapacity(uint256 maxConvertCapacity) internal view returns (uint256) {
