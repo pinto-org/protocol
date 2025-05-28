@@ -1919,4 +1919,13 @@ interface IMockFBeanstalk {
         external
         view
         returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
+
+    function getValidStemsForBonus(
+        address fromToken,
+        int96[] memory stems,
+        uint256[] memory bdvs
+    )
+        external
+        view
+        returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv);
 }

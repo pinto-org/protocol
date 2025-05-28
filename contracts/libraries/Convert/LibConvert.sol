@@ -28,6 +28,7 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {console} from "forge-std/console.sol";
 /**
  * @title LibConvert
  */
@@ -816,8 +817,13 @@ library LibConvert {
         view
         returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv)
     {
+        require(stems.length == bdvs.length, "Convert: stems and bdvs must have the same length");
+        validStems = new int96[](stems.length);
+        validBdv = new uint256[](stems.length);
         for (uint256 i = 0; i < stems.length; i++) {
             totalBdv = totalBdv.add(bdvs[i]);
+            validStems[i] = stems[i];
+            validBdv[i] = bdvs[i];
         }
     }
 

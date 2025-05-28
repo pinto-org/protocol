@@ -230,7 +230,7 @@ contract ConvertGettersFacet {
     }
 
     /**
-     * @notice Returns the amount of grown stalk gained from the convert up bonus.
+    * @notice Returns the amount of grown stalk gained from the convert up bonus.
      * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param fromToken The token that is being converted.
      * @param stems The stems of the deposits that are converting.

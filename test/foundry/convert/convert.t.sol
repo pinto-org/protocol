@@ -702,7 +702,7 @@ contract ConvertTest is TestHelper {
     ////////////////////// Convert Up Bonus //////////////////////
 
     /**
-     * @notice verifies convert factors change properly with  increasing/decreasingdemand for converting.
+     * @notice verifies convert factors change properly with  increasing/decreasing demand for converting.
      */
     function test_convertUpBonus_change() public {
         // set deltaB to positive
@@ -975,6 +975,23 @@ contract ConvertTest is TestHelper {
             gv.convertBonusFactor *
             expectedBdvBonus) / C.PRECISION;
         assertEq(calculatedStalkBonus, expectedStalkBonus);
+    }
+
+    // verify that only valid stems are used to determine the convert bonus.
+
+    struct StemBdvPair {
+        int96 stem;
+        uint128 bdv;
+    }
+
+    function test_verifyBonusStems(StemBdvPair[] memory pairs) public {
+        int96[] memory stems = new int96[](pairs.length);
+        uint256[] memory bdvs = new uint256[](pairs.length);
+        for (uint256 i = 0; i < pairs.length; i++) {
+            stems[i] = pairs[i].stem;
+            bdvs[i] = pairs[i].bdv;
+        }
+        bs.getValidStemsForBonus(BEAN, stems, bdvs);
     }
 
     //////////// BEAN -> WELL ////////////
