@@ -825,10 +825,9 @@ library LibConvert {
         view
         returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv)
     {
-        AppStorage storage s = LibAppStorage.diamondStorage();
         require(stems.length == bdvs.length, "Convert: stems and bdvs must have the same length");
-        int96 stemTipForToken = LibTokenSilo.stemTipForToken(inputToken);
-        int96 maximumStem = stemTipForToken - int96(int256(bonusStalkPerBdv));
+        int96 maximumStem = LibTokenSilo.stemTipForToken(inputToken) -
+            int96(int256(bonusStalkPerBdv));
         validStems = new int96[](stems.length);
         validBdv = new uint256[](stems.length);
         uint256 totalValidStems;
