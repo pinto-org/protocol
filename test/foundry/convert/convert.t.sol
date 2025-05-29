@@ -991,7 +991,14 @@ contract ConvertTest is TestHelper {
             stems[i] = pairs[i].stem;
             bdvs[i] = pairs[i].bdv;
         }
-        bs.getValidStemsForBonus(BEAN, stems, bdvs);
+        (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv) = bs
+            .getValidStemsForBonus(BEAN, stems, bdvs);
+
+        assertEq(stems.length, bdvs.length);
+        assertEq(validStems.length, validBdv.length);
+
+        assertLe(validStems.length, stems.length);
+        assertLe(validBdv.length, bdvs.length);
     }
 
     //////////// BEAN -> WELL ////////////

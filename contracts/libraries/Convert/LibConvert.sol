@@ -783,7 +783,12 @@ library LibConvert {
             return (0, 0);
         }
         uint256 totalBdv;
-        (, , totalBdv) = getEligibleBdv(inputToken, stems, bdvs);
+        (, , totalBdv) = getEligibleBdv(
+            inputToken,
+            (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION,
+            stems,
+            bdvs
+        );
 
         // limit the bdv that can get the bonus
         uint256 remainingCapacity = convertCapacity - gd.thisSeasonBdvConvertedBonus;
@@ -792,6 +797,7 @@ library LibConvert {
         // Then calculate the bonus stalk based on the limited BDV
         // bonus stalk per bdv = gv.baseBonusStalkPerBdv * gv.convertBonusFactor
         // bonusStalkPerBdv * BdvWithBonus = GrownStalkGained.
+        // note: stalk per pdv is calculated again to increase precision.
         grownStalkGained =
             (bdvWithBonus * gv.baseBonusStalkPerBdv * gv.convertBonusFactor) /
             C.PRECISION;
@@ -801,6 +807,7 @@ library LibConvert {
 
     /**
      * @notice Calculates the bdv of the set of the deposits that are eligible for the bonus.
+     * @dev Deposits are eligible for the bonus if they have grown
      * @param inputToken The token that is being converted.
      * @param stems The stems of the deposits that are converting.
      * @param bdvs The bdvs of the deposits that are converting.
@@ -810,6 +817,7 @@ library LibConvert {
      */
     function getEligibleBdv(
         address inputToken,
+        uint256 bonusStalkPerBdv,
         int96[] memory stems,
         uint256[] memory bdvs
     )
@@ -817,13 +825,27 @@ library LibConvert {
         view
         returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv)
     {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         require(stems.length == bdvs.length, "Convert: stems and bdvs must have the same length");
+        int96 stemTipForToken = LibTokenSilo.stemTipForToken(inputToken);
+        int96 maximumStem = stemTipForToken - int96(int256(bonusStalkPerBdv));
         validStems = new int96[](stems.length);
         validBdv = new uint256[](stems.length);
+        uint256 totalValidStems;
         for (uint256 i = 0; i < stems.length; i++) {
-            totalBdv = totalBdv.add(bdvs[i]);
-            validStems[i] = stems[i];
-            validBdv[i] = bdvs[i];
+            // stems that are valid are those who grown more stalk than the base bonus stalk per bdv.
+            if (stems[i] <= maximumStem) {
+                totalBdv = totalBdv.add(bdvs[i]);
+                validStems[totalValidStems] = stems[i];
+                validBdv[totalValidStems] = bdvs[i];
+                totalValidStems++;
+            }
+        }
+
+        // set length of validStems and validBdv to the number of valid stems
+        assembly {
+            mstore(validStems, totalValidStems)
+            mstore(validBdv, totalValidStems)
         }
     }
 

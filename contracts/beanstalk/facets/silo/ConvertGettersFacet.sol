@@ -230,7 +230,7 @@ contract ConvertGettersFacet {
     }
 
     /**
-    * @notice Returns the amount of grown stalk gained from the convert up bonus.
+     * @notice Returns the amount of grown stalk gained from the convert up bonus.
      * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param fromToken The token that is being converted.
      * @param stems The stems of the deposits that are converting.
@@ -258,6 +258,18 @@ contract ConvertGettersFacet {
         view
         returns (int96[] memory validStems, uint256[] memory validBdv, uint256 totalBdv)
     {
-        return LibConvert.getEligibleBdv(fromToken, stems, bdvs);
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // get gauge value: how much bonus stalk to issue per BDV
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+        return
+            LibConvert.getEligibleBdv(
+                fromToken,
+                (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION,
+                stems,
+                bdvs
+            );
     }
 }
