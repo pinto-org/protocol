@@ -458,8 +458,6 @@ struct EvaluationParameters {
  * twaDeltaB is negative but beanstalk ended the season above peg.
  * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
  * @param minSoilIssuance The minimum amount of soil that can be issued in a season.
- * @param supplyPodDemandScalar The scalar to scale the bean supply by when evaluating the delta pod demand.
- * @param initialSoilPodDemandScalar The scalar to scale the initial soil issuance by when evaluating the delta pod demand.
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
@@ -469,9 +467,7 @@ struct ExtEvaluationParameters {
     uint256 abovePegDeltaBSoilScalar;
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
-    uint256 supplyPodDemandScalar;
-    uint256 initialSoilPodDemandScalar;
-    bytes32[59] buffer;
+    bytes32[61] buffer;
 }
 
 /**

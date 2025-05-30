@@ -87,7 +87,7 @@ contract InitalizeDiamond {
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
     // Pod Demand Scalars
-    uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.25e6; // 25%
+    uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.05e6; // 5%
     uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
 
     // EVENTS:
@@ -314,9 +314,6 @@ contract InitalizeDiamond {
 
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
-
-        s.sys.extEvaluationParameters.supplyPodDemandScalar = SUPPLY_POD_DEMAND_SCALAR;
-        s.sys.extEvaluationParameters.initialSoilPodDemandScalar = INITIAL_SOIL_POD_DEMAND_SCALAR;
     }
 
     function initalizeFarmAndTractor() internal {

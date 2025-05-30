@@ -12,18 +12,33 @@ import {LibUpdate} from "../../libraries/LibUpdate.sol";
  * @dev Initializes parameters for pinto improvement 10.
  **/
 contract InitPI10 {
-    // the minimum amount of beans needed to be sown for demand to be measured, as a % of supply.
-    uint256 internal constant INIT_BEAN_SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
-    // the amount of beans needed to be sown for demand to be measured, as a % of soil issued.
-    uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.25e6; // 25%
+    uint128 constant MAX_TOTAL_GAUGE_POINTS = 5000e18;
+
     function init() external {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        s.sys.extEvaluationParameters.supplyPodDemandScalar = INIT_BEAN_SUPPLY_POD_DEMAND_SCALAR;
-        s.sys.extEvaluationParameters.initialSoilPodDemandScalar = INITIAL_SOIL_POD_DEMAND_SCALAR;
-        emit LibUpdate.UpdatedExtEvaluationParameters(
-            s.sys.season.current,
-            s.sys.extEvaluationParameters
-        );
+
+        // Set the max total gauge points to MAX_TOTAL_GAUGE_POINTS
+        s.sys.seedGauge.maxTotalGaugePoints = MAX_TOTAL_GAUGE_POINTS;
+        emit LibGauge.UpdateMaxTotalGaugePoints(MAX_TOTAL_GAUGE_POINTS);
+
+        address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+        // iterate over all the whitelisted LP tokens
+        uint256 totalGaugePoints = 0;
+        for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
+            totalGaugePoints += s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints;
+        }
+        // set the gauge points to the normalized gauge points
+        for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
+            s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints = uint128(
+                (uint256(s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints) *
+                    MAX_TOTAL_GAUGE_POINTS) / totalGaugePoints
+            );
+            emit LibGauge.GaugePointChange(
+                s.sys.season.current,
+                whitelistedLpTokens[i],
+                s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints
+            );
+        }
 
         LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
     }

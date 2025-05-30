@@ -367,15 +367,15 @@ describe("newField", function () {
     });
 
     it("Does set thisSowTime if Soil = sold_out_threshold", async function () {
-      await mockBeanstalk.setSoilE(to6("100"));
-      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL);
+      await mockBeanstalk.setSoilE(to6("101"));
+      await beanstalk.connect(user).sow(to6("100.1"), 0, EXTERNAL);
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });
 
     it("Correctly sets thisSowTime if Soil < sold_out_threshold and Initial Soil < 100", async function () {
       await mockBeanstalk.setSoilE(to6("80"));
-      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL); // above 50% of intial soil
+      await beanstalk.connect(user).sow(to6("80"), 0, EXTERNAL); // all soil must be sown for soil to be sold out at < 100e6
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });

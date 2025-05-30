@@ -553,7 +553,7 @@ contract CasesTest is TestHelper {
         // bound initial soil to 0 - beanSupply
         initialSoil = bound(initialSoil, 4, beanSupply);
 
-        uint256 minDemandThreshold = calcMinSoilDemandThreshold(beanSupply, initialSoil);
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold(initialSoil);
 
         // soil sown is less than the min threashold to measure demand
         soilSown = bound(soilSown, 0, minDemandThreshold - 1);
@@ -620,20 +620,18 @@ contract CasesTest is TestHelper {
     }
 
     function calcMinSoilDemandThreshold(
-        uint256 beanSupply,
         uint256 initialSoil
     ) internal view returns (uint256 minDemandThreshold) {
-        // calculate the minimum threshold of bean to calculate delta pod demand.
-        uint256 calculatedThreshold = (beanSupply * 0.00001e6) / 1e6;
-
-        uint256 beanSupplyThreshold = calculatedThreshold > 10e6 ? calculatedThreshold : 10e6;
-
-        // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
-        uint256 scaledInitialSoil = (initialSoil * 0.25e6) / 1e6;
-
-        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
-            ? beanSupplyThreshold
-            : scaledInitialSoil;
+        uint256 minBeanSown = 50e6;
+        // if initial soil is less than the minimum amount of beans to measure demand,
+        // set the threshold to the initial soil (all soil must be sown to measure demand)
+        if (initialSoil < minBeanSown) {
+            return initialSoil;
+        } else {
+            // else, use min(minBeanSown, x% of soil)
+            uint256 soilBasedThreshold = (initialSoil * 0.05e6) / 1e6;
+            return soilBasedThreshold > minBeanSown ? minBeanSown : soilBasedThreshold;
+        }
     }
 
     /**
