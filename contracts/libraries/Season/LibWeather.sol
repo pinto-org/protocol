@@ -177,7 +177,7 @@ library LibWeather {
         // the system has crossed peg.
         if (lastSeasonPeg != s.sys.season.abovePeg) {
             s.sys.season.pegCrossSeason = s.sys.season.current;
-            if (twaDeltaB < 0) {
+            if (twaDeltaB <= 0) {
                 // if the peg was crossed below, cache the stems for each whitelisted token.
                 address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
                 int96[] memory stems = new int96[](lpTokens.length);

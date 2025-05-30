@@ -40,10 +40,7 @@ library LibInitGauges {
     uint256 internal constant MAX_CONVERT_BONUS_FACTOR = 1e18; // the maximum value the convert bonus factor can be adjusted to (100%)
     uint256 internal constant MIN_CAPACITY_FACTOR = 0.1e18; // the minimum value the convert bdv capacity factor can be adjusted to (10%)
     uint256 internal constant MAX_CAPACITY_FACTOR = 0.5e18; // the maximum value the convert bdv capacity factor can be adjusted to (50%)
-    uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND = 1.05e18; // the % change in bdv converted between seasons such that demand for converting is increasing when above this value
-    uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND = 0.95e18; // the % change in bdv converted between seasons such that demand for converting is decreasing when below this value
-    uint256 internal constant LAST_SEASON_BDV_CONVERTED = 0; // the bdv converted in the last season
-    uint256 internal constant THIS_SEASON_BDV_CONVERTED = 0; // the bdv converted in the current season
+    uint256 internal constant TOTAL_SEASON_BDV_CONVERTED_BONUS = 0; // the bdv converted in the current season with a bonus
 
     //////////// Cultivation Factor Gauge ////////////
 
@@ -92,10 +89,7 @@ library LibInitGauges {
             MAX_CONVERT_BONUS_FACTOR,
             MIN_CAPACITY_FACTOR,
             MAX_CAPACITY_FACTOR,
-            LAST_SEASON_BDV_CONVERTED,
-            THIS_SEASON_BDV_CONVERTED,
-            DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND,
-            DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND
+            TOTAL_SEASON_BDV_CONVERTED_BONUS
         );
         Gauge memory convertBonusGauge = Gauge(
             abi.encode(gv),

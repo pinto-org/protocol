@@ -15,6 +15,11 @@ import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
+import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
+import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+
 /**
  * @title GaugeFacet
  * @notice Calculates the gaugePoints for whitelisted Silo LP tokens.
@@ -52,8 +57,8 @@ interface IGaugeFacet {
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
-    uint256 internal constant INCREASING_CONVERT_DEMAND = 1e36;
-    uint256 internal constant MIN_BDV_CONVERTED = 50e6;
+    uint256 internal constant CONVERT_CAPACITY_THRESHOLD = 0.95e6;
+    uint256 internal constant PRECISION_6 = 1e6;
 
     /**
      * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
@@ -174,25 +179,13 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     }
 
     /**
-     * @notice Calculates the stalk per pdv the protocol is willing to issue along with the
-     * correspoinding pdv capacity.
+     * @notice Calculates the stalk per bdv the protocol is willing to issue along with the
+     * corresponding bdv capacity.
      * ----------------------------------------------------------------
      * @return value
-     *  The gauge value is encoded as (uint256, uint256, uint256, uint256):
-     *     - seasonsBelowPeg - the rolling count of seasons below peg.
-     *     - convertBonusFactor - the convert bonus ratio.
-     *     - convertCapacityFactor - the convert bonus bdv capacity factor.
-     *     - baseBonusStalkPerBdv - the bonus stalk per bdv to issue for converts.
+     *  The gauge value is encoded as LibGaugeHelpers.ConvertBonusGaugeValue.
      * @return gaugeData
-     *  The gaugeData are encoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData:
-     *     - deltaC - the delta used in adjusting convertBonusFactor.
-     *     - deltaD - the delta used in adjusting the convert bonus bdv capacity factor.
-     *     - minConvertBonusFactor - the minimum value of the conversion factor (0).
-     *     - maxConvertBonusFactor - the maximum value of the conversion factor (1e18).
-     *     - minCapacityFactor - the minimum value of the convert bonus bdv capacity factor.
-     *     - maxCapacityFactor - the maximum value of the convert bonus bdv capacity factor.
-     *     - lastSeasonBdvConverted - amount of bdv converted last season.
-     *     - thisSeasonBdvConverted - amount of bdv converted this season.
+     *  The gaugeData are encoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData.
      */
     function convertUpBonusGauge(
         bytes memory value,
@@ -213,18 +206,13 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // cache amounts converted last season and this season
-        uint256 lastSeasonBdvConverted = gd.lastSeasonBdvConverted;
-        uint256 thisSeasonBdvConverted = gd.thisSeasonBdvConverted;
+        // cache the totalBdvConvertedBonus.
+        uint256 totalBdvConvertedBonus = gd.totalBdvConvertedBonus;
+        // reset the totalBdvConvertedBonus to 0.
+        gd.totalBdvConvertedBonus = 0;
 
-        // set the amount converted last season to the amount converted this season and set the amount converted this season to 0
-        // (i.e. set the amount converted last season to the amount converted this
-        // season and set the amount converted this season to 0)
-        gd.lastSeasonBdvConverted = thisSeasonBdvConverted;
-        gd.thisSeasonBdvConverted = 0;
-
-        // If twaDeltaB > 0 (above peg)
-        if (bs.twaDeltaB > 0) {
+        // If twaDeltaB >= 0 (above peg)
+        if (bs.twaDeltaB >= 0) {
             // if the peg was crossed, set values to 0 to signal that the bonus is not active.
             if (s.sys.season.pegCrossSeason == s.sys.season.current) {
                 gv.convertBonusFactor = 0;
@@ -253,52 +241,27 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             }
         }
 
-        // determine whether demand for converting is increasing or decreasing.
-        // if demand is increasing (or vice versa),
-        //   - the bonus should decrease (increasing the incentive to convert)
-        //   - the capacity should increase (decreasing the scarcity of the bonus).
-        uint256 convertDemand;
+        // determine if the capacity for converting has been achieved.
+        bool capacityReached = totalBdvConvertedBonus >=
+            (gv.maxConvertCapacity * CONVERT_CAPACITY_THRESHOLD) / PRECISION_6;
 
-        // evaluate the demand for converting based on the amount converted this season and last season.
-        // if the bdv converted this season is less than MIN_BDV_CONVERTED, it is as if no bdv was converted this season.
-        if (thisSeasonBdvConverted < MIN_BDV_CONVERTED) {
-            // if no bdv converted this season, demand for converting is always decreasing.
-            // regardless of the amount converted last season.
-            convertDemand = 0;
-        } else if (lastSeasonBdvConverted == 0) {
-            // if no bdv was converted in the previous season but a non-zero amount was converted this season,
-            // demand for converting is always increasing.
-            convertDemand = INCREASING_CONVERT_DEMAND;
-        } else {
-            // else, calculate the demand for converting as the ratio of bdv converted this season to bdv converted last season.
-            convertDemand = (thisSeasonBdvConverted * C.PRECISION) / lastSeasonBdvConverted;
-        }
+        // increase/decrease convertBonusFactor and convertCapacityFactor linearly as a function of the capacityReached.
+        // the convert bonus and convert capacity are inversely related.
+        gv.convertBonusFactor = LibGaugeHelpers.linear256(
+            gv.convertBonusFactor,
+            !capacityReached,
+            gd.deltaC,
+            gd.minConvertBonusFactor,
+            gd.maxConvertBonusFactor
+        );
 
-        // if the convertDemand is increasing or decreasing, update the convertBonusFactor and convertCapacityFactor.
-        if (
-            convertDemand <= gd.deltaBdvConvertedDemandLowerBound ||
-            convertDemand >= gd.deltaBdvConvertedDemandUpperBound
-        ) {
-            bool increasingDemand = convertDemand < gd.deltaBdvConvertedDemandLowerBound;
-
-            // increase/decrease convertBonusFactor and convertCapacityFactor linearly.
-            // the convert bonus and convert capacity are inversely related.
-            gv.convertBonusFactor = LibGaugeHelpers.linear256(
-                gv.convertBonusFactor,
-                increasingDemand,
-                gd.deltaC,
-                gd.minConvertBonusFactor,
-                gd.maxConvertBonusFactor
-            );
-
-            gv.convertCapacityFactor = LibGaugeHelpers.linear256(
-                gv.convertCapacityFactor,
-                !increasingDemand,
-                gd.deltaD,
-                gd.minCapacityFactor,
-                gd.maxCapacityFactor
-            );
-        }
+        gv.convertCapacityFactor = LibGaugeHelpers.linear256(
+            gv.convertCapacityFactor,
+            capacityReached,
+            gd.deltaD,
+            gd.minCapacityFactor,
+            gd.maxCapacityFactor
+        );
 
         // update the baseBonusStalkPerBdv and convertCapacity.
         gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
