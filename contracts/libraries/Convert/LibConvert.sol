@@ -41,6 +41,10 @@ library LibConvert {
     uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
     uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
 
+    uint256 internal constant PRECISION = 1e18;
+    uint256 internal constant INITIAL_CAPACITY = 0.1e18; // 10% of the total capacity
+    uint256 internal constant CAPACITY_RATE = 0.75e18; // hits 100% total capacity 75% into the season
+
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
 
@@ -641,7 +645,7 @@ library LibConvert {
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
 
             // update how much bdv was converted this season.
-            updateBdvConverted(toBdv);
+            updateBdvConverted(toBdv, bdvCapacityUsed);
             if (bdvCapacityUsed > 0) {
                 // update the grown stalk by the amount of grown stalk gained
                 newGrownStalk = grownStalk + grownStalkGained;
@@ -758,22 +762,50 @@ library LibConvert {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
+        uint256 convertCapacity = getConvertCapacity(gv.maxConvertCapacity);
         // if the max convert capacity has been reached, return 0
-        if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
+        if (gd.thisSeasonBdvConvertedBonus >= convertCapacity) {
             return (0, 0);
         }
 
         // limit the bdv that can get the bonus
-        uint256 remainingCapacity = gv.maxConvertCapacity - gd.thisSeasonBdvConverted;
+        uint256 remainingCapacity = convertCapacity - gd.thisSeasonBdvConvertedBonus;
         uint256 bdvWithBonus = min(toBdv, remainingCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
-        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION;
-        grownStalkGained = (bdvWithBonus * bonusStalkPerBdv);
+        // bonus stalk per bdv = gv.baseBonusStalkPerBdv * gv.convertBonusFactor
+        // bonusStalkPerBdv * BdvWithBonus = GrownStalkGained.
+        grownStalkGained =
+            (bdvWithBonus * gv.baseBonusStalkPerBdv * gv.convertBonusFactor) /
+            C.PRECISION;
 
         return (bdvWithBonus, grownStalkGained);
     }
 
+    /**
+     * @notice Gets the time weighted convert capacity for the current season
+     * @dev the amount of bdv that can be converted with a bonus ramps up linearly over the course of the season,
+     * allowing converts to be more efficient and incur less slippage.
+     * the initial capacity starts at 10% of the max capacity and ramps up linearly to 100% of the max capacity at 75% of the season.
+     */
+    function getConvertCapacity(uint256 maxConvertCapacity) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        uint256 convertRampPeriod = (s.sys.season.period * CAPACITY_RATE) / C.PRECISION;
+        uint256 timeElapsed = block.timestamp - s.sys.season.timestamp;
+        // if the current season is past the ramp period, return the max convert capacity
+        if (timeElapsed > convertRampPeriod) {
+            return maxConvertCapacity;
+        } else {
+            // Initial capacity starts at 10% of max capacity
+            // Formula: initialCapacity + (maxCapacity - initialCapacity) * timeElapsed / rampPeriod
+            uint256 initialCapacity = (maxConvertCapacity * INITIAL_CAPACITY) / C.PRECISION; // 10% of max capacity
+            return
+                initialCapacity +
+                ((maxConvertCapacity - initialCapacity) * timeElapsed) /
+                convertRampPeriod;
+        }
+    }
     /**
      * @notice Gets the bonus stalk per bdv for the current season.
      * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
@@ -799,9 +831,10 @@ library LibConvert {
     /**
      * @notice Updates the convert bonus bdv capacity in the convert bonus gauge data.
      * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
-     * @param bdvConverted The amount of bdv that got the bonus.
+     * @param bdvConverted The amount of bdv that was converted.
+     * @param bdvConvertedBonus The amount of bdv that was converted with a bonus.
      */
-    function updateBdvConverted(uint256 bdvConverted) internal {
+    function updateBdvConverted(uint256 bdvConverted, uint256 bdvConvertedBonus) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Get current gauge data using the new struct
@@ -812,7 +845,7 @@ library LibConvert {
 
         // Update this season's converted amount
         gd.thisSeasonBdvConverted += bdvConverted;
-
+        gd.thisSeasonBdvConvertedBonus += bdvConvertedBonus;
         // Encode and store updated gauge data
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
     }

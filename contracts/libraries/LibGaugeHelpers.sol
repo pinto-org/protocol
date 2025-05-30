@@ -39,6 +39,7 @@ library LibGaugeHelpers {
      * - maxCapacityFactor: The maximum value of the convert bonus bdv capacity factor.
      * - lastSeasonBdvConverted: The amount of bdv converted last season.
      * - thisSeasonBdvConverted: The amount of bdv converted this season.
+     * - thisSeasonBdvConvertedBonus: The amount of bdv converted this season that received a bonus.
      * - deltaBdvConvertedDemandUpperBound: The percentage of bdv converted such that above this value, demand for converting is increasing.
      * - deltaBdvConvertedDemandLowerBound: The percentage of bdv converted such that below this value, demand for converting is decreasing.
      */
@@ -51,6 +52,7 @@ library LibGaugeHelpers {
         uint256 maxCapacityFactor;
         uint256 lastSeasonBdvConverted;
         uint256 thisSeasonBdvConverted;
+        uint256 thisSeasonBdvConvertedBonus;
         uint256 deltaBdvConvertedDemandUpperBound;
         uint256 deltaBdvConvertedDemandLowerBound;
     }

@@ -15,6 +15,12 @@ import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
+import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
+import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import "forge-std/console.sol";
+
 /**
  * @title GaugeFacet
  * @notice Calculates the gaugePoints for whitelisted Silo LP tokens.
@@ -175,7 +181,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     /**
      * @notice Calculates the stalk per pdv the protocol is willing to issue along with the
-     * correspoinding pdv capacity.
+     * corresponding pdv capacity.
      * ----------------------------------------------------------------
      * @return value
      *  The gauge value is encoded as (uint256, uint256, uint256, uint256):
