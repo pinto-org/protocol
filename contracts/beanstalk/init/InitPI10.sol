@@ -6,6 +6,8 @@ pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
 import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
+import {LibGauge} from "../../libraries/LibGauge.sol";
+import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
  * @title InitPI10

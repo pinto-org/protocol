@@ -538,7 +538,7 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the soil sown in the season is below the minimum demand threshold,
-     * of max(max(0,001% of supply, 10), 25% of soil issued) demand is considered decreasing.
+     * of max(min(50, soil issued), soilIssued *5%) demand is considered decreasing.
      */
     function testDeltaPodDemandDecreasingBelowThreshold(
         uint256 soilSown,
