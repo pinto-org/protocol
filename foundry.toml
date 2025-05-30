@@ -45,8 +45,8 @@ gas_reports = ['*']
 # Cache to `$HOME/.foundry/cache/<chain id>/<block number>`.
 no_storage_caching = false
 
-# Exclude deployment tests so CI works
-no_match_contract = "VerifyDeploymentTest"
+# Exclude any tests that contain the word "LEGACY"
+no_match_contract = "LEGACY"
 
 [profile.differential]
 match_test = "testDiff"
