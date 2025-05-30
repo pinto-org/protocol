@@ -39,6 +39,14 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         uint256 toBdv
     );
 
+    struct ConvertReturnParams {
+        int96 toStem;
+        uint256 fromAmount;
+        uint256 toAmount;
+        uint256 fromBdv;
+        uint256 toBdv;
+    }
+
     /**
      * @notice convert allows a user to convert a deposit to another deposit,
      * given that the conversion is supported by the ConvertFacet.
@@ -65,12 +73,18 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
-        return _convert(convertData, stems, amounts, int256(LibConvert.ZERO_STALK_SLIPPAGE));
+        ConvertReturnParams memory rp = _convert(
+            convertData,
+            stems,
+            amounts,
+            int256(LibConvert.ZERO_STALK_SLIPPAGE)
+        );
+        return (rp.toStem, rp.fromAmount, rp.toAmount, rp.fromBdv, rp.toBdv);
     }
 
     /**
      * @notice convertWithStalkSlippage is a variant of the convert
-     * function that allows a userto specify a grown stalk slippage tolerance.
+     * function that allows a user to specify a grown stalk slippage tolerance.
      */
     function convertWithStalkSlippage(
         bytes calldata convertData,
@@ -85,7 +99,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
-        return _convert(convertData, stems, amounts, grownStalkSlippage);
+        ConvertReturnParams memory rp = _convert(convertData, stems, amounts, grownStalkSlippage);
+        return (rp.toStem, rp.fromAmount, rp.toAmount, rp.fromBdv, rp.toBdv);
     }
 
     /**
@@ -97,10 +112,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         int96[] memory stems,
         uint256[] memory amounts,
         int256 grownStalkSlippage
-    )
-        internal
-        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
-    {
+    ) internal returns (ConvertReturnParams memory rp) {
         // if the convert is a well <> bean convert, cache the state to validate convert.
         LibPipelineConvert.PipelineConvertData memory pipeData = LibPipelineConvert.getConvertState(
             convertData
@@ -130,20 +142,16 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
 
         // Withdraw the tokens from the deposit.
         uint256 deltaRainRoots;
-        (pipeData.initialGrownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
-            cp.fromToken,
-            stems,
-            amounts,
-            cp.fromAmount,
-            cp.account
-        );
+        uint256[] memory bdvsRemoved = new uint256[](stems.length);
+        (pipeData.initialGrownStalk, rp.fromBdv, deltaRainRoots, bdvsRemoved) = LibConvert
+            ._withdrawTokens(cp.fromToken, stems, amounts, cp.fromAmount, cp.account);
         pipeData.grownStalk = pipeData.initialGrownStalk;
 
         // Calculate the bdv of the new deposit.
-        toBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
+        rp.toBdv = LibTokenSilo.beanDenominatedValue(cp.toToken, cp.toAmount);
 
         // If `decreaseBDV` flag is not enabled, set toBDV to the max of the two bdvs.
-        toBdv = (toBdv > fromBdv || cp.decreaseBDV) ? toBdv : fromBdv;
+        rp.toBdv = (rp.toBdv > rp.fromBdv || cp.decreaseBDV) ? rp.toBdv : rp.fromBdv;
 
         // check for potential penalty
         pipeData.grownStalk = LibPipelineConvert.checkForValidConvertAndUpdateConvertCapacity(
@@ -151,7 +159,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             convertData,
             cp.fromToken,
             cp.toToken,
-            toBdv
+            rp.toBdv
         );
 
         // if the Farmer is converting between beans and well LP, check for
@@ -161,21 +169,23 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             pipeData.grownStalk = LibConvert.calculateGrownStalkWithNonGerminatingMin(
                 cp.toToken,
                 pipeData.grownStalk,
-                toBdv
+                rp.toBdv
             );
         }
 
-        (pipeData.grownStalk, toStem) = LibConvert.applyStalkModifiersAndDeposit(
+        rp.toStem = LibConvert.applyStalkModifiersAndDeposit(
             cp,
-            toBdv,
+            rp.toBdv,
+            stems,
+            bdvsRemoved,
             pipeData.initialGrownStalk,
             pipeData.grownStalk,
             grownStalkSlippage,
             deltaRainRoots
         );
 
-        fromAmount = cp.fromAmount;
-        toAmount = cp.toAmount;
+        rp.fromAmount = cp.fromAmount;
+        rp.toAmount = cp.toAmount;
 
         emit Convert(
             cp.account,
@@ -183,8 +193,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             cp.toToken,
             cp.fromAmount,
             cp.toAmount,
-            fromBdv,
-            toBdv
+            rp.fromBdv,
+            rp.toBdv
         );
     }
 }
