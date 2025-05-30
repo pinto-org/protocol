@@ -190,7 +190,7 @@ task("megaDeploy", "Deploys the Pinto Diamond", async function () {
   });
 });
 
-task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
+task("PI-1", "Deploys Pinto improvement set 1").setAction(async function () {
   const mock = false;
   let owner;
   if (mock) {
@@ -251,7 +251,7 @@ task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
   });
 });
 
-task("PI-2", "Deploys Pinto improvment set 2").setAction(async function () {
+task("PI-2", "Deploys Pinto improvement set 2").setAction(async function () {
   const mock = false;
   let owner;
   if (mock) {
@@ -400,7 +400,7 @@ task("test-temp-changes", "Tests temperature changes after upgrade").setAction(a
   console.log("\nTemperature change:", finalMaxTemp.sub(initialMaxTemp).toString());
 });
 
-task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
+task("PI-3", "Deploys Pinto improvement set 3").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -461,7 +461,7 @@ task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
   });
 });
 
-task("PI-4", "Deploys Pinto improvment set 4").setAction(async function () {
+task("PI-4", "Deploys Pinto improvement set 4").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -501,7 +501,7 @@ task("PI-4", "Deploys Pinto improvment set 4").setAction(async function () {
   });
 });
 
-task("PI-5", "Deploys Pinto improvment set 5").setAction(async function () {
+task("PI-5", "Deploys Pinto improvement set 5").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -551,7 +551,7 @@ task("PI-5", "Deploys Pinto improvment set 5").setAction(async function () {
   });
 });
 
-task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
+task("PI-6", "Deploys Pinto improvement set 6").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -608,7 +608,7 @@ task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
   });
 });
 
-task("PI-7", "Deploys Pinto improvment set 7, Convert Down Penalty").setAction(async function () {
+task("PI-7", "Deploys Pinto improvement set 7, Convert Down Penalty").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -670,7 +670,7 @@ task("PI-7", "Deploys Pinto improvment set 7, Convert Down Penalty").setAction(a
   });
 });
 
-task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setAction(
+task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setAction(
   async function () {
     const mock = true;
     let owner;
@@ -831,6 +831,70 @@ task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function ()
     object: !mock,
     verbose: true,
     account: owner
+  });
+});
+
+task(
+  "PI-10",
+  "Deploys Pinto improvement set 10, Misc. Improvements and convert up bonus"
+).setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    // await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "FieldFacet",
+      "ConvertFacet",
+      "ConvertGettersFacet",
+      "PipelineConvertFacet",
+      "SiloGettersFacet",
+      "GaugeFacet",
+      "GaugeGettersFacet",
+      "SeasonFacet",
+      "SeasonGettersFacet",
+      "ApprovalFacet"
+    ],
+    libraryNames: [
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibSilo",
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibWeather",
+      "LibFlood",
+      "LibGerminate"
+    ],
+    facetLibraries: {
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+      PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibWeather",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      SeasonGettersFacet: ["LibWellMinting"]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner,
+    initArgs: [],
+    initFacetName: "InitPI10"
   });
 });
 

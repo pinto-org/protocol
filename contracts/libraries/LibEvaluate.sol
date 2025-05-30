@@ -127,7 +127,7 @@ library LibEvaluate {
      * @notice Evaluates the lp to supply ratio and returns the caseId.
      * @param lpToSupplyRatio The ratio of liquidity to supply.
      *
-     * @dev 'liquidity' is definied as the non-bean value in a pool that trades beans.
+     * @dev 'liquidity' is defined as the non-bean value in a pool that trades beans.
      */
     function evalLpToSupplyRatio(
         Decimal.D256 memory lpToSupplyRatio
