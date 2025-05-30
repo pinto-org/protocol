@@ -34,7 +34,7 @@ contract CasesTest is TestHelper {
     // These are the variables that beanstalk measures upon sunrise.
     // (placed in storage due to stack too deep).
     uint256 price; // 0 = below peg, 1 = above peg, 2 = Q
-    uint256 podRate; // 0 = Extremely low, 1 = Reasonbly Low, 2 = Reasonably High, 3 = Extremely High
+    uint256 podRate; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     uint256 changeInSoilDemand; // 0 = Decreasing, 1 = steady, 2 = Inc
     uint256 l2SR; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     int256 deltaB;
@@ -51,15 +51,15 @@ contract CasesTest is TestHelper {
         // Initialize well to balances. (1000 BEAN/ETH)
         addLiquidityToWell(well, 10000e6, 10 ether);
 
-        // call well to wsteth/bean to initalize the well.
+        // call well to wsteth/bean to initialize the well.
         // avoids errors due to gas limits.
         addLiquidityToWell(BEAN_WSTETH_WELL, 10e6, .01 ether);
     }
 
     /**
      * @notice tests every case of weather that can happen in beanstalk, 0 - 143.
-     * @dev See {LibCases.sol} for more infomation.
-     * This test verifies general invarients regarding the cases,
+     * @dev See {LibCases.sol} for more information.
+     * This test verifies general invariants regarding the cases,
      * (i.e how beanstalk should generally react to its state)
      * and does not test the correctness of the magnitude of change.
      * Assumes BeanToMaxGpPerBdvRatio is < 0.
@@ -94,7 +94,7 @@ contract CasesTest is TestHelper {
         require(updatedCaseId == caseId, "CaseId did not match");
         (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
 
-        // CASE INVARIENTS
+        // CASE INVARIANTS
         // if deltaB > 0: temperature should never increase. bean2MaxLpGpRatio should never increase.
         // if deltaB < 0: temperature should never decrease. bean2MaxLpGpRatio usually does not decrease.
         int256 tempChange = int256(bs.maxTemperature()) - int256(initialTemperature);
@@ -555,7 +555,7 @@ contract CasesTest is TestHelper {
 
         uint256 minDemandThreshold = calcMinSoilDemandThreshold(initialSoil);
 
-        // soil sown is less than the min threashold to measure demand
+        // soil sown is less than the min threshold to measure demand
         soilSown = bound(soilSown, 0, minDemandThreshold - 1);
 
         // set podrate to reasonably high,
