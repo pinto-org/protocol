@@ -21,11 +21,11 @@ import {C} from "contracts/C.sol";
 import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 
 /**
- * @title InitalizeDiamond
- * @notice InitalizeDiamond provides helper functions to initalize beanstalk.
+ * @title InitializesDiamond
+ * @notice InitializesDiamond provides helper functions to Initializes beanstalk.
  **/
 
-contract InitalizeDiamond {
+contract InitializeDiamond {
     AppStorage internal s;
 
     // INITIAL CONSTANTS //
@@ -58,10 +58,10 @@ contract InitalizeDiamond {
     /// @dev When the Pod Rate is high, issue less Soil.
     uint256 private constant SOIL_COEFFICIENT_HIGH = 0.25e18;
 
-    uint256 private constant SOIL_COEFFICIENT_REALATIVELY_HIGH = 0.5e18;
+    uint256 private constant SOIL_COEFFICIENT_RELATIVELY_HIGH = 0.5e18;
 
     /// @dev When the Pod Rate is low, issue more Soil.
-    uint256 private constant SOIL_COEFFICIENT_REALATIVELY_LOW = 1e18;
+    uint256 private constant SOIL_COEFFICIENT_RELATIVELY_LOW = 1e18;
 
     uint256 private constant SOIL_COEFFICIENT_LOW = 1.2e18;
 
@@ -94,16 +94,16 @@ contract InitalizeDiamond {
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
-     * @notice Initalizes the diamond with base conditions.
-     * @dev the base initalization initalizes various parameters,
+     * @notice Initializes the diamond with base conditions.
+     * @dev the base initialization Initializes various parameters,
      * as well as whitelists the bean and bean:TKN pools.
      */
-    function initalizeDiamond(address bean, address beanTokenWell) internal {
+    function initializeDiamond(address bean, address beanTokenWell) internal {
         addInterfaces();
         initializeTokens(bean);
-        initalizeSeason();
-        initalizeField();
-        initalizeFarmAndTractor();
+        InitializeSeason();
+        InitializeField();
+        InitializeFarmAndTractor();
         initializeGauges();
 
         address[] memory tokens = new address[](2);
@@ -111,7 +111,7 @@ contract InitalizeDiamond {
         tokens[1] = beanTokenWell;
 
         // note: bean and assets that are not in the gauge system
-        // do not need to initalize the gauge system.
+        // do not need to Initialize the gauge system.
         Implementation memory impl = Implementation(address(0), bytes4(0), bytes1(0), new bytes(0));
         Implementation memory liquidityWeightImpl = Implementation(
             address(0),
@@ -182,9 +182,9 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalizes field parameters.
+     * @notice Initializes field parameters.
      */
-    function initalizeField() internal {
+    function InitializeField() internal {
         s.sys.weather.temp = 1e6;
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
@@ -194,26 +194,26 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalizes season parameters.
+     * @notice Initializes season parameters.
      */
-    function initalizeSeason() internal {
+    function InitializeSeason() internal {
         // set current season to 1.
         s.sys.season.current = 1;
 
-        // initalize the duration of 1 season in seconds.
+        // Initialize the duration of 1 season in seconds.
         s.sys.season.period = C.CURRENT_SEASON_PERIOD;
 
-        // initalize current timestamp.
+        // Initialize current timestamp.
         s.sys.season.timestamp = block.timestamp;
 
-        // initalize the start timestamp.
+        // Initialize the start timestamp.
         // Rounds down to the nearest hour
         // if needed.
         s.sys.season.start = s.sys.season.period > 0
             ? (block.timestamp / s.sys.season.period) * s.sys.season.period
             : block.timestamp;
 
-        // initalizes the cases that beanstalk uses
+        // Initializes the cases that beanstalk uses
         // to change certain parameters of itself.
         setCases();
 
@@ -221,21 +221,21 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalize the cases for the diamond.
+     * @notice Initialize the cases for the diamond.
      */
     function setCases() internal {
         LibCases.setCasesV2();
     }
 
-    function initalizeSeedGauge(
+    function InitializeSeedGauge(
         uint128 beanToMaxLpGpRatio,
         uint128 averageGrownStalkPerBdvPerSeason,
         uint128 maxTotalGaugePoints
     ) internal {
-        // initalize the ratio of bean to max lp gp per bdv.
+        // Initialize the ratio of bean to max lp gp per bdv.
         s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = beanToMaxLpGpRatio;
 
-        // initalize the average grown stalk per bdv per season.
+        // Initialize the average grown stalk per bdv per season.
         s.sys.seedGauge.averageGrownStalkPerBdvPerSeason = averageGrownStalkPerBdvPerSeason;
 
         s.sys.seedGauge.maxTotalGaugePoints = maxTotalGaugePoints;
@@ -298,11 +298,11 @@ contract InitalizeDiamond {
         s
             .sys
             .extEvaluationParameters
-            .soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_REALATIVELY_HIGH;
+            .soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_RELATIVELY_HIGH;
         s
             .sys
             .extEvaluationParameters
-            .soilCoefficientRelativelyLow = SOIL_COEFFICIENT_REALATIVELY_LOW;
+            .soilCoefficientRelativelyLow = SOIL_COEFFICIENT_RELATIVELY_LOW;
         s.sys.evaluationParameters.soilCoefficientLow = SOIL_COEFFICIENT_LOW;
         s.sys.evaluationParameters.baseReward = BASE_REWARD;
         s
@@ -316,13 +316,13 @@ contract InitalizeDiamond {
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
     }
 
-    function initalizeFarmAndTractor() internal {
+    function InitializeFarmAndTractor() internal {
         LibTractor._resetPublisher();
         LibTractor._setVersion("1.0.0");
     }
 
     function initializeGauges() internal {
-        initalizeSeedGauge(
+        InitializeSeedGauge(
             INIT_BEAN_TO_MAX_LP_GP_RATIO,
             INIT_AVG_GSPBDV,
             INIT_MAX_TOTAL_GAUGE_POINTS
