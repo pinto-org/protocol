@@ -79,8 +79,8 @@ library LibInitGauges {
     function initConvertUpBonusGauge() internal {
         // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
-            MIN_CONVERT_BONUS_FACTOR,
-            MAX_CAPACITY_FACTOR,
+            MAX_CONVERT_BONUS_FACTOR,
+            MIN_CAPACITY_FACTOR,
             INIT_BONUS_STALK_PER_BDV,
             INIT_MAX_CONVERT_CAPACITY
         );
