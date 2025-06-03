@@ -646,7 +646,7 @@ library LibConvert {
             return newGrownStalk;
         } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
-            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
+            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv, grownStalk);
 
             if (bdvCapacityUsed > 0) {
                 // update how much bdv was converted this season.
@@ -744,11 +744,13 @@ library LibConvert {
      * @notice Calculates the stalk bonus for a convert. Credits the user with bonus grown stalk.
      * @dev This function is used to calculate the bonus grown stalk for a convert.
      * @param toBdv The bdv of the deposit to convert.
+     * @param grownStalk Initial grown stalk of the deposit.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
-        uint256 toBdv
+        uint256 toBdv,
+        uint256 grownStalk
     ) internal view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
@@ -773,12 +775,23 @@ library LibConvert {
         uint256 remainingCapacity = convertCapacity - gd.totalBdvConvertedBonus;
         uint256 bdvWithBonus = min(toBdv, remainingCapacity);
 
-        // Then calculate the bonus stalk based on the limited BDV
+        // Calculate the bonus stalk based on the eligible bdv.
         // bonus stalk per bdv = gv.baseBonusStalkPerBdv * gv.convertBonusFactor
-        // bonusStalkPerBdv * BdvWithBonus = GrownStalkGained.
-        grownStalkGained =
-            (bdvWithBonus * gv.baseBonusStalkPerBdv * gv.convertBonusFactor) /
-            C.PRECISION;
+        // Grown stalk gained = bonusStalkPerBdv * BdvWithBonus.
+
+        // if the grown stalk per bdv of the deposit is less than the bonus stalk per bdv,
+        // limit the bonus to the initial grown stalk per bdv.
+        uint256 stalkPerBdvBonus = (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION;
+        uint256 grownStalkPerBdv = grownStalk / toBdv;
+
+        // values are recalculated for increased precision.
+        if (grownStalkPerBdv < stalkPerBdvBonus) {
+            grownStalkGained = (bdvWithBonus * grownStalk) / (toBdv * C.PRECISION);
+        } else {
+            grownStalkGained =
+                (bdvWithBonus * gv.baseBonusStalkPerBdv * gv.convertBonusFactor) /
+                C.PRECISION;
+        }
 
         return (bdvWithBonus, grownStalkGained);
     }

@@ -233,12 +233,14 @@ contract ConvertGettersFacet {
      * @notice Returns the amount of grown stalk gained from the convert up bonus.
      * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param bdvToConvert The resulting bdv of the convert.
+     * @param grownStalk The initial grown stalk of the deposit.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
-        uint256 bdvToConvert
+        uint256 bdvToConvert,
+        uint256 grownStalk
     ) external view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
-        return LibConvert.stalkBonus(bdvToConvert);
+        return LibConvert.stalkBonus(bdvToConvert, grownStalk);
     }
 }
