@@ -20,6 +20,7 @@ contract InitPI10 {
     uint256 constant PEG_CROSS_SEASON = 2558;
 
     function init(uint256 bonusStalkPerBdv) external {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         // initialize the gauge point update.
         initMaxGaugePoints(MAX_TOTAL_GAUGE_POINTS);
 
