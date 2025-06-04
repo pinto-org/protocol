@@ -48,10 +48,10 @@ library LibEvaluate {
     uint32 internal constant SOW_TIME_STEADY_LOWER = 300; // seconds, lower means closer to the bottom of the hour
     uint32 internal constant SOW_TIME_STEADY_UPPER = 300; // seconds, upper means closer to the top of the hour
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
-    uint256 internal constant SOIL_PRECISION = 1e6;
-    uint256 internal constant BEAN_PRECISION = 1e6;
-    uint256 internal constant MIN_BEAN_SUPPLY_BOUND = 10e6;
     uint256 internal constant HIGH_DEMAND_THRESHOLD = 1e18;
+    uint256 internal constant SOIL_PRECISION = 1e6;
+    uint256 internal constant MIN_BEAN_SOWN_DEMAND = 50e6;
+    uint256 internal constant MIN_BEAN_SOWN_DEMAND_PERCENT = 0.05e6; // 5%
 
     struct BeanstalkState {
         Decimal.D256 deltaPodDemand;
@@ -127,7 +127,7 @@ library LibEvaluate {
      * @notice Evaluates the lp to supply ratio and returns the caseId.
      * @param lpToSupplyRatio The ratio of liquidity to supply.
      *
-     * @dev 'liquidity' is definied as the non-bean value in a pool that trades beans.
+     * @dev 'liquidity' is defined as the non-bean value in a pool that trades beans.
      */
     function evalLpToSupplyRatio(
         Decimal.D256 memory lpToSupplyRatio
@@ -366,29 +366,24 @@ library LibEvaluate {
      * @notice Calculates the minimum soil sown needed to properly calculate delta pod demand.
      * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
      * occurs without substantial cost.
-     * @dev if not min(max(0,001% of supply, 10), 25% of soil issued)
-     * was sown, Beanstalk assumes demand is decreasing.
+     * If less than this amount is sown, Beanstalk assumes demand is decreasing.
      */
     function calcMinSoilDemandThreshold() internal view returns (uint256 minDemandThreshold) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
+        uint256 initialSoil = s.sys.initialSoil;
 
-        // calculate the minimum threshold of bean to calculate delta pod demand.
-        uint256 calculatedThreshold = (beanSupply *
-            s.sys.extEvaluationParameters.supplyPodDemandScalar) / BEAN_PRECISION;
-
-        // take the maximum of the calculated threshold and the minimum supply bound.
-        uint256 beanSupplyThreshold = calculatedThreshold > MIN_BEAN_SUPPLY_BOUND
-            ? calculatedThreshold
-            : MIN_BEAN_SUPPLY_BOUND;
-
-        // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
-        uint256 scaledInitialSoil = (s.sys.initialSoil *
-            s.sys.extEvaluationParameters.initialSoilPodDemandScalar) / SOIL_PRECISION;
-
-        // take the minimum of the scaled initial soil and the bean supply threshold.
-        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
-            ? beanSupplyThreshold
-            : scaledInitialSoil;
+        // if initial soil is less than the minimum amount of beans to measure demand,
+        // set the threshold to the initial soil (all soil must be sown to measure demand)
+        if (initialSoil < MIN_BEAN_SOWN_DEMAND) {
+            return initialSoil;
+        } else {
+            // else, use min(MIN_BEAN_SOWN_DEMAND, x% of soil)
+            uint256 soilBasedThreshold = (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) /
+                SOIL_PRECISION;
+            return
+                soilBasedThreshold > MIN_BEAN_SOWN_DEMAND
+                    ? MIN_BEAN_SOWN_DEMAND
+                    : soilBasedThreshold;
+        }
     }
 }

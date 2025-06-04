@@ -273,7 +273,7 @@ contract FieldTest is TestHelper {
     function testComplexDPDMoreThan1Soil(uint256 initialSoil, uint256 farmerSown) public {
         initialSoil = bound(initialSoil, 2e6, type(uint128).max);
         // calculate threshold
-        uint256 soilSoldOutThreshold = (initialSoil < 100e6) ? (initialSoil * 50) / 100 : 50e6;
+        uint256 soilSoldOutThreshold = (initialSoil < 100e6) ? 0 : (initialSoil * 0.01e6) / 1e6;
         // ensure at least `soilSoldOutThreshold + 1` remains after sowing
         farmerSown = bound(farmerSown, 1, initialSoil - (soilSoldOutThreshold + 1));
         // set initial soil
