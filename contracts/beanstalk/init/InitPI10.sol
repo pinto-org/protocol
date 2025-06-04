@@ -18,7 +18,7 @@ import {LibWeather} from "../../libraries/Season/LibWeather.sol";
  **/
 contract InitPI10 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
-    uint256 constant PEG_CROSS_SEASON = 2558;
+    uint32 constant PEG_CROSS_SEASON = 2558;
 
     function init(uint256 bonusStalkPerBdv) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
