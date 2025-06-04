@@ -17,10 +17,15 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
  **/
 contract InitPI10 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
+    uint256 constant PEG_CROSS_SEASON = 2558;
 
     function init(uint256 bonusStalkPerBdv) external {
         // initialize the gauge point update.
         initMaxGaugePoints(MAX_TOTAL_GAUGE_POINTS);
+
+        // initialize peg cross season.
+        s.sys.season.pegCrossSeason = PEG_CROSS_SEASON;
+        emit LibWeather.PegStateUpdated(s.sys.season.pegCrossSeason, s.sys.season.abovePeg);
 
         LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
 
