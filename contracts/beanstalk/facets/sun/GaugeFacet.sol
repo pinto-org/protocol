@@ -57,6 +57,7 @@ interface IGaugeFacet {
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
+    // the threshold at which the convert capacity is considered reached.
     uint256 internal constant CONVERT_CAPACITY_THRESHOLD = 0.95e6;
     uint256 internal constant PRECISION_6 = 1e6;
 
@@ -194,77 +195,70 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     ) external view returns (bytes memory, bytes memory) {
         LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
 
-        // Decode current convert bonus ratio value and rolling count of seasons below peg
+        // Decode Gauge Value and Data.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             value,
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
-
-        // Decode gauge data using the struct
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
             gaugeData,
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // cache the totalBdvConvertedBonus.
+        // cache the totalBdvConvertedBonus, reset the totalBdvConvertedBonus to 0.
         uint256 totalBdvConvertedBonus = gd.totalBdvConvertedBonus;
-        // reset the totalBdvConvertedBonus to 0.
         gd.totalBdvConvertedBonus = 0;
 
-        // If twaDeltaB >= 0 (above peg)
+        // twaDeltaB >= 0 (above value target)
         if (bs.twaDeltaB >= 0) {
-            // if the peg was crossed, set values to 0 to signal that the bonus is not active.
+            // if the peg was crossed, set factors to min/max, and bonus/capacity to 0 to signal that the bonus is not active.
             if (s.sys.season.pegCrossSeason == s.sys.season.current) {
-                gv.convertBonusFactor = 0;
-                gv.convertCapacityFactor = 0;
-                gv.baseBonusStalkPerBdv = 0;
+                gv.convertBonusFactor = gd.maxConvertBonusFactor;
+                gv.convertCapacityFactor = gd.minCapacityFactor;
+                gv.bonusStalkPerBdv = 0;
                 gv.maxConvertCapacity = 0;
             }
 
             // return the gauge values.
             return (abi.encode(gv), abi.encode(gd));
-        } else {
-            // If twaDeltaB < 0 (below peg)
-
-            // if less than 12 seasons have elapsed since the last peg cross, do not modify the gauge values.
-            if (s.sys.season.current - s.sys.season.pegCrossSeason < 12) {
-                return (abi.encode(gv), abi.encode(gd));
-            } else if (s.sys.season.current - s.sys.season.pegCrossSeason == 12) {
-                // if 12 seasons have elapsed since the last peg cross, set the bonus to the minimum and the capacity to the maximum.
-                gv.convertBonusFactor = gd.minConvertBonusFactor;
-                gv.convertCapacityFactor = gd.maxCapacityFactor;
-                gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
-                gv.maxConvertCapacity = ((uint256(-bs.twaDeltaB) * gd.maxCapacityFactor) /
-                    C.PRECISION);
-                // return the gauge values.
-                return (abi.encode(gv), abi.encode(gd));
-            }
         }
 
-        // determine if the capacity for converting has been achieved.
-        bool capacityReached = totalBdvConvertedBonus >=
-            (gv.maxConvertCapacity * CONVERT_CAPACITY_THRESHOLD) / PRECISION_6;
+        // twaDeltaB < 0 (below value target)
 
-        // increase/decrease convertBonusFactor and convertCapacityFactor linearly as a function of the capacityReached.
-        // the convert bonus and convert capacity are inversely related.
-        gv.convertBonusFactor = LibGaugeHelpers.linear256(
-            gv.convertBonusFactor,
-            !capacityReached,
-            gd.deltaC,
-            gd.minConvertBonusFactor,
-            gd.maxConvertBonusFactor
+        // update the bonus stalk per bdv.
+        gv.bonusStalkPerBdv = LibConvert.updateBonusStalkPerBdv(
+            gv.bonusStalkPerBdv,
+            gv.convertBonusFactor
         );
 
-        gv.convertCapacityFactor = LibGaugeHelpers.linear256(
-            gv.convertCapacityFactor,
-            capacityReached,
-            gd.deltaD,
-            gd.minCapacityFactor,
-            gd.maxCapacityFactor
-        );
+        // if the peg was crossed, initialize the bonus and capacity.
+        if (s.sys.season.pegCrossSeason == s.sys.season.current) {
+            gv.convertBonusFactor = gd.maxConvertBonusFactor;
+            gv.convertCapacityFactor = gd.minCapacityFactor;
+        } else if (gv.bonusStalkPerBdv > 0) {
+            // if the bonus is greater than 0, check if the capacity has been reached and update the bonus and capacity.
+            // bonus increases if capacity is not reached (and vice versa).
+            // capacity decreases if capacity is reached (and vice versa).
+            bool capacityReached = totalBdvConvertedBonus >=
+                (gv.maxConvertCapacity * CONVERT_CAPACITY_THRESHOLD) / PRECISION_6;
 
-        // update the baseBonusStalkPerBdv and convertCapacity.
-        gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
+            gv.convertBonusFactor = LibGaugeHelpers.linear256(
+                gv.convertBonusFactor,
+                !capacityReached,
+                gd.deltaC,
+                gd.minConvertBonusFactor,
+                gd.maxConvertBonusFactor
+            );
+
+            gv.convertCapacityFactor = LibGaugeHelpers.linear256(
+                gv.convertCapacityFactor,
+                capacityReached,
+                gd.deltaD,
+                gd.minCapacityFactor,
+                gd.maxCapacityFactor
+            );
+        }
+        // update the convert capacity.
         gv.maxConvertCapacity = ((uint256(-bs.twaDeltaB) * gv.convertCapacityFactor) / C.PRECISION);
 
         return (abi.encode(gv), abi.encode(gd));

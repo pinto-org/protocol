@@ -47,14 +47,6 @@ library LibWeather {
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
-     * @notice Emitted when bean crosses below its value target.
-     * @param season The season in which the bean crossed below its value target.
-     * @param tokens The tokens that were updated.
-     * @param stems The new stemTips stored at the peg cross.
-     */
-    event UpdatedBelowPegCrossStems(uint256 indexed season, address[] tokens, int96[] stems);
-
-    /**
      * @notice Emitted when the peg state is updated.
      * @param season The season in which the peg state was updated.
      * @param abovePeg Whether the peg is above or below.
@@ -177,16 +169,6 @@ library LibWeather {
         // the system has crossed peg.
         if (lastSeasonPeg != s.sys.season.abovePeg) {
             s.sys.season.pegCrossSeason = s.sys.season.current;
-            if (twaDeltaB <= 0) {
-                // if the peg was crossed below, cache the stems for each whitelisted token.
-                address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-                int96[] memory stems = new int96[](lpTokens.length);
-                for (uint256 i = 0; i < lpTokens.length; i++) {
-                    stems[i] = LibTokenSilo.stemTipForToken(lpTokens[i]);
-                    s.sys.belowPegCrossStems[lpTokens[i]] = stems[i];
-                }
-                emit UpdatedBelowPegCrossStems(s.sys.season.pegCrossSeason, lpTokens, stems);
-            }
             emit PegStateUpdated(s.sys.season.current, s.sys.season.abovePeg);
         }
     }

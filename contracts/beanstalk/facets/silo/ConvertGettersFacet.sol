@@ -176,8 +176,7 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
-        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
-            C.PRECISION;
+        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
         return (bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
@@ -201,8 +200,7 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
-            C.PRECISION;
+        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
 
         uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
 
@@ -214,19 +212,15 @@ contract ConvertGettersFacet {
     }
 
     /**
-     * @notice Returns the peg cross stem for a given token.
-     * @dev The peg cross stem is the stem of a token when bean crossed below peg.
-     */
-    function getPegCrossStem(address token) external view returns (int96) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.sys.belowPegCrossStems[token];
-    }
-
-    /**
      * @notice Returns the base bonus stalk per bdv for the current season.
      */
-    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256) {
-        return LibConvert.getCurrentBaseBonusStalkPerBdv();
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+        return gv.bonusStalkPerBdv;
     }
 
     /**

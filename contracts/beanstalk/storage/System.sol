@@ -181,7 +181,7 @@ struct Weather {
  * @param avgGsPerBdvFlag update the average grown stalk per bdv per season, if true.
  * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
- * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should be incentivized the most,
+ * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should have the highest incentive,
  * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
  */
 struct SeedGauge {

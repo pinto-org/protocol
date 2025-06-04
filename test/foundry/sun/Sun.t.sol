@@ -1512,7 +1512,7 @@ contract SunTest is TestHelper {
     function test_convertUpBonusGaugeSunrise() public {
         int256 twaDeltaB = -1000e6;
         // update the bdv capacity
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         bs.mockUpdateBdvConverted(1000e6);
         // verify that the convert up bonus gauge data is correct before sunrise

@@ -16,15 +16,15 @@ library LibGaugeHelpers {
     /**
      * @notice Struct for Convert Bonus Gauge Value
      * @dev The value of the Convert Bonus Gauge is a struct that contains the following:
-     * - convertBonusFactor: The % of the baseBonusStalkPerBdv that a user receives upon a successful WELL -> BEAN conversion.
+     * - convertBonusFactor: The % of the bonusStalkPerBdv that a user receives upon a successful WELL -> BEAN conversion.
      * - convertCapacityFactor: The Factor used to determine the convert capacity. Capacity is a % of the twaDeltaB.
-     * - baseBonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
+     * - bonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
      * - maxConvertCapacity: The maximum amount of bdv that can be converted in a season and get a bonus.
      */
     struct ConvertBonusGaugeValue {
         uint256 convertBonusFactor;
         uint256 convertCapacityFactor;
-        uint256 baseBonusStalkPerBdv;
+        uint256 bonusStalkPerBdv;
         uint256 maxConvertCapacity;
     }
 

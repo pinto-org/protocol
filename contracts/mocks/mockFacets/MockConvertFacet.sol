@@ -100,4 +100,18 @@ contract MockConvertFacet is ConvertFacet {
         // Encode and store updated gauge data
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
     }
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external {
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        // Update this season's converted amount
+        gv.bonusStalkPerBdv = newStalkPerBdvBonus;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
+    }
 }

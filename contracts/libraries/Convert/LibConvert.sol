@@ -772,25 +772,15 @@ library LibConvert {
         }
 
         // limit the bdv that can get the bonus
-        uint256 remainingCapacity = convertCapacity - gd.totalBdvConvertedBonus;
-        uint256 bdvWithBonus = min(toBdv, remainingCapacity);
+        uint256 bdvWithBonus = min(toBdv, convertCapacity - gd.totalBdvConvertedBonus);
 
         // Calculate the bonus stalk based on the eligible bdv.
-        // bonus stalk per bdv = gv.baseBonusStalkPerBdv * gv.convertBonusFactor
-        // Grown stalk gained = bonusStalkPerBdv * BdvWithBonus.
+        grownStalkGained = gv.bonusStalkPerBdv * bdvWithBonus;
 
-        // if the grown stalk per bdv of the deposit is less than the bonus stalk per bdv,
-        // limit the bonus to the initial grown stalk per bdv.
-        uint256 stalkPerBdvBonus = (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION;
-        uint256 grownStalkPerBdv = grownStalk / toBdv;
-
-        // values are recalculated for increased precision.
-        if (grownStalkPerBdv < stalkPerBdvBonus) {
-            grownStalkGained = (bdvWithBonus * grownStalk) / (toBdv * C.PRECISION);
-        } else {
-            grownStalkGained =
-                (bdvWithBonus * gv.baseBonusStalkPerBdv * gv.convertBonusFactor) /
-                C.PRECISION;
+        // if the stalk of the deposit is less than the bonus stalk,
+        // limit the bonus to the stalk grown.
+        if (grownStalk < grownStalkGained) {
+            grownStalkGained = grownStalk;
         }
 
         return (bdvWithBonus, grownStalkGained);
@@ -822,24 +812,33 @@ library LibConvert {
     }
     /**
      * @notice Gets the bonus stalk per bdv for the current season.
-     * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
-     * and the stemTip at a peg cross, and choosing the smallest amongst all whitelisted lp tokens.
-     * This way the bonus cannot be gamed since someone could withdraw, deposit and convert without losing stalk.
-     * @return stalkPerBdv The bonus stalk per bdv for the current season.
+     * @dev when the gauge is called, the bonus stalk per bdv is incremented by the difference between
+     * the bean seeds and the largest seeds of all whitelisted lp tokens (scaled by the convert bonus factor)
+     * if beans have more seeds than the max lp seeds.
+     * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
+     * @param convertBonusFactor The convert bonus factor from the previous season.
+     * @return The updated bonus stalk per bdv.
      */
-    function getCurrentBaseBonusStalkPerBdv() internal view returns (uint256) {
+    function updateBonusStalkPerBdv(
+        uint256 bonusStalkPerBdv,
+        uint256 convertBonusFactor
+    ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // get stem tips for all whitelisted lp tokens and get the min
         address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-        uint96 stalkPerBdv = type(uint96).max;
+        uint256 beanSeeds = s.sys.silo.assetSettings[s.sys.bean].stalkEarnedPerSeason;
+        uint256 maxLpSeeds;
         for (uint256 i = 0; i < lpTokens.length; i++) {
-            int96 currentStemTip = LibTokenSilo.stemTipForToken(lpTokens[i]);
-            uint96 tokenStalkPerBdv = uint96(
-                currentStemTip - s.sys.belowPegCrossStems[lpTokens[i]]
-            );
-            if (tokenStalkPerBdv < stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
+            uint256 lpSeeds = s.sys.silo.assetSettings[lpTokens[i]].stalkEarnedPerSeason;
+            if (lpSeeds > maxLpSeeds) maxLpSeeds = lpSeeds;
         }
-        return uint256(stalkPerBdv);
+        // if the bean seeds are greater than the max lp seeds,
+        // the bonus is incremented by the difference.
+        if (beanSeeds > maxLpSeeds) {
+            return bonusStalkPerBdv + ((beanSeeds - maxLpSeeds) * convertBonusFactor) / C.PRECISION;
+        } else {
+            return bonusStalkPerBdv;
+        }
     }
 
     /**
