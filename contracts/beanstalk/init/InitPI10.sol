@@ -10,6 +10,7 @@ import {LibGauge} from "../../libraries/LibGauge.sol";
 import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibWeather} from "../../libraries/Season/LibWeather.sol";
 
 /**
  * @title InitPI10
