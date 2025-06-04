@@ -158,6 +158,7 @@ contract SunTest is TestHelper {
         uint256 beansToField;
         uint256 beansToSilo;
         if (deltaB > 0) {
+            bs.setSeasonAbovePeg(true);
             (beansToField, beansToSilo) = calcBeansToFieldAndSilo(uint256(deltaB), podsInField);
             beanstalkState.podRate = Decimal.ratio(podRate, 1e18);
             (soilIssuedAfterMorningAuction, soilIssuedRightNow) = getSoilIssuedAbovePeg(
@@ -211,6 +212,7 @@ contract SunTest is TestHelper {
         // if deltaB is negative, soil is issued equal to deltaB.
         // no bean should be minted.
         if (deltaB <= 0) {
+            bs.setSeasonAbovePeg(false);
             assertEq(
                 initialBeanBalance - bean.balanceOf(BEANSTALK),
                 0,
@@ -288,6 +290,7 @@ contract SunTest is TestHelper {
             // needed to equal the newly paid off pods (scaled up or down).
             // 3) totalunharvestable() should decrease by the amount issued to the field.
             if (deltaB >= 0) {
+                bs.setSeasonAbovePeg(true);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
                     uint256(deltaB),
@@ -345,6 +348,7 @@ contract SunTest is TestHelper {
             // if deltaB is negative, soil is issued equal to deltaB.
             // no bean should be minted.
             if (deltaB <= 0) {
+                bs.setSeasonAbovePeg(false);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
                     0,
@@ -430,6 +434,7 @@ contract SunTest is TestHelper {
             // needed to equal the newly paid off pods (scaled up or down).
             // 3) totalunharvestable() should decrease by the amount issued to the field.
             if (deltaB > 0) {
+                bs.setSeasonAbovePeg(true);
                 assertGe(
                     bean.balanceOf(BEANSTALK) - priorBeanInBeanstalk,
                     (uint256(deltaB) * 2) / 100, // Payback contract Bean are sent externally.
@@ -555,6 +560,7 @@ contract SunTest is TestHelper {
             // if deltaB is negative, soil is issued equal to deltaB.
             // no bean should be minted.
             if (deltaB <= 0) {
+                bs.setSeasonAbovePeg(false);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeanInBeanstalk,
                     0,
@@ -1506,7 +1512,7 @@ contract SunTest is TestHelper {
     function test_convertUpBonusGaugeSunrise() public {
         int256 twaDeltaB = -1000e6;
         // update the bdv capacity
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         bs.mockUpdateBdvConverted(1000e6);
         // verify that the convert up bonus gauge data is correct before sunrise
@@ -1515,8 +1521,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        assertEq(gdBefore.thisSeasonBdvConverted, 1000e6);
-        assertEq(gdBefore.lastSeasonBdvConverted, 0);
+        assertEq(gdBefore.totalBdvConvertedBonus, 1000e6);
 
         // sunrise
         season.sunSunrise(twaDeltaB, 1, beanstalkState);
@@ -1528,10 +1533,7 @@ contract SunTest is TestHelper {
         );
 
         // verify that this seasons bdv converted is 0:
-        assertEq(gd.thisSeasonBdvConverted, 0);
-
-        // verify that the last seasons bdv converted is 1000e6:
-        assertEq(gd.lastSeasonBdvConverted, gdBefore.thisSeasonBdvConverted);
+        assertEq(gd.totalBdvConvertedBonus, 0);
     }
 
     function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {
@@ -1607,10 +1609,10 @@ contract SunTest is TestHelper {
         soilIssuedAfterMorningAuction =
             (podsRipened * ONE_HUNDRED_TEMP) /
             (ONE_HUNDRED_TEMP + (bs.maxTemperature()));
+        console.log("soilIssuedAfterMorningAuction:", soilIssuedAfterMorningAuction);
 
         // scale soil issued above peg.
         soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, podRate);
-
         soilIssuedRightNow = soilIssuedAfterMorningAuction.mulDiv(
             bs.maxTemperature() + ONE_HUNDRED_TEMP,
             bs.temperature() + ONE_HUNDRED_TEMP

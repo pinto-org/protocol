@@ -433,10 +433,10 @@ library LibIncentive {
             if (secondsLate <= 238) {
                 return _scaleReward(beans, 10_677_927);
             }
-        } else if (secondsLate <= 270) {
             if (secondsLate <= 240) {
                 return _scaleReward(beans, 10_892_553);
             }
+        } else if (secondsLate <= 270) {
             if (secondsLate <= 242) {
                 return _scaleReward(beans, 11_111_494);
             }

@@ -7,10 +7,9 @@
 
 [![Discord][discord-badge]][discord-url]
 
-Pinto is low volatility money built on Base.
+Low-volatility money with a $1 price target.               
 
-Code Version: `1.0.0` <br>
-Whitepaper Version: `1.0.0`
+Code version history: https://github.com/pinto-org/protocol/releases
 
 ## Documentation
 

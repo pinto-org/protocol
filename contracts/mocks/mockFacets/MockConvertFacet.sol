@@ -27,8 +27,13 @@ contract MockConvertFacet is ConvertFacet {
     ) external {
         LibSilo._mow(msg.sender, token);
         // if (account == address(0)) account = msg.sender;
-        (uint256 stalkRemoved, uint256 bdvRemoved, uint256 deltaRainRoots) = LibConvert
-            ._withdrawTokens(token, stems, amounts, maxTokens, LibTractor._user());
+        (uint256 stalkRemoved, uint256 bdvRemoved, ) = LibConvert._withdrawTokens(
+            token,
+            stems,
+            amounts,
+            maxTokens,
+            LibTractor._user()
+        );
 
         emit MockConvert(stalkRemoved, bdvRemoved);
     }
@@ -91,6 +96,20 @@ contract MockConvertFacet is ConvertFacet {
 
         // Update this season's converted amount
         gv.maxConvertCapacity = newBdvCapacity;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
+    }
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external {
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        // Update this season's converted amount
+        gv.bonusStalkPerBdv = newStalkPerBdvBonus;
 
         // Encode and store updated gauge data
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);

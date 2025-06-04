@@ -90,7 +90,9 @@ contract PipelineConvertTest is TestHelper {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
     event RemoveDeposits(
@@ -198,8 +200,8 @@ contract PipelineConvertTest is TestHelper {
         emit AddDeposit(users[1], beanEthWell, outputStem, wellAmountOut, bdvOfAmountOut);
 
         // verify convert
-        // vm.expectEmit(true, false, false, true);
-        // emit Convert(users[1], BEAN, beanEthWell, amount, wellAmountOut);
+        vm.expectEmit(true, false, false, true);
+        emit Convert(users[1], BEAN, beanEthWell, amount, wellAmountOut, amount, bdvOfAmountOut);
 
         vm.resumeGasMetering();
         vm.prank(users[1]); // do this as user 1
@@ -389,14 +391,16 @@ contract PipelineConvertTest is TestHelper {
         );
 
         // verify convert
-        // vm.expectEmit(true, false, false, true);
-        // emit Convert(
-        //     users[1],
-        //     pd.inputWell,
-        //     pd.outputWell,
-        //     pd.amountOfDepositedLP,
-        //     pd.wellAmountOut
-        // );
+        vm.expectEmit(true, false, false, true);
+        emit Convert(
+            users[1],
+            pd.inputWell,
+            pd.outputWell,
+            pd.amountOfDepositedLP,
+            pd.wellAmountOut,
+            bdvAmountsDeposited[0],
+            pd.bdvOfAmountOut
+        );
 
         vm.resumeGasMetering();
         vm.prank(users[1]);

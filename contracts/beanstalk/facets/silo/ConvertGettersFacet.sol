@@ -9,9 +9,10 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
+
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
  **/
@@ -175,8 +176,7 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
-        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
-            C.PRECISION;
+        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
         return (bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
@@ -200,42 +200,41 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
-            C.PRECISION;
+        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
 
-        if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
+        uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
+
+        if (gd.totalBdvConvertedBonus >= convertCapacity) {
             return (bonusStalkPerBdv, 0);
         }
 
-        return (bonusStalkPerBdv, gv.maxConvertCapacity - gd.thisSeasonBdvConverted);
-    }
-
-    /**
-     * @notice Returns the peg cross stem for a given token.
-     * @dev The peg cross stem is the stem of a token when bean crossed below peg.
-     */
-    function getPegCrossStem(address token) external view returns (int96) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.sys.belowPegCrossStems[token];
+        return (bonusStalkPerBdv, convertCapacity - gd.totalBdvConvertedBonus);
     }
 
     /**
      * @notice Returns the base bonus stalk per bdv for the current season.
      */
-    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256) {
-        return LibConvert.getCurrentBaseBonusStalkPerBdv();
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+        return gv.bonusStalkPerBdv;
     }
 
     /**
      * @notice Returns the amount of grown stalk gained from the convert up bonus.
      * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param bdvToConvert The resulting bdv of the convert.
+     * @param grownStalk The initial grown stalk of the deposit.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
-        uint256 bdvToConvert
+        uint256 bdvToConvert,
+        uint256 grownStalk
     ) external view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
-        return LibConvert.stalkBonus(bdvToConvert);
+        return LibConvert.stalkBonus(bdvToConvert, grownStalk);
     }
 }

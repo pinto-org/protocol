@@ -31,6 +31,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
 
@@ -38,6 +39,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
 
@@ -56,20 +58,33 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @notice Verify nonce and time are acceptable, increment nonce, set publisher, clear publisher.
      */
     modifier runBlueprint(LibTractor.Requisition calldata requisition) {
-        require(
-            LibTractor._getBlueprintNonce(requisition.blueprintHash) <
-                requisition.blueprint.maxNonce,
-            "TractorFacet: maxNonce reached"
-        );
+        uint256 nonce = LibTractor._getBlueprintNonce(requisition.blueprintHash);
+        require(nonce < requisition.blueprint.maxNonce, "TractorFacet: maxNonce reached");
         require(
             requisition.blueprint.startTime <= block.timestamp &&
                 block.timestamp <= requisition.blueprint.endTime,
             "TractorFacet: blueprint is not active"
         );
+
+        emit TractorExecutionBegan(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            nonce,
+            gasleft()
+        );
+
         LibTractor._incrementBlueprintNonce(requisition.blueprintHash);
         LibTractor._setPublisher(payable(requisition.blueprint.publisher));
         _;
         LibTractor._resetPublisher();
+        emit Tractor(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            nonce,
+            gasleft()
+        );
     }
 
     /**
@@ -133,13 +148,6 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     {
         require(requisition.blueprint.data.length > 0, "Tractor: data empty");
 
-        emit TractorExecutionBegan(
-            msg.sender,
-            requisition.blueprint.publisher,
-            requisition.blueprintHash,
-            gasleft()
-        );
-
         // Set current blueprint hash
         LibTractor._setCurrentBlueprintHash(requisition.blueprintHash);
 
@@ -177,13 +185,6 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
         // Clear operator
         LibTractor._resetOperator();
-
-        emit Tractor(
-            msg.sender,
-            requisition.blueprint.publisher,
-            requisition.blueprintHash,
-            gasleft()
-        );
     }
 
     /**

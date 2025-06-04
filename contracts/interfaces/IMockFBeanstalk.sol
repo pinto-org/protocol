@@ -220,6 +220,7 @@ interface IMockFBeanstalk {
         bool raining;
         uint64 sunriseBlock;
         bool abovePeg;
+        uint32 pegCrossSeason;
         uint256 start;
         uint256 period;
         uint256 timestamp;
@@ -469,12 +470,14 @@ interface IMockFBeanstalk {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
     event TractorExecutionBegan(
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
     event TractorVersionSet(string version);
@@ -1901,7 +1904,7 @@ interface IMockFBeanstalk {
 
     function getPegCrossStem(address token) external view returns (int96);
 
-    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256);
 
     function mockUpdateBdvConverted(uint256 bdvConverted) external;
 
@@ -1912,4 +1915,12 @@ interface IMockFBeanstalk {
         uint128 thisSeasonBeanSown
     ) external;
 
+    function setSeasonAbovePeg(bool abovePeg) external;
+
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
 }

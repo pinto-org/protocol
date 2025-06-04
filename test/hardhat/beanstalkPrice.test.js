@@ -60,7 +60,7 @@ describe.skip("BeanstalkPrice", function () {
 
   describe("Price", async function () {
     it("deltaB = 0", async function () {
-      const p = await this.beanstalkPrice.price();
+      const p = await this.beanstalkPrice["price()"]();
       // price is within +/- 1 due to rounding
       expect(p.price).to.equal("999999");
       expect(p.liquidity).to.equal("3999998000000");
@@ -76,8 +76,8 @@ describe.skip("BeanstalkPrice", function () {
         value: 0
       });
 
-      const p = await this.beanstalkPrice.price();
-      const w = await this.beanstalkPrice.getWell(BEAN_ETH_WELL);
+      const p = await this.beanstalkPrice["price()"]();
+      const w = await this.beanstalkPrice["getWell(address)"](BEAN_ETH_WELL);
 
       expect(p.price).to.equal("1499997");
       expect(p.liquidity).to.equal("3999997000000");
@@ -97,8 +97,8 @@ describe.skip("BeanstalkPrice", function () {
         value: 0
       });
 
-      const p = await this.beanstalkPrice.price();
-      const w = await this.beanstalkPrice.getWell(BEAN_ETH_WELL);
+      const p = await this.beanstalkPrice["price()"]();
+      const w = await this.beanstalkPrice["getWell(address)"](BEAN_ETH_WELL);
 
       expect(p.price).to.equal("749999");
       expect(p.liquidity).to.equal("3999997000000");

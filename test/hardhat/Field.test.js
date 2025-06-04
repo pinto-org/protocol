@@ -29,8 +29,9 @@ describe("newField", function () {
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
 
-    // Advanced block to get temperature to be max temperature (1%).
-    await mine(400);
+    // Set timestamp to be 600 seconds after current to get temperature to be max temperature (1%).
+    await ethers.provider.send("evm_increaseTime", [600]);
+    await ethers.provider.send("evm_mine");
   });
 
   beforeEach(async function () {
@@ -308,13 +309,16 @@ describe("newField", function () {
         if (i == 0) {
           // no rounding
           expect(temperature).to.be.equal(
-            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)));
+            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12))
+          );
         } else if (i == 25) {
           // max temperature
           expect(temperature).to.be.equal(initTemp);
         } else {
           // rounding up to the nearest integer
-        expect(temperature).to.be.equal(BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)).add(1));
+          expect(temperature).to.be.equal(
+            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)).add(1)
+          );
         }
       }
     });
@@ -363,15 +367,15 @@ describe("newField", function () {
     });
 
     it("Does set thisSowTime if Soil = sold_out_threshold", async function () {
-      await mockBeanstalk.setSoilE(to6("100"));
-      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL);
+      await mockBeanstalk.setSoilE(to6("101"));
+      await beanstalk.connect(user).sow(to6("100.1"), 0, EXTERNAL);
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });
 
     it("Correctly sets thisSowTime if Soil < sold_out_threshold and Initial Soil < 100", async function () {
       await mockBeanstalk.setSoilE(to6("80"));
-      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL); // above 50% of intial soil
+      await beanstalk.connect(user).sow(to6("80"), 0, EXTERNAL); // all soil must be sown for soil to be sold out at < 100e6
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });
@@ -533,8 +537,9 @@ describe("twoField", function () {
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
 
-    // Advanced block to get temperature to be max temperature (1%).
-    await mine(400);
+    // Set timestamp to be 600 seconds after current to get temperature to be max temperature (1%).
+    await ethers.provider.send("evm_increaseTime", [600]);
+    await ethers.provider.send("evm_mine");
   });
 
   beforeEach(async function () {

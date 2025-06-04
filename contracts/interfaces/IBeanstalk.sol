@@ -92,37 +92,6 @@ interface IBeanstalk {
         uint256 lookback
     ) external view returns (int256);
 
-    function convert(
-        bytes calldata convertData,
-        int96[] memory stems,
-        uint256[] memory amounts
-    )
-        external
-        payable
-        returns (
-            int96 toStem,
-            uint256 fromAmount,
-            uint256 toAmount,
-            uint256 fromBdv,
-            uint256 toBdv
-        );
-
-    function convertWithStalkSlippage(
-        bytes calldata convertData,
-        int96[] memory stems,
-        uint256[] memory amounts,
-        int256 grownStalkSlippage
-    )
-        external
-        payable
-        returns (
-            int96 toStem,
-            uint256 fromAmount,
-            uint256 toAmount,
-            uint256 fromBdv,
-            uint256 toBdv
-        );
-
     function deposit(
         address token,
         uint256 _amount,
@@ -134,11 +103,6 @@ interface IBeanstalk {
     function getBeanIndex(IERC20[] calldata tokens) external view returns (uint256);
 
     function getBeanToken() external view returns (address);
-
-    function getConvertStalkPerBdvBonusAndRemainingCapacity()
-        external
-        view
-        returns (uint256, uint256);
 
     function getCounter(address account, bytes32 counterId) external view returns (uint256);
 
@@ -155,12 +119,6 @@ interface IBeanstalk {
         address token,
         int96 stem
     ) external view returns (uint256, uint256);
-
-    function getHighestNonGerminatingStem(address token) external view returns (int96 stem);
-
-    function getHighestNonGerminatingStems(
-        address[] memory tokens
-    ) external view returns (int96[] memory highestNonGerminatingStems);
 
     function getMowStatus(
         address account,

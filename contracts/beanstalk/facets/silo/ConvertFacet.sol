@@ -70,7 +70,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice convertWithStalkSlippage is a variant of the convert
-     * function that allows a userto specify a grown stalk slippage tolerance.
+     * function that allows a user to specify a grown stalk slippage tolerance.
      */
     function convertWithStalkSlippage(
         bytes calldata convertData,
@@ -165,29 +165,13 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             );
         }
 
-        // apply convert penalty/bonus on grown stalk
-        pipeData.grownStalk = LibConvert.applyStalkModifiers(
-            cp.fromToken,
-            cp.toToken,
-            cp.account,
+        (pipeData.grownStalk, toStem) = LibConvert.applyStalkModifiersAndDeposit(
+            cp,
             toBdv,
-            pipeData.grownStalk
-        );
-
-        // check for stalk slippage
-        LibConvert.checkGrownStalkSlippage(
-            pipeData.grownStalk,
             pipeData.initialGrownStalk,
-            grownStalkSlippage
-        );
-
-        toStem = LibConvert._depositTokensForConvert(
-            cp.toToken,
-            cp.toAmount,
-            toBdv,
             pipeData.grownStalk,
-            deltaRainRoots,
-            cp.account
+            grownStalkSlippage,
+            deltaRainRoots
         );
 
         fromAmount = cp.fromAmount;

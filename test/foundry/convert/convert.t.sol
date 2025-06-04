@@ -11,7 +11,7 @@ import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertTest
@@ -19,7 +19,7 @@ import "forge-std/console.sol";
  * @dev `convert` is the ability for users to switch a deposits token
  * from one whitelisted silo token to another,
  * given valid conditions. Generally, the ability to convert is based on
- * peg maintainence. See {LibConvert} for more infomation on specific convert types.
+ * peg maintenance. See {LibConvert} for more information on specific convert types.
  */
 contract ConvertTest is TestHelper {
     int256 MAX_GROWN_STALK_SLIPPAGE = 1e18;
@@ -184,7 +184,7 @@ contract ConvertTest is TestHelper {
 
     /**
      * @notice Bean -> Well convert cannot convert beyond peg.
-     * @dev if minOut is not contrained, the convert will succeed,
+     * @dev if minOut is not constrained, the convert will succeed,
      * but only to the amount of beans that can be converted to the peg.
      */
     function test_convertBeanToWell_beyondPeg(uint256 beansRemovedFromWell) public {
@@ -293,6 +293,7 @@ contract ConvertTest is TestHelper {
             assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg should be 0");
 
             uint256 expectedPenaltyRatio = (1e18 * l2sr) / optimalL2sr;
+            assertLe(expectedPenaltyRatio, 1e18, "t=0 penaltyRatio should be le 1");
             assertGt(expectedPenaltyRatio, 0, "t=0 penaltyRatio should be greater than 0");
             assertEq(expectedPenaltyRatio, penaltyRatio, "t=0 penaltyRatio incorrect");
             assertEq(expectedPenaltyRatio, 205850264517589905, "t=0 hardcoded ratio mismatch");
@@ -701,7 +702,7 @@ contract ConvertTest is TestHelper {
     ////////////////////// Convert Up Bonus //////////////////////
 
     /**
-     * @notice verifies convert factors change properly with  increasing/decreasingdemand for converting.
+     * @notice verifies convert factors change properly with increasing/decreasing demand for converting.
      */
     function test_convertUpBonus_change() public {
         // set deltaB to positive
@@ -722,11 +723,86 @@ contract ConvertTest is TestHelper {
         // set deltaB negative
         setDeltaBforWell(int256(-10000e6), BEAN_ETH_WELL, WETH);
 
-        // decreasing demand for convert behaviour.
+        bs.mockUpdateStalkPerBdvBonus(10000000);
 
-        // verify convert factor does not change < 12 seasons below peg.
-        // verify convert factor increases after.
-        for (uint256 i = 0; i < 150; i++) {
+        // with increasing demand for converting, verify:
+        // convert factor decreases
+        // convert capacity increases.
+        // bonus stalk per bdv increases but decreases slower over time
+
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+        uint256 bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
+        uint256 deltaBonusStalkPerBdvBefore = type(uint256).max;
+        for (uint256 i = 0; i < 101; i++) {
+            // simulate converting until the convert capacity is fully utilized.
+
+            gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            );
+
+            warpToNextSeasonAndUpdateOracles();
+            bs.mockUpdateBdvConverted(gv.maxConvertCapacity);
+            vm.roll(block.number + 1800);
+            bs.sunrise();
+            LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeData)
+            );
+            LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            );
+
+            // verify behavior:
+            assertEq(
+                gv.convertCapacityFactor,
+                min(gd.minCapacityFactor + (0.004e18 * i), gd.maxCapacityFactor),
+                "convertCapacityFactor should be increasing"
+            );
+            uint256 expectedConvertBonusFactor = (0.01e18 * i) > gd.maxConvertBonusFactor
+                ? gd.minConvertBonusFactor
+                : gd.maxConvertBonusFactor - (0.01e18 * i);
+            assertEq(
+                gv.convertBonusFactor,
+                expectedConvertBonusFactor,
+                "convertBonusFactor not expected"
+            );
+            assertEq(
+                gv.maxConvertCapacity,
+                (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+            );
+
+            assertEq(
+                gv.bonusStalkPerBdv,
+                bs.getCalculatedBonusStalkPerBdv(),
+                "bonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+            );
+
+            assertGe(
+                gv.bonusStalkPerBdv,
+                bonusStalkPerBdvBefore,
+                "bonusStalkPerBdv should be always be equal or increasing"
+            );
+
+            assertLe(
+                gv.bonusStalkPerBdv - bonusStalkPerBdvBefore,
+                deltaBonusStalkPerBdvBefore,
+                "deltaBonusStalkPerBdv should be always be equal or decreasing"
+            );
+            deltaBonusStalkPerBdvBefore = gv.bonusStalkPerBdv - bonusStalkPerBdvBefore;
+            bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
+            console.log("convertCapacityFactor", gv.convertCapacityFactor);
+        }
+
+        // with decreasing demand for converting, verify:
+        // convert factor increases
+        // convert capacity decreases.
+        for (uint256 i = 1; i < 111; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
@@ -738,150 +814,119 @@ contract ConvertTest is TestHelper {
                 bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
                 (LibGaugeHelpers.ConvertBonusGaugeValue)
             );
-            if (i < 12) {
-                // verify values are unchanged and 0:
-                assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor should be 0");
-                assertEq(gv.convertBonusFactor, 0, "convertBonusFactor should be 0");
-                assertEq(gv.maxConvertCapacity, 0, "convertCapacity should be 0");
-            } else if (i < 113) {
-                // verify values changes correctly:
-                assertEq(
-                    gv.convertCapacityFactor,
-                    gd.maxCapacityFactor - (0.004e18 * (i - 12)),
-                    "convertCapacityFactor should be less than or equal to maxCapacityFactor"
-                );
-                assertEq(
-                    gv.convertBonusFactor,
-                    gd.minConvertBonusFactor + (0.01e18 * (i - 12)),
-                    "convertBonusFactor should be greater than or equal to minConvertBonusFactor"
-                );
-                assertEq(
-                    gv.maxConvertCapacity,
-                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
-                    "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
-                );
 
-                assertEq(
-                    gv.baseBonusStalkPerBdv,
-                    bs.getCalculatedBaseBonusStalkPerBdv(),
-                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
-                );
-            } else {
-                // verify values are unchanged
-                assertEq(
-                    gv.convertCapacityFactor,
-                    gd.minCapacityFactor,
-                    "convertCapacityFactor should be minCapacityFactor"
-                );
-                assertEq(
-                    gv.convertBonusFactor,
-                    gd.maxConvertBonusFactor,
-                    "convertBonusFactor should be maxConvertBonusFactor"
-                );
-                assertEq(
-                    gv.maxConvertCapacity,
-                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
-                    "convertCapacity should be 10_000e6 * convertBonusFactor / PRECISION"
-                );
+            // verify behavior:
+            uint256 expectedConvertCapacityFactor = gd.maxCapacityFactor - (0.004e18 * i) >=
+                gd.minCapacityFactor
+                ? gd.maxCapacityFactor - (0.004e18 * i)
+                : gd.minCapacityFactor;
 
-                assertEq(
-                    gv.baseBonusStalkPerBdv,
-                    bs.getCalculatedBaseBonusStalkPerBdv(),
-                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
-                );
-            }
-        }
+            assertEq(
+                gv.convertCapacityFactor,
+                expectedConvertCapacityFactor,
+                "convertCapacityFactor should be decreasing"
+            );
+            uint256 expectedConvertBonusFactor = (0.01e18 * i) > gd.maxConvertBonusFactor
+                ? gd.maxConvertBonusFactor
+                : gd.minConvertBonusFactor + (0.01e18 * i);
+            assertEq(
+                gv.convertBonusFactor,
+                expectedConvertBonusFactor,
+                "convertBonusFactor should be increasing"
+            );
+            assertEq(
+                gv.maxConvertCapacity,
+                (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+            );
 
-        uint256 baseBdvConverted = 100e6;
-        for (uint256 i = 1; i < 111; i++) {
-            // simulate converting 100 bdv.
-            if (i < 101) {
-                // increasing demand for convert behaviour.
-                baseBdvConverted = (baseBdvConverted * 106) / 100;
-                warpToNextSeasonAndUpdateOracles();
-                bs.mockUpdateBdvConverted(baseBdvConverted);
-                vm.roll(block.number + 1800);
-                bs.sunrise();
-                LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
-                    bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
-                    (LibGaugeHelpers.ConvertBonusGaugeData)
-                );
-                LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
-                    bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
-                    (LibGaugeHelpers.ConvertBonusGaugeValue)
-                );
-
-                // verify behaviour:
-                assertEq(
-                    gv.convertCapacityFactor,
-                    gd.minCapacityFactor + (0.004e18 * i),
-                    "convertCapacityFactor should be less than or equal to minCapacityFactor"
-                );
-                assertEq(
-                    gv.convertBonusFactor,
-                    gd.maxConvertBonusFactor - (0.01e18 * i),
-                    "convertBonusFactor should be greater than or equal to maxConvertBonusFactor"
-                );
-                assertEq(
-                    gv.maxConvertCapacity,
-                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
-                    "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
-                );
-
-                assertEq(
-                    gv.baseBonusStalkPerBdv,
-                    bs.getCalculatedBaseBonusStalkPerBdv(),
-                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
-                );
-            } else {
-                // steady demand for convert behaviour.
-                warpToNextSeasonAndUpdateOracles();
-                bs.mockUpdateBdvConverted(baseBdvConverted);
-                vm.roll(block.number + 1800);
-                bs.sunrise();
-                LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
-                    bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
-                    (LibGaugeHelpers.ConvertBonusGaugeData)
-                );
-                LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
-                    bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
-                    (LibGaugeHelpers.ConvertBonusGaugeValue)
-                );
-
-                // verify behaviour:
-                assertEq(
-                    gv.convertCapacityFactor,
-                    gd.maxCapacityFactor,
-                    "convertCapacityFactor should be equal to maxCapacityFactor"
-                );
-                assertEq(
-                    gv.convertBonusFactor,
-                    gd.minConvertBonusFactor,
-                    "convertBonusFactor should be equal to minConvertBonusFactor"
-                );
-                assertEq(
-                    gv.maxConvertCapacity,
-                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
-                    "convertCapacity should be 10_000e6 * convertBonusFactor / PRECISION"
-                );
-
-                assertEq(
-                    gv.baseBonusStalkPerBdv,
-                    bs.getCalculatedBaseBonusStalkPerBdv(),
-                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
-                );
-            }
+            assertEq(
+                gv.bonusStalkPerBdv,
+                bs.getCalculatedBonusStalkPerBdv(),
+                "bonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+            );
         }
     }
 
+    // verifies the convert capacity increases over the course of a season.
+    function test_convertUpBonus_time() public {
+        // set deltaB negative
+        setDeltaBforWell(int256(-10000e6), BEAN_ETH_WELL, WETH);
+
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+
+        for (uint256 i = 0; i < 112; i++) {
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            bs.sunrise();
+        }
+
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        uint256 remainingCapacityBefore;
+        (, uint256 initialCapacity) = bs.getConvertStalkPerBdvBonusAndRemainingCapacity();
+        remainingCapacityBefore = initialCapacity;
+        for (uint256 i = 0; i < 360; i++) {
+            (, uint256 remainingCapacity) = bs.getConvertStalkPerBdvBonusAndRemainingCapacity();
+            if (block.timestamp - bs.time().timestamp == 0) {
+                assertEq(remainingCapacity, 0);
+            } else if (block.timestamp - bs.time().timestamp <= 1800) {
+                // every season, the remaining capacity should increase.
+                assertGt(remainingCapacity, remainingCapacityBefore);
+                if (i == 180) {
+                    // halfway through the season, the remaining capacity should be the max capacity.
+                    assertEq(remainingCapacity, gv.maxConvertCapacity);
+                } else {
+                    // before halfway through the season, the remaining capacity should always be lower than the max capacity.
+                    assertLt(remainingCapacity, gv.maxConvertCapacity);
+                }
+            } else {
+                // after halfway through the season, the the remaining capacity should always stay the same.
+                assertEq(remainingCapacity - remainingCapacityBefore, 0);
+                // after halfway through the season, the remaining capacity should be the max capacity.
+                assertEq(remainingCapacity, gv.maxConvertCapacity);
+            }
+            vm.warp(block.timestamp + 10);
+            remainingCapacityBefore = remainingCapacity;
+        }
+    }
+
+    // verify convert up bonus is applied when converting.
     function test_convertWellToBeanGeneralWithBonus() public {
         uint256 lpMinted = multipleWellDepositSetup();
 
         uint256 deltaB = 1000e6;
-        setReserves(well, bean.balanceOf(well) + deltaB, weth.balanceOf(well));
+
+        // set deltaB negative
+        setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
+
+        // sunrise
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+
+        // set deltaB positive
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+
+        // sunrise
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+
+        // set deltaB negative (crossing peg)
+        setDeltaBforWell(-int256(deltaB), BEAN_ETH_WELL, WETH);
+
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
 
         uint256 maxLpIn = bs.getMaxAmountIn(well, BEAN);
-        uint256 lpConverted = maxLpIn / 2;
+        uint256 lpConverted = maxLpIn;
 
         // create encoding for a well -> bean convert.
         bytes memory convertData = convertEncoder(
@@ -895,25 +940,50 @@ contract ConvertTest is TestHelper {
         amounts[0] = lpConverted;
 
         // update seasons for bonus to be applied.
-        for (uint256 i; i < 62; i++) {
-            warpToNextSeasonTimestamp();
+        bs.setBeanToMaxLpGpPerBdvRatio(67e18);
+        for (uint256 i; i < 10; i++) {
+            warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
         }
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
         bs.sunrise();
+        vm.warp(block.timestamp + 180); // warp to 10% of the convert ramp
 
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
+        uint256 expectedBdvBonus = 10000000;
+        uint256 expectedStalkBonus = 75891070000000;
+
         // vm.expectEmit();
-        emit ConvertUpBonus(farmers[0], 1234792109169262, 140316743);
+        emit ConvertUpBonus(farmers[0], expectedStalkBonus, expectedBdvBonus);
         vm.prank(farmers[0]);
 
         (int96 toStem, , , , ) = convert.convert(convertData, new int96[](1), amounts);
+
+        // verify totalBdvConvertedBonus is incremented.
+
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gvAfter = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        assertLe(gd.totalBdvConvertedBonus, deltaB);
+        assertEq(gd.totalBdvConvertedBonus, expectedBdvBonus);
+
+        uint256 calculatedStalkBonus = (gv.bonusStalkPerBdv *
+            gv.convertBonusFactor *
+            expectedBdvBonus) / C.PRECISION;
+        assertEq(calculatedStalkBonus, expectedStalkBonus);
     }
 
     //////////// BEAN -> WELL ////////////
@@ -1121,8 +1191,8 @@ contract ConvertTest is TestHelper {
 
         // stalk bonus gauge data
 
-        // update bdv capacity to allow for more bdv to get the bonus
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        // update bdv capacity such that any convert will get the bonus
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore = abi.decode(
             bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
@@ -1146,6 +1216,7 @@ contract ConvertTest is TestHelper {
             lpConverted = bs.getMaxAmountIn(well, BEAN);
 
         uint256 expectedAmtOut = bs.getAmountOut(well, BEAN, lpConverted);
+        vm.warp(block.timestamp + 1800); // warp to halfway through the season.
 
         int96[] memory stems = new int96[](2);
         stems[0] = int96(0);
@@ -1203,8 +1274,8 @@ contract ConvertTest is TestHelper {
                 (LibGaugeHelpers.ConvertBonusGaugeData)
             );
             assertGt(
-                gdAfter.thisSeasonBdvConverted,
-                gdBefore.thisSeasonBdvConverted,
+                gdAfter.totalBdvConvertedBonus,
+                gdBefore.totalBdvConvertedBonus,
                 "bdvConverted should be incremented"
             );
         }
@@ -1250,7 +1321,7 @@ contract ConvertTest is TestHelper {
     //////////// LAMBDA/LAMBDA ////////////
 
     /**
-     * @notice lamda_lamda convert increases BDV.
+     * @notice lambda_lambda convert increases BDV.
      */
     function test_lambdaLambda_increaseBDV(uint256 deltaB) public {
         uint256 lpMinted = multipleWellDepositSetup();
@@ -1266,7 +1337,7 @@ contract ConvertTest is TestHelper {
 
         uint256 amtToConvert = lpMinted / 2;
 
-        // create lamda_lamda encoding.
+        // create lambda_lambda encoding.
         bytes memory convertData = convertEncoder(
             LibConvertData.ConvertKind.LAMBDA_LAMBDA,
             well,
@@ -1296,7 +1367,7 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice lamda_lamda convert does not decrease BDV.
+     * @notice lambda_lambda convert does not decrease BDV.
      */
     function test_lamdaLamda_decreaseBDV(uint256 deltaB) public {
         uint256 lpMinted = multipleWellDepositSetup();
@@ -1311,7 +1382,7 @@ contract ConvertTest is TestHelper {
         IWell(well).shift(IERC20(bean), 0, farmers[0]);
         uint256 amtToConvert = lpMinted / 2;
 
-        // create lamda_lamda encoding.
+        // create lambda_lambda encoding.
         bytes memory convertData = convertEncoder(
             LibConvertData.ConvertKind.LAMBDA_LAMBDA,
             well,
@@ -1338,13 +1409,13 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice lamda_lamda convert combines deposits.
+     * @notice lambda_lambda convert combines deposits.
      */
-    function test_lamdaLamda_combineDeposits(uint256 lpCombined) public {
+    function test_lambdaLambda_combineDeposits(uint256 lpCombined) public {
         uint256 lpMinted = multipleWellDepositSetup();
         lpCombined = bound(lpCombined, 2, lpMinted);
 
-        // create lamda_lamda encoding.
+        // create lambda_lambda encoding.
         bytes memory convertData = convertEncoder(
             LibConvertData.ConvertKind.LAMBDA_LAMBDA,
             well,
@@ -1603,5 +1674,13 @@ contract ConvertTest is TestHelper {
         stems[0] = int96(0);
         amounts = new uint256[](1);
         amounts[0] = lpToConvert;
+    }
+
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a > b ? a : b;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 }

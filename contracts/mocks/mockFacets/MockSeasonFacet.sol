@@ -29,6 +29,7 @@ import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+import {LibWeather} from "contracts/libraries/Season/LibWeather.sol";
 
 /**
  * @title Mock Season Facet
@@ -155,19 +156,15 @@ contract MockSeasonFacet is SeasonFacet {
         mockStepSilo(amount);
     }
 
-    function sunSunriseWithL2srScaling(int256 deltaB, uint256 caseId) public {
+    function sunSunriseWithL2srScaling(int256 deltaB, uint256) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
+        (, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
         stepSun(bs);
     }
 
-    function sunSunrise(
-        int256 deltaB,
-        uint256 caseId,
-        LibEvaluate.BeanstalkState memory bs
-    ) public {
+    function sunSunrise(int256 deltaB, uint256, LibEvaluate.BeanstalkState memory bs) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
@@ -190,7 +187,7 @@ contract MockSeasonFacet is SeasonFacet {
             twaDeltaB: deltaB
         });
 
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
         stepSun(bs);
     }
 
@@ -198,7 +195,7 @@ contract MockSeasonFacet is SeasonFacet {
         seedGaugeSunSunrise(deltaB, caseId, false);
     }
 
-    function sunTemperatureSunrise(int256 deltaB, uint256 caseId, uint32 t) public {
+    function sunTemperatureSunrise(int256 deltaB, uint256, uint32 t) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.weather.temp = t;
@@ -463,7 +460,7 @@ contract MockSeasonFacet is SeasonFacet {
 
     function calculateCultivationFactorDeltaE(
         LibEvaluate.BeanstalkState memory bs
-    ) external returns (uint256) {
+    ) external view returns (uint256) {
         uint256 cultivationFactor = abi.decode(
             LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
@@ -715,7 +712,7 @@ contract MockSeasonFacet is SeasonFacet {
         }
         // Calculate Case Id
         (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, false);
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, false);
         LibFlood.handleRain(caseId);
     }
 
@@ -771,5 +768,9 @@ contract MockSeasonFacet is SeasonFacet {
     ) public {
         s.sys.weather.lastDeltaSoil = lastSeasonBeanSown;
         s.sys.beanSown = thisSeasonBeanSown;
+    }
+
+    function setSeasonAbovePeg(bool abovePeg) public {
+        s.sys.season.abovePeg = abovePeg;
     }
 }

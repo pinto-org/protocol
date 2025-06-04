@@ -70,8 +70,8 @@ library LibFlood {
     }
 
     /**
-     * @dev Oversaturated was previously referred to as Raining and thus code references 
-     * mentioning Rain really refer to Oversaturation. 
+     * @dev Oversaturated was previously referred to as Raining and thus code references
+     * mentioning Rain really refer to Oversaturation.
      * - If P > 1 and the Pod Rate is less than 3%, while L2SR is relatively high and above,
      *   the Farm is Oversaturated.
      * - If it is Oversaturated for a Season, each Season in which it continues to be Oversaturated,
@@ -82,7 +82,7 @@ library LibFlood {
 
         // reset floodHarvestablePods from prior season
         s.sys.rain.floodHarvestablePods = 0;
-        // cases % 36  3-8 represent the case where the pod rate is less than 5% and P > 1.
+        // cases % 36  3-8 represent the case where the pod rate is less than 3% and P > 1.
         // cases / 36  >=2 represent the case where L2SR is relatively high and above.
         if (caseId.mod(36) < 3 || caseId.mod(36) > 8 || caseId.div(36) < 2) {
             if (s.sys.season.raining) {
@@ -446,13 +446,6 @@ library LibFlood {
             // The less than conditional can occur if the twaDeltaB is positive, but the instanteous deltaB is negative or 0
             // In that case, no reductions are needed.
             // If there are no positive values, no well flooding is needed, return zeros
-            for (uint256 i = 0; i < positiveDeltaBCount; i++) {
-                wellDeltaBs[i].deltaB = 0;
-            }
-            return wellDeltaBs;
-        }
-
-        if (totalPositiveDeltaB < totalNegativeDeltaB) {
             for (uint256 i = 0; i < positiveDeltaBCount; i++) {
                 wellDeltaBs[i].deltaB = 0;
             }
