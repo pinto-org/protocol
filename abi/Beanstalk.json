@@ -8255,6 +8255,75 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "UpdatedGaugeValue",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "season",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "abovePeg",
+        "type": "bool"
+      }
+    ],
+    "name": "PegStateUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "caseId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int32",
+        "name": "absChange",
+        "type": "int32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "fieldId",
+        "type": "uint256"
+      }
+    ],
+    "name": "TemperatureChange",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "abovePeg",
     "outputs": [
@@ -8566,19 +8635,9 @@
             "type": "uint256"
           },
           {
-            "internalType": "uint256",
-            "name": "supplyPodDemandScalar",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "initialSoilPodDemandScalar",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes32[59]",
+            "internalType": "bytes32[61]",
             "name": "buffer",
-            "type": "bytes32[59]"
+            "type": "bytes32[61]"
           }
         ],
         "internalType": "struct ExtEvaluationParameters",
