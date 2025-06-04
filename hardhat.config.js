@@ -863,6 +863,7 @@ task(
       "ApprovalFacet"
     ],
     libraryNames: [
+      "LibTokenSilo",
       "LibConvert",
       "LibPipelineConvert",
       "LibSilo",
@@ -889,6 +890,9 @@ task(
         "LibGerminate"
       ],
       SeasonGettersFacet: ["LibWellMinting"]
+    },
+    linkedLibraries: {
+      LibConvert: "LibTokenSilo"
     },
     object: !mock,
     verbose: true,
