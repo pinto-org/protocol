@@ -42,9 +42,7 @@ library LibConvert {
     uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
     uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
 
-    uint256 internal constant PRECISION = 1e18;
-    uint256 internal constant INITIAL_CAPACITY = 0.1e18; // 10% of the total capacity
-    uint256 internal constant CAPACITY_RATE = 0.75e18; // hits 100% total capacity 75% into the season
+    uint256 internal constant CAPACITY_RATE = 0.50e18; // hits 100% total capacity 50% into the season
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
@@ -790,7 +788,7 @@ library LibConvert {
      * @notice Gets the time weighted convert capacity for the current season
      * @dev the amount of bdv that can be converted with a bonus ramps up linearly over the course of the season,
      * allowing converts to be more efficient and incur less slippage.
-     * the initial capacity starts at 10% of the max capacity and ramps up linearly to 100% of the max capacity at 75% of the season.
+     * capacity ramps up linearly to 100% of the max capacity at 50% of the season.
      */
     function getConvertCapacity(uint256 maxConvertCapacity) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -801,13 +799,7 @@ library LibConvert {
         if (timeElapsed > convertRampPeriod) {
             return maxConvertCapacity;
         } else {
-            // Initial capacity starts at 10% of max capacity
-            // Formula: initialCapacity + (maxCapacity - initialCapacity) * timeElapsed / rampPeriod
-            uint256 initialCapacity = (maxConvertCapacity * INITIAL_CAPACITY) / C.PRECISION; // 10% of max capacity
-            return
-                initialCapacity +
-                ((maxConvertCapacity - initialCapacity) * timeElapsed) /
-                convertRampPeriod;
+            return (maxConvertCapacity * timeElapsed) / convertRampPeriod;
         }
     }
     /**

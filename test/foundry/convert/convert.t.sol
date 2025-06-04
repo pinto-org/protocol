@@ -867,19 +867,32 @@ contract ConvertTest is TestHelper {
             bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
+
         uint256 remainingCapacityBefore;
         (, uint256 initialCapacity) = bs.getConvertStalkPerBdvBonusAndRemainingCapacity();
         remainingCapacityBefore = initialCapacity;
-        for (uint256 i = 0; i < 150; i++) {
+        for (uint256 i = 0; i < 360; i++) {
             (, uint256 remainingCapacity) = bs.getConvertStalkPerBdvBonusAndRemainingCapacity();
-            assertGe(remainingCapacity, initialCapacity);
-            assertGe(remainingCapacity, remainingCapacityBefore);
-            assertLe(remainingCapacity, gv.maxConvertCapacity);
-            vm.warp(block.timestamp + 27);
-            remainingCapacityBefore = remainingCapacity;
-            if (block.timestamp - bs.time().timestamp > 2700) {
+            if (block.timestamp - bs.time().timestamp == 0) {
+                assertEq(remainingCapacity, 0);
+            } else if (block.timestamp - bs.time().timestamp <= 1800) {
+                // every season, the remaining capacity should increase.
+                assertGt(remainingCapacity, remainingCapacityBefore);
+                if (i == 180) {
+                    // halfway through the season, the remaining capacity should be the max capacity.
+                    assertEq(remainingCapacity, gv.maxConvertCapacity);
+                } else {
+                    // before halfway through the season, the remaining capacity should always be lower than the max capacity.
+                    assertLt(remainingCapacity, gv.maxConvertCapacity);
+                }
+            } else {
+                // after halfway through the season, the the remaining capacity should always stay the same.
                 assertEq(remainingCapacity - remainingCapacityBefore, 0);
+                // after halfway through the season, the remaining capacity should be the max capacity.
+                assertEq(remainingCapacity, gv.maxConvertCapacity);
             }
+            vm.warp(block.timestamp + 10);
+            remainingCapacityBefore = remainingCapacity;
         }
     }
 
@@ -936,6 +949,7 @@ contract ConvertTest is TestHelper {
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
         bs.sunrise();
+        vm.warp(block.timestamp + 180); // warp to 10% of the convert ramp
 
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
@@ -1202,6 +1216,7 @@ contract ConvertTest is TestHelper {
             lpConverted = bs.getMaxAmountIn(well, BEAN);
 
         uint256 expectedAmtOut = bs.getAmountOut(well, BEAN, lpConverted);
+        vm.warp(block.timestamp + 1800); // warp to halfway through the season.
 
         int96[] memory stems = new int96[](2);
         stems[0] = int96(0);
