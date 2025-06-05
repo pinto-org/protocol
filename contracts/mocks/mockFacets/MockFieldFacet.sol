@@ -206,7 +206,7 @@ contract MockFieldFacet is FieldFacet {
             );
     }
 
-    function setMaxTemp(uint32 t) external {
+    function setMaxTemp(uint64 t) external {
         s.sys.weather.temp = t;
     }
 

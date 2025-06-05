@@ -64,7 +64,7 @@ contract MockSeasonFacet is SeasonFacet {
     }
 
     function setYieldE(uint256 t) public {
-        s.sys.weather.temp = uint32(t);
+        s.sys.weather.temp = uint64(t);
     }
 
     function setTotalStalkE(uint256 amount) public {

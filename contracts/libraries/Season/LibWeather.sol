@@ -111,10 +111,10 @@ library LibWeather {
                 bT = 1e6 - int32(int256(t));
                 s.sys.weather.temp = 1e6;
             } else {
-                s.sys.weather.temp = uint32(t - uint256(int256(-bT)));
+                s.sys.weather.temp = uint64(t - uint256(int256(-bT)));
             }
         } else {
-            s.sys.weather.temp = uint32(t + uint256(int256(bT)));
+            s.sys.weather.temp = uint64(t + uint256(int256(bT)));
         }
 
         emit TemperatureChange(s.sys.season.current, caseId, bT, s.sys.activeField);
