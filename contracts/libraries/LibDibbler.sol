@@ -33,9 +33,6 @@ library LibDibbler {
     /// @dev The precision of s.sys.weather.temp
     uint256 internal constant TEMPERATURE_PRECISION = 1e6;
 
-    /// @dev The divisor of s.sys.weather.temp in the morning auction
-    uint256 internal constant TEMPERATURE_DIVISOR = 1e12;
-
     /// @dev Simplifies conversion of Beans to Pods:
     /// `pods = beans * (1 + temperature)`
     /// `pods = beans * (100% + temperature) / 100%`
@@ -195,12 +192,6 @@ library LibDibbler {
         if (initialSoil > 100e6) {
             soilSoldOutThreshold = (initialSoil * SOLD_OUT_THRESHOLD) / SOLD_OUT_PRECISION;
         }
-
-        // If the initial Soil was less than 100e6, set the threshold to 50% of the initial Soil.
-        // Otherwise the threshold is 50e6.
-        uint256 soilSoldOutThreshold = (s.sys.initialSoil < 100e6)
-            ? ((s.sys.initialSoil * 50e6) / 100e6)
-            : MAX_SOIL_SOLD_OUT_THRESHOLD;
 
         // s.sys.soil is now the soil remaining after this Sow.
         if (s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max) {
