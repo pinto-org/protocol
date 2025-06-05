@@ -1921,4 +1921,6 @@ interface IMockFBeanstalk {
         returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
 
     function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
+
+    function setPrevSeasonAndSoldOutTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external;
 }

@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
 import "forge-std/console.sol";
 
@@ -108,9 +109,28 @@ contract FieldTest is TestHelper {
             bs.transferToken(BEAN, farmers[0], soil, 0, 1);
         }
 
+        (, , , , , uint256 prevSeasonTemp) = abi.decode(
+            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256, uint256, uint256)
+        );
+
         _beforeEachSow(soil, soil, from == true ? 1 : 0);
         sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, soil, _minPods(soil));
         assertEq(field.totalSoil(), 0, "total Soil");
+
+        // verify sowThisTime is set.
+        assertLe(uint256(bs.weather().thisSowTime), type(uint32).max);
+
+        // assert soldOutTemp is set.
+        (, , , , uint256 soldOutTemp, ) = abi.decode(
+            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256, uint256, uint256)
+        );
+
+        assertEq(soldOutTemp, bs.maxTemperature());
+
+        // assert temp is not the same as prevSeasonTemp.
+        assertNotEq(soldOutTemp, prevSeasonTemp);
     }
 
     /**
