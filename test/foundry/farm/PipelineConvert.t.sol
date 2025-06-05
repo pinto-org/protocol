@@ -795,7 +795,7 @@ contract PipelineConvertTest is TestHelper {
         );
     }
 
-    function testBeanToBeanConvertdd(uint256 amount) public {
+    function testBeanToBeanConverted(uint256 amount) public {
         amount = bound(amount, 1000e6, 1000e6);
 
         int96 stem = depositBeanAndPassGermination(amount, users[1]);
