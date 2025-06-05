@@ -1597,9 +1597,9 @@ interface IMockFBeanstalk {
 
     function setLastSowTimeE(uint32 number) external;
 
-    function setMaxTemp(uint32 t) external;
+    function setMaxTemp(uint64 t) external;
 
-    function setMaxTempE(uint32 number) external;
+    function setMaxTempE(uint64 number) external;
 
     function setNextSowTimeE(uint32 _time) external;
 
@@ -1902,7 +1902,7 @@ interface IMockFBeanstalk {
 
     function getPegCrossStem(address token) external view returns (int96);
 
-    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256);
 
     function mockUpdateBdvConverted(uint256 bdvConverted) external;
 
@@ -1919,4 +1919,8 @@ interface IMockFBeanstalk {
         external
         view
         returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
+
+    function setPrevSeasonAndSoldOutTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external;
 }

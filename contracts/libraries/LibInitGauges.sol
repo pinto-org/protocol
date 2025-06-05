@@ -40,11 +40,8 @@ library LibInitGauges {
     uint256 internal constant MAX_CONVERT_BONUS_FACTOR = 1e18; // the maximum value the convert bonus factor can be adjusted to (100%)
     uint256 internal constant MIN_CAPACITY_FACTOR = 0.1e18; // the minimum value the convert bdv capacity factor can be adjusted to (10%)
     uint256 internal constant MAX_CAPACITY_FACTOR = 0.5e18; // the maximum value the convert bdv capacity factor can be adjusted to (50%)
-    uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND = 1.05e18; // the % change in bdv converted between seasons such that demand for converting is increasing when above this value
-    uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND = 0.95e18; // the % change in bdv converted between seasons such that demand for converting is decreasing when below this value
-    uint256 internal constant LAST_SEASON_BDV_CONVERTED = 0; // the bdv converted in the last season
-    uint256 internal constant THIS_SEASON_BDV_CONVERTED = 0; // the bdv converted in the current season
-    uint256 internal constant THIS_SEASON_BDV_CONVERTED_BONUS = 0; // the bdv converted in the current season with a bonus
+    uint256 internal constant TOTAL_SEASON_BDV_CONVERTED_BONUS = 0; // the bdv converted in the current season with a bonus
+
     //////////// Cultivation Factor Gauge ////////////
 
     function initCultivationFactor() internal {
@@ -56,7 +53,9 @@ library LibInitGauges {
                 MIN_DELTA_CULTIVATION_FACTOR,
                 MAX_DELTA_CULTIVATION_FACTOR,
                 MIN_CULTIVATION_FACTOR,
-                MAX_CULTIVATION_FACTOR
+                MAX_CULTIVATION_FACTOR,
+                uint256(0), // sold out temperature
+                uint256(0) // previous season temperature
             )
         );
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
@@ -79,8 +78,8 @@ library LibInitGauges {
     function initConvertUpBonusGauge() internal {
         // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
-            MIN_CONVERT_BONUS_FACTOR,
-            MAX_CAPACITY_FACTOR,
+            MAX_CONVERT_BONUS_FACTOR,
+            MIN_CAPACITY_FACTOR,
             INIT_BONUS_STALK_PER_BDV,
             INIT_MAX_CONVERT_CAPACITY
         );
@@ -92,11 +91,7 @@ library LibInitGauges {
             MAX_CONVERT_BONUS_FACTOR,
             MIN_CAPACITY_FACTOR,
             MAX_CAPACITY_FACTOR,
-            LAST_SEASON_BDV_CONVERTED,
-            THIS_SEASON_BDV_CONVERTED,
-            THIS_SEASON_BDV_CONVERTED_BONUS,
-            DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND,
-            DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND
+            TOTAL_SEASON_BDV_CONVERTED_BONUS
         );
         Gauge memory convertBonusGauge = Gauge(
             abi.encode(gv),

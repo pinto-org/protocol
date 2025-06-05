@@ -70,7 +70,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice convertWithStalkSlippage is a variant of the convert
-     * function that allows a userto specify a grown stalk slippage tolerance.
+     * function that allows a user to specify a grown stalk slippage tolerance.
      */
     function convertWithStalkSlippage(
         bytes calldata convertData,

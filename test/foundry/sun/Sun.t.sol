@@ -878,6 +878,28 @@ contract SunTest is TestHelper {
             1.111111e6,
             "deltaCultivationFactor should be ~1.111111% with pod rate at midpoint, $0.72 price, and soil not sold out"
         );
+
+        // Case 7: Soil not sold out, sold out temp is higher than prevSeasonTemp,  should not change cultivationFactor
+        season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
+        bs.setPrevSeasonAndSoldOutTemp(100e6, 101e6);
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            0,
+            "deltaCultivationFactor should be 0 when sold out temp is higher than prevSeasonTemp"
+        );
+
+        // Case 7: Soil sold out, sold out temp is higher than prevSeasonTemp,  should change cultivationFactor
+        season.setLastSowTimeE(1); // Set soil as sold out
+        for (uint256 i = 0; i < 3; i++) {
+            bs.setPrevSeasonAndSoldOutTemp(100e6, 99e6 + (i * 1e6)); // 99e6, 100e6, 101e6
+            deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+            assertEq(
+                deltaCultivationFactor,
+                0.9e6,
+                "deltaCultivationFactor should change when soil is sold out, independent of prevSeasonTemp"
+            );
+        }
     }
 
     function test_calculateCultivationFactorDelta() public {
@@ -1512,7 +1534,7 @@ contract SunTest is TestHelper {
     function test_convertUpBonusGaugeSunrise() public {
         int256 twaDeltaB = -1000e6;
         // update the bdv capacity
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         bs.mockUpdateBdvConverted(1000e6);
         // verify that the convert up bonus gauge data is correct before sunrise
@@ -1521,8 +1543,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        assertEq(gdBefore.thisSeasonBdvConverted, 1000e6);
-        assertEq(gdBefore.lastSeasonBdvConverted, 0);
+        assertEq(gdBefore.totalBdvConvertedBonus, 1000e6);
 
         // sunrise
         season.sunSunrise(twaDeltaB, 1, beanstalkState);
@@ -1534,10 +1555,7 @@ contract SunTest is TestHelper {
         );
 
         // verify that this seasons bdv converted is 0:
-        assertEq(gd.thisSeasonBdvConverted, 0);
-
-        // verify that the last seasons bdv converted is 1000e6:
-        assertEq(gd.lastSeasonBdvConverted, gdBefore.thisSeasonBdvConverted);
+        assertEq(gd.totalBdvConvertedBonus, 0);
     }
 
     function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {
