@@ -897,7 +897,7 @@ task(
     object: !mock,
     verbose: true,
     account: owner,
-    initArgs: [10000000000],
+    initArgs: [10000000000, 749e6, 749e6],
     initFacetName: "InitPI10"
   });
 });

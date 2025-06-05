@@ -223,6 +223,45 @@ library LibGaugeHelpers {
         return s.sys.gaugeData.gauges[gaugeId].data;
     }
 
+    /// GAUGE SPECIFIC HELPERS ///
+
+    function updateSoldOutTemperature() internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        (
+            uint256 minDeltaCf,
+            uint256 maxDeltaCf,
+            uint256 minCf,
+            uint256 maxCf,
+            ,
+            uint256 prevSeasonTemp
+        ) = abi.decode(
+                getGaugeData(GaugeId.CULTIVATION_FACTOR),
+                (uint256, uint256, uint256, uint256, uint256, uint256)
+            );
+        updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, s.sys.weather.temp, prevSeasonTemp)
+        );
+    }
+
+    function updatePrevSeasonTemp(uint256 temperature) internal {
+        (
+            uint256 minDeltaCf,
+            uint256 maxDeltaCf,
+            uint256 minCf,
+            uint256 maxCf,
+            uint256 soldOutTemp,
+
+        ) = abi.decode(
+                getGaugeData(GaugeId.CULTIVATION_FACTOR),
+                (uint256, uint256, uint256, uint256, uint256, uint256)
+            );
+        updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, soldOutTemp, temperature)
+        );
+    }
+
     /// GAUGE BLOCKS ///
 
     /**

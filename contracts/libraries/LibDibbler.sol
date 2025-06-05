@@ -16,6 +16,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
 import {C} from "contracts/C.sol";
+import {LibGaugeHelpers} from "./LibGaugeHelpers.sol";
 
 /**
  * @title LibDibbler
@@ -200,6 +201,9 @@ library LibDibbler {
         }
 
         s.sys.weather.thisSowTime = uint32(block.timestamp.sub(s.sys.season.timestamp));
+
+        // store the temperature in which soil sold out, in the cultivation factor gauge.
+        LibGaugeHelpers.updateSoldOutTemperature();
     }
 
     /**

@@ -878,6 +878,28 @@ contract SunTest is TestHelper {
             1.111111e6,
             "deltaCultivationFactor should be ~1.111111% with pod rate at midpoint, $0.72 price, and soil not sold out"
         );
+
+        // Case 7: Soil not sold out, sold out temp is higher than prevSeasonTemp,  should not change cultivationFactor
+        season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
+        bs.setPrevSeasonAndSoldOutTemp(100e6, 101e6);
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            0,
+            "deltaCultivationFactor should be 0 when sold out temp is higher than prevSeasonTemp"
+        );
+
+        // Case 7: Soil sold out, sold out temp is higher than prevSeasonTemp,  should change cultivationFactor
+        season.setLastSowTimeE(1); // Set soil as sold out
+        for (uint256 i = 0; i < 3; i++) {
+            bs.setPrevSeasonAndSoldOutTemp(100e6, 99e6 + (i * 1e6)); // 99e6, 100e6, 101e6
+            deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+            assertEq(
+                deltaCultivationFactor,
+                0.9e6,
+                "deltaCultivationFactor should change when soil is sold out, independent of prevSeasonTemp"
+            );
+        }
     }
 
     function test_calculateCultivationFactorDelta() public {

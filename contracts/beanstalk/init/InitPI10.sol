@@ -20,9 +20,13 @@ contract InitPI10 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
     uint32 constant PEG_CROSS_SEASON = 2558;
     uint16 constant MORNING_DURATION = 600;
-    uint256 constant MORNING_CONTROL = uint256(1e18) / 240;
+    uint128 constant MORNING_CONTROL = uint128(1e18) / 240;
 
-    function init(uint256 bonusStalkPerBdv) external {
+    function init(
+        uint256 bonusStalkPerBdv,
+        uint256 soldOutTemperature,
+        uint256 prevSeasonTemperature
+    ) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // initialize the gauge point update.
         initMaxGaugePoints(MAX_TOTAL_GAUGE_POINTS);
@@ -47,14 +51,17 @@ contract InitPI10 {
         // update the convert up bonus gauge value.
         gv.bonusStalkPerBdv = bonusStalkPerBdv;
         LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_UP_BONUS, abi.encode(gv));
+
+        // update the cultivation factor gauge data to the new version.
+        initCultivationFactorGaugeV1_1(soldOutTemperature, prevSeasonTemperature);
     }
 
-    function initMaxGaugePoints(uint256 maxGaugePoints) internal {
+    function initMaxGaugePoints(uint128 maxGaugePoints) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Set the max total gauge points to MAX_TOTAL_GAUGE_POINTS
-        s.sys.seedGauge.maxTotalGaugePoints = MAX_TOTAL_GAUGE_POINTS;
-        emit LibGauge.UpdateMaxTotalGaugePoints(MAX_TOTAL_GAUGE_POINTS);
+        s.sys.seedGauge.maxTotalGaugePoints = maxGaugePoints;
+        emit LibGauge.UpdateMaxTotalGaugePoints(maxGaugePoints);
 
         address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
 
@@ -75,5 +82,21 @@ contract InitPI10 {
                 s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints
             );
         }
+    }
+
+    function initCultivationFactorGaugeV1_1(
+        uint256 soldOutTemperature,
+        uint256 prevSeasonTemperature
+    ) internal {
+        (uint256 minDeltaCf, uint256 maxDeltaCf, uint256 minCf, uint256 maxCf) = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256)
+        );
+
+        // updates the gauge data to the new version, with the sold out temperature and previous season temperature set to 0.
+        LibGaugeHelpers.updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, 0, 0)
+        );
     }
 }

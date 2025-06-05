@@ -88,8 +88,10 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             uint256 minDeltaCultivationFactor,
             uint256 maxDeltaCultivationFactor,
             uint256 minCultivationFactor,
-            uint256 maxCultivationFactor
-        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256));
+            uint256 maxCultivationFactor,
+            uint256 soldOutTemp,
+            uint256 prevSeasonTemp
+        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
         // determine increase or decrease based on demand for soil.
         bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max;
@@ -110,20 +112,26 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             amountChange = 1e12 / amountChange;
         }
 
-        // return the new cultivationFactor.
-        // return unchanged gaugeData.
-        return (
-            abi.encode(
-                LibGaugeHelpers.linear(
-                    int256(currentValue),
-                    soilSoldOut,
-                    amountChange,
-                    int256(minCultivationFactor),
-                    int256(maxCultivationFactor)
-                )
-            ),
-            gaugeData
-        );
+        // cultivation factor increases if soil sold out.
+        // cultivation factor stays the same if soil did not sell out AND previous season temperature < sold out temperature.
+        // cultivation factor decreases if soil did not sell out AND previous season temperature >= sold out temperature.
+        if (soilSoldOut || (!soilSoldOut && prevSeasonTemp >= soldOutTemp)) {
+            return (
+                abi.encode(
+                    LibGaugeHelpers.linear(
+                        int256(currentValue),
+                        soilSoldOut,
+                        amountChange,
+                        int256(minCultivationFactor),
+                        int256(maxCultivationFactor)
+                    )
+                ),
+                gaugeData
+            );
+        } else {
+            // return unchanged gauge data and value.
+            return (abi.encode(currentValue), abi.encode(gaugeData));
+        }
     }
 
     /**
