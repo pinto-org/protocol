@@ -2029,6 +2029,25 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "UpdatedGaugeData",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "activeField",
     "outputs": [
@@ -8247,25 +8266,6 @@
       {
         "indexed": false,
         "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "UpdatedGaugeData",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
         "name": "value",
         "type": "bytes"
       }
@@ -9322,9 +9322,9 @@
             "type": "uint32"
           },
           {
-            "internalType": "uint32",
+            "internalType": "uint64",
             "name": "temp",
-            "type": "uint32"
+            "type": "uint64"
           },
           {
             "internalType": "uint16",
@@ -9332,9 +9332,9 @@
             "type": "uint16"
           },
           {
-            "internalType": "uint256",
+            "internalType": "uint128",
             "name": "morningControl",
-            "type": "uint256"
+            "type": "uint128"
           },
           {
             "internalType": "bytes32[3]",
@@ -11062,12 +11062,30 @@
   {
     "inputs": [
       {
-        "internalType": "uint32",
+        "internalType": "uint64",
         "name": "t",
-        "type": "uint32"
+        "type": "uint64"
       }
     ],
     "name": "setMaxTemp",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prevSeasonTemp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "soldOutTemp",
+        "type": "uint256"
+      }
+    ],
+    "name": "setPrevSeasonAndSoldOutTemp",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -12168,9 +12186,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint32",
+        "internalType": "uint64",
         "name": "number",
-        "type": "uint32"
+        "type": "uint64"
       }
     ],
     "name": "setMaxTempE",

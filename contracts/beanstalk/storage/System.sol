@@ -167,8 +167,8 @@ struct Weather {
     uint32 lastSowTime; //       │ 4  (20)
     uint32 thisSowTime; //       │ 4  (24)
     uint64 temp; // ─────────────┘ 8  (32)
-    uint128 morningDuration; //  ───┐ 16 (16)
-    uint128 morningControl; // ─────┘ 16 (32)
+    uint16 morningDuration; //  ────┐ 2  (2)
+    uint128 morningControl; // ─────┘ 16 (18)
     bytes32[3] _buffer;
 }
 
