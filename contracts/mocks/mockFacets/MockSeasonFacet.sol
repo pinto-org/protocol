@@ -277,7 +277,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.sunriseBlock = uint64(block.number);
     }
 
-    function setMaxTempE(uint32 number) public {
+    function setMaxTempE(uint64 number) public {
         s.sys.weather.temp = number;
     }
 

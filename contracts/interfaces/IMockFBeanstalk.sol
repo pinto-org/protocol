@@ -1597,9 +1597,9 @@ interface IMockFBeanstalk {
 
     function setLastSowTimeE(uint32 number) external;
 
-    function setMaxTemp(uint32 t) external;
+    function setMaxTemp(uint64 t) external;
 
-    function setMaxTempE(uint32 number) external;
+    function setMaxTempE(uint64 number) external;
 
     function setNextSowTimeE(uint32 _time) external;
 
