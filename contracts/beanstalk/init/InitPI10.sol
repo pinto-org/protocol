@@ -19,6 +19,8 @@ import {LibWeather} from "../../libraries/Season/LibWeather.sol";
 contract InitPI10 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
     uint32 constant PEG_CROSS_SEASON = 2558;
+    uint16 constant MORNING_DURATION = 600;
+    uint256 constant MORNING_CONTROL = uint256(1e18) / 240;
 
     function init(
         uint256 bonusStalkPerBdv,
@@ -33,7 +35,8 @@ contract InitPI10 {
         s.sys.season.pegCrossSeason = PEG_CROSS_SEASON;
         emit LibWeather.PegStateUpdated(s.sys.season.pegCrossSeason, s.sys.season.abovePeg);
 
-        LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
+        // add the convert up bonus gauge
+        LibInitGauges.initConvertUpBonusGauge();
 
         // update the gauge with the stalk per bdv bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
@@ -41,6 +44,11 @@ contract InitPI10 {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
+        // initialize morning Auction Control variables.
+        s.sys.weather.morningDuration = MORNING_DURATION;
+        s.sys.weather.morningControl = MORNING_CONTROL;
+
+        // update the convert up bonus gauge value.
         gv.bonusStalkPerBdv = bonusStalkPerBdv;
         LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_UP_BONUS, abi.encode(gv));
 
