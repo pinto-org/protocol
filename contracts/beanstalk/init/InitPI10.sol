@@ -41,12 +41,12 @@ contract InitPI10 {
         LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_UP_BONUS, abi.encode(gv));
     }
 
-    function initMaxGaugePoints(uint256 maxGaugePoints) internal {
+    function initMaxGaugePoints(uint128 maxGaugePoints) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Set the max total gauge points to MAX_TOTAL_GAUGE_POINTS
-        s.sys.seedGauge.maxTotalGaugePoints = MAX_TOTAL_GAUGE_POINTS;
-        emit LibGauge.UpdateMaxTotalGaugePoints(MAX_TOTAL_GAUGE_POINTS);
+        s.sys.seedGauge.maxTotalGaugePoints = maxGaugePoints;
+        emit LibGauge.UpdateMaxTotalGaugePoints(maxGaugePoints);
 
         address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
 
