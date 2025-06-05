@@ -443,9 +443,15 @@ library LibGauge {
         uint256 totalOptimalDepositedBdvPercent
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 cap = (s.sys.seedGauge.maxTotalGaugePoints * optimalPercentDepositedBdv * 2) /
+        uint256 upperCap = (s.sys.seedGauge.maxTotalGaugePoints * optimalPercentDepositedBdv * 2) /
             (totalOptimalDepositedBdvPercent);
-        if (gaugePoints > cap) return cap;
+        if (gaugePoints > upperCap) {
+            return upperCap;
+        }
+
+        if (gaugePoints < upperCap / 10) {
+            return upperCap / 10;
+        }
         return gaugePoints;
     }
 }

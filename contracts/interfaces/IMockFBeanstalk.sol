@@ -1902,7 +1902,7 @@ interface IMockFBeanstalk {
 
     function getPegCrossStem(address token) external view returns (int96);
 
-    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256);
 
     function mockUpdateBdvConverted(uint256 bdvConverted) external;
 
@@ -1919,4 +1919,6 @@ interface IMockFBeanstalk {
         external
         view
         returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
 }

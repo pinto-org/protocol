@@ -33,21 +33,14 @@ library LibDibbler {
     /// @dev The precision of s.sys.weather.temp
     uint256 internal constant TEMPERATURE_PRECISION = 1e6;
 
-    /// @dev The divisor of s.sys.weather.temp in the morning auction
-    uint256 internal constant TEMPERATURE_DIVISOR = 1e12;
-
     /// @dev Simplifies conversion of Beans to Pods:
     /// `pods = beans * (1 + temperature)`
     /// `pods = beans * (100% + temperature) / 100%`
     uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
-    /// @dev If less than `soilSoldOutThreshold` Soil is left, consider
-    /// Soil to be "sold out"; affects how Temperature is adjusted.
-    /// This is the maximum amount that `soilSoldOutThreshold` can be set to.
-    uint256 internal constant MAX_SOIL_SOLD_OUT_THRESHOLD = 50e6;
-
-    uint256 private constant L1_BLOCK_TIME = 1200;
-    uint256 private constant L2_BLOCK_TIME = 200;
+    /// @dev If less than `SOLD_OUT_THRESHOLD`% of the initial soil is left, soil is sold out.
+    uint256 internal constant SOLD_OUT_THRESHOLD = 1e6;
+    uint256 internal constant SOLD_OUT_PRECISION = 100e6;
 
     /**
      * @notice Emitted from {LibDibbler.sow} when an `account` creates a plot.
@@ -55,7 +48,7 @@ library LibDibbler {
      * @param account The account that sowed Bean for Pods
      * @param index The place in line of the Plot
      * @param beans The amount of Bean burnt to create the Plot
-     * @param pods The amount of Pods assocated with the created Plot
+     * @param pods The amount of Pods associated with the created Plot
      */
     event Sow(address indexed account, uint256 fieldId, uint256 index, uint256 beans, uint256 pods);
 
@@ -174,7 +167,7 @@ library LibDibbler {
      * threshold.
      *
      * That threshold is calculated based on the soil at the start of the season, set in {setSoil} and is
-     * currently set to 50e6 if the initial soil was >100e6, and 50% of the initial soil otherwise.
+     * currently set to 0 if the initial soil was <100e6, and `SOLD_OUT_THRESHOLD`% of the initial soil otherwise.
      *
      * RATIONALE: Beanstalk utilizes the time elapsed for Soil to "sell out" to
      * gauge demand for Soil, which affects how the Temperature is adjusted. For
@@ -194,12 +187,11 @@ library LibDibbler {
      */
     function _saveSowTime() private {
         AppStorage storage s = LibAppStorage.diamondStorage();
-
-        // If the initial Soil was less than 100e6, set the threshold to 50% of the initial Soil.
-        // Otherwise the threshold is 50e6.
-        uint256 soilSoldOutThreshold = (s.sys.initialSoil < 100e6)
-            ? ((s.sys.initialSoil * 50e6) / 100e6)
-            : MAX_SOIL_SOLD_OUT_THRESHOLD;
+        uint256 soilSoldOutThreshold;
+        uint256 initialSoil = s.sys.initialSoil;
+        if (initialSoil > 100e6) {
+            soilSoldOutThreshold = (initialSoil * SOLD_OUT_THRESHOLD) / SOLD_OUT_PRECISION;
+        }
 
         // s.sys.soil is now the soil remaining after this Sow.
         if (s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max) {
@@ -251,13 +243,13 @@ library LibDibbler {
      * `A = 0.1`
      * `MAX_CHUNKS = 25`
      * @dev This function implements the log formula in a discrete fashion (in chunks),
-     * rather than in an continous manner. Previously, these chunks were chosen with
+     * rather than in an continuous manner. Previously, these chunks were chosen with
      * the Ethereum L1 block time in mind, such that the duration of the morning auction
      * was 5 minutes.
      
      * When deploying a beanstalk on other EVM chains/layers, `L2_BLOCK_TIME` will need
      * to be adjusted such that the duration of the morning auction is constant.
-     * An additional divisior is implemented such that the duration can be adjusted independent of the
+     * An additional divisor is implemented such that the duration can be adjusted independent of the
      * block times.
      */
     function morningTemperature() internal view returns (uint256) {
@@ -342,7 +334,7 @@ library LibDibbler {
      *  morningTemperature() = 1%
      *  Soil = `500*(100 + 100%)/(100 + 1%)` = 990.09901 soil
      *
-     * If someone sow'd ~495 soil, it's equilivant to sowing 250 soil at t > 25.
+     * If someone sow'd ~495 soil, it's equivalent to sowing 250 soil at t > 25.
      * Thus when someone sows during this time, the amount subtracted from s.sys.soil
      * should be scaled down.
      *
