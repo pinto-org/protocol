@@ -40,7 +40,9 @@ library LibDibbler {
     uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
     /// @dev If less than `SOLD_OUT_THRESHOLD`% of the initial soil is left, soil is sold out.
+    /// @dev If less than `ALMOST_SOLD_OUT_THRESHOLD`% of the initial soil is left, soil is almost sold out.
     uint256 internal constant SOLD_OUT_THRESHOLD = 1e6;
+    uint256 internal constant ALMOST_SOLD_OUT_THRESHOLD = 20e6;
     uint256 internal constant SOLD_OUT_PRECISION = 100e6;
 
     /**
@@ -52,6 +54,17 @@ library LibDibbler {
      * @param pods The amount of Pods associated with the created Plot
      */
     event Sow(address indexed account, uint256 fieldId, uint256 index, uint256 beans, uint256 pods);
+
+    /**
+     * @notice Emitted from {LibDibbler._saveSowTime} when soil is almost sold out.
+     */
+    event SoilAlmostSoldOut();
+
+    /**
+     * @notice Emitted from {LibDibbler._saveSowTime} when soil is sold out.
+     * @param secondsSinceStart the number of seconds elapsed until soil was sold out.
+     */
+    event SoilSoldOut(uint256 secondsSinceStart);
 
     //////////////////// SOW ////////////////////
 
@@ -183,27 +196,50 @@ library LibDibbler {
      *  (b) it has not yet been updated this Season.
      *
      * Note that:
-     *  - `s.soil` was decremented in the upstream {sow} function.
-     *  - `s.weather.thisSowTime` is set to `type(uint32).max` during {sunrise}.
+     *  - `s.sys.soil` was decremented in the upstream {sow} function.
+     *  - `s.sys.weather.thisSowTime` is set to `type(uint32).max` during {sunrise}.
+     *  - `s.sys.initialSoil` is the initial soil at the start of the season.
+     *  - `s.sys.weather.thisSowTime` is `type(uint32).max` if the soil has not sold out, and `type(uint32).max - 1` if the soil is almost sold out.
      */
     function _saveSowTime() private {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 soilSoldOutThreshold;
         uint256 initialSoil = s.sys.initialSoil;
+        uint256 soil = s.sys.soil;
+        uint256 thisSowTime = s.sys.weather.thisSowTime;
+
+        uint256 soilSoldOutThreshold;
+        uint256 soilAlmostSoldOutThreshold;
+
         if (initialSoil > 100e6) {
             soilSoldOutThreshold = (initialSoil * SOLD_OUT_THRESHOLD) / SOLD_OUT_PRECISION;
         }
 
-        // s.sys.soil is now the soil remaining after this Sow.
-        if (s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max) {
-            // haven't sold enough soil, or already set thisSowTime for this Season.
-            return;
+        // soil is considered almost sold out if it has less than ALMOST_SOLD_OUT_THRESHOLD% + soilSoldOutThreshold of the initial soil left
+        soilAlmostSoldOutThreshold =
+            ((initialSoil - soilSoldOutThreshold) * ALMOST_SOLD_OUT_THRESHOLD) /
+            SOLD_OUT_PRECISION +
+            soilSoldOutThreshold;
+
+        if (soil <= soilAlmostSoldOutThreshold && thisSowTime >= type(uint32).max - 1) {
+            if (thisSowTime == type(uint32).max) {
+                // this is the first instance soil has almost sold out or sold out.
+                LibGaugeHelpers.updateSoilSellingOutTemperature();
+
+                // if this is the first time in the season soil almost sold out,
+                // set thisSowTime and emit event.
+                if (soil >= soilSoldOutThreshold) {
+                    s.sys.weather.thisSowTime = type(uint32).max - 1;
+                    emit SoilAlmostSoldOut();
+                    return;
+                }
+            }
+
+            if (soil <= soilSoldOutThreshold) {
+                // soil is sold out.
+                s.sys.weather.thisSowTime = uint32(block.timestamp.sub(s.sys.season.timestamp));
+                emit SoilSoldOut(block.timestamp.sub(s.sys.season.timestamp));
+            }
         }
-
-        s.sys.weather.thisSowTime = uint32(block.timestamp.sub(s.sys.season.timestamp));
-
-        // store the temperature in which soil sold out, in the cultivation factor gauge.
-        LibGaugeHelpers.updateSoldOutTemperature();
     }
 
     /**

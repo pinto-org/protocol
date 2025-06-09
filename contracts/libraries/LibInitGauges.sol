@@ -54,7 +54,7 @@ library LibInitGauges {
                 MAX_DELTA_CULTIVATION_FACTOR,
                 MIN_CULTIVATION_FACTOR,
                 MAX_CULTIVATION_FACTOR,
-                uint256(0), // sold out temperature
+                uint256(0), // cultivation temperature
                 uint256(0) // previous season temperature
             )
         );

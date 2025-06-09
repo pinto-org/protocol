@@ -85,16 +85,35 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         }
 
         (
-            uint256 minDeltaCultivationFactor,
-            uint256 maxDeltaCultivationFactor,
-            uint256 minCultivationFactor,
-            uint256 maxCultivationFactor,
-            uint256 soldOutTemp,
-            uint256 prevSeasonTemp
+            uint256 minDeltaCultivationFactor, // min change in cultivation factor
+            uint256 maxDeltaCultivationFactor, // max change in cultivation factor
+            uint256 minCultivationFactor, // min cultivation factor.
+            uint256 maxCultivationFactor, // max cultivation factor.
+            uint256 cultivationTemp, // temperature at which most soil was sown (i.e almost sold out or sold out)
+            uint256 prevSeasonTemp // temperature of the previous season.
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
-        // determine increase or decrease based on demand for soil.
-        bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max;
+        // determine if soil was sold out or almost sold out.
+        bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max - 1;
+        bool soilAlmostSoldOut = s.sys.weather.lastSowTime == type(uint32).max - 1;
+
+        // if soil was almost sold out or sold out, and demand for soil is increasing,
+        //  set cultivationTemp to the previous season temperature.
+        if (
+            soilAlmostSoldOut &&
+            bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandUpperBound
+        ) {
+            cultivationTemp = prevSeasonTemp;
+            gaugeData = abi.encode(
+                minDeltaCultivationFactor,
+                maxDeltaCultivationFactor,
+                minCultivationFactor,
+                maxCultivationFactor,
+                cultivationTemp,
+                prevSeasonTemp
+            );
+        }
+
         // determine amount change as a function of podRate.
         uint256 amountChange = LibGaugeHelpers.linearInterpolation(
             bs.podRate.value,
@@ -107,31 +126,45 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // update the change based on price.
         amountChange = (amountChange * bs.largestLiquidWellTwapBeanPrice) / PRICE_PRECISION;
 
-        // if soil did not sell out, inverse the amountChange.
-        if (!soilSoldOut) {
+        // update the cultivation factor based on
+        // 1) the sell state of soil (not selling out, almost selling out, or sold out)
+        // 2) the demand for soil (steady/increasing, or decreasing)
+        // 3) the previous season temperature (if it was above the cultivation temperature)
+        if (soilSoldOut) {
+            // increase cultivation factor if soil sold out.
+            currentValue = LibGaugeHelpers.linear256(
+                currentValue,
+                true,
+                amountChange,
+                minCultivationFactor,
+                maxCultivationFactor
+            );
+        } else if (soilAlmostSoldOut) {
+            // if soil almost sold out, return unchanged gauge data and value.
+            return (abi.encode(currentValue), gaugeData);
+        } else if (
+            bs.deltaPodDemand.value < s.sys.evaluationParameters.deltaPodDemandLowerBound &&
+            prevSeasonTemp < cultivationTemp
+        ) {
+            // if soil is not selling out, and previous season temperature < cultivation temperature,
+            // return unchanged gauge data and value.
+            return (abi.encode(currentValue), gaugeData);
+        } else {
+            // demand for soil is steady/increasing (but not selling out)
+            // or previous season temperature >= cultivation temperature.
+            // decrease cultivation factor.
             amountChange = 1e12 / amountChange;
+            currentValue = LibGaugeHelpers.linear256(
+                currentValue,
+                false,
+                amountChange,
+                minCultivationFactor,
+                maxCultivationFactor
+            );
         }
 
-        // cultivation factor increases if soil sold out.
-        // cultivation factor stays the same if soil did not sell out AND previous season temperature < sold out temperature.
-        // cultivation factor decreases if soil did not sell out AND previous season temperature >= sold out temperature.
-        if (soilSoldOut || (!soilSoldOut && prevSeasonTemp >= soldOutTemp)) {
-            return (
-                abi.encode(
-                    LibGaugeHelpers.linear(
-                        int256(currentValue),
-                        soilSoldOut,
-                        amountChange,
-                        int256(minCultivationFactor),
-                        int256(maxCultivationFactor)
-                    )
-                ),
-                gaugeData
-            );
-        } else {
-            // return unchanged gauge data and value.
-            return (abi.encode(currentValue), abi.encode(gaugeData));
-        }
+        // update the gauge data.
+        return (abi.encode(currentValue), gaugeData);
     }
 
     /**
