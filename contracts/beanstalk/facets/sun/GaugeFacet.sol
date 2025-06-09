@@ -100,7 +100,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // if soil was almost sold out or sold out, and demand for soil is increasing,
         //  set cultivationTemp to the previous season temperature.
         if (
-            soilAlmostSoldOut &&
+            (soilAlmostSoldOut || soilSoldOut) &&
             bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandUpperBound
         ) {
             cultivationTemp = prevSeasonTemp;
