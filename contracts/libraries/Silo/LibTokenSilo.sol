@@ -208,7 +208,6 @@ library LibTokenSilo {
     //////////////////////// ADD DEPOSIT ////////////////////////
 
     /**
-     * @return stalk The amount of Stalk received for this Deposit.
      *
      * @dev Calculate the current BDV for `amount` of `token`, then perform
      * Deposit accounting.
@@ -218,9 +217,9 @@ library LibTokenSilo {
         address token,
         int96 stem,
         uint256 amount
-    ) external returns (uint256 stalk, GerminationSide) {
-        uint256 bdv = beanDenominatedValue(token, amount);
-        return depositWithBDV(account, token, stem, amount, bdv);
+    ) external returns (uint256 bdv, uint256 stalk, GerminationSide side) {
+        bdv = beanDenominatedValue(token, amount);
+        (stalk, side) = depositWithBDV(account, token, stem, amount, bdv);
     }
 
     /**

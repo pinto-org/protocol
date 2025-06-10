@@ -62,9 +62,9 @@ abstract contract TokenSilo is ReentrancyGuard {
         address account,
         address token,
         uint256 amount
-    ) internal returns (uint256 stalk, int96 stem) {
+    ) internal returns (uint256 bdv, uint256 stalk, int96 stem) {
         GerminationSide side;
-        (stalk, side) = LibTokenSilo.deposit(
+        (bdv, stalk, side) = LibTokenSilo.deposit(
             account,
             token,
             stem = LibTokenSilo.stemTipForToken(token),

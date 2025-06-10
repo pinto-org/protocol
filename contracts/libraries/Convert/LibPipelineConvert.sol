@@ -95,11 +95,15 @@ library LibPipelineConvert {
         // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts
         if (LibWell.isWell(inputToken)) {
             uint256 i = LibWhitelistedTokens.getIndexFromWhitelistedWellLpTokens(inputToken);
-            dbs.afterInputTokenDeltaB = LibDeltaB.scaledDeltaB(
-                initialLpSupply[i],
-                IERC20(inputToken).totalSupply(),
-                LibDeltaB.getCurrentDeltaB(inputToken)
-            );
+            // input token supply was burned, check to avoid division by zero
+            uint256 currentInputTokenSupply = IERC20(inputToken).totalSupply();
+            dbs.afterInputTokenDeltaB = currentInputTokenSupply == 0
+                ? int256(0)
+                : LibDeltaB.scaledDeltaB(
+                    initialLpSupply[i],
+                    currentInputTokenSupply,
+                    LibDeltaB.getCurrentDeltaB(inputToken)
+                );
         }
 
         if (LibWell.isWell(outputToken)) {
