@@ -1,0 +1,16 @@
+iteration,prev_temp,cultivation_factor,soil_sold_out,demand
+0,103000000,3000000,true,Increasing
+1,102000000,5000000,true,Increasing
+2,101000000,7000000,true,Increasing
+3,100000000,9000000,true,Increasing
+4,99000000,8500000,false,Steady
+5,98000000,8000000,false,Steady
+6,97000000,7500000,false,Steady
+7,96000000,7000000,false,Steady
+8,95000000,6500000,false,Steady
+9,94000000,6000000,false,Steady
+10,93000000,5500000,false,Steady
+11,92000000,5000000,false,Steady
+12,91000000,7000000,true,Increasing
+13,90000000,9000000,true,Increasing
+14,89000000,11000000,true,Increasing

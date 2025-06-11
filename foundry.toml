@@ -35,6 +35,10 @@ fs_permissions = [
   { access = "read", path = "../" },
   { access = "read", path = "./out" },
   { access = "read-write", path = "./test/generated/" },
+  { access = "read-write", path = "./cultivation_factor_scenario1.csv" },
+  { access = "read-write", path = "./cultivation_factor_scenario2.csv" },
+  { access = "read-write", path = "./cultivation_factor_scenario3.csv" },
+  { access = "read-write", path = "./cultivation_factor_scenario4.csv" },
 ]
 ignored_warnings_from = [
   "test",

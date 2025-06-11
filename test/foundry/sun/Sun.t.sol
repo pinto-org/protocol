@@ -1807,4 +1807,497 @@ contract SunTest is TestHelper {
             assertEq(actualSoil, expectedSoil, "Soil calculation incorrect");
         }
     }
+
+    ///////////////////////// CULTIVATION FACTOR SIMUMATIONS //////////////////////////
+
+    function _setupInitialState(
+        uint256 initialTemp,
+        uint256 initialCultivationFactor
+    ) internal returns (uint256, uint256) {
+        // Set initial temperature
+        bs.setMaxTempE(uint64(initialTemp));
+
+        // Set initial cultivation factor
+        bs.setCultivationFactor(initialCultivationFactor);
+
+        // Get the actual values after setting them
+        uint256 actualCultivationFactor = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        uint256 actualTemp = bs.maxTemperature();
+
+        console.log("Initial Cultivation Factor:", actualCultivationFactor);
+        console.log("Initial Temperature:", actualTemp);
+
+        return (actualCultivationFactor, actualTemp);
+    }
+
+    function _createTestState(
+        uint256 beanPrice
+    ) internal pure returns (LibEvaluate.BeanstalkState memory) {
+        return
+            LibEvaluate.BeanstalkState({
+                deltaPodDemand: Decimal.zero(),
+                lpToSupplyRatio: Decimal.zero(),
+                podRate: Decimal.zero(),
+                largestLiqWell: address(0),
+                oracleFailure: false,
+                largestLiquidWellTwapBeanPrice: beanPrice,
+                twaDeltaB: 0
+            });
+    }
+
+    function _updateState(
+        LibEvaluate.BeanstalkState memory state,
+        uint256 deltaPodDemand,
+        uint32 lastSowTime,
+        uint256 currentTemp
+    ) internal {
+        state.deltaPodDemand = Decimal.ratio(deltaPodDemand, 1e18);
+        season.setLastSowTimeE(lastSowTime);
+        bs.setYieldE(currentTemp);
+        season.mockUpdatePrevSeasonTemp(currentTemp);
+    }
+
+    function _stepAndLogCultivationFactor(
+        LibEvaluate.BeanstalkState memory state
+    ) internal returns (uint256) {
+        season.mockStepGauges(state);
+        uint256 cultivationFactor = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        console.log("current Value of cultivation factor:", cultivationFactor);
+        return cultivationFactor;
+    }
+
+    // - Scenario 1: User is sowing at X% temp, sow at much as possible
+    // - the cultivation factor rises a bit, temp decreases
+    // - check that the cultivation factor stays flat until the temp creeps up back to the X% limit order temp
+    function test_cultivationFactorSimulation1() public {
+        // set up initial state (1% cultivation factor, 101% temp)
+        (uint256 initialCultivationFactor, uint256 initialTemp) = _setupInitialState(101e6, 1e6);
+
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6,
+            twaDeltaB: 0
+        });
+
+        uint256 iterations = 16;
+
+        // Difine scenario iteration parameters
+
+        // (0e18 = no demand, 2e18 = increasing demand)
+        uint256[] memory deltaPodDemands = new uint256[](iterations);
+        deltaPodDemands[0] = 2e18; // increasing demand // 101% temp limit order hits
+        deltaPodDemands[1] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[2] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[3] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[4] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[5] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[6] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[7] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[8] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[9] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[10] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[11] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[12] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[13] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[14] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[15] = 2e18; // increasing demand // 100% temp limit order hits
+
+        // (1 = soil sold out, type(uint32).max = soil not sold out)
+        uint32[] memory lastSowTimes = new uint32[](iterations);
+        lastSowTimes[0] = 1; // soil sold out // 101% temp limit order hits
+        lastSowTimes[1] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[2] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[3] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[4] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[5] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[6] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[7] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[8] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[9] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[10] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[11] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[12] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[13] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[14] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[15] = 1; // soil sold out // 100% temp limit order hits
+
+        // previous season temp
+        uint256[] memory prev_temps = new uint256[](iterations);
+        prev_temps[0] = 101e6; // Initial temperature
+        for (uint256 i = 1; i < iterations; i++) {
+            // If soil was sold out in previous iteration (lastSowTimes[i-1] == 1), decrease temp by 1%
+            // Otherwise increase temp by 1%
+            prev_temps[i] = lastSowTimes[i - 1] == 1
+                ? prev_temps[i - 1] - 1e6
+                : prev_temps[i - 1] + 1e6;
+        }
+
+        string memory csvPath = "cultivation_factor_scenario1.csv";
+        // write header
+        vm.writeLine(csvPath, "iteration,prev_temp,cultivation_factor,soil_sold_out,demand");
+        for (uint256 i = 0; i < iterations; i++) {
+            // log demand, lastSowTime, temp
+            console.log("-------------Iteration", i, "-------------------");
+            console.log("Pod Demand:", deltaPodDemands[i] == 0 ? "No Demand" : "Increasing");
+            console.log("Soil Status:", lastSowTimes[i] == 1 ? "Sold Out" : "Not Sold Out");
+            console.log("Previous Temperature:", prev_temps[i] / 1e6, "%");
+
+            if (i == 0) {
+                // First iteration - only update demand and soil status, prev_temps are initialized in initDiamond()
+                testState.deltaPodDemand = Decimal.ratio(deltaPodDemands[i], 1e18);
+                season.setLastSowTimeE(lastSowTimes[i]);
+            } else {
+                _updateState(testState, deltaPodDemands[i], lastSowTimes[i], prev_temps[i]);
+            }
+
+            uint256 cultivationFactor = _stepAndLogCultivationFactor(testState);
+
+            // Write data to CSV
+            string memory line = string.concat(
+                vm.toString(i),
+                ",",
+                vm.toString(prev_temps[i]),
+                ",",
+                vm.toString(cultivationFactor),
+                ",",
+                vm.toString(lastSowTimes[i] == 1 ? true : false),
+                ",",
+                deltaPodDemands[i] == 0 ? "No Demand" : "Increasing"
+            );
+            vm.writeLine(csvPath, line);
+            console.log("--------------------------------\n");
+        }
+    }
+
+    // - Scenario 2: 1 User is sowing at 100% temp limit order, sowing as much as possible
+    // - Cultivation factor rises
+    // - Another user wants to sow until temp 90% (Y < X), but with some smaller max capacity.
+    // - the cultivation factor goes DOWN until it matches the second user's capacity
+    function test_cultivationFactorSimulation2() public {
+        // set up initial state (1% cultivation factor, 103% temp)
+        (uint256 initialCultivationFactor, uint256 initialTemp) = _setupInitialState(103e6, 1e6);
+
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6,
+            twaDeltaB: 0
+        });
+
+        uint256 iterations = 15;
+
+        // Difine scenario iteration parameters
+
+        // (0e18 = no demand, 2e18 = increasing demand)
+        uint256[] memory deltaPodDemands = new uint256[](iterations);
+        // ------------- 1st user drives up the cultivation factor -------------
+        deltaPodDemands[0] = 2e18; // increasing demand // 103% temp limit order hits
+        deltaPodDemands[1] = 2e18; // increasing demand // 102% temp limit order hits
+        deltaPodDemands[2] = 2e18; // increasing demand // 101% temp limit order hits
+        deltaPodDemands[3] = 2e18; // increasing demand // 100% temp limit order hits
+        //-------------- 2nd user starts sowing but soil does not sell out, cultivation factor decreases to match demand, demand stays steady -------------
+        // (delta pod demand between lower and upper bound)
+        deltaPodDemands[4] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[5] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[6] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[7] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[8] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[9] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[10] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[11] = 1e18; // steady demand but soil not selling out
+
+        // -------- At some point, the soil will sell out and the cultivation factor will start increasing again -------------
+        // (delta pod demand above upper bound)
+        deltaPodDemands[12] = 2e18; // increasing demand, soil is selling out
+        deltaPodDemands[13] = 2e18; // increasing demand, soil is selling out
+        deltaPodDemands[14] = 2e18; // increasing demand, soil is selling out
+
+        // (1 = soil sold out, type(uint32).max = soil not sold out)
+        uint32[] memory lastSowTimes = new uint32[](iterations);
+        // ------------- 1st user drives up the cultivation factor -------------
+        lastSowTimes[0] = 1; // soil sold out // 103% temp limit order hits
+        lastSowTimes[1] = 1; // soil sold out // 102% temp limit order hits
+        lastSowTimes[2] = 1; // soil sold out // 101% temp limit order hits
+        lastSowTimes[3] = 1; // soil sold out // 100% temp limit order hits
+        //-------------- 2nd user starts sowing but soil does not sell out, cultivation factor decreases to match demand, demand stays steady -------------
+        lastSowTimes[4] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[5] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[6] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[7] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[8] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[9] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[10] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[11] = type(uint32).max; // soil not sold out, demand still steady
+        // -------- At some point, the soil will sell out and the cultivation factor will start increasing again -------------
+        lastSowTimes[12] = 1; // soil sold out, the user with less size makes the cultivation factor increase
+        lastSowTimes[13] = 1; // soil sold out, the user with less size makes the cultivation factor increase
+        lastSowTimes[14] = 1; // soil sold out, the user with less size makes the cultivation factor increase
+
+        // previous season temp
+        uint256[] memory prev_temps = new uint256[](iterations);
+        prev_temps[0] = 103e6; // Initial temperature
+        for (uint256 i = 1; i < iterations; i++) {
+            // If soil was sold out in previous iteration (lastSowTimes[i-1] == 1), decrease temp by 1%
+            // Otherwise increase temp by 1%
+            prev_temps[i] = deltaPodDemands[i - 1] == 1e18 || deltaPodDemands[i - 1] == 2e18
+                ? prev_temps[i - 1] - 1e6
+                : prev_temps[i - 1] + 1e6;
+        }
+
+        string memory csvPath = "cultivation_factor_scenario2.csv";
+        // write header
+        vm.writeLine(csvPath, "iteration,prev_temp,cultivation_factor,soil_sold_out,demand");
+        for (uint256 i = 0; i < iterations; i++) {
+            // log demand, lastSowTime, temp
+            console.log("-------------Iteration", i, "-------------------");
+            console.log("Pod Demand:", deltaPodDemands[i] == 0 ? "No Demand" : "Increasing");
+            console.log("Soil Status:", lastSowTimes[i] == 1 ? "Sold Out" : "Not Sold Out");
+            console.log("Previous Temperature:", prev_temps[i] / 1e6, "%");
+
+            if (i == 0) {
+                // First iteration - only update demand and soil status, prev_temps are initialized in initDiamond()
+                testState.deltaPodDemand = Decimal.ratio(deltaPodDemands[i], 1e18);
+                season.setLastSowTimeE(lastSowTimes[i]);
+            } else {
+                _updateState(testState, deltaPodDemands[i], lastSowTimes[i], prev_temps[i]);
+            }
+
+            uint256 cultivationFactor = _stepAndLogCultivationFactor(testState);
+
+            // Write data to CSV
+            string memory line = string.concat(
+                vm.toString(i),
+                ",",
+                vm.toString(prev_temps[i]),
+                ",",
+                vm.toString(cultivationFactor),
+                ",",
+                vm.toString(lastSowTimes[i] == 1 ? true : false),
+                ",",
+                deltaPodDemands[i] == 0
+                    ? "No Demand"
+                    : deltaPodDemands[i] == 1e18
+                        ? "Steady"
+                        : "Increasing"
+            );
+            vm.writeLine(csvPath, line);
+            console.log("--------------------------------\n");
+        }
+    }
+
+    // - Scenario 3: 1 User is sowing at X, sowing as much as possible
+    // - Cultivation factor rises
+    // - Another user wants to sow until temp Y (Y < X), but with max capacity.
+    // - the cultivation factor goes up as normal
+    function test_cultivationFactorSimulation3() public {
+        // set up initial state (1% cultivation factor, 104% temp)
+        (uint256 initialCultivationFactor, uint256 initialTemp) = _setupInitialState(104e6, 1e6);
+
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6,
+            twaDeltaB: 0
+        });
+
+        uint256 iterations = 11;
+
+        // Difine scenario iteration parameters
+
+        // (0e18 = no demand, 2e18 = increasing demand)
+        uint256[] memory deltaPodDemands = new uint256[](iterations);
+        // ------------- 1st user limit order 100% temp as much as possible -------------
+        deltaPodDemands[0] = 2e18; // increasing demand // 104% temp limit order hits
+        deltaPodDemands[1] = 2e18; // increasing demand // 103% temp limit order hits
+        deltaPodDemands[2] = 2e18; // increasing demand // 102% temp limit order hits
+        deltaPodDemands[3] = 2e18; // increasing demand // 101% temp limit order hits
+        deltaPodDemands[4] = 2e18; // increasing demand // 100% temp limit order hits
+        // ------------- 2nd user limit order 90% temp as much as possible -------------
+        deltaPodDemands[5] = 2e18; // increasing demand // 99% temp limit order hits
+        deltaPodDemands[6] = 2e18; // increasing demand // 98% temp limit order hits
+        deltaPodDemands[7] = 2e18; // increasing demand // 97% temp limit order hits
+        deltaPodDemands[8] = 2e18; // increasing demand // 96% temp limit order hits
+        deltaPodDemands[9] = 2e18; // increasing demand // 95% temp limit order hits
+        deltaPodDemands[10] = 2e18; // increasing demand // 94% temp limit order hits
+        // .......
+
+        // (1 = soil sold out, type(uint32).max = soil not sold out)
+        uint32[] memory lastSowTimes = new uint32[](iterations);
+        // ------------- 1st user limit order 100% temp as much as possible -------------
+        lastSowTimes[0] = 1; // soil sold out // 104% temp limit order hits
+        lastSowTimes[1] = 1; // soil sold out // 103% temp limit order hits
+        lastSowTimes[2] = 1; // soil sold out // 102% temp limit order hits
+        lastSowTimes[3] = 1; // soil sold out // 101% temp limit order hits
+        lastSowTimes[4] = 1; // soil sold out // 100% temp limit order hits
+        // ------------- 2nd user limit order 90% temp as much as possible -------------
+        lastSowTimes[5] = 1; // soil sold out // 99% temp limit order hits
+        lastSowTimes[6] = 1; // soil sold out // 98% temp limit order hits
+        lastSowTimes[7] = 1; // soil sold out // 97% temp limit order hits
+        lastSowTimes[8] = 1; // soil sold out // 96% temp limit order hits
+        lastSowTimes[9] = 1; // soil sold out // 95% temp limit order hits
+        lastSowTimes[10] = 1; // soil sold out // 94% temp limit order hits
+        // .......
+
+        // previous season temp
+        uint256[] memory prev_temps = new uint256[](iterations);
+        prev_temps[0] = 104e6; // Initial temperature
+        for (uint256 i = 1; i < iterations; i++) {
+            // If soil was sold out in previous iteration (lastSowTimes[i-1] == 1), decrease temp by 1%
+            // Otherwise increase temp by 1%
+            prev_temps[i] = lastSowTimes[i - 1] == 1
+                ? prev_temps[i - 1] - 1e6
+                : prev_temps[i - 1] + 1e6;
+        }
+
+        string memory csvPath = "cultivation_factor_scenario3.csv";
+        // write header
+        vm.writeLine(csvPath, "iteration,prev_temp,cultivation_factor,soil_sold_out,demand");
+        for (uint256 i = 0; i < iterations; i++) {
+            // log demand, lastSowTime, temp
+            console.log("-------------Iteration", i, "-------------------");
+            console.log("Pod Demand:", deltaPodDemands[i] == 0 ? "No Demand" : "Increasing");
+            console.log("Soil Status:", lastSowTimes[i] == 1 ? "Sold Out" : "Not Sold Out");
+            console.log("Previous Temperature:", prev_temps[i] / 1e6, "%");
+
+            if (i == 0) {
+                // First iteration - only update demand and soil status, prev_temps are initialized in initDiamond()
+                testState.deltaPodDemand = Decimal.ratio(deltaPodDemands[i], 1e18);
+                season.setLastSowTimeE(lastSowTimes[i]);
+            } else {
+                _updateState(testState, deltaPodDemands[i], lastSowTimes[i], prev_temps[i]);
+            }
+
+            uint256 cultivationFactor = _stepAndLogCultivationFactor(testState);
+
+            // Write data to CSV
+            string memory line = string.concat(
+                vm.toString(i),
+                ",",
+                vm.toString(prev_temps[i]),
+                ",",
+                vm.toString(cultivationFactor),
+                ",",
+                vm.toString(lastSowTimes[i] == 1 ? true : false),
+                ",",
+                deltaPodDemands[i] == 0 ? "No Demand" : "Increasing"
+            );
+            vm.writeLine(csvPath, line);
+            console.log("--------------------------------\n");
+        }
+    }
+
+    // - Scenario 4: check scenario where temp stays the same, what happens with the CF
+    // - expectation → if the dude is Truly willing to sow at the same temp,
+    // soil should always sell out and CF should increase
+    // - If the dude DOESN'T, CF should decrease
+    function test_cultivationFactorSimulation4() public {
+        // set up initial state (1% cultivation factor, 100% temp)
+        (uint256 initialCultivationFactor, uint256 initialTemp) = _setupInitialState(100e6, 1e6);
+
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6,
+            twaDeltaB: 0
+        });
+
+        uint256 iterations = 11;
+
+        // Difine scenario iteration parameters
+
+        // (0e18 = no demand, 2e18 = increasing demand)
+        uint256[] memory deltaPodDemands = new uint256[](iterations);
+        // ------------- 1st user limit order 100% temp as much as possible -------------
+        deltaPodDemands[0] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[1] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[2] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[3] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[4] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[5] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[6] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[7] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[8] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[9] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[10] = 2e18; // increasing demand // 100% temp limit order hits
+        // .......
+
+        // (1 = soil sold out, type(uint32).max = soil not sold out)
+        uint32[] memory lastSowTimes = new uint32[](iterations);
+        // ------------- 1st user limit order 100% temp as much as possible -------------
+        lastSowTimes[0] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[1] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[2] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[3] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[4] = 1; // soil sold out // 100% temp limit order hits
+        // ------------- 2nd user limit order 90% temp as much as possible -------------
+        lastSowTimes[5] = 1; // soil sold out // 99% temp limit order hits
+        lastSowTimes[6] = 1; // soil sold out // 98% temp limit order hits
+        lastSowTimes[7] = 1; // soil sold out // 97% temp limit order hits
+        lastSowTimes[8] = 1; // soil sold out // 96% temp limit order hits
+        lastSowTimes[9] = 1; // soil sold out // 95% temp limit order hits
+        lastSowTimes[10] = 1; // soil sold out // 94% temp limit order hits
+        // .......
+
+        // previous season temp
+        uint256[] memory prev_temps = new uint256[](iterations);
+        prev_temps[0] = 100e6; // Initial temperature
+        for (uint256 i = 1; i < iterations; i++) {
+            prev_temps[i] = 100e6;
+        }
+
+        string memory csvPath = "cultivation_factor_scenario4.csv";
+        // write header
+        vm.writeLine(csvPath, "iteration,prev_temp,cultivation_factor,soil_sold_out,demand");
+        for (uint256 i = 0; i < iterations; i++) {
+            // log demand, lastSowTime, temp
+            console.log("-------------Iteration", i, "-------------------");
+            console.log("Pod Demand:", deltaPodDemands[i] == 0 ? "No Demand" : "Increasing");
+            console.log("Soil Status:", lastSowTimes[i] == 1 ? "Sold Out" : "Not Sold Out");
+            console.log("Previous Temperature:", prev_temps[i] / 1e6, "%");
+
+            if (i == 0) {
+                // First iteration - only update demand and soil status, prev_temps are initialized in initDiamond()
+                testState.deltaPodDemand = Decimal.ratio(deltaPodDemands[i], 1e18);
+                season.setLastSowTimeE(lastSowTimes[i]);
+            } else {
+                _updateState(testState, deltaPodDemands[i], lastSowTimes[i], prev_temps[i]);
+            }
+
+            uint256 cultivationFactor = _stepAndLogCultivationFactor(testState);
+
+            // Write data to CSV
+            string memory line = string.concat(
+                vm.toString(i),
+                ",",
+                vm.toString(prev_temps[i]),
+                ",",
+                vm.toString(cultivationFactor),
+                ",",
+                vm.toString(lastSowTimes[i] == 1 ? true : false),
+                ",",
+                deltaPodDemands[i] == 0 ? "No Demand" : "Increasing"
+            );
+            vm.writeLine(csvPath, line);
+            console.log("--------------------------------\n");
+        }
+    }
 }

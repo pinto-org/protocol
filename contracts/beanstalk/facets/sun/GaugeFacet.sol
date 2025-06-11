@@ -19,6 +19,7 @@ import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedToken
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import "forge-std/console.sol";
 
 /**
  * @title GaugeFacet
@@ -72,6 +73,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory) {
         uint256 currentValue = abi.decode(value, (uint256));
+        console.log("--------------------------------");
+        console.log("Inside GuageFacet, cultivation factor calculaion:");
+        console.log("previous Value of cultivation factor:", currentValue);
         LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
 
         // if the price is 0, return the current value.
@@ -93,17 +97,25 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             uint256 prevSeasonTemp // temperature of the previous season.
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
+        console.log("prevSeasonTemp:", prevSeasonTemp);
+        console.log("cultivationTemp:", cultivationTemp);
+
         // determine if soil was sold out or almost sold out.
         bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max - 1;
         bool soilAlmostSoldOut = s.sys.weather.lastSowTime == type(uint32).max - 1;
 
         // if soil was almost sold out or sold out, and demand for soil is increasing,
-        //  set cultivationTemp to the previous season temperature.
+        // set cultivationTemp to the previous season temperature.
         if (
             (soilAlmostSoldOut || soilSoldOut) &&
             bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandUpperBound
         ) {
+            console.log(
+                "NEW CULTIVATION TEMP FOUND: soilAlmostSoldOut or soilSoldOut and demand for soil is increasing, new cultivationTemp is found"
+            );
             cultivationTemp = prevSeasonTemp;
+            console.log("new prevSeasonTemp:", prevSeasonTemp);
+            console.log("new cultivationTemp:", cultivationTemp);
             gaugeData = abi.encode(
                 minDeltaCultivationFactor,
                 maxDeltaCultivationFactor,
@@ -131,6 +143,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // 2) the demand for soil (steady/increasing, or decreasing)
         // 3) the previous season temperature (if it was above the cultivation temperature)
         if (soilSoldOut) {
+            console.log("CASE: soilSoldOut, increasing cultivation factor");
             // increase cultivation factor if soil sold out.
             currentValue = LibGaugeHelpers.linear256(
                 currentValue,
@@ -140,16 +153,25 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 maxCultivationFactor
             );
         } else if (soilAlmostSoldOut) {
+            console.log("CASE: soilAlmostSoldOut, cultivation factor stays the same");
             // if soil almost sold out, return unchanged gauge data and value.
             return (abi.encode(currentValue), gaugeData);
         } else if (
+            // if demand is decreasing, and previous season temperature < cultivation temperature,
+            // return unchanged gauge data and value.
             bs.deltaPodDemand.value < s.sys.evaluationParameters.deltaPodDemandLowerBound &&
             prevSeasonTemp < cultivationTemp
         ) {
+            console.log(
+                "CASE: demand is decreasing, and previous season temperature <  cultivation temperature, cultivation factor stays the same"
+            );
             // if soil is not selling out, and previous season temperature < cultivation temperature,
             // return unchanged gauge data and value.
             return (abi.encode(currentValue), gaugeData);
         } else {
+            console.log(
+                "CASE: soil is not selling out and demand is steady/increasing, or previous season temperature >= cultivation temperature, decreasing cultivation factor"
+            );
             // demand for soil is steady/increasing (but not selling out)
             // or previous season temperature >= cultivation temperature.
             // decrease cultivation factor.

@@ -54,8 +54,8 @@ library LibInitGauges {
                 MAX_DELTA_CULTIVATION_FACTOR,
                 MIN_CULTIVATION_FACTOR,
                 MAX_CULTIVATION_FACTOR,
-                uint256(0), // cultivation temperature
-                uint256(0) // previous season temperature
+                uint256(100e6), // cultivation temperature
+                uint256(101e6) // previous season temperature
             )
         );
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);

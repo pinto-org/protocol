@@ -478,6 +478,10 @@ contract MockSeasonFacet is SeasonFacet {
         }
     }
 
+    function mockUpdatePrevSeasonTemp(uint256 temp) external {
+        LibGaugeHelpers.updatePrevSeasonTemp(temp);
+    }
+
     function mockStepGauge() external {
         (
             uint256 maxLpGpPerBdv,
