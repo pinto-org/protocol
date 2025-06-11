@@ -11,7 +11,7 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "./price/WellPrice.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
-import {console} from "forge-std/console.sol";
+
 /**
  * @title ConvertUpBlueprintv0
  * @author FordPinto
@@ -165,17 +165,11 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         ConvertUpLocalVars memory vars;
         vars.currentTimestamp = block.timestamp;
 
-        // log min and max convert pdv per execution
-        console.log("minConvertPdvPerExecution", params.convertUpParams.minConvertPdvPerExecution);
-        console.log("maxConvertPdvPerExecution", params.convertUpParams.maxConvertPdvPerExecution);
-
         // Get order hash
         vars.orderHash = beanstalk.getCurrentBlueprintHash();
 
         // Get user account
         vars.account = beanstalk.tractorUser();
-
-        console.log("convertUpBlueprintv0 vars.account: %s", vars.account);
 
         // Get the last execution timestamp
         vars.lastExecution = getLastExecutedTimestamp(vars.orderHash);
@@ -199,8 +193,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         // Get current PDV left to convert
         vars.pdvLeftToConvert = getPdvLeftToConvert(vars.orderHash);
 
-        console.log("stored pdvLeftToConvert", vars.pdvLeftToConvert);
-
         // If pdvLeftToConvert is max, revert, as the order has already been completed
         if (vars.pdvLeftToConvert == type(uint256).max) {
             revert("Order has already been completed");
@@ -217,10 +209,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             params.convertUpParams.minConvertPdvPerExecution,
             params.convertUpParams.maxConvertPdvPerExecution
         );
-
-        console.log("pdv to convert this time: %s", vars.currentPdvToConvert);
-        // log pdv left to convert
-        console.log("pdv left to convert: %s", vars.pdvLeftToConvert);
 
         // Get current price and check price constraints using BeanstalkPrice
         BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
@@ -272,10 +260,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             slippageRatio,
             params.convertUpParams.maxGrownStalkPerPdvPenalty
         );
-
-        // log pdv left to convert and current pdv to convert
-        // console.log("pdvLeftToConvert", vars.pdvLeftToConvert);
-        // console.log("currentPdvToConvert", vars.currentPdvToConvert);
 
         // Update the state
         // If all PDV has been converted, set to max to indicate completion
@@ -421,7 +405,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @param amount The new PDV left to convert
      */
     function updatePdvLeftToConvert(bytes32 orderHash, uint256 amount) internal {
-        // console.log("Updating pdvLeftToConvert", amount);
         orderInfo[orderHash].pdvLeftToConvert = amount;
     }
 
@@ -479,15 +462,9 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         address beanToken = beanstalk.getBeanToken();
         totalAmountConverted = 0;
 
-        console.log(
-            "executeConvertUp, vars.withdrawalPlan.sourceTokens.length: %s",
-            vars.withdrawalPlan.sourceTokens.length
-        );
-
         // Process each token type in the withdrawal plan
         for (uint256 i = 0; i < vars.withdrawalPlan.sourceTokens.length; i++) {
             address token = vars.withdrawalPlan.sourceTokens[i];
-            console.log("executeConvertUp, converting token:", token);
             if (token == address(0) || token == beanToken) continue; // Skip empty tokens or Bean tokens
 
             // Get stems and amounts from the withdrawal plan for this token
@@ -496,16 +473,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             // Use the stems and amounts for this token directly from the withdrawal plan
             int96[] memory stems = vars.withdrawalPlan.stems[i];
             uint256[] memory amounts = vars.withdrawalPlan.amounts[i];
-
-            // Log stems and amounts
-            console.log("stems: ");
-            for (uint256 j = 0; j < stems.length; j++) {
-                console.logInt(stems[j]);
-            }
-            console.log("amounts: ");
-            for (uint256 j = 0; j < amounts.length; j++) {
-                console.log(amounts[j]);
-            }
 
             uint256 tokenAmountToConvert = 0;
 
@@ -516,14 +483,27 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
 
             if (tokenAmountToConvert == 0) continue;
 
+            // Validate slippage to detect price manipulation
+            {
+                IERC20[] memory wellTokens = IWell(token).tokens();
+                address nonBeanToken = address(wellTokens[0]) == beanToken
+                    ? address(wellTokens[1])
+                    : address(wellTokens[0]);
+                require(
+                    tractorHelpers.priceManipulation().isValidSlippage(
+                        IWell(token),
+                        IERC20(nonBeanToken),
+                        slippageRatio
+                    ),
+                    "Price manipulation detected"
+                );
+            }
+
             // Calculate minimum output amount based on slippage
             uint256 expectedOutput = IWell(token).getRemoveLiquidityOneTokenOut(
                 tokenAmountToConvert,
                 IERC20(beanToken)
             );
-
-            console.log("expectedOutput: ", expectedOutput);
-            console.log("tokenAmountToConvert: ", tokenAmountToConvert);
 
             // Create convert data for WELL_LP_TO_BEANS conversion
             // Format: ConvertKind, amountIn, expectedOutput, token address

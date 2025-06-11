@@ -21,7 +21,7 @@ import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 contract TractorHelpers is Junction, PerFunctionPausable {
     IBeanstalk immutable beanstalk;
     BeanstalkPrice immutable beanstalkPrice;
-    PriceManipulation immutable priceManipulation;
+    PriceManipulation public immutable priceManipulation;
 
     enum RewardType {
         ERC20,
