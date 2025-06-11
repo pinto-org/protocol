@@ -9,12 +9,13 @@ import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
-contract SowBlueprintv0Test is TractorHelper {
+contract SowBlueprintv0Test is TractorTestHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
     BeanstalkPrice beanstalkPrice;
@@ -54,12 +55,27 @@ contract SowBlueprintv0Test is TractorHelper {
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
+        setSiloHelpers(address(siloHelpers));
 
         addLiquidityToWell(
             BEAN_ETH_WELL,
@@ -137,7 +153,7 @@ contract SowBlueprintv0Test is TractorHelper {
                 state.operator,
                 state.user,
                 req.blueprintHash,
-                bs.getBlueprintNonce(req.blueprintHash),
+                0, // nonce
                 gasleft()
             );
 
