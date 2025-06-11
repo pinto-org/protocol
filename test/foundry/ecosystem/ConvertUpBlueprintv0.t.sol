@@ -1032,4 +1032,138 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
             "User should have received exactly one Bean deposit from conversion"
         );
     }
+
+    function test_convertUpBlueprintv0_PriceManipulationDetection() public {
+        TestState memory state = setupConvertUpBlueprintv0Test();
+
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = getTokenIndex(state.wellToken);
+
+        // Create a blueprint with normal slippage tolerance
+        (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                minGrownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
+                slippageRatio: 0.01e18, // 1% slippage tolerance
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        // Mock the price to be within acceptable range
+        mockPrice(0.95e6);
+
+        // Mock the isValidSlippage call to return false (price manipulation detected)
+        vm.mockCall(
+            address(priceManipulation),
+            abi.encodeWithSelector(
+                PriceManipulation.isValidSlippage.selector,
+                IWell(state.wellToken), // well
+                IERC20(WETH), // non-bean token in the well
+                0.01e18 // slippage ratio
+            ),
+            abi.encode(false) // Return false to indicate price manipulation
+        );
+
+        // Execution should revert with price manipulation error
+        vm.expectRevert("Price manipulation detected");
+        executeRequisition(state.operator, req, address(bs));
+
+        // Reset the mock to return true (no price manipulation)
+        vm.mockCall(
+            address(priceManipulation),
+            abi.encodeWithSelector(
+                PriceManipulation.isValidSlippage.selector,
+                IWell(state.wellToken), // well
+                IERC20(WETH), // non-bean token in the well
+                0.01e18 // slippage ratio
+            ),
+            abi.encode(true) // Return true to indicate valid slippage
+        );
+
+        // Now execution should succeed
+        executeRequisition(state.operator, req, address(bs));
+
+        // Verify conversion succeeded by checking for Bean deposits
+        uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+
+        // Verify the user received exactly one deposit
+        assertEq(
+            finalBeanDeposits.length,
+            1,
+            "User should have received exactly one Bean deposit from conversion"
+        );
+    }
+
+    function test_convertUpBlueprintv0_DefaultSlippageRatio() public {
+        TestState memory state = setupConvertUpBlueprintv0Test();
+
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = getTokenIndex(state.wellToken);
+
+        // Create a blueprint with slippageRatio = 0 (should use default)
+        (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalConvertPdv: state.convertAmount,
+                minConvertPdvPerExecution: state.convertAmount / 4,
+                maxConvertPdvPerExecution: state.convertAmount,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                minGrownStalkPerBdvBonusThreshold: 0,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                maxGrownStalkPerPdvPenalty: MAX_GROWN_STALK_PER_PDV_PENALTY,
+                slippageRatio: 0, // Should use DEFAULT_SLIPPAGE_RATIO (1%)
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        // Mock the price to be within acceptable range
+        mockPrice(0.95e6);
+
+        // Mock the isValidSlippage call with default slippage (0.01e18)
+        vm.mockCall(
+            address(priceManipulation),
+            abi.encodeWithSelector(
+                PriceManipulation.isValidSlippage.selector,
+                IWell(state.wellToken), // well
+                IERC20(WETH), // non-bean token in the well
+                0.01e18 // DEFAULT_SLIPPAGE_RATIO
+            ),
+            abi.encode(true) // Return true to indicate valid slippage
+        );
+
+        // Execution should succeed with default slippage
+        executeRequisition(state.operator, req, address(bs));
+
+        // Verify conversion succeeded by checking for Bean deposits
+        uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+
+        // Verify the user received exactly one deposit
+        assertEq(
+            finalBeanDeposits.length,
+            1,
+            "User should have received exactly one Bean deposit from conversion"
+        );
+    }
 }
