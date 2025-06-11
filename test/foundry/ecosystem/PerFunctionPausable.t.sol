@@ -12,6 +12,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {PerFunctionPausable} from "contracts/ecosystem/PerFunctionPausable.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
 contract PerFunctionPausableTest is TractorTestHelper {
     address[] farmers;
@@ -41,18 +42,33 @@ contract PerFunctionPausableTest is TractorTestHelper {
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
+        setSiloHelpers(address(siloHelpers));
     }
 
     function test_pause() public {
         // Get function selectors for the functions we want to test
         bytes4 sowSelector = SowBlueprintv0.sowBlueprintv0.selector;
-        bytes4 withdrawSelector = TractorHelpers.withdrawBeansFromSources.selector;
+        bytes4 withdrawSelector = SiloHelpers.withdrawBeansFromSources.selector;
 
         // Test initial state
         assertFalse(
@@ -60,7 +76,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
             "sowBlueprintv0 should not be paused initially"
         );
         assertFalse(
-            tractorHelpers.functionPaused(withdrawSelector),
+            siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should not be paused initially"
         );
 
@@ -75,17 +91,17 @@ contract PerFunctionPausableTest is TractorTestHelper {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        tractorHelpers.pauseFunction(withdrawSelector);
+        siloHelpers.pauseFunction(withdrawSelector);
 
         // Test pausing individual functions
         vm.startPrank(address(this));
         sowBlueprintv0.pauseFunction(sowSelector);
-        tractorHelpers.pauseFunction(withdrawSelector);
+        siloHelpers.pauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertTrue(sowBlueprintv0.functionPaused(sowSelector), "sowBlueprintv0 should be paused");
         assertTrue(
-            tractorHelpers.functionPaused(withdrawSelector),
+            siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should be paused"
         );
 
@@ -156,12 +172,12 @@ contract PerFunctionPausableTest is TractorTestHelper {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        tractorHelpers.unpauseFunction(withdrawSelector);
+        siloHelpers.unpauseFunction(withdrawSelector);
 
         // Test unpausing functions
         vm.startPrank(address(this));
         sowBlueprintv0.unpauseFunction(sowSelector);
-        tractorHelpers.unpauseFunction(withdrawSelector);
+        siloHelpers.unpauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertFalse(
@@ -169,7 +185,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
             "sowBlueprintv0 should be unpaused"
         );
         assertFalse(
-            tractorHelpers.functionPaused(withdrawSelector),
+            siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should be unpaused"
         );
 

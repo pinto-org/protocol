@@ -13,6 +13,7 @@ import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
 contract SowBlueprintv0Test is TractorTestHelper {
     address[] farmers;
@@ -54,12 +55,27 @@ contract SowBlueprintv0Test is TractorTestHelper {
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
+        setSiloHelpers(address(siloHelpers));
 
         addLiquidityToWell(
             BEAN_ETH_WELL,
@@ -137,6 +153,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
                 state.operator,
                 state.user,
                 req.blueprintHash,
+                0, // nonce
                 gasleft()
             );
 

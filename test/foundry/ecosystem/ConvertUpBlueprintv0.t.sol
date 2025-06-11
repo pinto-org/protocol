@@ -16,6 +16,7 @@ import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/console.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
 contract ConvertUpBlueprintv0Test is TractorTestHelper {
     address[] farmers;
@@ -79,16 +80,27 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy ConvertUpBlueprintv0 with TractorHelpers and BeanstalkPrice address
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy ConvertUpBlueprintv0 with TractorHelpers, SiloHelpers and BeanstalkPrice address
         convertUpBlueprintv0 = new ConvertUpBlueprintv0(
             address(bs),
             address(this),
             address(tractorHelpers),
+            address(siloHelpers),
             address(beanstalkPrice)
         );
         vm.label(address(convertUpBlueprintv0), "ConvertUpBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
+        setSiloHelpers(address(siloHelpers));
 
         // Add liquidity to wells for testing
         addLiquidityToWell(

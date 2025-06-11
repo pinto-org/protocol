@@ -12,6 +12,7 @@ contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprintv0 internal sowBlueprintv0;
+    SiloHelpers internal siloHelpers;
 
     enum SourceMode {
         PURE_PINTO,
@@ -25,6 +26,10 @@ contract TractorTestHelper is TestHelper {
 
     function setSowBlueprintv0(address _sowBlueprintv0) internal {
         sowBlueprintv0 = SowBlueprintv0(_sowBlueprintv0);
+    }
+
+    function setSiloHelpers(address _siloHelpers) internal {
+        siloHelpers = SiloHelpers(_siloHelpers);
     }
 
     function createRequisitionWithPipeCall(
@@ -89,7 +94,7 @@ contract TractorTestHelper is TestHelper {
         // Create the withdrawBeansFromSources pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(tractorHelpers),
+            target: address(siloHelpers),
             callData: abi.encodeWithSelector(
                 SiloHelpers.withdrawBeansFromSources.selector,
                 account,
@@ -218,7 +223,7 @@ contract TractorTestHelper is TestHelper {
         // Create array with single index for the token based on source mode
         uint8[] memory sourceTokenIndices = new uint8[](1);
         if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
-            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+            sourceTokenIndices[0] = TractorHelpers(tractorHelpersAddress).getTokenIndex(
                 IMockFBeanstalk(bsAddress).getBeanToken()
             );
         } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {

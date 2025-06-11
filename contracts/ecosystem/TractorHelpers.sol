@@ -145,6 +145,71 @@ contract TractorHelpers is Junction, PerFunctionPausable {
     }
 
     /**
+     * @notice Returns the index of a token in the whitelisted tokens array
+     * @dev Returns 0 for the bean token, otherwise returns the index in the whitelisted tokens array
+     * @param token The token to get the index for
+     * @return index The index of the token (0 for bean token, otherwise index in whitelisted tokens array)
+     */
+    function getTokenIndex(address token) public view returns (uint8 index) {
+        // This relies on the assumption that the Bean token is whitelisted first
+        if (token == beanstalk.getBeanToken()) {
+            return 0;
+        }
+        address[] memory whitelistedTokens = getWhitelistStatusAddresses();
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            if (whitelistedTokens[i] == token) {
+                return uint8(i);
+            }
+        }
+        revert("Token not found");
+    }
+
+    /**
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @param account The address of the account that owns the deposits
+     * @param token The token to get deposits for
+     * @return stems Array of stems in descending order
+     * @return amounts Array of corresponding amounts for each stem
+     */
+    function getSortedDeposits(
+        address account,
+        address token
+    ) public view returns (int96[] memory stems, uint256[] memory amounts) {
+        uint256[] memory depositIds = beanstalk.getTokenDepositIdsForAccount(account, token);
+        if (depositIds.length == 0) revert("No deposits");
+
+        // Initialize arrays with exact size since we know all deposits are valid
+        stems = new int96[](depositIds.length);
+        amounts = new uint256[](depositIds.length);
+
+        // Collect all deposits
+        for (uint256 i = 0; i < depositIds.length; i++) {
+            (, int96 stem) = getAddressAndStem(depositIds[i]);
+            (uint256 amount, ) = beanstalk.getDeposit(account, token, stem);
+            stems[i] = stem;
+            amounts[i] = amount;
+        }
+
+        // Sort deposits by stem in descending order using bubble sort
+        for (uint256 i = 0; i < depositIds.length - 1; i++) {
+            for (uint256 j = 0; j < depositIds.length - i - 1; j++) {
+                if (stems[j] < stems[j + 1]) {
+                    // Swap stems
+                    int96 tempStem = stems[j];
+                    stems[j] = stems[j + 1];
+                    stems[j + 1] = tempStem;
+
+                    // Swap corresponding amounts
+                    uint256 tempAmount = amounts[j];
+                    amounts[j] = amounts[j + 1];
+                    amounts[j + 1] = tempAmount;
+                }
+            }
+        }
+    }
+
+    /**
      * @notice Returns the amount of LP tokens that must be withdrawn to receive a specific amount of Beans
      * @param beanAmount The amount of Beans desired
      * @param well The Well LP token address

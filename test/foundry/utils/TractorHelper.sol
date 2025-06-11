@@ -6,11 +6,14 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 contract TractorHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprintv0 internal sowBlueprintv0;
+    SiloHelpers internal siloHelpers;
 
     enum SourceMode {
         PURE_PINTO,
@@ -24,6 +27,10 @@ contract TractorHelper is TestHelper {
 
     function setSowBlueprintv0(address _sowBlueprintv0) internal {
         sowBlueprintv0 = SowBlueprintv0(_sowBlueprintv0);
+    }
+
+    function setSiloHelpers(address _siloHelpers) internal {
+        siloHelpers = SiloHelpers(_siloHelpers);
     }
 
     function createRequisitionWithPipeCall(
@@ -88,16 +95,18 @@ contract TractorHelper is TestHelper {
         // Create the withdrawBeansFromSources pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(tractorHelpers),
+            target: address(siloHelpers),
             callData: abi.encodeWithSelector(
-                TractorHelpers.withdrawBeansFromSources.selector,
+                SiloHelpers.withdrawBeansFromSources.selector,
                 account,
                 sourceTokenIndices,
                 withdrawAmount,
                 maxGrownStalkPerBdv,
+                false,
+                false,
                 0.01e18, // 1%
                 uint8(mode),
-                LibTractorHelpers.WithdrawalPlan(
+                LibSiloHelpers.WithdrawalPlan(
                     new address[](0),
                     new int96[][](0),
                     new uint256[][](0),

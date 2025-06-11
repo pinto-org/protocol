@@ -31,9 +31,8 @@ import {console} from "forge-std/console.sol";
  */
 contract TractorHelpersTest is TractorTestHelper {
     address[] farmers;
-    BeanstalkPrice beanstalkPrice;
     PriceManipulation priceManipulation;
-    SiloHelpers siloHelpers;
+    BeanstalkPrice beanstalkPrice;
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
@@ -60,15 +59,26 @@ contract TractorHelpersTest is TractorTestHelper {
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers
-        siloHelpers = new SiloHelpers(address(bs), address(this));
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
+        // Deploy SowBlueprintv0 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
+        setSiloHelpers(address(siloHelpers));
 
         addLiquidityToWell(
             BEAN_ETH_WELL,
@@ -130,7 +140,7 @@ contract TractorHelpersTest is TractorTestHelper {
                     int96[] memory stems,
                     uint256[] memory amounts,
                     uint256 availableAmount
-                ) = tractorHelpers.getDepositStemsAndAmountsToWithdraw(
+                ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
                         farmers[0],
                         BEAN,
                         testAmounts[i],
@@ -179,7 +189,7 @@ contract TractorHelpersTest is TractorTestHelper {
         }
 
         // Test with non-existent account
-        (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = tractorHelpers
+        (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = siloHelpers
             .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, false, emptyPlan);
         assertEq(noStems.length, 0, "Should return empty stems array for non-existent account");
         assertEq(noAmounts.length, 0, "Should return empty amounts array for non-existent account");
@@ -214,12 +224,27 @@ contract TractorHelpersTest is TractorTestHelper {
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(PINTO_DIAMOND, address(this), address(tractorHelpers));
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            PINTO_DIAMOND,
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0 = new SowBlueprintv0(
+            PINTO_DIAMOND,
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
+        setSiloHelpers(address(siloHelpers));
 
         return (testWallet, PINTO_DIAMOND, PINTO);
     }
@@ -237,7 +262,7 @@ contract TractorHelpersTest is TractorTestHelper {
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get deposit stems and amounts to withdraw
-        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = tractorHelpers
+        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
             .getDepositStemsAndAmountsToWithdraw(
                 testWallet,
                 PINTO,
@@ -366,7 +391,7 @@ contract TractorHelpersTest is TractorTestHelper {
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the plan that we would use to withdraw the total amount of beans
-        LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
@@ -376,16 +401,15 @@ contract TractorHelpersTest is TractorTestHelper {
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
-        LibSiloHelpers.WithdrawalPlan memory newPlan = tractorHelpers
-            .getWithdrawalPlanExcludingPlan(
-                farmers[0],
-                sourceTokenIndices,
-                totalBeansToWithdraw,
-                MAX_GROWN_STALK_PER_BDV,
-                false,
-                false,
-                plan
-            );
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
+            farmers[0],
+            sourceTokenIndices,
+            totalBeansToWithdraw,
+            MAX_GROWN_STALK_PER_BDV,
+            false,
+            false,
+            plan
+        );
 
         // Combine the plans and verify the result
         LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
@@ -600,7 +624,7 @@ contract TractorHelpersTest is TractorTestHelper {
             LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
             // Get withdrawal plan
-            LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+            LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
@@ -610,7 +634,7 @@ contract TractorHelpersTest is TractorTestHelper {
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
-            tractorHelpers.withdrawBeansFromSources(
+            siloHelpers.withdrawBeansFromSources(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
@@ -741,14 +765,14 @@ contract TractorHelpersTest is TractorTestHelper {
         address user = farmers[0];
 
         // Initially user should have no deposits
-        address[] memory initialTokens = tractorHelpers.getUserDepositedTokens(user);
+        address[] memory initialTokens = siloHelpers.getUserDepositedTokens(user);
         assertEq(initialTokens.length, 0, "User should have no deposits initially");
 
         // Setup deposits
         setupUserDeposits(user);
 
         // Get user's deposited tokens
-        address[] memory depositedTokens = tractorHelpers.getUserDepositedTokens(user);
+        address[] memory depositedTokens = siloHelpers.getUserDepositedTokens(user);
 
         // Verify correct number of tokens
         assertEq(depositedTokens.length, 2, "User should have deposits in 2 tokens");
@@ -1309,7 +1333,7 @@ contract TractorHelpersTest is TractorTestHelper {
         // Create empty plan
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
-        LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
@@ -1425,7 +1449,7 @@ contract TractorHelpersTest is TractorTestHelper {
         strategyIndices[1] = 1; // BEAN_ETH_WELL
 
         // Test case 1: No exclusions (both false)
-        LibSiloHelpers.WithdrawalPlan memory planNoExclusions = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory planNoExclusions = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
@@ -1469,7 +1493,7 @@ contract TractorHelpersTest is TractorTestHelper {
         uint8[] memory strategyIndex = new uint8[](1);
         strategyIndex[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
 
-        LibSiloHelpers.WithdrawalPlan memory planExcludeBean = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory planExcludeBean = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndex,
             withdrawalAmount,
@@ -1486,15 +1510,14 @@ contract TractorHelpersTest is TractorTestHelper {
         assertEq(planExcludeBean.stems[0].length, 4, "Should include all LP deposits");
 
         // Test case 3: Exclude germinating deposits only
-        LibSiloHelpers.WithdrawalPlan memory planExcludeGerminating = tractorHelpers
-            .getWithdrawalPlan(
-                farmers[0],
-                strategyIndices,
-                withdrawalAmount,
-                MAX_GROWN_STALK_PER_BDV,
-                false, // Don't exclude Bean
-                true // Exclude germinating deposits
-            );
+        LibSiloHelpers.WithdrawalPlan memory planExcludeGerminating = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndices,
+            withdrawalAmount,
+            MAX_GROWN_STALK_PER_BDV,
+            false, // Don't exclude Bean
+            true // Exclude germinating deposits
+        );
 
         // Should still include both token types
         assertEq(planExcludeGerminating.sourceTokens.length, 2, "Should include both token types");
@@ -1534,7 +1557,7 @@ contract TractorHelpersTest is TractorTestHelper {
         }
 
         // Test case 4: Exclude both Bean and germinating deposits
-        LibSiloHelpers.WithdrawalPlan memory planExcludeBoth = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory planExcludeBoth = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndex, // Use LOWEST_PRICE_STRATEGY
             withdrawalAmount,
@@ -1620,7 +1643,7 @@ contract TractorHelpersTest is TractorTestHelper {
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the first plan for a smaller amount
-        LibSiloHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
@@ -1630,16 +1653,15 @@ contract TractorHelpersTest is TractorTestHelper {
         );
 
         // Get the second plan excluding the first plan
-        LibSiloHelpers.WithdrawalPlan memory newPlan = tractorHelpers
-            .getWithdrawalPlanExcludingPlan(
-                farmers[0],
-                sourceTokenIndices,
-                (beanAmount * 1.2e6) / 1e6,
-                MAX_GROWN_STALK_PER_BDV,
-                false,
-                false,
-                plan
-            );
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
+            farmers[0],
+            sourceTokenIndices,
+            (beanAmount * 1.2e6) / 1e6,
+            MAX_GROWN_STALK_PER_BDV,
+            false,
+            false,
+            plan
+        );
 
         // Combine the plans and verify the result
         LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
@@ -1883,7 +1905,12 @@ contract TractorHelpersTest is TractorTestHelper {
         (address testWallet, address PINTO_DIAMOND, address PINTO) = setupForkTest(newBlockNumber);
 
         // Deploy SiloHelpers specifically for this test
-        SiloHelpers forkSiloHelpers = new SiloHelpers(PINTO_DIAMOND, address(this));
+        SiloHelpers forkSiloHelpers = new SiloHelpers(
+            PINTO_DIAMOND,
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
         vm.label(address(forkSiloHelpers), "ForkSiloHelpers");
 
         // Get the tokens that the user has deposits for
