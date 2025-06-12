@@ -1997,7 +1997,7 @@ contract SunTest is TestHelper {
             twaDeltaB: 0
         });
 
-        uint256 iterations = 15;
+        uint256 iterations = 21;
 
         // Difine scenario iteration parameters
 
@@ -2008,22 +2008,31 @@ contract SunTest is TestHelper {
         deltaPodDemands[1] = 2e18; // increasing demand // 102% temp limit order hits
         deltaPodDemands[2] = 2e18; // increasing demand // 101% temp limit order hits
         deltaPodDemands[3] = 2e18; // increasing demand // 100% temp limit order hits
-        //-------------- 2nd user starts sowing but soil does not sell out, cultivation factor decreases to match demand, demand stays steady -------------
+        // oscilation
+        deltaPodDemands[4] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[5] = 2e18; // increasing demand // 100% temp limit order hits
+        deltaPodDemands[6] = 0e18; // no demand // 99% temp limit order out of bounds
+        deltaPodDemands[7] = 2e18; // increasing demand // 100% temp limit order hits
+        //-------------- 2nd user starts sowing at 96% temp limit order, but soil does not sell out,
+        // cultivation factor decreases to match demand, demand stays steady, temp decreases -------------
         // (delta pod demand between lower and upper bound)
-        deltaPodDemands[4] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[5] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[6] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[7] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[8] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[9] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[10] = 1e18; // steady demand but soil not selling out
-        deltaPodDemands[11] = 1e18; // steady demand but soil not selling out
+        deltaPodDemands[8] = 1e18; // steady demand but soil not selling out // 99,5% temp limit order hits
+        deltaPodDemands[9] = 1e18; // steady demand but soil not selling out // 99% temp limit order hits
+        deltaPodDemands[10] = 1e18; // steady demand but soil not selling out // 98,5% temp limit order hits
+        deltaPodDemands[11] = 1e18; // steady demand but soil not selling out // 98% temp limit order hits
+        deltaPodDemands[12] = 1e18; // steady demand but soil not selling out // 97,5% temp limit order hits
+        deltaPodDemands[13] = 1e18; // steady demand but soil not selling out // 97% temp limit order hits
+        deltaPodDemands[14] = 1e18; // steady demand but soil not selling out // 96,5% temp limit order hits
+        deltaPodDemands[15] = 1e18; // steady demand but soil not selling out // 96% temp limit order hits
 
-        // -------- At some point, the soil will sell out and the cultivation factor will start increasing again -------------
-        // (delta pod demand above upper bound)
-        deltaPodDemands[12] = 2e18; // increasing demand, soil is selling out
-        deltaPodDemands[13] = 2e18; // increasing demand, soil is selling out
-        deltaPodDemands[14] = 2e18; // increasing demand, soil is selling out
+        // -------- At some point, the soil will sell out and the cultivation
+        // factor will start increasing again but at a lower temp -------------
+        // (delta pod demand above upper bound) , oscilation
+        deltaPodDemands[16] = 2e18; // increasing demand, soil is selling out
+        deltaPodDemands[17] = 0e18; // increasing demand, soil is selling out
+        deltaPodDemands[18] = 2e18; // increasing demand, soil is selling out
+        deltaPodDemands[19] = 0e18; // increasing demand, soil is selling out
+        deltaPodDemands[20] = 2e18; // increasing demand, soil is selling out
 
         // (1 = soil sold out, type(uint32).max = soil not sold out)
         uint32[] memory lastSowTimes = new uint32[](iterations);
@@ -2032,29 +2041,41 @@ contract SunTest is TestHelper {
         lastSowTimes[1] = 1; // soil sold out // 102% temp limit order hits
         lastSowTimes[2] = 1; // soil sold out // 101% temp limit order hits
         lastSowTimes[3] = 1; // soil sold out // 100% temp limit order hits
+        // oscilation 1
+        lastSowTimes[4] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[5] = 1; // soil sold out // 100% temp limit order hits
+        lastSowTimes[6] = type(uint32).max; // soil not sold out // 99% temp limit order out of bounds
+        lastSowTimes[7] = 1; // soil sold out // 100% temp limit order hits
         //-------------- 2nd user starts sowing but soil does not sell out, cultivation factor decreases to match demand, demand stays steady -------------
-        lastSowTimes[4] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[5] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[6] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[7] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[8] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[9] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[10] = type(uint32).max; // soil not sold out, demand still steady
-        lastSowTimes[11] = type(uint32).max; // soil not sold out, demand still steady
+        lastSowTimes[8] = type(uint32).max; // soil not sold out, demand still steady // 99,5% temp limit order hits
+        lastSowTimes[9] = type(uint32).max; // soil not sold out, demand still steady // 99% temp limit order hits
+        lastSowTimes[10] = type(uint32).max; // soil not sold out, demand still steady // 98,5% temp limit order hits
+        lastSowTimes[11] = type(uint32).max; // soil not sold out, demand still steady // 98% temp limit order hits
+        lastSowTimes[12] = type(uint32).max; // soil not sold out, demand still steady // 97,5% temp limit order hits
+        lastSowTimes[13] = type(uint32).max; // soil not sold out, demand still steady // 97% temp limit order hits
+        lastSowTimes[14] = type(uint32).max; // soil not sold out, demand still steady // 96,5% temp limit order hits
+        lastSowTimes[15] = type(uint32).max; // soil not sold out, demand still steady // 96% temp limit order hits
         // -------- At some point, the soil will sell out and the cultivation factor will start increasing again -------------
-        lastSowTimes[12] = 1; // soil sold out, the user with less size makes the cultivation factor increase
-        lastSowTimes[13] = 1; // soil sold out, the user with less size makes the cultivation factor increase
-        lastSowTimes[14] = 1; // soil sold out, the user with less size makes the cultivation factor increase
+        // oscilation 2
+        lastSowTimes[16] = 1; // soil sold out, the user with less size makes the cultivation factor increase
+        lastSowTimes[17] = type(uint32).max; // soil not sold out, demand still steady // 96% temp limit order out of bounds
+        lastSowTimes[18] = 1; // soil sold out, the user with less size makes the cultivation factor increase
+        lastSowTimes[19] = type(uint32).max; // soil not sold out, demand still steady // 96% temp limit order out of bounds
+        lastSowTimes[20] = 1; // soil sold out, the user with less size makes the cultivation factor increase
 
         // previous season temp
         uint256[] memory prev_temps = new uint256[](iterations);
         prev_temps[0] = 103e6; // Initial temperature
         for (uint256 i = 1; i < iterations; i++) {
-            // If soil was sold out in previous iteration (lastSowTimes[i-1] == 1), decrease temp by 1%
-            // Otherwise increase temp by 1%
+            // For iterations 0-7 and 16-20, use 1e6 change
+            // For all other iterations, use 0.5e6 change
+            uint256 change = (i <= 7 || (i >= 16 && i <= 20)) ? 1e6 : 0.5e6;
+
+            // If soil was sold out in previous iteration, decrease temp
+            // Otherwise increase temp
             prev_temps[i] = deltaPodDemands[i - 1] == 1e18 || deltaPodDemands[i - 1] == 2e18
-                ? prev_temps[i - 1] - 1e6
-                : prev_temps[i - 1] + 1e6;
+                ? prev_temps[i - 1] - change
+                : prev_temps[i - 1] + change;
         }
 
         string memory csvPath = "cultivation_factor_scenario2.csv";
