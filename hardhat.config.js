@@ -1818,7 +1818,6 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     const uniqueAddresses = [...new Set(allFacets.map((f) => f.facetAddress))];
 
     for (const address of uniqueAddresses) {
-      console.log("address", address);
       try {
         let data;
         let attempts = 0;
