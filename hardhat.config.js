@@ -1818,16 +1818,32 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     const uniqueAddresses = [...new Set(allFacets.map((f) => f.facetAddress))];
 
     for (const address of uniqueAddresses) {
+      console.log("address", address);
       try {
-        const response = await fetch(
-          `https://api.basescan.org/api?module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
-        );
-        const data = await response.json();
+        let data;
+        let attempts = 0;
+        const maxAttempts = 3;
 
-        if (data.status === "1" && data.result[0]) {
-          const contractName = data.result[0].ContractName;
-          addressToName.set(address, contractName);
-        }
+        do {
+          const response = await fetch(
+            `https://api.basescan.org/api?module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
+          );
+          data = await response.json();
+          console.log("data", data);
+          attempts++;
+
+          if (data.status === "1" && data.result[0]) {
+            const contractName = data.result[0].ContractName;
+            console.log("contractName", contractName);
+            addressToName.set(address, contractName);
+            break;
+          }
+
+          // Wait 1 second before retrying
+          if (data.status === "0" && attempts < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        } while (data.status === "0" && attempts < maxAttempts);
       } catch (e) {
         console.log(`⚠️  Error fetching contract name for ${address}: ${e.message}`);
       }
