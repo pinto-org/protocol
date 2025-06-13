@@ -1829,12 +1829,10 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
             `https://api.basescan.org/api?module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
           );
           data = await response.json();
-          console.log("data", data);
           attempts++;
 
           if (data.status === "1" && data.result[0]) {
             const contractName = data.result[0].ContractName;
-            console.log("contractName", contractName);
             addressToName.set(address, contractName);
             break;
           }
