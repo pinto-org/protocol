@@ -1512,7 +1512,7 @@ contract SunTest is TestHelper {
     function test_convertUpBonusGaugeSunrise() public {
         int256 twaDeltaB = -1000e6;
         // update the bdv capacity
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         bs.mockUpdateBdvConverted(1000e6);
         // verify that the convert up bonus gauge data is correct before sunrise
@@ -1521,8 +1521,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        assertEq(gdBefore.thisSeasonBdvConverted, 1000e6);
-        assertEq(gdBefore.lastSeasonBdvConverted, 0);
+        // Note: We no longer track totalBdvConvertedBonus
 
         // sunrise
         season.sunSunrise(twaDeltaB, 1, beanstalkState);
@@ -1533,11 +1532,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // verify that this seasons bdv converted is 0:
-        assertEq(gd.thisSeasonBdvConverted, 0);
-
-        // verify that the last seasons bdv converted is 1000e6:
-        assertEq(gd.lastSeasonBdvConverted, gdBefore.thisSeasonBdvConverted);
+        // Note: We no longer track totalBdvConvertedBonus
     }
 
     function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {

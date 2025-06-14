@@ -84,7 +84,7 @@ contract MockConvertFacet is ConvertFacet {
     }
 
     function mockUpdateBdvConverted(uint256 bdvConverted) external {
-        LibConvert.updateBdvConverted(bdvConverted, bdvConverted);
+        LibConvert.updateBdvConverted(bdvConverted);
     }
 
     function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external {
@@ -96,6 +96,20 @@ contract MockConvertFacet is ConvertFacet {
 
         // Update this season's converted amount
         gv.maxConvertCapacity = newBdvCapacity;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
+    }
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external {
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        // Update this season's converted amount
+        gv.bonusStalkPerBdv = newStalkPerBdvBonus;
 
         // Encode and store updated gauge data
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
