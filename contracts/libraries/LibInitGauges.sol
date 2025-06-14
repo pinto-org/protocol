@@ -76,20 +76,18 @@ library LibInitGauges {
     function initConvertUpBonusGauge() internal {
         // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
-            MAX_CONVERT_BONUS_FACTOR,
-            MIN_CAPACITY_FACTOR,
             INIT_BONUS_STALK_PER_BDV,
-            INIT_MAX_CONVERT_CAPACITY
+            INIT_MAX_CONVERT_CAPACITY,
+            MIN_CAPACITY_FACTOR
         );
 
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = LibGaugeHelpers.ConvertBonusGaugeData(
-            DELTA_C,
-            DELTA_T,
-            MIN_CONVERT_BONUS_FACTOR,
-            MAX_CONVERT_BONUS_FACTOR,
-            MIN_CAPACITY_FACTOR,
-            MAX_CAPACITY_FACTOR,
-            TOTAL_SEASON_BDV_CONVERTED_BONUS
+            MIN_CONVERT_BONUS_FACTOR, // minSeasonTarget
+            MAX_CONVERT_BONUS_FACTOR, // maxSeasonTarget
+            DELTA_C, // deltaCapacityScalar
+            0, // bdvConvertedThisSeason
+            0, // bdvConvertedLastSeason
+            0  // maxTwaDeltaB
         );
         Gauge memory convertBonusGauge = Gauge(
             abi.encode(gv),

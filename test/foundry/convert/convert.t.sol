@@ -760,16 +760,16 @@ contract ConvertTest is TestHelper {
             // verify behavior:
             assertEq(
                 gv.convertCapacityFactor,
-                min(gd.minCapacityFactor + (0.004e18 * i), gd.maxCapacityFactor),
+                min(LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR + (0.004e18 * i), LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR),
                 "convertCapacityFactor should be increasing"
             );
-            uint256 expectedConvertBonusFactor = (0.01e18 * i) > gd.maxConvertBonusFactor
-                ? gd.minConvertBonusFactor
-                : gd.maxConvertBonusFactor - (0.01e18 * i);
+            uint256 expectedConvertBonusFactor = (0.01e18 * i) > LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
+                ? 0
+                : LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR - (0.01e18 * i);
             assertEq(
-                gv.convertBonusFactor,
+                gv.bonusStalkPerBdv,
                 expectedConvertBonusFactor,
-                "convertBonusFactor not expected"
+                "bonusStalkPerBdv not expected"
             );
             assertEq(
                 gv.maxConvertCapacity,
@@ -816,21 +816,21 @@ contract ConvertTest is TestHelper {
             );
 
             // verify behavior:
-            uint256 expectedConvertCapacityFactor = gd.maxCapacityFactor - (0.004e18 * i) >=
-                gd.minCapacityFactor
-                ? gd.maxCapacityFactor - (0.004e18 * i)
-                : gd.minCapacityFactor;
+            uint256 expectedConvertCapacityFactor = LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR - (0.004e18 * i) >=
+                LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR
+                ? LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR - (0.004e18 * i)
+                : LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR;
 
             assertEq(
                 gv.convertCapacityFactor,
                 expectedConvertCapacityFactor,
                 "convertCapacityFactor should be decreasing"
             );
-            uint256 expectedConvertBonusFactor = (0.01e18 * i) > gd.maxConvertBonusFactor
-                ? gd.maxConvertBonusFactor
-                : gd.minConvertBonusFactor + (0.01e18 * i);
+            uint256 expectedConvertBonusFactor = (0.01e18 * i) > 1e18
+                ? 1e18
+                : 0 + (0.01e18 * i);
             assertEq(
-                gv.convertBonusFactor,
+                gv.bonusStalkPerBdv,
                 expectedConvertBonusFactor,
                 "convertBonusFactor should be increasing"
             );
@@ -977,11 +977,11 @@ contract ConvertTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        assertLe(gd.totalBdvConvertedBonus, deltaB);
-        assertEq(gd.totalBdvConvertedBonus, expectedBdvBonus);
+        assertLe(gd.bdvConvertedThisSeason, deltaB);
+        assertEq(gd.bdvConvertedThisSeason, expectedBdvBonus);
 
         uint256 calculatedStalkBonus = (gv.bonusStalkPerBdv *
-            gv.convertBonusFactor *
+            gv.convertCapacityFactor *
             expectedBdvBonus) / C.PRECISION;
         assertEq(calculatedStalkBonus, expectedStalkBonus);
     }
@@ -1274,8 +1274,8 @@ contract ConvertTest is TestHelper {
                 (LibGaugeHelpers.ConvertBonusGaugeData)
             );
             assertGt(
-                gdAfter.totalBdvConvertedBonus,
-                gdBefore.totalBdvConvertedBonus,
+                gdAfter.bdvConvertedThisSeason,
+                gdBefore.bdvConvertedThisSeason,
                 "bdvConverted should be incremented"
             );
         }

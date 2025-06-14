@@ -57,9 +57,8 @@ interface IGaugeFacet {
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
-    // the threshold at which the convert capacity is considered reached.
-    uint256 internal constant CONVERT_CAPACITY_THRESHOLD = 0.95e6;
-    uint256 internal constant PRECISION_6 = 1e6;
+
+    // Convert Bonus Gauge Constants are now defined in LibGaugeHelpers
 
     /**
      * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
@@ -205,61 +204,73 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // cache the totalBdvConvertedBonus, reset the totalBdvConvertedBonus to 0.
-        uint256 totalBdvConvertedBonus = gd.totalBdvConvertedBonus;
-        gd.totalBdvConvertedBonus = 0;
-
-        // twaDeltaB >= 0 (above value target)
-        if (bs.twaDeltaB >= 0) {
-            // if the peg was crossed, set factors to min/max, and bonus/capacity to 0 to signal that the bonus is not active.
-            if (s.sys.season.pegCrossSeason == s.sys.season.current) {
-                gv.convertBonusFactor = gd.maxConvertBonusFactor;
-                gv.convertCapacityFactor = gd.minCapacityFactor;
-                gv.bonusStalkPerBdv = 0;
-                gv.maxConvertCapacity = 0;
+        if (bs.twaDeltaB < 0) {
+            // check whether the current twaDeltaB is greater than the max twaDeltaB.
+            if (uint256(-bs.twaDeltaB) > gd.maxTwaDeltaB) {
+                gd.maxTwaDeltaB = uint256(-bs.twaDeltaB);
             }
-
-            // return the gauge values.
-            return (abi.encode(gv), abi.encode(gd));
         }
-
-        // twaDeltaB < 0 (below value target)
 
         // update the bonus stalk per bdv.
         gv.bonusStalkPerBdv = LibConvert.updateBonusStalkPerBdv(
             gv.bonusStalkPerBdv,
-            gv.convertBonusFactor
+            gd.bdvConvertedThisSeason,
+            gd.bdvConvertedLastSeason
         );
 
-        // if the peg was crossed, initialize the bonus and capacity.
-        if (s.sys.season.pegCrossSeason == s.sys.season.current) {
-            gv.convertBonusFactor = gd.maxConvertBonusFactor;
-            gv.convertCapacityFactor = gd.minCapacityFactor;
-        } else if (gv.bonusStalkPerBdv > 0) {
-            // if the bonus is greater than 0, check if the capacity has been reached and update the bonus and capacity.
+        // if the bonus is greater than 0, update capacity factor.
+        if (gv.bonusStalkPerBdv > 0) {
             // bonus increases if capacity is not reached (and vice versa).
             // capacity decreases if capacity is reached (and vice versa).
-            bool capacityReached = totalBdvConvertedBonus >=
-                (gv.maxConvertCapacity * CONVERT_CAPACITY_THRESHOLD) / PRECISION_6;
+            bool capacityFilled = gd.bdvConvertedThisSeason >=
+                (gv.maxConvertCapacity * LibGaugeHelpers.CONVERT_CAPACITY_FILLED) / C.PRECISION_6;
 
-            gv.convertBonusFactor = LibGaugeHelpers.linear256(
-                gv.convertBonusFactor,
-                !capacityReached,
-                gd.deltaC,
-                gd.minConvertBonusFactor,
-                gd.maxConvertBonusFactor
+            bool capacityMostlyFilled = gd.bdvConvertedThisSeason >=
+                (gv.maxConvertCapacity * LibGaugeHelpers.CONVERT_CAPACITY_MOSTLY_FILLED) / C.PRECISION_6;
+
+            // determine amount change as a function of twaL2SR.
+            uint256 amountChange = ((C.PRECISION - bs.lpToSupplyRatio.value) *
+                gd.deltaCapacityScalar) / C.PRECISION;
+
+            // update the capacity factor based on capacity filling.
+            // capacity filled == true, capacity mostly filled == false => increase capacity factor.
+            // capacity filled == true, capacity mostly filled == true => increase capacity factor.
+            // capacity filled == false, capacity mostly filled == false => decrease capacity factor.
+            // capacity filled == false, capacity mostly filled == true => do nothing.
+            if (capacityFilled || (!capacityFilled && !capacityMostlyFilled)) {
+                gv.convertCapacityFactor = LibGaugeHelpers.linear256(
+                    gv.convertCapacityFactor,
+                    capacityFilled,
+                    amountChange,
+                    LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR,
+                    LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
+                );
+            }
+
+            // calculate the target seasons as a function of podRate.
+            // @dev `targetSeasons` has 18 decimal precision.
+            uint256 targetSeasons = LibGaugeHelpers.linearInterpolation(
+                bs.podRate.value, // scaling podRate.
+                false, // inversely proportional to podRate.
+                s.sys.evaluationParameters.podRateLowerBound, // min podRate.
+                s.sys.evaluationParameters.podRateUpperBound, // max podRate.
+                gd.minSeasonTarget, // min target seasons.
+                gd.maxSeasonTarget // max target seasons.
             );
 
-            gv.convertCapacityFactor = LibGaugeHelpers.linear256(
-                gv.convertCapacityFactor,
-                capacityReached,
-                gd.deltaD,
-                gd.minCapacityFactor,
-                gd.maxCapacityFactor
-            );
+            // update the convert capacity, and reset bdv converted.
+            // @dev `twaDeltaB` has 6 decimal precision.
+            // @dev `targetSeasons` has 18 decimal precision.
+            // @dev `convertCapacityFactor` has 18 decimal precision.
+            // 6 + 18 - 18 = 6 decimal precision.
+            gv.maxConvertCapacity = (gd.maxTwaDeltaB * gv.convertCapacityFactor) / targetSeasons;
+            gd.bdvConvertedLastSeason = gd.bdvConvertedThisSeason;
+            gd.bdvConvertedThisSeason = 0;
+        } else {
+            // if the bonus is 0, reset the capacity factor and max convert capacity.
+            gv.convertCapacityFactor = 0;
+            gv.maxConvertCapacity = 0;
         }
-        // update the convert capacity.
-        gv.maxConvertCapacity = ((uint256(-bs.twaDeltaB) * gv.convertCapacityFactor) / C.PRECISION);
 
         return (abi.encode(gv), abi.encode(gd));
     }

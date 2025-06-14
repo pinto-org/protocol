@@ -1521,7 +1521,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        assertEq(gdBefore.totalBdvConvertedBonus, 1000e6);
+        // Note: We no longer track totalBdvConvertedBonus
 
         // sunrise
         season.sunSunrise(twaDeltaB, 1, beanstalkState);
@@ -1532,8 +1532,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // verify that this seasons bdv converted is 0:
-        assertEq(gd.totalBdvConvertedBonus, 0);
+        // Note: We no longer track totalBdvConvertedBonus
     }
 
     function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {

@@ -9,6 +9,12 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Convert Bonus Gauge Constants
+    uint256 internal constant MIN_CONVERT_CAPACITY_FACTOR = 0.01e18;
+    uint256 internal constant MAX_CONVERT_CAPACITY_FACTOR = 1e18;
+    uint256 internal constant CONVERT_CAPACITY_FILLED = 0.95e6;
+    uint256 internal constant CONVERT_CAPACITY_MOSTLY_FILLED = 0.80e6;
+
     // Gauge structs
 
     //// Convert Bonus Gauge ////
@@ -16,37 +22,33 @@ library LibGaugeHelpers {
     /**
      * @notice Struct for Convert Bonus Gauge Value
      * @dev The value of the Convert Bonus Gauge is a struct that contains the following:
-     * - convertBonusFactor: The % of the bonusStalkPerBdv that a user receives upon a successful WELL -> BEAN conversion.
-     * - convertCapacityFactor: The Factor used to determine the convert capacity. Capacity is a % of the twaDeltaB.
      * - bonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
      * - maxConvertCapacity: The maximum amount of bdv that can be converted in a season and get a bonus.
+     * - convertCapacityFactor: The Factor used to determine the convert capacity.
      */
     struct ConvertBonusGaugeValue {
-        uint256 convertBonusFactor;
-        uint256 convertCapacityFactor;
         uint256 bonusStalkPerBdv;
         uint256 maxConvertCapacity;
+        uint256 convertCapacityFactor;
     }
 
     /**
      * @notice Struct for Convert Bonus Gauge Data
      * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
-     * - deltaC: The delta used in adjusting the convertBonusFactor.
-     * - deltaD: The delta used in adjusting the convertCapacityFactor.
-     * - minConvertBonusFactor: The minimum value of the conversion factor.
-     * - maxConvertBonusFactor: The maximum value of the conversion factor.
-     * - minCapacityFactor: The minimum value of the convert bonus bdv capacity factor.
-     * - maxCapacityFactor: The maximum value of the convert bonus bdv capacity factor.
-     * - totalBdvConvertedBonus: The amount of bdv converted this season that received a bonus.
+     * - minSeasonTarget: The minimum target seasons to return to value target via conversions.
+     * - maxSeasonTarget: The maximum target seasons to return to value target via conversions.
+     * - deltaCapacityScalar: The scalar used to change the rate of change in the capacity factor.
+     * - bdvConvertedThisSeason: The amount of bdv converted that received a bonus this season.
+     * - bdvConvertedLastSeason: The amount of bdv converted that received a bonus last season.
+     * - maxTwaDeltaB: The maximum recorded negative twaDeltaB while the bonus was active.
      */
     struct ConvertBonusGaugeData {
-        uint256 deltaC;
-        uint256 deltaD;
-        uint256 minConvertBonusFactor;
-        uint256 maxConvertBonusFactor;
-        uint256 minCapacityFactor;
-        uint256 maxCapacityFactor;
-        uint256 totalBdvConvertedBonus;
+        uint256 minSeasonTarget;
+        uint256 maxSeasonTarget;
+        uint256 deltaCapacityScalar;
+        uint256 bdvConvertedThisSeason;
+        uint256 bdvConvertedLastSeason;
+        uint256 maxTwaDeltaB;
     }
 
     // Gauge events

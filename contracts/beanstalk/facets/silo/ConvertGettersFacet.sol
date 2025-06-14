@@ -204,11 +204,11 @@ contract ConvertGettersFacet {
 
         uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
 
-        if (gd.totalBdvConvertedBonus >= convertCapacity) {
+        if (gd.bdvConvertedThisSeason >= convertCapacity) {
             return (bonusStalkPerBdv, 0);
         }
 
-        return (bonusStalkPerBdv, convertCapacity - gd.totalBdvConvertedBonus);
+        return (bonusStalkPerBdv, convertCapacity - gd.bdvConvertedThisSeason);
     }
 
     /**

@@ -42,7 +42,10 @@ library LibConvert {
     uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
     uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
 
+    // convert bonus gauge
     uint256 internal constant CAPACITY_RATE = 0.50e18; // hits 100% total capacity 50% into the season
+    uint256 constant CONVERT_DEMAND_UPPER_BOUND = 1.05e6; // 5% above 1
+    uint256 constant CONVERT_DEMAND_LOWER_BOUND = 0.95e6; // 5% below 1
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
@@ -765,12 +768,12 @@ library LibConvert {
 
         uint256 convertCapacity = getConvertCapacity(gv.maxConvertCapacity);
         // if the max convert capacity has been reached, return 0
-        if (gd.totalBdvConvertedBonus >= convertCapacity) {
+        if (gd.bdvConvertedThisSeason >= convertCapacity) {
             return (0, 0);
         }
 
         // limit the bdv that can get the bonus
-        uint256 bdvWithBonus = min(toBdv, convertCapacity - gd.totalBdvConvertedBonus);
+        uint256 bdvWithBonus = min(toBdv, convertCapacity - gd.bdvConvertedThisSeason);
 
         // Calculate the bonus stalk based on the eligible bdv.
         grownStalkGained = gv.bonusStalkPerBdv * bdvWithBonus;
@@ -804,16 +807,16 @@ library LibConvert {
     }
     /**
      * @notice Gets the bonus stalk per bdv for the current season.
-     * @dev when the gauge is called, the bonus stalk per bdv is incremented by the difference between
-     * the bean seeds and the largest seeds of all whitelisted lp tokens (scaled by the convert bonus factor)
-     * if beans have more seeds than the max lp seeds.
+     * @dev the bonus stalk per Bdv is updated based on the convert demand and the difference between the bean seeds and the max lp seeds.
      * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
-     * @param convertBonusFactor The convert bonus factor from the previous season.
+     * @param bdvConvertedThisSeason The BDV converted in the current season.
+     * @param bdvConvertedLastSeason The BDV converted in the previous season.
      * @return The updated bonus stalk per bdv.
      */
     function updateBonusStalkPerBdv(
         uint256 bonusStalkPerBdv,
-        uint256 convertBonusFactor
+        uint256 bdvConvertedThisSeason,
+        uint256 bdvConvertedLastSeason
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // get stem tips for all whitelisted lp tokens and get the min
@@ -824,12 +827,32 @@ library LibConvert {
             uint256 lpSeeds = s.sys.silo.assetSettings[lpTokens[i]].stalkEarnedPerSeason;
             if (lpSeeds > maxLpSeeds) maxLpSeeds = lpSeeds;
         }
-        // if the bean seeds are greater than the max lp seeds,
-        // the bonus is incremented by the difference.
-        if (beanSeeds > maxLpSeeds) {
-            return bonusStalkPerBdv + ((beanSeeds - maxLpSeeds) * convertBonusFactor) / C.PRECISION;
+
+        // if the bean seeds are greater than or equal to the max lp seeds,
+        // the bonus is updated based on the convert demand.
+        if (beanSeeds >= maxLpSeeds) {
+            uint256 bonusStalkPerBdvChange = (beanSeeds - maxLpSeeds) / C.PRECISION;
+
+            // if nothing was converted last season, and something was converted this season,
+            // the bonus should increase.
+            if (bdvConvertedLastSeason == 0 && bdvConvertedThisSeason > 0) {
+                return bonusStalkPerBdv + bonusStalkPerBdvChange;
+            } else {
+                // calculate the convert demand in order to determine if the bonus should increase or decrease.
+                uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /
+                    bdvConvertedLastSeason;
+                if (convertDemand > CONVERT_DEMAND_UPPER_BOUND) {
+                    return bonusStalkPerBdv + bonusStalkPerBdvChange;
+                } else if (convertDemand < CONVERT_DEMAND_LOWER_BOUND) {
+                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
+                } else {
+                    return bonusStalkPerBdv;
+                }
+            }
         } else {
-            return bonusStalkPerBdv;
+            // if the bean seeds are less than the max lp seeds, the bonus is reset.
+            // This occurs when the crop ratio is < 100%.
+            return 0;
         }
     }
 
@@ -848,7 +871,7 @@ library LibConvert {
         );
 
         // Update this season's converted amount
-        gd.totalBdvConvertedBonus += bdvConvertedBonus;
+        gd.bdvConvertedThisSeason += bdvConvertedBonus;
         // Encode and store updated gauge data
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
     }
