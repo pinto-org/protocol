@@ -217,7 +217,7 @@ contract SunriseTest is TestHelper {
         warpToNextSeasonAndUpdateOracles();
 
         vm.expectEmit();
-        emit SeasonMetrics(3, 1e36, 200001960009, 10002098120061, 4294967295, 0);
+        emit SeasonMetrics(3, 1e36, 200001960009, 10003098029860, 4294967295, 0);
         bs.sunrise();
     }
 

@@ -59,7 +59,7 @@ contract SiloFacet is Invariable, TokenSilo {
         returns (uint256 amount, uint256 _bdv, int96 stem)
     {
         amount = LibTransfer.receiveToken(IERC20(token), _amount, LibTractor._user(), mode);
-        (_bdv, stem) = _deposit(LibTractor._user(), token, amount);
+        (_bdv, ,stem) = _deposit(LibTractor._user(), token, amount);
     }
 
     //////////////////////// WITHDRAW ////////////////////////

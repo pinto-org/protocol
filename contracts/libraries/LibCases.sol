@@ -43,8 +43,8 @@ import {LibAppStorage, AppStorage} from "./LibAppStorage.sol";
  * 
  * The following bytes correspond to the absolute Bean to maxLP gaugePoint per BDV ratio changes:
  * -50: FFFD4A1C50E94E780000 = -50e18
- * +1:  FFFA9438A1D29CF00000 = 1e18
- * +2:  FFF7DE54F2BBF1680000 = 2e18
+ * +1:  00000DE0B6B3A7640000 = 1e18
+ * +2:  00001BC16D674EC80000 = 2e18
  *
  * The following bytes correspond to the relative Bean to maxLP gaugePoint per BDV ratio changes:
  * 100%: 00056BC75E2D63100000 = 100e18
