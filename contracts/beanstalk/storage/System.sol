@@ -53,7 +53,8 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
-    bytes32[16] _buffer_0;
+    uint128 initialSoil;
+    bytes32[15] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;

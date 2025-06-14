@@ -12,6 +12,7 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 /**
  * @title Weather
@@ -137,6 +138,8 @@ abstract contract Weather is Sun {
      */
     function updateTemperature(int32 bT, uint256 caseId) private {
         uint256 t = s.sys.weather.temp;
+        // update the previous season temperature in the cultivation factor gauge.
+        LibGaugeHelpers.updatePrevSeasonTemp(t);
         if (bT < 0) {
             if (t <= uint256(int256(-bT))) {
                 // if temp is to be decreased and the change is greater than the current temp,

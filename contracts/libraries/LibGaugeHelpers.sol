@@ -19,6 +19,13 @@ library LibGaugeHelpers {
     event Engaged(GaugeId gaugeId, bytes value);
 
     /**
+     * @notice Emitted when a Gauge is engaged (i.e. its value is updated).
+     * @param gaugeId The id of the Gauge that was engaged.
+     * @param data The data of the Gauge after it was engaged.
+     */
+    event EngagedData(GaugeId gaugeId, bytes data);
+
+    /**
      * @notice Emitted when a Gauge is added.
      * @param gaugeId The id of the Gauge that was added.
      * @param gauge The Gauge that was added.
@@ -37,6 +44,20 @@ library LibGaugeHelpers {
      * @param gauge The Gauge that was updated.
      */
     event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
+
+    /**
+     * @notice Emitted when a Gauge's data is updated (outside of the engage function).
+     * @param gaugeId The id of the Gauge that was updated.
+     * @param data The data of the Gauge that was updated.
+     */
+    event UpdatedGaugeData(GaugeId gaugeId, bytes data);
+
+    /**
+     * @notice Emitted when a Gauge's value is updated (outside of the engage function).
+     * @param gaugeId The id of the Gauge that was updated.
+     * @param value The value of the Gauge that was updated.
+     */
+    event UpdatedGaugeValue(GaugeId gaugeId, bytes value);
 
     /**
      * @notice Calls all generalized Gauges, and updates their values.
@@ -61,8 +82,9 @@ library LibGaugeHelpers {
             s.sys.gaugeData.gauges[gaugeId].data
         ) = getGaugeResult(g, systemData);
 
-        // emit change in gauge value
+        // emit change in gauge value and data
         emit Engaged(gaugeId, s.sys.gaugeData.gauges[gaugeId].value);
+        emit EngagedData(gaugeId, s.sys.gaugeData.gauges[gaugeId].data);
     }
 
     /**
@@ -114,6 +136,20 @@ library LibGaugeHelpers {
         emit UpdatedGauge(gaugeId, g);
     }
 
+    function updateGaugeValue(GaugeId gaugeId, bytes memory value) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.gaugeData.gauges[gaugeId].value = value;
+
+        emit UpdatedGaugeValue(gaugeId, value);
+    }
+
+    function updateGaugeData(GaugeId gaugeId, bytes memory data) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.gaugeData.gauges[gaugeId].data = data;
+
+        emit UpdatedGaugeData(gaugeId, data);
+    }
+
     function removeGauge(GaugeId gaugeId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // remove the gauge from the array
@@ -140,6 +176,35 @@ library LibGaugeHelpers {
     function getGaugeValue(GaugeId gaugeId) internal view returns (bytes memory) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.sys.gaugeData.gauges[gaugeId].value;
+    }
+
+    function getGaugeData(GaugeId gaugeId) internal view returns (bytes memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.gaugeData.gauges[gaugeId].data;
+    }
+
+    /// GAUGE SPECIFIC HELPERS ///
+
+    /**
+     * @notice Updates the previous season temperature, in the Cultivation Factor Gauge.
+     * @param temperature The temperature of the last season.
+     */
+    function updatePrevSeasonTemp(uint256 temperature) internal {
+        (
+            uint256 minDeltaCf,
+            uint256 maxDeltaCf,
+            uint256 minCf,
+            uint256 maxCf,
+            uint256 soldOutTemp,
+
+        ) = abi.decode(
+                getGaugeData(GaugeId.CULTIVATION_FACTOR),
+                (uint256, uint256, uint256, uint256, uint256, uint256)
+            );
+        updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, soldOutTemp, temperature)
+        );
     }
 
     /// GAUGE BLOCKS ///
@@ -171,6 +236,22 @@ library LibGaugeHelpers {
         }
 
         return currentValue;
+    }
+
+    /**
+     * @notice linear256 is uint256 version of linear.
+     */
+    function linear256(
+        uint256 currentValue,
+        bool increase,
+        uint256 amount,
+        uint256 minValue,
+        uint256 maxValue
+    ) internal pure returns (uint256) {
+        return
+            uint256(
+                linear(int256(currentValue), increase, amount, int256(minValue), int256(maxValue))
+            );
     }
 
     /**
