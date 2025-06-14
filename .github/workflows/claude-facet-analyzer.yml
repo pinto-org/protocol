@@ -155,6 +155,17 @@ jobs:
           # Create minimal .env file for the hardhat task
           echo "ETHERSCAN_KEY_BASE=${{ secrets.ETHERSCAN_KEY_BASE }}" > .env
           echo "BASE_RPC=${{ secrets.BASE_RPC }}" >> .env
+          
+          # Debug: Check if the task exists
+          echo "Available Hardhat tasks:"
+          npx hardhat --help | grep -A 20 "AVAILABLE TASKS" || echo "Could not list tasks"
+          
+          # Check if our task is available
+          if npx hardhat help facetAddresses 2>/dev/null; then
+            echo "✅ facetAddresses task is available"
+          else
+            echo "❌ facetAddresses task not found"
+          fi
 
       - name: Get facet addresses
         id: facet-addresses
@@ -162,11 +173,28 @@ jobs:
         run: |
           echo "Looking up addresses for changed facets: ${{ steps.analyze-changes.outputs.changed-facets }}"
           
-          # Run the hardhat task to get facet addresses
-          FACET_OUTPUT=$(npx hardhat facetAddresses --facets "${{ steps.analyze-changes.outputs.changed-facets }}" --network base --urls 2>&1 || echo "Error getting facet addresses")
-          
-          # Save output to file and GitHub output
-          echo "$FACET_OUTPUT" > facet_output.txt
+          # Try to run the hardhat task to get specific facet addresses
+          if npx hardhat facetAddresses --facets "${{ steps.analyze-changes.outputs.changed-facets }}" --network base --urls > facet_output.txt 2>&1; then
+            echo "✅ Successfully retrieved individual facet addresses"
+            FACET_OUTPUT=$(cat facet_output.txt)
+          else
+            echo "⚠️ Could not retrieve individual facet addresses, providing diamond contract info"
+            FACET_OUTPUT="📍 Current Facet Addresses on Base Mainnet
+
+📦 Pinto Protocol Diamond: 0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f
+🔗 https://basescan.org/address/0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f
+
+Note: Individual facet addresses are managed through the Diamond pattern. The main diamond contract routes calls to the appropriate facet implementations. Use the diamond contract address above to interact with all facets including ${{ steps.analyze-changes.outputs.changed-facets }}.
+
+Additional Key Addresses:
+📦 Diamond Deployer: 0x183926c42993478F6b2eb8CDEe0BEa524B119ab2
+🔗 https://basescan.org/address/0x183926c42993478F6b2eb8CDEe0BEa524B119ab2
+
+📦 PINTO Token: 0xb170000aeeFa790fa61D6e837d1035906839a3c8
+🔗 https://basescan.org/address/0xb170000aeeFa790fa61D6e837d1035906839a3c8
+
+💡 To get individual facet addresses, ensure ETHERSCAN_KEY_BASE is configured and the facetAddresses task is working properly."
+          fi
           
           # Convert to base64 to safely pass through GitHub Actions
           FACET_OUTPUT_B64=$(echo "$FACET_OUTPUT" | base64 -w 0)
