@@ -835,8 +835,16 @@ library LibConvert {
 
             // if nothing was converted last season, and something was converted this season,
             // the bonus should increase.
-            if (bdvConvertedLastSeason == 0 && bdvConvertedThisSeason > 0) {
-                return bonusStalkPerBdv + bonusStalkPerBdvChange;
+            if (bdvConvertedLastSeason == 0) {
+                if (bdvConvertedThisSeason > 0) {
+                    // zero bdv was converted last season, and non-zero bdv was converted this season,
+                    // the bonus should increase.
+                    return bonusStalkPerBdv + bonusStalkPerBdvChange;
+                } else {
+                    // nothing was converted last season, and nothing was converted this season,
+                    // the bonus should decrease.
+                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
+                }
             } else {
                 // calculate the convert demand in order to determine if the bonus should increase or decrease.
                 uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /

@@ -32,7 +32,7 @@ contract InitPI10 {
         emit LibWeather.PegStateUpdated(s.sys.season.pegCrossSeason, s.sys.season.abovePeg);
 
         // add the convert up bonus gauge
-        LibInitGauges.initConvertUpBonusGauge();
+        LibInitGauges.initConvertUpBonusGauge(0);
 
         // update the gauge with the stalk per bdv bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(

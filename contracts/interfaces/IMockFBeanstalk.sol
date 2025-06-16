@@ -7,6 +7,8 @@ pragma solidity ^0.8.4;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+
 interface IMockFBeanstalk {
     enum CounterUpdateType {
         INCREASE,
@@ -1921,4 +1923,13 @@ interface IMockFBeanstalk {
         returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
 
     function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
+
+    function mockStepGauges(LibEvaluate.BeanstalkState memory bs) external;
+
+    function mockUpdateStalkPerBdvPerSeasonForToken(
+        address token,
+        uint40 stalkEarnedPerSeason
+    ) external;
+
+    function mowAll(address account) external;
 }

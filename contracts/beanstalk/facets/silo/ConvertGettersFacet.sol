@@ -12,6 +12,7 @@ import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.

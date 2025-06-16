@@ -10,8 +10,8 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  */
 library LibGaugeHelpers {
     // Convert Bonus Gauge Constants
-    uint256 internal constant MIN_CONVERT_CAPACITY_FACTOR = 0.01e18;
-    uint256 internal constant MAX_CONVERT_CAPACITY_FACTOR = 1e18;
+    uint256 internal constant MIN_CONVERT_CAPACITY_FACTOR = 1e6;
+    uint256 internal constant MAX_CONVERT_CAPACITY_FACTOR = 100e6;
     uint256 internal constant CONVERT_CAPACITY_FILLED = 0.95e6;
     uint256 internal constant CONVERT_CAPACITY_MOSTLY_FILLED = 0.80e6;
 
@@ -37,7 +37,8 @@ library LibGaugeHelpers {
      * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
      * - minSeasonTarget: The minimum target seasons to return to value target via conversions.
      * - maxSeasonTarget: The maximum target seasons to return to value target via conversions.
-     * - deltaCapacityScalar: The scalar used to change the rate of change in the capacity factor.
+     * - minDeltaCapacity: The minimum delta capacity used to change the rate of change in the capacity factor.
+     * - maxDeltaCapacity: The maximum delta capacity used to change the rate of change in the capacity factor.
      * - bdvConvertedThisSeason: The amount of bdv converted that received a bonus this season.
      * - bdvConvertedLastSeason: The amount of bdv converted that received a bonus last season.
      * - maxTwaDeltaB: The maximum recorded negative twaDeltaB while the bonus was active.
@@ -45,7 +46,8 @@ library LibGaugeHelpers {
     struct ConvertBonusGaugeData {
         uint256 minSeasonTarget;
         uint256 maxSeasonTarget;
-        uint256 deltaCapacityScalar;
+        uint256 minDeltaCapacity;
+        uint256 maxDeltaCapacity;
         uint256 bdvConvertedThisSeason;
         uint256 bdvConvertedLastSeason;
         uint256 maxTwaDeltaB;
