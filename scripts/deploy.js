@@ -278,7 +278,8 @@ async function getFacetData() {
     "LibShipping",
     "LibFlood",
     "LibTokenSilo",
-    "LibEvaluate"
+    "LibEvaluate",
+    "LibWeather"
   ];
 
   // A mapping of facet to public library names that will be linked to it.
@@ -291,7 +292,8 @@ async function getFacetData() {
       "LibGerminate",
       "LibShipping",
       "LibFlood",
-      "LibEvaluate"
+      "LibEvaluate",
+      "LibWeather"
     ],
     ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
     PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
