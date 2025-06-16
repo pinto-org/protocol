@@ -163,7 +163,7 @@ library LibEvaluate {
         // `s.weather.thisSowTime` is set to the number of seconds in it took for
         // Soil to sell out during the current Season.
         //  If Soil didn't sell out, or mostly sold out, it remains `type(uint32).max`.
-        if (w.thisSowTime < type(uint32).max ) {
+        if (w.thisSowTime < type(uint32).max) {
             // soil sold out this season.
             if (
                 w.lastSowTime >= type(uint32).max - 1 || // Didn't Sow all last Season
