@@ -1425,7 +1425,7 @@ task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets"
       files.push("contracts/libraries/LibEvaluate.sol");
       files.push("contracts/libraries/Silo/LibFlood.sol");
       files.push("contracts/libraries/LibGaugeHelpers.sol");
-      files.push("contracts/libraries/Sun/LibWeather.sol");
+      files.push("contracts/libraries/Season/LibWeather.sol");
     }
     files.forEach((file) => {
       const facetName = getFacetName(file);

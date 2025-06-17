@@ -693,11 +693,11 @@ contract ConvertTest is TestHelper {
         // verify convert reverts with slippage > max slippage.
         vm.prank(farmers[0]);
         vm.expectRevert("Convert: Stalk slippage");
-        convert.convertWithStalkSlippage(convertData, stems, amounts, 0.19e18);
+        convert.convertWithStalkSlippage(convertData, stems, amounts, 0.66e18);
 
         // verify convert reverts with slippage < max slippage.
         vm.prank(farmers[0]);
-        convert.convertWithStalkSlippage(convertData, stems, amounts, 0.21e18);
+        convert.convertWithStalkSlippage(convertData, stems, amounts, 0.69e18);
     }
 
     ////////////////////// Convert Up Bonus //////////////////////

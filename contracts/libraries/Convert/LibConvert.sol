@@ -889,7 +889,7 @@ library LibConvert {
      * @param newGrownStalk The grown stalk of the deposit after applying the various penalty/bonus.
      * @param originalGrownStalk The original grown stalk of the deposit(s) that were converted.
      * @param grownStalkSlippage The slippage percentage. 100% = 1e18.
-     * @dev a negative grownStalkSlippage implies the user requires less grown stalk than they started with. (i.e a bonus)
+     * @dev a negative grownStalkSlippage implies the user requires more grown stalk than they started with. (i.e a bonus)
      */
     function checkGrownStalkSlippage(
         uint256 newGrownStalk,
@@ -912,6 +912,9 @@ library LibConvert {
                 (originalGrownStalk * (MAX_GROWN_STALK_SLIPPAGE + uint256(-grownStalkSlippage))) /
                 MAX_GROWN_STALK_SLIPPAGE;
         }
+        console.log("minimumStalk", minimumStalk);
+        console.log("originalGrownStalk", originalGrownStalk);
+        console.log("newGrownStalk", newGrownStalk);
 
         require(newGrownStalk >= minimumStalk, "Convert: Stalk slippage");
     }

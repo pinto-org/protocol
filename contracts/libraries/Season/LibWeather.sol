@@ -11,6 +11,7 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 /**
  * @title LibWeather
  * @notice Library for managing Weather state in Beanstalk, including Temperature and Grown Stalk to LP ratios.
@@ -101,13 +102,14 @@ library LibWeather {
     function updateTemperature(int32 bT, uint256 caseId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 t = s.sys.weather.temp;
+        // update the previous season temperature in the cultivation factor gauge.
+        LibGaugeHelpers.updatePrevSeasonTemp(t);
         if (bT < 0) {
             if (t <= uint256(int256(-bT))) {
                 // if temp is to be decreased and the change is greater than the current temp,
                 // - then the new temp will be 1e6.
                 // - and the change in temp bT will be the difference between the new temp and the old temp.
                 // if (change < 0 && t <= uint32(-change)),
-                // then 0 <= t <= type(int32).max because change is an int32.
                 bT = 1e6 - int32(int256(t));
                 s.sys.weather.temp = 1e6;
             } else {

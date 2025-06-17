@@ -16,6 +16,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
 import {LibGaugeHelpers} from "./LibGaugeHelpers.sol";
+import {C} from "contracts/C.sol";
 
 /**
  * @title LibDibbler
