@@ -279,7 +279,7 @@ contract ConvertTest is TestHelper {
             bs.sunrise();
         }
 
-        uint256 optimalL2sr = bs.getLpToSupplyRatioOptimal();
+        uint256 lowerL2sr = bs.getLpToSupplyRatioLowerBound();
         (uint256 rollingSeasonsAbovePegRate, uint256 rollingSeasonsAbovePegCap) = abi.decode(
             bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
             (uint256, uint256)
@@ -294,11 +294,10 @@ contract ConvertTest is TestHelper {
             );
             assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg should be 0");
 
-            uint256 expectedPenaltyRatio = (1e18 * l2sr) / optimalL2sr;
-            assertLe(expectedPenaltyRatio, 1e18, "t=0 penaltyRatio should be le 1");
+            uint256 expectedPenaltyRatio = (1e18 * l2sr) / lowerL2sr;
             assertGt(expectedPenaltyRatio, 0, "t=0 penaltyRatio should be greater than 0");
             assertEq(expectedPenaltyRatio, penaltyRatio, "t=0 penaltyRatio incorrect");
-            assertEq(expectedPenaltyRatio, 205850264517589905, "t=0 hardcoded ratio mismatch");
+            assertEq(expectedPenaltyRatio, 686167548391966350, "t=0 hardcoded ratio mismatch");
 
             // 1.0 < P < Q.
             setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
@@ -356,7 +355,7 @@ contract ConvertTest is TestHelper {
             assertEq(rollingSeasonsAbovePeg, 1, "rollingSeasonsAbovePeg should be 1");
 
             assertGt(penaltyRatio, 0, "t=1 penaltyRatio should be greater than 0");
-            assertEq(penaltyRatio, 150977256372795881, "t=1 hardcoded ratio mismatch");
+            assertEq(penaltyRatio, 503257521242652939, "t=1 hardcoded ratio mismatch");
 
             uint256 beansToConvert = 50e6;
             (
@@ -446,9 +445,9 @@ contract ConvertTest is TestHelper {
         uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
         uint256 grownStalkConverting = (beansToConvert *
             bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
-        uint256 optimalL2sr = bs.getLpToSupplyRatioOptimal();
+        uint256 lowerL2sr = bs.getLpToSupplyRatioLowerBound();
         uint256 maxGrownStalkLost = LibPRBMathRoundable.mulDiv(
-            (1e18 * l2sr) / optimalL2sr,
+            (1e18 * l2sr) / lowerL2sr,
             grownStalkConverting,
             1e18,
             LibPRBMathRoundable.Rounding.Up
@@ -556,9 +555,9 @@ contract ConvertTest is TestHelper {
         );
         assertEq(rollingSeasonsAbovePeg, 0, "rollingSeasonsAbovePeg should be 0");
 
-        uint256 optimalL2sr = bs.getLpToSupplyRatioOptimal();
+        uint256 lowerL2sr = bs.getLpToSupplyRatioLowerBound();
         assertEq(
-            (1e18 * l2sr) / optimalL2sr,
+            (1e18 * l2sr) / lowerL2sr,
             lastPenaltyRatio,
             "initial penalty ratio should be l2sr ratio at pre sunrise"
         );

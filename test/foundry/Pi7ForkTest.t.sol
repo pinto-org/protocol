@@ -9,7 +9,7 @@ import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import "forge-std/console.sol";
 
-contract LEGACY_Pi7ForkTest is TestHelper {
+contract Legacy_Pi7ForkTest is TestHelper {
     address constant PINTO_USDC_WELL = 0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1;
 
     function setUp() public {

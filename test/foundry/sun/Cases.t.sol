@@ -3,6 +3,7 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IWell, IERC20, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
 import "forge-std/console.sol";
 
@@ -90,11 +91,19 @@ contract CasesTest is TestHelper {
         vm.expectEmit(true, true, false, false);
         emit BeanToMaxLpGpPerBdvRatioChange(1, caseId, 0);
 
+        uint256 prevTemp = bs.maxTemperature();
         (uint256 updatedCaseId, ) = season.mockcalcCaseIdAndHandleRain(deltaB);
         require(updatedCaseId == caseId, "CaseId did not match");
         (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
 
-        // CASE INVARIANTS
+        // verify that the prevSeasonTemp is set.
+        (, , , , , uint256 prevSeasonTemp) = abi.decode(
+            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256, uint256, uint256)
+        );
+        assertEq(prevSeasonTemp, prevTemp, "prevSeasonTemp was not properly set");
+
+        // CASE INVARIENTS
         // if deltaB > 0: temperature should never increase. bean2MaxLpGpRatio should never increase.
         // if deltaB < 0: temperature should never decrease. bean2MaxLpGpRatio usually does not decrease.
         int256 tempChange = int256(bs.maxTemperature()) - int256(initialTemperature);

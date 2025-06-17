@@ -170,11 +170,14 @@ library LibEvaluate {
         deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
 
         // `s.weather.thisSowTime` is set to the number of seconds in it took for
-        // Soil to sell out during the current Season. If Soil didn't sell out,
-        // it remains `type(uint32).max`.
-        if (w.thisSowTime < type(uint32).max) {
+        // Soil to sell out during the current Season.
+        //  If Soil didn't sell out, `w.thisSowTime` is set to `type(uint32).max`.
+        //  If Soil is mostly sold out, `w.thisSowTime` is set to `type(uint32).max - 1`.
+        //  If Soil is sold out, `w.thisSowTime` is set to the seconds it took to sell out.
+        if (w.thisSowTime < type(uint32).max - 1) {
+            // soil sold out this season.
             if (
-                w.lastSowTime == type(uint32).max || // Didn't Sow all last Season
+                w.lastSowTime >= type(uint32).max - 1 || // Didn't Sow all last Season
                 w.thisSowTime < SOW_TIME_DEMAND_INCR || // Sow'd all instantly this Season
                 (w.lastSowTime > SOW_TIME_STEADY_UPPER &&
                     w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY_LOWER)) // Sow'd all faster

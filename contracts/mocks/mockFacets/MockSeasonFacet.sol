@@ -19,6 +19,7 @@ import {Decimal} from "contracts/libraries/Decimal.sol";
 import {LibGauge} from "contracts/libraries/LibGauge.sol";
 import {LibRedundantMath32} from "contracts/libraries/Math/LibRedundantMath32.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
+import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
@@ -186,9 +187,8 @@ contract MockSeasonFacet is SeasonFacet {
             largestLiquidWellTwapBeanPrice: 0,
             twaDeltaB: deltaB
         });
-
         LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
-        stepSun(bs);
+        stepSun(caseId, bs); // Do not scale soil down using L2SR
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {

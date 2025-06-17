@@ -15,7 +15,7 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
-import {C} from "contracts/C.sol";
+import {LibGaugeHelpers} from "./LibGaugeHelpers.sol";
 
 /**
  * @title LibDibbler
@@ -38,9 +38,14 @@ library LibDibbler {
     /// `pods = beans * (100% + temperature) / 100%`
     uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
-    /// @dev If less than `SOLD_OUT_THRESHOLD`% of the initial soil is left, soil is sold out.
-    uint256 internal constant SOLD_OUT_THRESHOLD = 1e6;
+    /// @dev If less than `SOLD_OUT_THRESHOLD_PERCENT`% of the initial soil is left, soil is sold out.
+    /// @dev If less than `ALMOST_SOLD_OUT_THRESHOLD_PERCENT`% of the initial soil is left, soil is mostly sold out.
+    uint256 internal constant MAXIMUM_SOIL_SOLD_OUT_THRESHOLD = 50e6;
+    uint256 internal constant SOLD_OUT_THRESHOLD_PERCENT = 10e6;
+    uint256 internal constant ALMOST_SOLD_OUT_THRESHOLD_PERCENT = 20e6;
     uint256 internal constant SOLD_OUT_PRECISION = 100e6;
+
+    uint32 internal constant SOIL_ALMOST_SOLD_OUT_TIME = type(uint32).max - 1;
 
     /**
      * @notice Emitted from {LibDibbler.sow} when an `account` creates a plot.
@@ -51,6 +56,17 @@ library LibDibbler {
      * @param pods The amount of Pods associated with the created Plot
      */
     event Sow(address indexed account, uint256 fieldId, uint256 index, uint256 beans, uint256 pods);
+
+    /**
+     * @notice Emitted from {LibDibbler._saveSowTime} when soil is mostly sold out.
+     */
+    event SoilMostlySoldOut(uint256 secondsSinceStart);
+
+    /**
+     * @notice Emitted from {LibDibbler._saveSowTime} when soil is sold out.
+     * @param secondsSinceStart the number of seconds elapsed until soil was sold out.
+     */
+    event SoilSoldOut(uint256 secondsSinceStart);
 
     //////////////////// SOW ////////////////////
 
@@ -167,7 +183,7 @@ library LibDibbler {
      * threshold.
      *
      * That threshold is calculated based on the soil at the start of the season, set in {setSoil} and is
-     * currently set to 0 if the initial soil was <100e6, and `SOLD_OUT_THRESHOLD`% of the initial soil otherwise.
+     * currently set to 0 if the initial soil was <100e6, and `SOLD_OUT_THRESHOLD_PERCENT`% of the initial soil otherwise.
      *
      * RATIONALE: Beanstalk utilizes the time elapsed for Soil to "sell out" to
      * gauge demand for Soil, which affects how the Temperature is adjusted. For
@@ -182,24 +198,40 @@ library LibDibbler {
      *  (b) it has not yet been updated this Season.
      *
      * Note that:
-     *  - `s.soil` was decremented in the upstream {sow} function.
-     *  - `s.weather.thisSowTime` is set to `type(uint32).max` during {sunrise}.
+     *  - `s.sys.soil` was decremented in the upstream {sow} function.
+     *  - `s.sys.weather.thisSowTime` is set to `type(uint32).max` during {sunrise}.
+     *  - `s.sys.initialSoil` is the initial soil at the start of the season.
+     *  - `s.sys.weather.thisSowTime` is `type(uint32).max` if the soil has not sold out, and `type(uint32).max - 1` if the soil is mostly sold out.
      */
     function _saveSowTime() private {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 soilSoldOutThreshold;
         uint256 initialSoil = s.sys.initialSoil;
-        if (initialSoil > 100e6) {
-            soilSoldOutThreshold = (initialSoil * SOLD_OUT_THRESHOLD) / SOLD_OUT_PRECISION;
-        }
+        uint256 soil = s.sys.soil;
+        uint256 thisSowTime = s.sys.weather.thisSowTime;
 
-        // s.sys.soil is now the soil remaining after this Sow.
-        if (s.sys.soil > soilSoldOutThreshold || s.sys.weather.thisSowTime < type(uint32).max) {
-            // haven't sold enough soil, or already set thisSowTime for this Season.
-            return;
-        }
+        uint256 soilSoldOutThreshold = getSoilSoldOutThreshold(initialSoil);
+        uint256 soilMostlySoldOutThreshold = getSoilMostlySoldOutThreshold(
+            initialSoil,
+            soilSoldOutThreshold
+        );
 
-        s.sys.weather.thisSowTime = uint32(block.timestamp.sub(s.sys.season.timestamp));
+        if (soil <= soilMostlySoldOutThreshold && thisSowTime >= SOIL_ALMOST_SOLD_OUT_TIME) {
+            if (thisSowTime == type(uint32).max) {
+                // if this is the first time in the season soil mostly sold out,
+                // set thisSowTime and emit event.
+                if (soil >= soilSoldOutThreshold) {
+                    s.sys.weather.thisSowTime = SOIL_ALMOST_SOLD_OUT_TIME;
+                    emit SoilMostlySoldOut(block.timestamp.sub(s.sys.season.timestamp));
+                    return;
+                }
+            }
+
+            if (soil <= soilSoldOutThreshold) {
+                // soil is sold out.
+                s.sys.weather.thisSowTime = uint32(block.timestamp.sub(s.sys.season.timestamp));
+                emit SoilSoldOut(block.timestamp.sub(s.sys.season.timestamp));
+            }
+        }
     }
 
     /**
@@ -237,20 +269,10 @@ library LibDibbler {
     //////////////////// TEMPERATURE ////////////////////
 
     /**
-     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
+     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the second delta.
      * Precision level 1e6, as soil has 1e6 precision (1% = 1e6)
-     * the formula `log2(A * CHUNKS_ELAPSED + 1)/log2(A * MAX_CHUNKS + 1)` is applied, where:
+     * the formula `log2(A * delta  + 1)/log2(A * s.sys.weather.morningDuration + 1)` is applied, where:
      * `A = 0.1`
-     * `MAX_CHUNKS = 25`
-     * @dev This function implements the log formula in a discrete fashion (in chunks),
-     * rather than in an continuous manner. Previously, these chunks were chosen with
-     * the Ethereum L1 block time in mind, such that the duration of the morning auction
-     * was 5 minutes.
-     
-     * When deploying a beanstalk on other EVM chains/layers, `L2_BLOCK_TIME` will need
-     * to be adjusted such that the duration of the morning auction is constant.
-     * An additional divisor is implemented such that the duration can be adjusted independent of the
-     * block times.
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -403,5 +425,38 @@ library LibDibbler {
     ) internal view returns (uint256 i) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.accts[account].fields[fieldId].piIndex[plotIndex];
+    }
+
+    /**
+     * @notice Returns the threshold at which soil is considered sold out.
+     * @dev Soil is considered sold out if it has less than SOLD_OUT_THRESHOLD_PERCENT% of the initial soil left
+     * @param initialSoil The initial soil at the start of the season.
+     * @return soilSoldOutThreshold The threshold at which soil is considered sold out.
+     */
+    function getSoilSoldOutThreshold(uint256 initialSoil) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return
+            Math.min(
+                MAXIMUM_SOIL_SOLD_OUT_THRESHOLD,
+                (initialSoil * SOLD_OUT_THRESHOLD_PERCENT) / SOLD_OUT_PRECISION
+            );
+    }
+
+    /**
+     * @notice Returns the threshold at which soil is considered mostly sold out.
+     * @dev Soil is considered mostly sold out if it has less than ALMOST_SOLD_OUT_THRESHOLD_PERCENT% + soilSoldOutThreshold of the initial soil left
+     * @param initialSoil The initial soil at the start of the season.
+     * @param soilSoldOutThreshold The threshold at which soil is considered sold out.
+     * @return soilMostlySoldOutThreshold The threshold at which soil is considered mostly sold out.
+     */
+    function getSoilMostlySoldOutThreshold(
+        uint256 initialSoil,
+        uint256 soilSoldOutThreshold
+    ) internal view returns (uint256) {
+        return
+            ((initialSoil - getSoilSoldOutThreshold(initialSoil)) *
+                ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /
+            SOLD_OUT_PRECISION +
+            soilSoldOutThreshold;
     }
 }
