@@ -4,6 +4,11 @@ pragma solidity ^0.8.20;
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
+import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
+import {TractorHelpers} from "./TractorHelpers.sol";
+import {PriceManipulation} from "./PriceManipulation.sol";
 
 /**
  * @title SiloHelpers
@@ -11,10 +16,68 @@ import {LibBytes} from "contracts/libraries/LibBytes.sol";
  * @notice Helper contract for Silo operations related to sorting deposits and managing their order
  */
 contract SiloHelpers is PerFunctionPausable {
-    IBeanstalk immutable beanstalk;
+    // Special token index values for withdrawal strategies
+    uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
+    uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
 
-    constructor(address _beanstalk, address _owner) PerFunctionPausable(_owner) {
+    IBeanstalk immutable beanstalk;
+    TractorHelpers immutable tractorHelpers;
+    PriceManipulation immutable priceManipulation;
+
+    struct WithdrawLocalVars {
+        address[] whitelistedTokens;
+        address beanToken;
+        uint256 remainingBeansNeeded;
+        uint256 amountWithdrawn;
+        int96[] stems;
+        uint256[] amounts;
+        uint256 availableAmount;
+        uint256 lpNeeded;
+        uint256 beansOut;
+        // For valid source tracking
+        address[] validSourceTokens;
+        int96[][] validStems;
+        uint256[][] validAmounts;
+        uint256[] validAvailableBeans;
+        uint256 validSourceCount;
+        uint256 totalAvailableBeans;
+    }
+
+    struct WithdrawBeansLocalVars {
+        uint256 amountWithdrawn;
+        address beanToken;
+        address sourceToken;
+        address nonBeanToken;
+        uint256 totalLPAmount;
+        uint256 i;
+        uint256 j;
+    }
+
+    struct GetDepositStemsAndAmountsVars {
+        uint256[] depositIds;
+        int96 highestNonGerminatingStem;
+        uint256 remainingBeansNeeded;
+        uint256 currentIndex;
+        uint256 availableAmount;
+        address token;
+        int96 stem;
+        uint256 depositAmount;
+        uint256 remainingAmount;
+        uint256 amountFromDeposit;
+        uint256 i;
+        uint256 j;
+        uint256 k;
+    }
+
+    constructor(
+        address _beanstalk,
+        address _tractorHelpers,
+        address _priceManipulation,
+        address _owner
+    ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
+        tractorHelpers = TractorHelpers(_tractorHelpers);
+        priceManipulation = PriceManipulation(_priceManipulation);
     }
 
     /**
@@ -99,6 +162,563 @@ contract SiloHelpers is PerFunctionPausable {
         }
 
         return depositedTokens;
+    }
+
+    /**
+     * @notice Returns a plan for withdrawing beans from multiple sources
+     * @param account The account to withdraw from
+     * @param tokenIndices Array of indices corresponding to whitelisted tokens to try as sources.
+     * Special cases when array length is 1:
+     * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
+     * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
+     * @param targetAmount The total amount of beans to withdraw
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param excludeBean Whether to exclude the Bean token when using special strategies
+     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
+     * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
+     * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
+     */
+    function getWithdrawalPlanExcludingPlan(
+        address account,
+        uint8[] memory tokenIndices,
+        uint256 targetAmount,
+        uint256 maxGrownStalkPerBdv,
+        bool excludeBean,
+        bool excludeGerminatingDeposits,
+        LibSiloHelpers.WithdrawalPlan memory excludingPlan
+    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
+        require(tokenIndices.length > 0, "Must provide at least one source token");
+        require(targetAmount > 0, "Must withdraw non-zero amount");
+
+        WithdrawLocalVars memory vars;
+        vars.whitelistedTokens = getWhitelistStatusAddresses();
+        vars.beanToken = beanstalk.getBeanToken();
+        vars.remainingBeansNeeded = targetAmount;
+
+        // Handle strategy cases when array length is 1
+        if (tokenIndices.length == 1) {
+            if (tokenIndices[0] == LOWEST_PRICE_STRATEGY) {
+                // Use ascending price strategy
+                (tokenIndices, ) = tractorHelpers.getTokensAscendingPrice(excludeBean);
+            } else if (tokenIndices[0] == LOWEST_SEED_STRATEGY) {
+                // Use ascending seeds strategy
+                (tokenIndices, ) = tractorHelpers.getTokensAscendingSeeds(excludeBean);
+            }
+        }
+
+        vars.validSourceTokens = new address[](tokenIndices.length);
+        vars.validStems = new int96[][](tokenIndices.length);
+        vars.validAmounts = new uint256[][](tokenIndices.length);
+        vars.validAvailableBeans = new uint256[](tokenIndices.length);
+        vars.validSourceCount = 0;
+        vars.totalAvailableBeans = 0;
+
+        // Try each source token in order until we fulfill the target amount
+        for (uint256 i = 0; i < tokenIndices.length && vars.remainingBeansNeeded > 0; i++) {
+            require(tokenIndices[i] < vars.whitelistedTokens.length, "Invalid token index");
+
+            address sourceToken = vars.whitelistedTokens[tokenIndices[i]];
+
+            // Calculate minimum stem tip from grown stalk for this token
+            (int96 minStem, ) = beanstalk.calculateStemForTokenFromGrownStalk(
+                sourceToken,
+                maxGrownStalkPerBdv,
+                1e6
+            );
+
+            // If source is bean token, calculate direct withdrawal
+            if (sourceToken == vars.beanToken) {
+                (
+                    vars.stems,
+                    vars.amounts,
+                    vars.availableAmount
+                ) = getDepositStemsAndAmountsToWithdraw(
+                    account,
+                    sourceToken,
+                    vars.remainingBeansNeeded,
+                    minStem,
+                    excludeGerminatingDeposits,
+                    excludingPlan
+                );
+
+                // Skip if no beans available from this source
+                if (vars.availableAmount == 0) continue;
+
+                // Update remainingBeansNeeded based on the amount available
+                vars.remainingBeansNeeded = vars.remainingBeansNeeded - vars.availableAmount;
+
+                // Add to valid sources
+                vars.validSourceTokens[vars.validSourceCount] = sourceToken;
+                vars.validStems[vars.validSourceCount] = vars.stems;
+                vars.validAmounts[vars.validSourceCount] = vars.amounts;
+                vars.validAvailableBeans[vars.validSourceCount] = vars.availableAmount;
+                vars.totalAvailableBeans += vars.availableAmount;
+                vars.validSourceCount++;
+            } else {
+                // For LP tokens, first check how many beans we could get
+                vars.lpNeeded = tractorHelpers.getLPTokensToWithdrawForBeans(
+                    vars.remainingBeansNeeded,
+                    sourceToken
+                );
+
+                // Get available LP tokens
+                (
+                    vars.stems,
+                    vars.amounts,
+                    vars.availableAmount
+                ) = getDepositStemsAndAmountsToWithdraw(
+                    account,
+                    sourceToken,
+                    vars.lpNeeded,
+                    minStem,
+                    excludeGerminatingDeposits,
+                    excludingPlan
+                );
+
+                // Skip if no LP available from this source
+                if (vars.availableAmount == 0) continue;
+
+                uint256 beansAvailable;
+
+                // If not enough LP to fulfill the full amount, see how many beans we can get
+                if (vars.availableAmount < vars.lpNeeded) {
+                    // Calculate how many beans we can get from the available LP tokens
+                    beansAvailable = IWell(sourceToken).getRemoveLiquidityOneTokenOut(
+                        vars.availableAmount,
+                        IERC20(vars.beanToken)
+                    );
+                } else {
+                    // If enough LP was available, it means there was enough to fulfill the full amount
+                    beansAvailable = vars.remainingBeansNeeded;
+                }
+
+                vars.remainingBeansNeeded = vars.remainingBeansNeeded - beansAvailable;
+
+                // Add to valid sources
+                vars.validSourceTokens[vars.validSourceCount] = sourceToken;
+                vars.validStems[vars.validSourceCount] = vars.stems;
+                vars.validAmounts[vars.validSourceCount] = vars.amounts;
+                vars.validAvailableBeans[vars.validSourceCount] = beansAvailable;
+                vars.totalAvailableBeans += beansAvailable;
+                vars.validSourceCount++;
+            }
+        }
+
+        require(vars.totalAvailableBeans != 0, "No beans available");
+
+        // Now create the final plan with correctly sized arrays
+        plan.sourceTokens = new address[](vars.validSourceCount);
+        plan.stems = new int96[][](vars.validSourceCount);
+        plan.amounts = new uint256[][](vars.validSourceCount);
+        plan.availableBeans = new uint256[](vars.validSourceCount);
+        plan.totalAvailableBeans = vars.totalAvailableBeans;
+
+        // Copy valid sources to the final plan
+        for (uint256 i = 0; i < vars.validSourceCount; i++) {
+            plan.sourceTokens[i] = vars.validSourceTokens[i];
+            plan.stems[i] = vars.validStems[i];
+            plan.amounts[i] = vars.validAmounts[i];
+            plan.availableBeans[i] = vars.validAvailableBeans[i];
+        }
+
+        return plan;
+    }
+
+    /**
+     * @notice Returns a plan for withdrawing beans from multiple sources
+     * @param account The account to withdraw from
+     * @param tokenIndices Array of indices corresponding to whitelisted tokens to try as sources.
+     * Special cases when array length is 1:
+     * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
+     * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
+     * @param targetAmount The total amount of beans to withdraw
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
+     */
+    function getWithdrawalPlan(
+        address account,
+        uint8[] memory tokenIndices,
+        uint256 targetAmount,
+        uint256 maxGrownStalkPerBdv,
+        bool excludeBean,
+        bool excludeGerminatingDeposits
+    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        return
+            getWithdrawalPlanExcludingPlan(
+                account,
+                tokenIndices,
+                targetAmount,
+                maxGrownStalkPerBdv,
+                excludeBean,
+                excludeGerminatingDeposits,
+                emptyPlan
+            );
+    }
+
+    /**
+     * @notice Withdraws beans from multiple sources in order until the target amount is fulfilled
+     * @param account The account to withdraw from
+     * @param tokenIndices Array of indices corresponding to whitelisted tokens to try as sources.
+     * Special cases when array length is 1:
+     * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
+     * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
+     * @param targetAmount The total amount of beans to withdraw
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param excludeBean Whether to exclude the Bean token when using special strategies
+     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
+     * @param mode The transfer mode for sending tokens back to user
+     * @param plan The withdrawal plan to use, or null to generate one
+     * @return amountWithdrawn The total amount of beans withdrawn
+     */
+    function withdrawBeansFromSources(
+        address account,
+        uint8[] memory tokenIndices,
+        uint256 targetAmount,
+        uint256 maxGrownStalkPerBdv,
+        bool excludeBean,
+        bool excludeGerminatingDeposits,
+        uint256 slippageRatio,
+        LibTransfer.To mode,
+        LibSiloHelpers.WithdrawalPlan memory plan
+    ) external payable whenFunctionNotPaused returns (uint256) {
+        WithdrawBeansLocalVars memory vars;
+
+        // If passed in plan is empty, get one
+        if (plan.sourceTokens.length == 0) {
+            plan = getWithdrawalPlan(
+                account,
+                tokenIndices,
+                targetAmount,
+                maxGrownStalkPerBdv,
+                excludeBean,
+                excludeGerminatingDeposits
+            );
+        }
+
+        vars.amountWithdrawn = 0;
+        vars.beanToken = beanstalk.getBeanToken();
+
+        // Execute withdrawal plan
+        for (vars.i = 0; vars.i < plan.sourceTokens.length; vars.i++) {
+            vars.sourceToken = plan.sourceTokens[vars.i];
+
+            // Skip Bean token for price manipulation check since it's not a Well
+            if (vars.sourceToken != vars.beanToken) {
+                // Check for price manipulation in the Well
+                (vars.nonBeanToken, ) = IBeanstalk(beanstalk).getNonBeanTokenAndIndexFromWell(
+                    vars.sourceToken
+                );
+                require(
+                    priceManipulation.isValidSlippage(
+                        IWell(vars.sourceToken),
+                        IERC20(vars.nonBeanToken),
+                        slippageRatio
+                    ),
+                    "Price manipulation detected"
+                );
+            }
+
+            // If source is bean token, withdraw directly
+            if (vars.sourceToken == vars.beanToken) {
+                beanstalk.withdrawDeposits(
+                    vars.sourceToken,
+                    plan.stems[vars.i],
+                    plan.amounts[vars.i],
+                    mode
+                );
+                vars.amountWithdrawn += plan.availableBeans[vars.i];
+            } else {
+                // For LP tokens, first withdraw LP tokens to the user's internal balance
+                beanstalk.withdrawDeposits(
+                    vars.sourceToken,
+                    plan.stems[vars.i],
+                    plan.amounts[vars.i],
+                    LibTransfer.To.INTERNAL
+                );
+
+                // Calculate total amount of LP tokens to transfer
+                vars.totalLPAmount = 0;
+                for (vars.j = 0; vars.j < plan.amounts[vars.i].length; vars.j++) {
+                    vars.totalLPAmount += plan.amounts[vars.i][vars.j];
+                }
+
+                // Transfer LP tokens to this contract's external balance
+                beanstalk.transferInternalTokenFrom(
+                    IERC20(vars.sourceToken),
+                    account,
+                    address(this),
+                    vars.totalLPAmount, // Use the total sum of all amounts
+                    LibTransfer.To.EXTERNAL
+                );
+
+                // Then remove liquidity to get Beans
+                IERC20(vars.sourceToken).approve(vars.sourceToken, vars.totalLPAmount);
+                IWell(vars.sourceToken).removeLiquidityOneToken(
+                    vars.totalLPAmount,
+                    IERC20(vars.beanToken),
+                    plan.availableBeans[vars.i],
+                    address(this),
+                    type(uint256).max
+                );
+
+                // Transfer from this contract's external balance to the user's internal/external balance depending on mode
+                if (mode == LibTransfer.To.INTERNAL) {
+                    // approve spending of Beans from this contract's external balance
+                    IERC20(vars.beanToken).approve(address(beanstalk), plan.availableBeans[vars.i]);
+                    beanstalk.sendTokenToInternalBalance(
+                        vars.beanToken,
+                        account,
+                        plan.availableBeans[vars.i]
+                    );
+                } else {
+                    IERC20(vars.beanToken).transfer(account, plan.availableBeans[vars.i]);
+                }
+                vars.amountWithdrawn += plan.availableBeans[vars.i];
+            }
+        }
+
+        return vars.amountWithdrawn;
+    }
+
+    /**
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @param account The address of the account that owns the deposits
+     * @param token The token to get deposits for
+     * @param amount The amount of tokens to withdraw
+     * @param minStem The minimum stem value to consider for withdrawal
+     * @return stems Array of stems in descending order
+     * @return amounts Array of corresponding amounts for each stem
+     * @return availableAmount The total amount available to withdraw (may be less than requested amount)
+     */
+    function getDepositStemsAndAmountsToWithdraw(
+        address account,
+        address token,
+        uint256 amount,
+        int96 minStem
+    )
+        public
+        view
+        returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
+    {
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        return
+            getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, false, emptyPlan);
+    }
+
+    /**
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @param account The address of the account that owns the deposits
+     * @param token The token to get deposits for
+     * @param amount The amount of tokens to withdraw
+     * @param minStem The minimum stem value to consider for withdrawal
+     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
+     * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
+     * @return stems Array of stems in descending order
+     * @return amounts Array of corresponding amounts for each stem
+     * @return availableAmount The total amount available to withdraw (may be less than requested amount)
+     */
+    function getDepositStemsAndAmountsToWithdraw(
+        address account,
+        address token,
+        uint256 amount,
+        int96 minStem,
+        bool excludeGerminatingDeposits,
+        LibSiloHelpers.WithdrawalPlan memory excludingPlan
+    )
+        public
+        view
+        returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
+    {
+        GetDepositStemsAndAmountsVars memory vars;
+        vars.token = token;
+        vars.depositIds = beanstalk.getTokenDepositIdsForAccount(account, token);
+        if (vars.depositIds.length == 0) return (new int96[](0), new uint256[](0), 0);
+
+        // Get the highest non-germinating stem for the token if needed
+        if (excludeGerminatingDeposits) {
+            vars.highestNonGerminatingStem = beanstalk.getHighestNonGerminatingStem(token);
+        }
+
+        // Initialize arrays with max possible size
+        int96[] memory tempStems = new int96[](vars.depositIds.length);
+        uint256[] memory tempAmounts = new uint256[](vars.depositIds.length);
+
+        // Track state
+        vars.remainingBeansNeeded = amount;
+        vars.currentIndex = 0;
+        vars.availableAmount = 0;
+
+        // Process deposits in reverse order (highest stem to lowest)
+        for (vars.i = vars.depositIds.length; vars.i > 0; vars.i--) {
+            (, vars.stem) = getAddressAndStem(vars.depositIds[vars.i - 1]);
+
+            // Skip if stem is less than minStem
+            if (vars.stem < minStem) {
+                continue;
+            }
+
+            // Skip if deposit is germinating and excludeGerminatingDeposits is true
+            if (excludeGerminatingDeposits && vars.stem > vars.highestNonGerminatingStem) {
+                continue;
+            }
+
+            (vars.depositAmount, ) = beanstalk.getDeposit(account, token, vars.stem);
+
+            // Check if this deposit is in the existing plan and calculate remaining amount
+            vars.remainingAmount = vars.depositAmount;
+            for (vars.j = 0; vars.j < excludingPlan.sourceTokens.length; vars.j++) {
+                if (excludingPlan.sourceTokens[vars.j] == token) {
+                    for (vars.k = 0; vars.k < excludingPlan.stems[vars.j].length; vars.k++) {
+                        if (excludingPlan.stems[vars.j][vars.k] == vars.stem) {
+                            // If the deposit was fully used in the existing plan, skip it
+                            if (excludingPlan.amounts[vars.j][vars.k] >= vars.depositAmount) {
+                                vars.remainingAmount = 0;
+                                break;
+                            }
+                            // Otherwise, subtract the used amount from the remaining amount
+                            vars.remainingAmount =
+                                vars.depositAmount -
+                                excludingPlan.amounts[vars.j][vars.k];
+                            break;
+                        }
+                    }
+                    if (vars.remainingAmount == 0) break;
+                }
+            }
+
+            // Skip if no remaining amount available
+            if (vars.remainingAmount == 0) continue;
+
+            // Calculate amount to take from this deposit
+            vars.amountFromDeposit = vars.remainingAmount;
+            if (vars.remainingAmount > vars.remainingBeansNeeded) {
+                vars.amountFromDeposit = vars.remainingBeansNeeded;
+            }
+
+            tempStems[vars.currentIndex] = vars.stem;
+            tempAmounts[vars.currentIndex] = vars.amountFromDeposit;
+            vars.availableAmount += vars.amountFromDeposit;
+            vars.remainingBeansNeeded -= vars.amountFromDeposit;
+            vars.currentIndex++;
+
+            if (vars.remainingBeansNeeded == 0) break;
+        }
+
+        // Create new arrays with the correct size
+        stems = new int96[](vars.currentIndex);
+        amounts = new uint256[](vars.currentIndex);
+
+        // Copy data to the resized arrays
+        for (vars.i = 0; vars.i < vars.currentIndex; vars.i++) {
+            stems[vars.i] = tempStems[vars.i];
+            amounts[vars.i] = tempAmounts[vars.i];
+        }
+
+        return (stems, amounts, vars.availableAmount);
+    }
+
+    /**
+     * @notice Returns the index of a token in the whitelisted tokens array
+     * @dev Returns 0 for the bean token, otherwise returns the index in the whitelisted tokens array
+     * @param token The token to get the index for
+     * @return index The index of the token (0 for bean token, otherwise index in whitelisted tokens array)
+     */
+    function getTokenIndex(address token) public view returns (uint8 index) {
+        // This relies on the assumption that the Bean token is whitelisted first
+        if (token == beanstalk.getBeanToken()) {
+            return 0;
+        }
+        address[] memory whitelistedTokens = getWhitelistStatusAddresses();
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            if (whitelistedTokens[i] == token) {
+                return uint8(i);
+            }
+        }
+        revert("Token not found");
+    }
+
+    /**
+     * @notice Returns the total amount of Beans available from a given token
+     * @param account The address of the account that owns the deposits
+     * @param token The token to calculate available beans from (either Bean or LP token)
+     * @return beanAmountAvailable The amount of Beans available if token is Bean, or the amount of
+     * Beans that would be received from removing all LP if token is an LP token
+     */
+    function getBeanAmountAvailable(
+        address account,
+        address token
+    ) external view returns (uint256 beanAmountAvailable) {
+        // Get total amount deposited
+        (, uint256[] memory amounts) = getSortedDeposits(account, token);
+        uint256 totalAmount;
+        for (uint256 i = 0; i < amounts.length; i++) {
+            totalAmount += amounts[i];
+        }
+
+        // If token is Bean, return total amount
+        if (token == beanstalk.getBeanToken()) {
+            return totalAmount;
+        }
+
+        // If token is LP and we have deposits, calculate Bean amount from LP
+        if (totalAmount > 0) {
+            return
+                IWell(token).getRemoveLiquidityOneTokenOut(
+                    totalAmount,
+                    IERC20(beanstalk.getBeanToken())
+                );
+        }
+
+        return 0;
+    }
+
+    /**
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @param account The address of the account that owns the deposits
+     * @param token The token to get deposits for
+     * @return stems Array of stems in descending order
+     * @return amounts Array of corresponding amounts for each stem
+     */
+    function getSortedDeposits(
+        address account,
+        address token
+    ) public view returns (int96[] memory stems, uint256[] memory amounts) {
+        uint256[] memory depositIds = beanstalk.getTokenDepositIdsForAccount(account, token);
+        if (depositIds.length == 0) revert("No deposits");
+
+        // Initialize arrays with exact size since we know all deposits are valid
+        stems = new int96[](depositIds.length);
+        amounts = new uint256[](depositIds.length);
+
+        // Collect all deposits
+        for (uint256 i = 0; i < depositIds.length; i++) {
+            (, int96 stem) = getAddressAndStem(depositIds[i]);
+            (uint256 amount, ) = beanstalk.getDeposit(account, token, stem);
+            stems[i] = stem;
+            amounts[i] = amount;
+        }
+
+        // Sort deposits by stem in descending order using bubble sort
+        for (uint256 i = 0; i < depositIds.length - 1; i++) {
+            for (uint256 j = 0; j < depositIds.length - i - 1; j++) {
+                if (stems[j] < stems[j + 1]) {
+                    // Swap stems
+                    int96 tempStem = stems[j];
+                    stems[j] = stems[j + 1];
+                    stems[j + 1] = tempStem;
+
+                    // Swap corresponding amounts
+                    uint256 tempAmount = amounts[j];
+                    amounts[j] = amounts[j + 1];
+                    amounts[j + 1] = tempAmount;
+                }
+            }
+        }
     }
 
     /**

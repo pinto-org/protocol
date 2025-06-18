@@ -1589,6 +1589,8 @@ interface IMockFBeanstalk {
 
     function setBpf(uint128 bpf) external;
 
+    function setTotalStalkE(uint256 amount) external;
+
     function setChangeInSoilDemand(uint256 changeInSoilDemand) external;
 
     function setCurrentSeasonE(uint32 _season) external;
