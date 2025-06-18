@@ -59,7 +59,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
 
     // Convert Bonus Gauge Constants are defined in LibGaugeHelpers
-    
+
     // Cultivation Factor Gauge Constants //
     uint256 internal constant SOIL_ALMOST_SOLD_OUT = type(uint32).max - 1;
 

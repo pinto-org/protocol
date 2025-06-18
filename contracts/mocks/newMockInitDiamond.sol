@@ -36,8 +36,6 @@ contract MockInitDiamond is InitializeDiamond {
 
         // Whitelist the LP well.
 
-
-
         whitelistLPWell(BEAN_WSTETH_WELL);
     }
 

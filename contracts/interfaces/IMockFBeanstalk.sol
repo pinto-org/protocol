@@ -1918,7 +1918,7 @@ interface IMockFBeanstalk {
     function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
 
     function setPrevSeasonAndCultivationTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external;
-    
+
     function setSeasonAbovePeg(bool abovePeg) external;
 
     function getConvertStalkPerBdvBonusAndRemainingCapacity()
