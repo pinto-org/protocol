@@ -43,4 +43,11 @@ contract MockWhitelistFacet is WhitelistFacet {
             isSoppable
         );
     }
+
+    function mockUpdateStalkPerBdvPerSeasonForToken(
+        address token,
+        uint40 stalkEarnedPerSeason
+    ) external {
+        LibWhitelist.updateStalkPerBdvPerSeasonForToken(token, stalkEarnedPerSeason);
+    }
 }

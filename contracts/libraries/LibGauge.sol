@@ -181,6 +181,9 @@ library LibGauge {
             }
         }
 
+        // If totalGaugePoints is 0, skip the gauge system to avoid division by zero
+        if (totalGaugePoints == 0) return (maxLpGpPerBdv, lpGpData, type(uint256).max);
+        
         // iterate over all the whitelisted LP tokens to calculate the gauge points per BDV.
         for (uint256 i; i < whitelistedLpTokens.length; ++i) {
             AssetSettings storage ss = s.sys.silo.assetSettings[whitelistedLpTokens[i]];
@@ -290,6 +293,8 @@ library LibGauge {
             .div(BDV_PRECISION);
 
         // Gauge points has 18 decimal precision.
+        // Check for division by zero
+        if (totalGaugePoints == 0) return;
         uint256 newGrownStalkPerGp = newGrownStalk.mul(GP_PRECISION).div(totalGaugePoints);
 
         // Update stalkPerBdvPerSeason for bean.
@@ -443,9 +448,15 @@ library LibGauge {
         uint256 totalOptimalDepositedBdvPercent
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 cap = (s.sys.seedGauge.maxTotalGaugePoints * optimalPercentDepositedBdv * 2) /
+        uint256 upperCap = (s.sys.seedGauge.maxTotalGaugePoints * optimalPercentDepositedBdv * 2) /
             (totalOptimalDepositedBdvPercent);
-        if (gaugePoints > cap) return cap;
+        if (gaugePoints > upperCap) {
+            return upperCap;
+        }
+
+        if (gaugePoints < upperCap / 10) {
+            return upperCap / 10;
+        }
         return gaugePoints;
     }
 }

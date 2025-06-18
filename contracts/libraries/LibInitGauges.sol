@@ -31,20 +31,15 @@ library LibInitGauges {
 
     //////////// Convert Up Bonus Gauge ////////////
     // Gauge values
-    uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0; // the initial bonus stalk per bdv
-    uint256 internal constant INIT_MAX_CONVERT_CAPACITY = 0; // the initial convert capacity
+    uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0; // the initial bonus stalk per bdv\
+    uint256 internal constant INIT_CONVERT_CAPACITY_FACTOR = 1e6; // the initial convert capacity factor
+    uint256 internal constant INIT_CONVERT_CAPACITY = 0; // the initial convert capacity
     // Gauge data
-    uint256 internal constant DELTA_C = 0.01e18; // the value that the convert bonus factor can be adjusted by
-    uint256 internal constant DELTA_T = 0.004e18; // the value that the convert bdv capacity factor can be adjusted by
-    uint256 internal constant MIN_CONVERT_BONUS_FACTOR = 0; // the minimum value the convert bonus factor can be adjusted to (0%)
-    uint256 internal constant MAX_CONVERT_BONUS_FACTOR = 1e18; // the maximum value the convert bonus factor can be adjusted to (100%)
-    uint256 internal constant MIN_CAPACITY_FACTOR = 0.1e18; // the minimum value the convert bdv capacity factor can be adjusted to (10%)
-    uint256 internal constant MAX_CAPACITY_FACTOR = 0.5e18; // the maximum value the convert bdv capacity factor can be adjusted to (50%)
-    uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND = 1.05e18; // the % change in bdv converted between seasons such that demand for converting is increasing when above this value
-    uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND = 0.95e18; // the % change in bdv converted between seasons such that demand for converting is decreasing when below this value
-    uint256 internal constant LAST_SEASON_BDV_CONVERTED = 0; // the bdv converted in the last season
-    uint256 internal constant THIS_SEASON_BDV_CONVERTED = 0; // the bdv converted in the current season
-    uint256 internal constant THIS_SEASON_BDV_CONVERTED_BONUS = 0; // the bdv converted in the current season with a bonus
+    uint256 internal constant MIN_SEASON_TARGET = 100e6; // the minimum seasons to reach value target via conversions. 6 decimal precision.
+    uint256 internal constant MAX_SEASON_TARGET = 500e6; // the maximum seasons to reach value target via conversions. 6 decimal precision.
+    uint256 internal constant MIN_DELTA_CAPACITY = 0.5e6; // the minimum value that the convert capacity factor can be adjusted by. 6 decimal precision.
+    uint256 internal constant MAX_DELTA_CAPACITY = 2e6; // the maximum value that the convert capacity factor can be adjusted by. 6 decimal precision.
+
     //////////// Cultivation Factor Gauge ////////////
 
     function initCultivationFactor() internal {
@@ -56,7 +51,9 @@ library LibInitGauges {
                 MIN_DELTA_CULTIVATION_FACTOR,
                 MAX_DELTA_CULTIVATION_FACTOR,
                 MIN_CULTIVATION_FACTOR,
-                MAX_CULTIVATION_FACTOR
+                MAX_CULTIVATION_FACTOR,
+                0,
+                0
             )
         );
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
@@ -76,27 +73,22 @@ library LibInitGauges {
 
     //////////// Convert Up Bonus Gauge ////////////
 
-    function initConvertUpBonusGauge() internal {
+    function initConvertUpBonusGauge(uint256 twaDeltaB) internal {
         // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
-            MIN_CONVERT_BONUS_FACTOR,
-            MAX_CAPACITY_FACTOR,
             INIT_BONUS_STALK_PER_BDV,
-            INIT_MAX_CONVERT_CAPACITY
+            INIT_CONVERT_CAPACITY,
+            INIT_CONVERT_CAPACITY_FACTOR
         );
 
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = LibGaugeHelpers.ConvertBonusGaugeData(
-            DELTA_C,
-            DELTA_T,
-            MIN_CONVERT_BONUS_FACTOR,
-            MAX_CONVERT_BONUS_FACTOR,
-            MIN_CAPACITY_FACTOR,
-            MAX_CAPACITY_FACTOR,
-            LAST_SEASON_BDV_CONVERTED,
-            THIS_SEASON_BDV_CONVERTED,
-            THIS_SEASON_BDV_CONVERTED_BONUS,
-            DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND,
-            DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND
+            MIN_SEASON_TARGET, // minSeasonTarget - minimum seasons to reach value target
+            MAX_SEASON_TARGET, // maxSeasonTarget - maximum seasons to reach value target
+            MIN_DELTA_CAPACITY, // minDeltaCapacity - minimum delta capacity used to change the rate of change in the capacity factor
+            MAX_DELTA_CAPACITY, // maxDeltaCapacity - maximum delta capacity used to change the rate of change in the capacity factor
+            0, // bdvConvertedThisSeason
+            0, // bdvConvertedLastSeason
+            twaDeltaB // maxTwaDeltaB
         );
         Gauge memory convertBonusGauge = Gauge(
             abi.encode(gv),

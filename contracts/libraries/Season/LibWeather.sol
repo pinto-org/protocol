@@ -11,6 +11,7 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 /**
  * @title LibWeather
  * @notice Library for managing Weather state in Beanstalk, including Temperature and Grown Stalk to LP ratios.
@@ -45,14 +46,6 @@ library LibWeather {
      * @dev formula: L_n = L_n-1 +/- bL
      */
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
-
-    /**
-     * @notice Emitted when bean crosses below its value target.
-     * @param season The season in which the bean crossed below its value target.
-     * @param tokens The tokens that were updated.
-     * @param stems The new stemTips stored at the peg cross.
-     */
-    event UpdatedBelowPegCrossStems(uint256 indexed season, address[] tokens, int96[] stems);
 
     /**
      * @notice Emitted when the peg state is updated.
@@ -103,26 +96,30 @@ library LibWeather {
     }
 
     /**
-     * @notice Changes the current Temperature `s.weather.t` based on the Case Id.
+     * @notice Changes the current Temperature `s.weather.temp` based on the Case Id.
      * @dev bT are set during edge cases such that the event emitted is valid.
+     * @param bT The temperature change amount
+     * @param caseId The case ID from weather evaluation
+     * @dev Temperature is stored as uint64 in storage
      */
     function updateTemperature(int32 bT, uint256 caseId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 t = s.sys.weather.temp;
+        // update the previous season temperature in the cultivation factor gauge.
+        LibGaugeHelpers.updatePrevSeasonTemp(t);
         if (bT < 0) {
             if (t <= uint256(int256(-bT))) {
                 // if temp is to be decreased and the change is greater than the current temp,
                 // - then the new temp will be 1e6.
                 // - and the change in temp bT will be the difference between the new temp and the old temp.
-                // if (change < 0 && t <= uint32(-change)),
-                // then 0 <= t <= type(int32).max because change is an int32.
+                // if (change < 0 && t <= uint64(-change)),
                 bT = 1e6 - int32(int256(t));
                 s.sys.weather.temp = 1e6;
             } else {
-                s.sys.weather.temp = uint32(t - uint256(int256(-bT)));
+                s.sys.weather.temp = uint64(t - uint256(int256(-bT)));
             }
         } else {
-            s.sys.weather.temp = uint32(t + uint256(int256(bT)));
+            s.sys.weather.temp = uint64(t + uint256(int256(bT)));
         }
 
         emit TemperatureChange(s.sys.season.current, caseId, bT, s.sys.activeField);
@@ -177,16 +174,6 @@ library LibWeather {
         // the system has crossed peg.
         if (lastSeasonPeg != s.sys.season.abovePeg) {
             s.sys.season.pegCrossSeason = s.sys.season.current;
-            if (twaDeltaB < 0) {
-                // if the peg was crossed below, cache the stems for each whitelisted token.
-                address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-                int96[] memory stems = new int96[](lpTokens.length);
-                for (uint256 i = 0; i < lpTokens.length; i++) {
-                    stems[i] = LibTokenSilo.stemTipForToken(lpTokens[i]);
-                    s.sys.belowPegCrossStems[lpTokens[i]] = stems[i];
-                }
-                emit UpdatedBelowPegCrossStems(s.sys.season.pegCrossSeason, lpTokens, stems);
-            }
             emit PegStateUpdated(s.sys.season.current, s.sys.season.abovePeg);
         }
     }
