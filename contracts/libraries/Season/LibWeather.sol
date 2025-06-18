@@ -96,8 +96,11 @@ library LibWeather {
     }
 
     /**
-     * @notice Changes the current Temperature `s.weather.t` based on the Case Id.
+     * @notice Changes the current Temperature `s.weather.temp` based on the Case Id.
      * @dev bT are set during edge cases such that the event emitted is valid.
+     * @param bT The temperature change amount
+     * @param caseId The case ID from weather evaluation
+     * @dev Temperature is stored as uint64 in storage
      */
     function updateTemperature(int32 bT, uint256 caseId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -109,14 +112,14 @@ library LibWeather {
                 // if temp is to be decreased and the change is greater than the current temp,
                 // - then the new temp will be 1e6.
                 // - and the change in temp bT will be the difference between the new temp and the old temp.
-                // if (change < 0 && t <= uint32(-change)),
+                // if (change < 0 && t <= uint64(-change)),
                 bT = 1e6 - int32(int256(t));
                 s.sys.weather.temp = 1e6;
             } else {
-                s.sys.weather.temp = uint32(t - uint256(int256(-bT)));
+                s.sys.weather.temp = uint64(t - uint256(int256(-bT)));
             }
         } else {
-            s.sys.weather.temp = uint32(t + uint256(int256(bT)));
+            s.sys.weather.temp = uint64(t + uint256(int256(bT)));
         }
 
         emit TemperatureChange(s.sys.season.current, caseId, bT, s.sys.activeField);

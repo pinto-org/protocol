@@ -912,9 +912,6 @@ library LibConvert {
                 (originalGrownStalk * (MAX_GROWN_STALK_SLIPPAGE + uint256(-grownStalkSlippage))) /
                 MAX_GROWN_STALK_SLIPPAGE;
         }
-        console.log("minimumStalk", minimumStalk);
-        console.log("originalGrownStalk", originalGrownStalk);
-        console.log("newGrownStalk", newGrownStalk);
 
         require(newGrownStalk >= minimumStalk, "Convert: Stalk slippage");
     }

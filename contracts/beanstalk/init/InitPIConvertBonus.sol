@@ -20,7 +20,7 @@ contract InitPIConvertBonus {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
     uint32 constant PEG_CROSS_SEASON = 2558;
     uint16 constant MORNING_DURATION = 600;
-    uint256 constant MORNING_CONTROL = uint256(1e18) / 240;
+    uint128 constant MORNING_CONTROL = uint128(1e18) / 240;
 
     function init(uint256 bonusStalkPerBdv) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
