@@ -186,9 +186,8 @@ contract MockSeasonFacet is SeasonFacet {
             largestLiquidWellTwapBeanPrice: 0,
             twaDeltaB: deltaB
         });
-
         LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
-        stepSun(bs);
+        stepSun(bs); // Do not scale soil down using L2SR
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {
