@@ -12,7 +12,41 @@ env:
   ETHEREUM_RPC: ${{ secrets.ETHEREUM_RPC }}
 
 jobs:
+  check-sol-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      sol-changed: ${{ steps.changes.outputs.sol-changed }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Check for Solidity file changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # For PRs, check changes against the base branch
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            # For pushes, check changes in the last commit
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+          
+          echo "Checking for .sol file changes between $BASE_SHA and $HEAD_SHA"
+          
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E '\.sol$'; then
+            echo "Solidity files changed"
+            echo "sol-changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No Solidity files changed"
+            echo "sol-changed=false" >> $GITHUB_OUTPUT
+          fi
+
   forge-tests:
+    needs: check-sol-changes
+    if: needs.check-sol-changes.outputs.sol-changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

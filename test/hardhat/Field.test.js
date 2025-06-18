@@ -359,25 +359,82 @@ describe("newField", function () {
   });
 
   describe("complex DPD", async function () {
-    it("Does not set thisSowTime if Soil > sold_out_threshold", async function () {
-      await mockBeanstalk.setSoilE(to6("10000"));
-      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
+    it("Does not set thisSowTime if Soil > mostly sold out threshold", async function () {
+      const initialSoil = to6("100");
+      // Calculate thresholds based on forge test logic
+      const soilSoldOutThreshold = initialSoil.lt(to6("500")) 
+        ? initialSoil.mul(to6("0.1")).div(to6("1")) 
+        : to6("50");
+      const mostlySoldOutThreshold = initialSoil.sub(soilSoldOutThreshold)
+        .mul(to6("0.20"))
+        .div(to6("1"))
+        .add(soilSoldOutThreshold);
+      
+      // Set initial soil and sow amount that leaves more than threshold
+      await mockBeanstalk.setSoilE(initialSoil);
+      const sowAmount = initialSoil.sub(mostlySoldOutThreshold).sub(to6("1"));
+      await beanstalk.connect(user).sow(sowAmount, 0, EXTERNAL);
+      
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.equal(parseInt(MAX_UINT32));
     });
 
-    it("Does set thisSowTime if Soil = sold_out_threshold", async function () {
-      await mockBeanstalk.setSoilE(to6("100"));
-      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL);
+    it("Does set thisSowTime if Soil <= mostly sold out threshold", async function () {
+      const initialSoil = to6("100");
+      // Calculate thresholds
+      const soilSoldOutThreshold = initialSoil.lt(to6("500")) 
+        ? initialSoil.mul(to6("0.1")).div(to6("1")) 
+        : to6("50");
+      const mostlySoldOutThreshold = initialSoil.sub(soilSoldOutThreshold)
+        .mul(to6("0.20"))
+        .div(to6("1"))
+        .add(soilSoldOutThreshold);
+      
+      // Set initial soil and sow amount that brings us to threshold
+      await mockBeanstalk.setSoilE(initialSoil);
+      const sowAmount = initialSoil.sub(mostlySoldOutThreshold);
+      await beanstalk.connect(user).sow(sowAmount, 0, EXTERNAL);
+      
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
     });
 
-    it("Correctly sets thisSowTime if Soil < sold_out_threshold and Initial Soil < 100", async function () {
-      await mockBeanstalk.setSoilE(to6("80"));
-      await beanstalk.connect(user).sow(to6("50"), 0, EXTERNAL); // above 50% of intial soil
+    it("Does set thisSowTime if Soil <= sold out threshold", async function () {
+      const initialSoil = to6("100");
+      // Calculate threshold
+      const soilSoldOutThreshold = initialSoil.lt(to6("500")) 
+        ? initialSoil.mul(to6("0.1")).div(to6("1")) 
+        : to6("50");
+      
+      // Set initial soil and sow amount that brings us to sold out threshold
+      await mockBeanstalk.setSoilE(initialSoil);
+      const sowAmount = initialSoil.sub(soilSoldOutThreshold);
+      await beanstalk.connect(user).sow(sowAmount, 0, EXTERNAL);
+      
       const weather = await beanstalk.weather();
       expect(weather.thisSowTime).to.be.not.equal(parseInt(MAX_UINT32));
+    });
+
+    it("Does not set thisSowTime if Soil already at threshold", async function () {
+      const initialSoil = to6("100");
+      const soilSoldOutThreshold = initialSoil.lt(to6("500")) 
+        ? initialSoil.mul(to6("0.1")).div(to6("1")) 
+        : to6("50");
+      const mostlySoldOutThreshold = initialSoil.sub(soilSoldOutThreshold)
+        .mul(to6("0.20"))
+        .div(to6("1"))
+        .add(soilSoldOutThreshold);
+      
+      // First sow to reach threshold
+      await mockBeanstalk.setSoilE(initialSoil);
+      const firstSow = initialSoil.sub(mostlySoldOutThreshold);
+      await beanstalk.connect(user).sow(firstSow, 0, EXTERNAL);
+      const weather = await beanstalk.weather();
+      
+      // Second sow should not change thisSowTime
+      await beanstalk.connect(user).sow(to6("1"), 0, EXTERNAL);
+      const weather2 = await beanstalk.weather();
+      expect(weather2.thisSowTime).to.be.equal(weather.thisSowTime);
     });
   });
 

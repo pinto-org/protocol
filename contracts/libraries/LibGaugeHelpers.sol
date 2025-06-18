@@ -9,6 +9,12 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Convert Bonus Gauge Constants
+    uint256 internal constant MIN_CONVERT_CAPACITY_FACTOR = 1e6;
+    uint256 internal constant MAX_CONVERT_CAPACITY_FACTOR = 100e6;
+    uint256 internal constant CONVERT_CAPACITY_FILLED = 0.95e6;
+    uint256 internal constant CONVERT_CAPACITY_MOSTLY_FILLED = 0.80e6;
+
     // Gauge structs
 
     //// Convert Bonus Gauge ////
@@ -16,45 +22,35 @@ library LibGaugeHelpers {
     /**
      * @notice Struct for Convert Bonus Gauge Value
      * @dev The value of the Convert Bonus Gauge is a struct that contains the following:
-     * - convertBonusFactor: The % of the baseBonusStalkPerBdv that a user recieves upon a successful WELL -> BEAN conversion.
-     * - convertCapacityFactor: The Factor used to determine the convert capacity. Capacity is a % of the twaDeltaB.
-     * - baseBonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
+     * - bonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
      * - maxConvertCapacity: The maximum amount of bdv that can be converted in a season and get a bonus.
+     * - convertCapacityFactor: The Factor used to determine the convert capacity.
      */
     struct ConvertBonusGaugeValue {
-        uint256 convertBonusFactor;
-        uint256 convertCapacityFactor;
-        uint256 baseBonusStalkPerBdv;
+        uint256 bonusStalkPerBdv;
         uint256 maxConvertCapacity;
+        uint256 convertCapacityFactor;
     }
 
     /**
      * @notice Struct for Convert Bonus Gauge Data
      * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
-     * - deltaC: The delta used in adjusting the convertBonusFactor.
-     * - deltaD: The delta used in adjusting the convertCapacityFactor.
-     * - minConvertBonusFactor: The minimum value of the conversion factor.
-     * - maxConvertBonusFactor: The maximum value of the conversion factor.
-     * - minCapacityFactor: The minimum value of the convert bonus bdv capacity factor.
-     * - maxCapacityFactor: The maximum value of the convert bonus bdv capacity factor.
-     * - lastSeasonBdvConverted: The amount of bdv converted last season.
-     * - thisSeasonBdvConverted: The amount of bdv converted this season.
-     * - thisSeasonBdvConvertedBonus: The amount of bdv converted this season that received a bonus.
-     * - deltaBdvConvertedDemandUpperBound: The percentage of bdv converted such that above this value, demand for converting is increasing.
-     * - deltaBdvConvertedDemandLowerBound: The percentage of bdv converted such that below this value, demand for converting is decreasing.
+     * - minSeasonTarget: The minimum target seasons to return to value target via conversions.
+     * - maxSeasonTarget: The maximum target seasons to return to value target via conversions.
+     * - minDeltaCapacity: The minimum delta capacity used to change the rate of change in the capacity factor.
+     * - maxDeltaCapacity: The maximum delta capacity used to change the rate of change in the capacity factor.
+     * - bdvConvertedThisSeason: The amount of bdv converted that received a bonus this season.
+     * - bdvConvertedLastSeason: The amount of bdv converted that received a bonus last season.
+     * - maxTwaDeltaB: The maximum recorded negative twaDeltaB while the bonus was active.
      */
     struct ConvertBonusGaugeData {
-        uint256 deltaC;
-        uint256 deltaD;
-        uint256 minConvertBonusFactor;
-        uint256 maxConvertBonusFactor;
-        uint256 minCapacityFactor;
-        uint256 maxCapacityFactor;
-        uint256 lastSeasonBdvConverted;
-        uint256 thisSeasonBdvConverted;
-        uint256 thisSeasonBdvConvertedBonus;
-        uint256 deltaBdvConvertedDemandUpperBound;
-        uint256 deltaBdvConvertedDemandLowerBound;
+        uint256 minSeasonTarget;
+        uint256 maxSeasonTarget;
+        uint256 minDeltaCapacity;
+        uint256 maxDeltaCapacity;
+        uint256 bdvConvertedThisSeason;
+        uint256 bdvConvertedLastSeason;
+        uint256 maxTwaDeltaB;
     }
 
     // Gauge events
@@ -94,11 +90,19 @@ library LibGaugeHelpers {
     event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
 
     /**
-     * @notice Emitted when a Gauge's data is updated.
+     * @notice Emitted when a Gauge's data is updated (outside of the engage function).
      * @param gaugeId The id of the Gauge that was updated.
      * @param data The data of the Gauge that was updated.
      */
     event UpdatedGaugeData(GaugeId gaugeId, bytes data);
+
+    /**
+     * @notice Emitted when a Gauge's value is updated (outside of the engage function).
+     * @param gaugeId The id of the Gauge that was updated.
+     * @param value The value of the Gauge that was updated.
+     */
+    event UpdatedGaugeValue(GaugeId gaugeId, bytes value);
+
     /**
      * @notice Calls all generalized Gauges, and updates their values.
      * @param systemData The system data to pass to the Gauges.
@@ -176,6 +180,13 @@ library LibGaugeHelpers {
         emit UpdatedGauge(gaugeId, g);
     }
 
+    function updateGaugeValue(GaugeId gaugeId, bytes memory value) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.gaugeData.gauges[gaugeId].value = value;
+
+        emit UpdatedGaugeValue(gaugeId, value);
+    }
+
     function updateGaugeData(GaugeId gaugeId, bytes memory data) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.sys.gaugeData.gauges[gaugeId].data = data;
@@ -209,6 +220,35 @@ library LibGaugeHelpers {
     function getGaugeValue(GaugeId gaugeId) internal view returns (bytes memory) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.sys.gaugeData.gauges[gaugeId].value;
+    }
+
+    function getGaugeData(GaugeId gaugeId) internal view returns (bytes memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.gaugeData.gauges[gaugeId].data;
+    }
+
+    /// GAUGE SPECIFIC HELPERS ///
+
+    /**
+     * @notice Updates the previous season temperature, in the Cultivation Factor Gauge.
+     * @param temperature The temperature of the last season.
+     */
+    function updatePrevSeasonTemp(uint256 temperature) internal {
+        (
+            uint256 minDeltaCf,
+            uint256 maxDeltaCf,
+            uint256 minCf,
+            uint256 maxCf,
+            uint256 soldOutTemp,
+
+        ) = abi.decode(
+                getGaugeData(GaugeId.CULTIVATION_FACTOR),
+                (uint256, uint256, uint256, uint256, uint256, uint256)
+            );
+        updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, soldOutTemp, temperature)
+        );
     }
 
     /// GAUGE BLOCKS ///

@@ -213,4 +213,22 @@ contract MockFieldFacet is FieldFacet {
     function setCultivationFactor(uint256 cultivationFactor) external {
         s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].value = abi.encode(cultivationFactor);
     }
+
+    function setPrevSeasonAndCultivationTemp(
+        uint256 prevSeasonTemp,
+        uint256 cultivationTemp
+    ) external {
+        (uint256 minDeltaCf, uint256 maxDeltaCf, uint256 minCf, uint256 maxCf, , ) = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].data,
+            (uint256, uint256, uint256, uint256, uint256, uint256)
+        );
+        s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].data = abi.encode(
+            minDeltaCf,
+            maxDeltaCf,
+            minCf,
+            maxCf,
+            cultivationTemp,
+            prevSeasonTemp
+        );
+    }
 }

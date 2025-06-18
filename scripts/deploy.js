@@ -278,6 +278,7 @@ async function getFacetData() {
     "LibSilo",
     "LibShipping",
     "LibFlood",
+    "LibTokenSilo",
     "LibEvaluate",
     "LibWeather"
   ];

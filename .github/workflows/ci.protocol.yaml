@@ -6,27 +6,7 @@ on:
     branches: [main]
 
 jobs:
-  # format:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         ref: ${{ github.head_ref }}
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: "18"
-  #     - run: yarn add prettier
-  #     - run: yarn add prettier-plugin-solidity
-  #     - run: shopt -s globstar; yarn prettier --write --config .prettierrc --plugin=prettier-plugin-solidity "**/*.sol" || true
-  #     - name: Commit changes
-  #       uses: stefanzweifel/git-auto-commit-action@v4
-  #       with:
-  #         commit_message: prettier auto formatting changes
-  #         branch: ${{ github.head_ref }}
-  #     - name: check format
-  #       run: shopt -s globstar; yarn prettier --check --config .prettierrc --plugin=prettier-plugin-solidity "**/*.sol"
   test:
-    # needs: format    # Removing this since the format job is commented out
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -62,8 +42,9 @@ jobs:
         run: yarn generate
 
       - name: Run tests
-        run: yarn hardhat clean
-        run: yarn hardhat test
+        run: |
+          yarn hardhat clean
+          yarn hardhat test
         env:
           FORKING_RPC: ${{ secrets.ANVIL_FORK_URL }}
           BASE_RPC: ${{ secrets.BASE_RPC }}

@@ -55,7 +55,7 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
-    uint256 initialSoil;
+    uint128 initialSoil;
     bytes32[15] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
@@ -166,9 +166,9 @@ struct Weather {
     uint128 lastDeltaSoil; // ───┐ 16 (16)
     uint32 lastSowTime; //       │ 4  (20)
     uint32 thisSowTime; //       │ 4  (24)
-    uint32 temp; //              │ 4  (28)
-    uint16 morningDuration; // ──┘ 2  (30/32)
-    uint256 morningControl;
+    uint64 temp; //              │ 8  (32)
+    uint128 morningControl; //   │ 16 (16)
+    uint16 morningDuration; // ──┘ 2  (18/32)
     bytes32[3] _buffer;
 }
 
@@ -181,7 +181,7 @@ struct Weather {
  * @param avgGsPerBdvFlag update the average grown stalk per bdv per season, if true.
  * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
- * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should be incentivized the most,
+ * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should have the highest incentive,
  * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
  */
 struct SeedGauge {
@@ -458,8 +458,6 @@ struct EvaluationParameters {
  * twaDeltaB is negative but beanstalk ended the season above peg.
  * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
  * @param minSoilIssuance The minimum amount of soil that can be issued in a season.
- * @param supplyPodDemandScalar The scalar to scale the bean supply by when evaluating the delta pod demand.
- * @param initialSoilPodDemandScalar The scalar to scale the initial soil issuance by when evaluating the delta pod demand.
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
@@ -469,9 +467,7 @@ struct ExtEvaluationParameters {
     uint256 abovePegDeltaBSoilScalar;
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
-    uint256 supplyPodDemandScalar;
-    uint256 initialSoilPodDemandScalar;
-    bytes32[59] buffer;
+    bytes32[61] buffer;
 }
 
 /**

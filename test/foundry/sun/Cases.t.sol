@@ -3,6 +3,7 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IWell, IERC20, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
 import "forge-std/console.sol";
 
@@ -34,7 +35,7 @@ contract CasesTest is TestHelper {
     // These are the variables that beanstalk measures upon sunrise.
     // (placed in storage due to stack too deep).
     uint256 price; // 0 = below peg, 1 = above peg, 2 = Q
-    uint256 podRate; // 0 = Extremely low, 1 = Reasonbly Low, 2 = Reasonably High, 3 = Extremely High
+    uint256 podRate; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     uint256 changeInSoilDemand; // 0 = Decreasing, 1 = steady, 2 = Inc
     uint256 l2SR; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     int256 deltaB;
@@ -51,15 +52,15 @@ contract CasesTest is TestHelper {
         // Initialize well to balances. (1000 BEAN/ETH)
         addLiquidityToWell(well, 10000e6, 10 ether);
 
-        // call well to wsteth/bean to initalize the well.
+        // call well to wsteth/bean to initialize the well.
         // avoids errors due to gas limits.
         addLiquidityToWell(BEAN_WSTETH_WELL, 10e6, .01 ether);
     }
 
     /**
      * @notice tests every case of weather that can happen in beanstalk, 0 - 143.
-     * @dev See {LibCases.sol} for more infomation.
-     * This test verifies general invarients regarding the cases,
+     * @dev See {LibCases.sol} for more information.
+     * This test verifies general invariants regarding the cases,
      * (i.e how beanstalk should generally react to its state)
      * and does not test the correctness of the magnitude of change.
      * Assumes BeanToMaxGpPerBdvRatio is < 0.
@@ -90,9 +91,17 @@ contract CasesTest is TestHelper {
         vm.expectEmit(true, true, false, false);
         emit BeanToMaxLpGpPerBdvRatioChange(1, caseId, 0);
 
+        uint256 prevTemp = bs.maxTemperature();
         (uint256 updatedCaseId, ) = season.mockcalcCaseIdAndHandleRain(deltaB);
         require(updatedCaseId == caseId, "CaseId did not match");
         (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
+
+        // verify that the prevSeasonTemp is set.
+        (, , , , , uint256 prevSeasonTemp) = abi.decode(
+            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256, uint256, uint256)
+        );
+        assertEq(prevSeasonTemp, prevTemp, "prevSeasonTemp was not properly set");
 
         // CASE INVARIENTS
         // if deltaB > 0: temperature should never increase. bean2MaxLpGpRatio should never increase.
@@ -538,7 +547,7 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the soil sown in the season is below the minimum demand threshold,
-     * of max(max(0,001% of supply, 10), 25% of soil issued) demand is considered decreasing.
+     * of max(min(50, soil issued), soilIssued *5%) demand is considered decreasing.
      */
     function testDeltaPodDemandDecreasingBelowThreshold(
         uint256 soilSown,
@@ -553,9 +562,9 @@ contract CasesTest is TestHelper {
         // bound initial soil to 0 - beanSupply
         initialSoil = bound(initialSoil, 4, beanSupply);
 
-        uint256 minDemandThreshold = calcMinSoilDemandThreshold(beanSupply, initialSoil);
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold(initialSoil);
 
-        // soil sown is less than the min threashold to measure demand
+        // soil sown is less than the min threshold to measure demand
         soilSown = bound(soilSown, 0, minDemandThreshold - 1);
 
         // set podrate to reasonably high,
@@ -620,20 +629,18 @@ contract CasesTest is TestHelper {
     }
 
     function calcMinSoilDemandThreshold(
-        uint256 beanSupply,
         uint256 initialSoil
     ) internal view returns (uint256 minDemandThreshold) {
-        // calculate the minimum threshold of bean to calculate delta pod demand.
-        uint256 calculatedThreshold = (beanSupply * 0.00001e6) / 1e6;
-
-        uint256 beanSupplyThreshold = calculatedThreshold > 10e6 ? calculatedThreshold : 10e6;
-
-        // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
-        uint256 scaledInitialSoil = (initialSoil * 0.25e6) / 1e6;
-
-        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
-            ? beanSupplyThreshold
-            : scaledInitialSoil;
+        uint256 minBeanSown = 50e6;
+        // if initial soil is less than the minimum amount of beans to measure demand,
+        // set the threshold to the initial soil (all soil must be sown to measure demand)
+        if (initialSoil < minBeanSown) {
+            return initialSoil;
+        } else {
+            // else, use min(minBeanSown, x% of soil)
+            uint256 soilBasedThreshold = (initialSoil * 0.05e6) / 1e6;
+            return soilBasedThreshold > minBeanSown ? minBeanSown : soilBasedThreshold;
+        }
     }
 
     /**

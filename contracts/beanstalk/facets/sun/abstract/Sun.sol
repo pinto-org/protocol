@@ -209,7 +209,7 @@ abstract contract Sun is Oracle, Distribution {
      */
     function setSoil(uint256 amount) internal {
         s.sys.soil = amount.toUint128();
-        s.sys.initialSoil = s.sys.soil;
+        s.sys.initialSoil = amount.toUint128();
         emit Soil(s.sys.season.current, amount.toUint128());
     }
 }

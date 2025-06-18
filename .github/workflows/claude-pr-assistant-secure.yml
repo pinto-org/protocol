@@ -1,0 +1,147 @@
+name: Claude PR Assistant (Secure)
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.validate.outputs.should-run }}
+      rate-limit-ok: ${{ steps.rate-limit.outputs.ok }}
+    steps:
+      - name: Check user permissions
+        id: permissions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const actor = context.actor;
+            const repo = context.repo;
+            
+            try {
+              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: repo.owner,
+                repo: repo.repo,
+                username: actor
+              });
+              
+              const hasWrite = ['write', 'admin', 'maintain'].includes(permission.permission);
+              core.setOutput('has-write', hasWrite);
+              
+              // Also check if user is a core team member (extra security layer)
+              const coreTeam = ['brian', 'alice', 'charlie']; // Replace with actual usernames
+              const isCoreTeam = coreTeam.includes(actor.toLowerCase());
+              core.setOutput('is-core-team', isCoreTeam);
+              
+              console.log(`User ${actor}: permission=${permission.permission}, hasWrite=${hasWrite}, isCoreTeam=${isCoreTeam}`);
+            } catch (error) {
+              console.log(`Error checking permissions: ${error.message}`);
+              core.setOutput('has-write', false);
+              core.setOutput('is-core-team', false);
+            }
+
+      - name: Rate limiting check
+        id: rate-limit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const actor = context.actor;
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000;
+            
+            // Check recent workflow runs for this user
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'claude-pr-assistant-secure.yml',
+              per_page: 50
+            });
+            
+            const recentRuns = runs.workflow_runs.filter(run => 
+              run.actor.login === actor && 
+              new Date(run.created_at).getTime() > (now - oneHour)
+            );
+            
+            // Limit to 5 runs per hour per user
+            const rateLimitOk = recentRuns.length < 5;
+            core.setOutput('ok', rateLimitOk);
+            
+            if (!rateLimitOk) {
+              console.log(`Rate limit exceeded for ${actor}: ${recentRuns.length} runs in past hour`);
+            }
+
+      - name: Validate request
+        id: validate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let commentBody = '';
+            
+            if (context.eventName === 'issue_comment') {
+              commentBody = context.payload.comment.body;
+            } else if (context.eventName === 'pull_request_review_comment') {
+              commentBody = context.payload.comment.body;
+            } else if (context.eventName === 'pull_request_review') {
+              commentBody = context.payload.review.body || '';
+            } else if (context.eventName === 'issues') {
+              commentBody = context.payload.issue.body || '';
+            }
+            
+            // Check for valid @claude mentions with actual requests
+            const hasClaudeMention = commentBody.includes('@claude');
+            const hasMinLength = commentBody.length > 20; // Minimum meaningful request length
+            const hasCodeKeywords = /\b(code|function|contract|implement|fix|review|test|debug|analyze|facet|diamond|protocol|economic|season|silo|field|gauge|oracle|minting|stablecoin)\b/i.test(commentBody);
+            
+            // Special handling for facet analysis (should use dedicated workflow)
+            const isFacetAnalysis = /\b(facet|diamond)\s+(analyze|analysis|impact|address|change)/i.test(commentBody);
+            
+            const isValidRequest = hasClaudeMention && hasMinLength && hasCodeKeywords && !isFacetAnalysis;
+            
+            core.setOutput('should-run', isValidRequest);
+            console.log(`Request validation: mention=${hasClaudeMention}, length=${hasMinLength}, keywords=${hasCodeKeywords}, facetAnalysis=${isFacetAnalysis}, valid=${isValidRequest}`);
+            
+            if (isFacetAnalysis) {
+              console.log('Detected facet analysis request - this should be handled by the facet analyzer workflow');
+            }
+
+  claude-code-action:
+    needs: security-checks
+    if: |
+      needs.security-checks.outputs.should-run == 'true' && 
+      needs.security-checks.outputs.rate-limit-ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Reduced from 60
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Log security context
+        run: |
+          echo "User: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Rate limit passed: ${{ needs.security-checks.outputs.rate-limit-ok }}"
+
+      - name: Run Claude PR Action
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          timeout_minutes: "25"  # Leave buffer before job timeout
+        env:
+          # Add cost monitoring
+          ANTHROPIC_LOG_LEVEL: "info"
+          GITHUB_CONTEXT: ${{ toJson(github) }}

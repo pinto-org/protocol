@@ -1,0 +1,349 @@
+name: Claude Facet Impact Analyzer
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  check-permissions:
+    runs-on: ubuntu-latest
+    outputs:
+      has-write: ${{ steps.check.outputs.has-write }}
+      should-analyze: ${{ steps.validate.outputs.should-analyze }}
+    steps:
+      - name: Check user permissions
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const actor = context.actor;
+            const repo = context.repo;
+            
+            try {
+              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: repo.owner,
+                repo: repo.repo,
+                username: actor
+              });
+              
+              const hasWrite = ['write', 'admin', 'maintain'].includes(permission.permission);
+              core.setOutput('has-write', hasWrite);
+              console.log(`User ${actor} has permission: ${permission.permission}, has write: ${hasWrite}`);
+            } catch (error) {
+              console.log(`Error checking permissions for ${actor}: ${error.message}`);
+              core.setOutput('has-write', false);
+            }
+
+      - name: Validate trigger
+        id: validate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let commentBody = '';
+            let isPR = false;
+            
+            if (context.eventName === 'issue_comment') {
+              commentBody = context.payload.comment.body;
+              isPR = !!context.payload.issue.pull_request;
+            } else if (context.eventName === 'pull_request_review_comment') {
+              commentBody = context.payload.comment.body;
+              isPR = true;
+            }
+            
+            // Check for facet analysis trigger commands
+            const triggerPatterns = [
+              /@claude\s+analyze\s+facets?/i,
+              /@claude\s+facet\s+impact/i,
+              /@claude\s+what\s+facets?\s+changed/i,
+              /@claude\s+show\s+facet\s+addresses/i
+            ];
+            
+            const shouldAnalyze = isPR && triggerPatterns.some(pattern => pattern.test(commentBody));
+            core.setOutput('should-analyze', shouldAnalyze);
+            
+            console.log(`Comment: "${commentBody}"`);
+            console.log(`Is PR: ${isPR}`);
+            console.log(`Should analyze: ${shouldAnalyze}`);
+
+  analyze-facet-impact:
+    needs: check-permissions
+    if: |
+      needs.check-permissions.outputs.has-write == 'true' && 
+      needs.check-permissions.outputs.should-analyze == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prNumber;
+            if (context.eventName === 'issue_comment') {
+              prNumber = context.payload.issue.number;
+            } else if (context.eventName === 'pull_request_review_comment') {
+              prNumber = context.payload.pull_request.number;
+            }
+            
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            
+            core.setOutput('pr-number', prNumber);
+            core.setOutput('base-sha', pr.base.sha);
+            core.setOutput('head-sha', pr.head.sha);
+            core.setOutput('base-branch', pr.base.ref);
+            core.setOutput('head-branch', pr.head.ref);
+            
+            return pr;
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: |
+          npm install --save-dev hardhat @nomiclabs/hardhat-ethers ethers dotenv
+
+      - name: Analyze Solidity file changes
+        id: analyze-changes
+        run: |
+          echo "Analyzing changes between ${{ steps.pr-details.outputs.base-sha }} and ${{ steps.pr-details.outputs.head-sha }}"
+          
+          # Get changed Solidity files
+          CHANGED_SOL_FILES=$(git diff --name-only ${{ steps.pr-details.outputs.base-sha }}..${{ steps.pr-details.outputs.head-sha }} | grep -E '\.sol$' | grep -E 'facets/' || true)
+          
+          # Get changed facet names
+          CHANGED_FACETS=""
+          if [ -n "$CHANGED_SOL_FILES" ]; then
+            echo "Changed Solidity files in facets:"
+            echo "$CHANGED_SOL_FILES"
+            
+            # Extract facet names from file paths
+            for file in $CHANGED_SOL_FILES; do
+              if [[ "$file" == *"Facet.sol" ]]; then
+                FACET_NAME=$(basename "$file" .sol)
+                if [ -n "$CHANGED_FACETS" ]; then
+                  CHANGED_FACETS="$CHANGED_FACETS,$FACET_NAME"
+                else
+                  CHANGED_FACETS="$FACET_NAME"
+                fi
+              fi
+            done
+          fi
+          
+          echo "changed-files=$CHANGED_SOL_FILES" >> $GITHUB_OUTPUT
+          echo "changed-facets=$CHANGED_FACETS" >> $GITHUB_OUTPUT
+          
+          # Also check for library changes that might affect facets
+          CHANGED_LIBS=$(git diff --name-only ${{ steps.pr-details.outputs.base-sha }}..${{ steps.pr-details.outputs.head-sha }} | grep -E 'libraries/.*\.sol$' || true)
+          echo "changed-libraries=$CHANGED_LIBS" >> $GITHUB_OUTPUT
+
+      - name: Setup environment for facet lookup
+        if: steps.analyze-changes.outputs.changed-facets != ''
+        run: |
+          # Create minimal .env file for the hardhat task
+          echo "ETHERSCAN_KEY_BASE=${{ secrets.ETHERSCAN_KEY_BASE }}" > .env
+          echo "BASE_RPC=${{ secrets.BASE_RPC }}" >> .env
+          
+          # Debug: Check if the task exists
+          echo "Available Hardhat tasks:"
+          npx hardhat --help | grep -A 20 "AVAILABLE TASKS" || echo "Could not list tasks"
+          
+          # Check if our task is available
+          if npx hardhat help facetAddresses 2>/dev/null; then
+            echo "✅ facetAddresses task is available"
+          else
+            echo "❌ facetAddresses task not found"
+          fi
+
+      - name: Get facet addresses
+        id: facet-addresses
+        if: steps.analyze-changes.outputs.changed-facets != ''
+        run: |
+          echo "Looking up addresses for changed facets: ${{ steps.analyze-changes.outputs.changed-facets }}"
+          
+          # Try to run the hardhat task to get specific facet addresses
+          if npx hardhat facetAddresses --facets "${{ steps.analyze-changes.outputs.changed-facets }}" --network base --urls > facet_output.txt 2>&1; then
+            echo "✅ Successfully retrieved individual facet addresses"
+            FACET_OUTPUT=$(cat facet_output.txt)
+          else
+            echo "⚠️ Could not retrieve individual facet addresses, providing diamond contract info"
+            FACET_OUTPUT="📍 Current Facet Addresses on Base Mainnet
+
+📦 Pinto Protocol Diamond: 0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f
+🔗 https://basescan.org/address/0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f
+
+Note: Individual facet addresses are managed through the Diamond pattern. The main diamond contract routes calls to the appropriate facet implementations. Use the diamond contract address above to interact with all facets including ${{ steps.analyze-changes.outputs.changed-facets }}.
+
+Additional Key Addresses:
+📦 Diamond Deployer: 0x183926c42993478F6b2eb8CDEe0BEa524B119ab2
+🔗 https://basescan.org/address/0x183926c42993478F6b2eb8CDEe0BEa524B119ab2
+
+📦 PINTO Token: 0xb170000aeeFa790fa61D6e837d1035906839a3c8
+🔗 https://basescan.org/address/0xb170000aeeFa790fa61D6e837d1035906839a3c8
+
+💡 To get individual facet addresses, ensure ETHERSCAN_KEY_BASE is configured and the facetAddresses task is working properly."
+          fi
+          
+          # Convert to base64 to safely pass through GitHub Actions
+          FACET_OUTPUT_B64=$(echo "$FACET_OUTPUT" | base64 -w 0)
+          echo "facet-output=$FACET_OUTPUT_B64" >> $GITHUB_OUTPUT
+
+      - name: Analyze economic impact
+        id: economic-impact
+        if: steps.analyze-changes.outputs.changed-facets != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const changedFacets = '${{ steps.analyze-changes.outputs.changed-facets }}'.split(',').filter(f => f.trim());
+            const changedLibraries = '${{ steps.analyze-changes.outputs.changed-libraries }}'.split('\n').filter(f => f.trim());
+            
+            // Define facet impact categories
+            const criticalFacets = ['SeasonFacet', 'FieldFacet', 'SiloFacet'];
+            const economicFacets = ['SeasonFacet', 'OracleFacet', 'GaugeFacet', 'ConvertFacet'];
+            const governanceFacets = ['OwnershipFacet', 'PauseFacet'];
+            
+            let impact = {
+              level: 'LOW',
+              critical: [],
+              economic: [],
+              governance: [],
+              other: []
+            };
+            
+            changedFacets.forEach(facet => {
+              if (criticalFacets.includes(facet)) {
+                impact.critical.push(facet);
+                impact.level = 'CRITICAL';
+              } else if (economicFacets.includes(facet)) {
+                impact.economic.push(facet);
+                if (impact.level === 'LOW') impact.level = 'HIGH';
+              } else if (governanceFacets.includes(facet)) {
+                impact.governance.push(facet);
+                if (impact.level === 'LOW') impact.level = 'MEDIUM';
+              } else {
+                impact.other.push(facet);
+              }
+            });
+            
+            core.setOutput('impact-level', impact.level);
+            core.setOutput('impact-summary', JSON.stringify(impact));
+
+      - name: Generate analysis comment
+        uses: actions/github-script@v7
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          script: |
+            const changedFacets = '${{ steps.analyze-changes.outputs.changed-facets }}';
+            const changedFiles = '${{ steps.analyze-changes.outputs.changed-files }}';
+            const facetOutputB64 = '${{ steps.facet-addresses.outputs.facet-output }}';
+            const impactLevel = '${{ steps.economic-impact.outputs.impact-level }}';
+            const impactSummary = '${{ steps.economic-impact.outputs.impact-summary }}';
+            
+            let comment = `## 🔍 Facet Impact Analysis\n\n`;
+            comment += `**Triggered by:** @${context.actor}\n\n`;
+            
+            if (!changedFacets) {
+              comment += `### ✅ No Facet Changes Detected\n\n`;
+              comment += `This PR does not modify any facet contracts.\n\n`;
+              
+              if ('${{ steps.analyze-changes.outputs.changed-libraries }}') {
+                comment += `**📚 Library Changes Detected:**\n`;
+                const libs = '${{ steps.analyze-changes.outputs.changed-libraries }}'.split('\n').filter(f => f.trim());
+                libs.forEach(lib => {
+                  comment += `- \`${lib}\`\n`;
+                });
+                comment += `\n⚠️ Library changes may affect multiple facets. Consider running dependency analysis.\n\n`;
+              }
+            } else {
+              comment += `### 🎯 Impact Level: **${impactLevel}**\n\n`;
+              
+              const impact = JSON.parse(impactSummary);
+              
+              if (impact.critical.length > 0) {
+                comment += `### 🚨 Critical Facets Changed\n`;
+                impact.critical.forEach(facet => {
+                  comment += `- **${facet}** - Core protocol functionality\n`;
+                });
+                comment += `\n`;
+              }
+              
+              if (impact.economic.length > 0) {
+                comment += `### 💰 Economic Facets Changed\n`;
+                impact.economic.forEach(facet => {
+                  comment += `- **${facet}** - Economic mechanism\n`;
+                });
+                comment += `\n`;
+              }
+              
+              if (impact.governance.length > 0) {
+                comment += `### ⚖️ Governance Facets Changed\n`;
+                impact.governance.forEach(facet => {
+                  comment += `- **${facet}** - Protocol governance\n`;
+                });
+                comment += `\n`;
+              }
+              
+              if (impact.other.length > 0) {
+                comment += `### 🔧 Other Facets Changed\n`;
+                impact.other.forEach(facet => {
+                  comment += `- **${facet}**\n`;
+                });
+                comment += `\n`;
+              }
+              
+              // Add facet addresses if available
+              if (facetOutputB64) {
+                try {
+                  const facetOutput = Buffer.from(facetOutputB64, 'base64').toString('utf-8');
+                  comment += `### 📍 Current Facet Addresses on Base Mainnet\n\n`;
+                  comment += '```\n';
+                  comment += facetOutput;
+                  comment += '\n```\n\n';
+                } catch (e) {
+                  comment += `### ❌ Error Getting Facet Addresses\n\n`;
+                  comment += `Could not retrieve current facet addresses from Base mainnet.\n\n`;
+                }
+              }
+            }
+            
+            comment += `### 📋 Changed Files\n`;
+            if (changedFiles) {
+              const files = changedFiles.split('\n').filter(f => f.trim());
+              files.forEach(file => {
+                comment += `- \`${file}\`\n`;
+              });
+            } else {
+              comment += `No Solidity files in facets/ directory were changed.\n`;
+            }
+            
+            comment += `\n### 🛡️ Security Checklist\n`;
+            comment += `- [ ] Impact assessment reviewed\n`;
+            comment += `- [ ] Test coverage verified for changed facets\n`;
+            comment += `- [ ] Gas usage analysis completed\n`;
+            comment += `- [ ] Economic parameter changes validated\n`;
+            comment += `- [ ] Access control changes reviewed\n\n`;
+            
+            comment += `---\n`;
+            comment += `*This analysis was generated automatically. For manual facet lookup, use:*\n`;
+            comment += `\`@claude analyze facets\` or \`@claude facet impact\`\n\n`;
+            comment += `🤖 *Generated by Claude Facet Analyzer*`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr-details.outputs.pr-number }},
+              body: comment
+            });
