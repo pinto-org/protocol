@@ -71,9 +71,9 @@ contract InitZeroWell {
         Call[] memory pumps,
         address aquifer,
         address wellImplementation,
-        bytes32 salt,
-        string memory name,
-        string memory symbol,
+        bytes32,
+        string memory,
+        string memory,
         address wellToUpgrade
     ) internal {
         // Encode well data

@@ -18,12 +18,12 @@ contract InitPI8 {
     function init() external {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
-        // Update min soil sown demand.
-        s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
-        emit LibUpdate.UpdatedExtEvaluationParameters(
-            s.sys.season.current,
-            s.sys.extEvaluationParameters
-        );
+        // Update min soil sown demand. note: was removed in PI9
+        // s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
+        // emit LibUpdate.UpdatedExtEvaluationParameters(
+        //     s.sys.season.current,
+        //     s.sys.extEvaluationParameters
+        // );
 
         uint256 oldMaxBeanMaxLpGpPerBdvRatio = s.sys.seedGauge.beanToMaxLpGpPerBdvRatio;
         // get current crop ratio
