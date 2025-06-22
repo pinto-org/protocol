@@ -306,17 +306,15 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             } else if (
                 cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.NOT_FILLED &&
                 (cd != LibConvert.ConvertDemand.DECREASING ||
-                    gv.bonusStalkPerBdv >= gd.lastConvertBonusTaken)
+                    gv.bonusStalkPerBdv < gd.lastConvertBonusTaken)
             ) {
                 // this if block is executed when:
                 // 1) capacity not filled
                 // AND either:
                 // 2a) demand is not decreasing (steady/increasing), OR
-                // 2b) demand is decreasing AND current bonus >= last bonus taken
+                // 2b) demand is decreasing AND current bonus < last bonus taken
                 //
                 // decrease convert capacity factor:
-                // - if demand steady/increasing: create scarcity to match user demand
-                // - if demand decreasing with good bonus: stimulate demand by reducing capacity
                 amountChange = 1e12 / amountChange;
                 gv.convertCapacityFactor = LibGaugeHelpers.linear256(
                     gv.convertCapacityFactor,
