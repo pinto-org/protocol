@@ -88,7 +88,8 @@ library LibInitGauges {
             MAX_DELTA_CAPACITY, // maxDeltaCapacity - maximum delta capacity used to change the rate of change in the capacity factor
             0, // bdvConvertedThisSeason
             0, // bdvConvertedLastSeason
-            twaDeltaB // maxTwaDeltaB
+            twaDeltaB, // maxTwaDeltaB
+            0 // lastConvertBonusTaken
         );
         Gauge memory convertBonusGauge = Gauge(
             abi.encode(gv),

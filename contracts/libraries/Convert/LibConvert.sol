@@ -47,6 +47,12 @@ library LibConvert {
     uint256 constant CONVERT_DEMAND_UPPER_BOUND = 1.05e6; // 5% above 1
     uint256 constant CONVERT_DEMAND_LOWER_BOUND = 0.95e6; // 5% below 1
 
+    enum ConvertDemand {
+        DECREASING,
+        STEADY,
+        INCREASING
+    }
+
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
 
@@ -788,6 +794,38 @@ library LibConvert {
     }
 
     /**
+     * @notice Calculates the demand for converts based on current and previous season BDV converted.
+     * @param bdvConvertedThisSeason The BDV converted in the current season.
+     * @param bdvConvertedLastSeason The BDV converted in the previous season.
+     * @return The convert demand state (INCREASING, STEADY, or DECREASING).
+     */
+    function calculateConvertDemand(
+        uint256 bdvConvertedThisSeason,
+        uint256 bdvConvertedLastSeason
+    ) internal pure returns (ConvertDemand) {
+        // if nothing was converted last season, and something was converted this season,
+        // the demand is increasing.
+        if (bdvConvertedLastSeason == 0) {
+            if (bdvConvertedThisSeason > 0) {
+                return ConvertDemand.INCREASING;
+            } else {
+                return ConvertDemand.DECREASING;
+            }
+        } else {
+            // calculate the convert demand in order to determine if the demand is increasing or decreasing.
+            uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /
+                bdvConvertedLastSeason;
+            if (convertDemand > CONVERT_DEMAND_UPPER_BOUND) {
+                return ConvertDemand.INCREASING;
+            } else if (convertDemand < CONVERT_DEMAND_LOWER_BOUND) {
+                return ConvertDemand.DECREASING;
+            } else {
+                return ConvertDemand.STEADY;
+            }
+        }
+    }
+
+    /**
      * @notice Gets the time weighted convert capacity for the current season
      * @dev the amount of bdv that can be converted with a bonus ramps up linearly over the course of the season,
      * allowing converts to be more efficient and incur less slippage.
@@ -809,15 +847,13 @@ library LibConvert {
      * @notice Gets the bonus stalk per bdv for the current season.
      * @dev the bonus stalk per Bdv is updated based on the convert demand and the difference between the bean seeds and the max lp seeds.
      * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
-     * @param bdvConvertedThisSeason The BDV converted in the current season.
-     * @param bdvConvertedLastSeason The BDV converted in the previous season.
+     * @param convertDemand The convert demand state (INCREASING, STEADY, or DECREASING).
      * @param twaDeltaB The twaDeltaB of the current season.
      * @return The updated bonus stalk per bdv.
      */
     function updateBonusStalkPerBdv(
         uint256 bonusStalkPerBdv,
-        uint256 bdvConvertedThisSeason,
-        uint256 bdvConvertedLastSeason,
+        ConvertDemand convertDemand,
         int256 twaDeltaB
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -835,29 +871,17 @@ library LibConvert {
         if (beanSeeds >= maxLpSeeds) {
             uint256 bonusStalkPerBdvChange = (beanSeeds - maxLpSeeds) / C.PRECISION;
 
-            // if nothing was converted last season, and something was converted this season,
-            // the bonus should increase.
-            if (bdvConvertedLastSeason == 0) {
-                if (bdvConvertedThisSeason > 0) {
-                    // zero bdv was converted last season, and non-zero bdv was converted this season,
-                    // the bonus should increase.
-                    return bonusStalkPerBdv + bonusStalkPerBdvChange;
+            // adjust bonus based on convert demand
+            if (convertDemand == ConvertDemand.INCREASING) {
+                if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
+                    return 0;
                 } else {
-                    // nothing was converted last season, and nothing was converted this season,
-                    // the bonus should decrease.
                     return bonusStalkPerBdv - bonusStalkPerBdvChange;
                 }
+            } else if (convertDemand == ConvertDemand.DECREASING) {
+                return bonusStalkPerBdv + bonusStalkPerBdvChange;
             } else {
-                // calculate the convert demand in order to determine if the bonus should increase or decrease.
-                uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /
-                    bdvConvertedLastSeason;
-                if (convertDemand > CONVERT_DEMAND_UPPER_BOUND) {
-                    return bonusStalkPerBdv + bonusStalkPerBdvChange;
-                } else if (convertDemand < CONVERT_DEMAND_LOWER_BOUND) {
-                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
-                } else {
-                    return bonusStalkPerBdv;
-                }
+                return bonusStalkPerBdv;
             }
         } else if (twaDeltaB >= 0) {
             // if the bean seeds are less than the max lp seeds (implying the crop ratio < 100%),

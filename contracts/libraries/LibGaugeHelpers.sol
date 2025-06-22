@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 import {Gauge, GaugeId} from "../beanstalk/storage/System.sol";
 import {LibAppStorage} from "./LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
+import {C} from "contracts/C.sol";
 
 /**
  * @title LibGaugeHelpers
@@ -51,6 +52,13 @@ library LibGaugeHelpers {
         uint256 bdvConvertedThisSeason;
         uint256 bdvConvertedLastSeason;
         uint256 maxTwaDeltaB;
+        uint256 lastConvertBonusTaken;
+    }
+
+    enum ConvertBonusCapacityUtilization {
+        NOT_FILLED,
+        MOSTLY_FILLED,
+        FILLED
     }
 
     // Gauge events
@@ -249,6 +257,30 @@ library LibGaugeHelpers {
             GaugeId.CULTIVATION_FACTOR,
             abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, soldOutTemp, temperature)
         );
+    }
+
+    /**
+     * @notice Returns an enum indicating how much of the convert capacity has been filled. Used in the Convert Bonus Gauge.
+     * @param bdvConvertedThisSeason The amount of bdv converted this season.
+     * @param maxConvertCapacity The maximum amount of bdv that can be converted in a season and get a bonus.
+     * @return The capacity filled state.
+     */
+    function getConvertBonusCapacityUtilization(
+        uint256 bdvConvertedThisSeason,
+        uint256 maxConvertCapacity
+    ) internal pure returns (ConvertBonusCapacityUtilization) {
+        if (
+            bdvConvertedThisSeason >= (maxConvertCapacity * CONVERT_CAPACITY_FILLED) / C.PRECISION_6
+        ) {
+            return ConvertBonusCapacityUtilization.FILLED;
+        } else if (
+            bdvConvertedThisSeason >=
+            (maxConvertCapacity * CONVERT_CAPACITY_MOSTLY_FILLED) / C.PRECISION_6
+        ) {
+            return ConvertBonusCapacityUtilization.MOSTLY_FILLED;
+        } else {
+            return ConvertBonusCapacityUtilization.NOT_FILLED;
+        }
     }
 
     /// GAUGE BLOCKS ///
