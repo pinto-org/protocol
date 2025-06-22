@@ -811,12 +811,14 @@ library LibConvert {
      * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
      * @param bdvConvertedThisSeason The BDV converted in the current season.
      * @param bdvConvertedLastSeason The BDV converted in the previous season.
+     * @param twaDeltaB The twaDeltaB of the current season.
      * @return The updated bonus stalk per bdv.
      */
     function updateBonusStalkPerBdv(
         uint256 bonusStalkPerBdv,
         uint256 bdvConvertedThisSeason,
-        uint256 bdvConvertedLastSeason
+        uint256 bdvConvertedLastSeason,
+        int256 twaDeltaB
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // get stem tips for all whitelisted lp tokens and get the min
@@ -857,10 +859,14 @@ library LibConvert {
                     return bonusStalkPerBdv;
                 }
             }
-        } else {
-            // if the bean seeds are less than the max lp seeds, the bonus is reset.
-            // This occurs when the crop ratio is < 100%.
+        } else if (twaDeltaB >= 0) {
+            // if the bean seeds are less than the max lp seeds (implying the crop ratio < 100%),
+            // and twaDeltaB is positive, the bonus is reset.
             return 0;
+        } else {
+            // if the bean seeds are less than the max lp seeds, and twaDeltaB is negative,
+            // the bonus remains unchanged.
+            return bonusStalkPerBdv;
         }
     }
 

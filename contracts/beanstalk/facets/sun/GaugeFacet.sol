@@ -253,88 +253,86 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        if (bs.twaDeltaB < 0) {
-            // check whether the current twaDeltaB is greater than the max twaDeltaB.
-            if (uint256(-bs.twaDeltaB) > gd.maxTwaDeltaB) {
-                gd.maxTwaDeltaB = uint256(-bs.twaDeltaB);
+        // if there is a non-zero convert capacity, calculate the demand for a bonus and update the capacity factor.
+        if (gv.maxConvertCapacity > 0) {
+            bool capacityFilled = gd.bdvConvertedThisSeason >=
+                (gv.maxConvertCapacity * LibGaugeHelpers.CONVERT_CAPACITY_FILLED) / C.PRECISION_6;
+
+            bool capacityMostlyFilled = gd.bdvConvertedThisSeason >=
+                (gv.maxConvertCapacity * LibGaugeHelpers.CONVERT_CAPACITY_MOSTLY_FILLED) /
+                    C.PRECISION_6;
+
+            // update the capacity factor based on capacity filling.
+            // capacity filled == true, capacity mostly filled == false => increase capacity factor.
+            // capacity filled == true, capacity mostly filled == true => increase capacity factor.
+            // capacity filled == false, capacity mostly filled == false => decrease capacity factor.
+            // capacity filled == false, capacity mostly filled == true => do nothing.
+            if (
+                bs.lpToSupplyRatio.value > 0 && // if l2sr is 0, assume Oracle Failure.
+                (capacityFilled || (!capacityFilled && !capacityMostlyFilled))
+            ) {
+                // determine amount change as a function of twaL2SR.
+                // amount change has 6 decimal precision.
+                uint256 amountChange = LibGaugeHelpers.linearInterpolation(
+                    bs.lpToSupplyRatio.value,
+                    true,
+                    s.sys.evaluationParameters.lpToSupplyRatioLowerBound,
+                    s.sys.evaluationParameters.lpToSupplyRatioUpperBound,
+                    gd.minDeltaCapacity,
+                    gd.maxDeltaCapacity
+                );
+
+                if (!capacityFilled) {
+                    // if convert capacity is decreasing, inverse the amount change.
+                    // see whitepaper for more details.
+                    amountChange = 1e12 / amountChange;
+                }
+                gv.convertCapacityFactor = LibGaugeHelpers.linear256(
+                    gv.convertCapacityFactor,
+                    capacityFilled,
+                    amountChange,
+                    LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR,
+                    LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
+                );
             }
         }
-        // if the bonus is greater than 0, calculate convert capacity
 
         // update the bonus stalk per bdv.
         gv.bonusStalkPerBdv = LibConvert.updateBonusStalkPerBdv(
             gv.bonusStalkPerBdv,
             gd.bdvConvertedThisSeason,
-            gd.bdvConvertedLastSeason
+            gd.bdvConvertedLastSeason,
+            bs.twaDeltaB
         );
 
-        // update capacity factor based on convert demand, regardless of bonus stalk
-        bool capacityFilled;
-        bool capacityMostlyFilled;
-        if (gv.maxConvertCapacity > 0) {
-            capacityFilled =
-                gd.bdvConvertedThisSeason >=
-                (gv.maxConvertCapacity * LibGaugeHelpers.CONVERT_CAPACITY_FILLED) / C.PRECISION_6;
-
-            capacityMostlyFilled =
-                gd.bdvConvertedThisSeason >=
-                (gv.maxConvertCapacity * LibGaugeHelpers.CONVERT_CAPACITY_MOSTLY_FILLED) /
-                    C.PRECISION_6;
-        }
-
-        // determine amount change as a function of twaL2SR.
-        // amount change has 6 decimal precision.
-        uint256 amountChange = LibGaugeHelpers.linearInterpolation(
-            bs.lpToSupplyRatio.value,
-            true,
-            s.sys.evaluationParameters.lpToSupplyRatioLowerBound,
-            s.sys.evaluationParameters.lpToSupplyRatioUpperBound,
-            gd.minDeltaCapacity,
-            gd.maxDeltaCapacity
-        );
-
-        // update the capacity factor based on capacity filling.
-        // capacity filled == true, capacity mostly filled == false => increase capacity factor.
-        // capacity filled == true, capacity mostly filled == true => increase capacity factor.
-        // capacity filled == false, capacity mostly filled == false => decrease capacity factor.
-        // capacity filled == false, capacity mostly filled == true => do nothing.
-        if (capacityFilled || (!capacityFilled && !capacityMostlyFilled)) {
-            if (!capacityFilled) {
-                // if convert capacity is decreasing, inverse the amount change.
-                // see whitepaper for more details.
-                amountChange = 1e12 / amountChange;
+        if (bs.twaDeltaB >= 0) {
+            // If twaDeltaB is positive, set capacity to 0 (no convert up bonus)
+            gv.maxConvertCapacity = 0;
+            // Only reset maxTwaDeltaB if there is no bonus.
+            if (gv.bonusStalkPerBdv == 0) {
+                gd.maxTwaDeltaB = 0;
             }
-            gv.convertCapacityFactor = LibGaugeHelpers.linear256(
-                gv.convertCapacityFactor,
-                capacityFilled,
-                amountChange,
-                LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR,
-                LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
-            );
-        }
-
-        // if the bonus is greater than 0, calculate convert capacity
-        if (gv.bonusStalkPerBdv > 0) {
-            // calculate the target seasons as a function of podRate.
-            // @dev `targetSeasons` has 6 decimal precision.
+        } else if (gv.bonusStalkPerBdv > 0) {
+            // Calculate target seasons based on podRate.
             uint256 targetSeasons = LibGaugeHelpers.linearInterpolation(
-                bs.podRate.value, // scaling podRate.
-                false, // inversely proportional to podRate.
-                s.sys.evaluationParameters.podRateLowerBound, // min podRate.
-                s.sys.evaluationParameters.podRateUpperBound, // max podRate.
-                gd.minSeasonTarget, // min target seasons.
-                gd.maxSeasonTarget // max target seasons.
+                bs.podRate.value,
+                false,
+                s.sys.evaluationParameters.podRateLowerBound,
+                s.sys.evaluationParameters.podRateUpperBound,
+                gd.minSeasonTarget,
+                gd.maxSeasonTarget
             );
 
-            // update the convert capacity
-            // @dev `twaDeltaB` has 6 decimal precision.
-            // @dev `targetSeasons` has 6 decimal precision.
-            // @dev `convertCapacityFactor` has 6 decimal precision.
+            // Update maxTwaDeltaB if current twaDeltaB is larger.
+            uint256 currentTwaDeltaB = uint256(-bs.twaDeltaB);
+            if (currentTwaDeltaB > gd.maxTwaDeltaB) {
+                gd.maxTwaDeltaB = currentTwaDeltaB;
+            }
+
+            // Calculate convert capacity
+            // `twaDeltaB`, `targetSeasons`, and `convertCapacityFactor` have 6 decimal precision.
             // 6 + 6 - 6 = 6 decimal precision.
             gv.maxConvertCapacity = (gd.maxTwaDeltaB * gv.convertCapacityFactor) / targetSeasons;
-        } else {
-            // if the bonus is 0, reset max convert capacity only.
-            gv.maxConvertCapacity = 0;
         }
 
         // always reset bdv converted tracking for next season
@@ -345,21 +343,6 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     }
 
     /// GAUGE ADD/REMOVE/UPDATE ///
-
-    // function addGauge(GaugeId gaugeId, Gauge memory gauge) external {
-    //     LibDiamond.enforceIsContractOwner();
-    //     LibGaugeHelpers.addGauge(gaugeId, gauge);
-    // }
-
-    // function removeGauge(GaugeId gaugeId) external {
-    //     LibDiamond.enforceIsContractOwner();
-    //     LibGaugeHelpers.removeGauge(gaugeId);
-    // }
-
-    // function updateGauge(GaugeId gaugeId, Gauge memory gauge) external {
-    //     LibDiamond.enforceIsContractOwner();
-    //     LibGaugeHelpers.updateGauge(gaugeId, gauge);
-    // }
 
     function getGauge(GaugeId gaugeId) external view returns (Gauge memory) {
         return s.sys.gaugeData.gauges[gaugeId];
