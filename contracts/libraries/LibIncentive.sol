@@ -50,7 +50,9 @@ library LibIncentive {
 
     /**
      * @dev fraxExp scales up the bean reward based on the seconds late.
-     * the formula is beans * (1.01)^(seconds late).
+     * The formula is `beans * (1.01)^(seconds late)`.
+     * While the underlying compounding factor is 1.01 per second, the function applies
+     * pre-calculated multipliers. For instance, for up to 2 seconds late, it uses 1.0201.
      */
     function fracExp(
         uint256 beans,
