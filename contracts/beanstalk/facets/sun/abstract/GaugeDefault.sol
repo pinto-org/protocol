@@ -64,13 +64,7 @@ abstract contract GaugeDefault {
                 false
             );
 
-            // gauge points cannot go above MAX_GAUGE_POINTS.
-            if (deltaPoints + currentGaugePoints < MAX_GAUGE_POINTS) {
-                return currentGaugePoints + deltaPoints;
-            } else {
-                // Cap gaugePoints to MAX_GAUGE_POINTS if it exceeds.
-                return MAX_GAUGE_POINTS;
-            }
+            return currentGaugePoints + deltaPoints;
         } else {
             // If % of deposited BDV is 10% within range of optimal,
             // keep gauge points the same.

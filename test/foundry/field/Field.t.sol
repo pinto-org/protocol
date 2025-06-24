@@ -5,7 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
-import "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -21,7 +21,7 @@ contract FieldTest is TestHelper {
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
-        // initalize farmers from farmers (farmer0 == diamond deployer)
+        // initalizes farmers from farmers (farmer0 == diamond deployer)
         farmers.push(users[1]);
         farmers.push(users[2]);
 
@@ -96,12 +96,9 @@ contract FieldTest is TestHelper {
      */
     function testSowAllSoil(uint256 soil, bool from) public {
         soil = bound(soil, 100, type(uint128).max);
-
         bean.mint(farmers[0], soil);
-
         uint256 beanBalanceBefore = bs.getBalance(farmers[0], BEAN);
         uint256 totalBeanSupplyBefore = bean.totalSupply();
-
         if (from) {
             // if internal, transferToken to internal balances.
             vm.prank(farmers[0]);
@@ -111,6 +108,9 @@ contract FieldTest is TestHelper {
         _beforeEachSow(soil, soil, from == true ? 1 : 0);
         sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, soil, _minPods(soil));
         assertEq(field.totalSoil(), 0, "total Soil");
+
+        // verify sowThisTime is set.
+        assertLe(uint256(bs.weather().thisSowTime), type(uint32).max);
     }
 
     /**
@@ -267,13 +267,41 @@ contract FieldTest is TestHelper {
     }
 
     /**
-     * Checking next sow time, with more than 1 soil available *after* sowing.
-     * @dev Does not set `thisSowTime` if `s.sys.soil` is above the dynamic threshold.
+     * Checking next sow time, with more than 1 soil above the dynamic mostly sold out threshold.
+     * @dev Verifies that `thisSowTime` is at the max value
      */
-    function testComplexDPDMoreThan1Soil(uint256 initialSoil, uint256 farmerSown) public {
+    function testComplexDPDMoreThan1SoilMostlySoldOut(
+        uint256 initialSoil,
+        uint256 farmerSown
+    ) public {
         initialSoil = bound(initialSoil, 2e6, type(uint128).max);
         // calculate threshold
-        uint256 soilSoldOutThreshold = (initialSoil < 100e6) ? (initialSoil * 50) / 100 : 50e6;
+        uint256 soilSoldOutThreshold = (initialSoil < 500e6) ? (initialSoil * 0.1e6) / 1e6 : 50e6;
+        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
+            soilSoldOutThreshold;
+        // ensure at least `soilSoldOutThreshold + 1` remains after sowing
+        farmerSown = bound(farmerSown, 1, initialSoil - (mostlySoldOutThreshold + 1));
+        // set initial soil
+        bs.setSoilE(initialSoil);
+        bean.mint(farmers[0], farmerSown);
+        uint256 beans = bean.balanceOf(farmers[0]);
+        // Simulate sowing
+        vm.prank(farmers[0]);
+        field.sow(beans, 0, LibTransfer.From.EXTERNAL);
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        // otherwise, soil is not sold out
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
+    }
+
+    /**
+     * Checking next sow time, with more than at least 1 soil + soldOut threshold.
+     */
+    function testComplexDPDMoreThan1SoilSoldOut(uint256 initialSoil, uint256 farmerSown) public {
+        initialSoil = bound(initialSoil, 2e6, type(uint128).max);
+        // calculate threshold
+        uint256 soilSoldOutThreshold = (initialSoil < 500e6) ? (initialSoil * 0.1e6) / 1e6 : 50e6;
+        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
+            soilSoldOutThreshold;
         // ensure at least `soilSoldOutThreshold + 1` remains after sowing
         farmerSown = bound(farmerSown, 1, initialSoil - (soilSoldOutThreshold + 1));
         // set initial soil
@@ -284,8 +312,14 @@ contract FieldTest is TestHelper {
         vm.prank(farmers[0]);
         field.sow(beans, 0, LibTransfer.From.EXTERNAL);
         IMockFBeanstalk.Weather memory w = bs.weather();
-        // Verify that `thisSowTime` was not set
-        assertEq(uint256(w.thisSowTime), type(uint32).max);
+
+        // if user sowed some amount such that soil is mostly sold out,
+        if (initialSoil - mostlySoldOutThreshold <= farmerSown) {
+            assertEq(uint256(w.thisSowTime), type(uint32).max - 1);
+        } else {
+            // Verify that `thisSowTime` was not set
+            assertEq(uint256(w.thisSowTime), type(uint32).max);
+        }
     }
 
     function _minPods(uint256 sowAmount) internal view returns (uint256) {
@@ -385,7 +419,7 @@ contract FieldTest is TestHelper {
     }
 
     /**
-     * @notice verfies that a farmer's plot index is updated correctly.
+     * @notice verifies that a farmer's plot index is updated correctly.
      * @dev partial harvests and transfers are tested here. full harvests/transfers can be seen in `test_plotIndexMultiple`.
      */
     function test_plotIndexList(uint256 sowAmount, uint256 portion) public {
@@ -449,7 +483,7 @@ contract FieldTest is TestHelper {
     /**
      * @notice performs a series of actions to verify sows multiple times and verifies that the plot index is updated correctly.
      * 1. sowing properly increments the plot index.
-     * 2. transfering a plot properly decrements the senders' plot index,
+     * 2. transferring a plot properly decrements the senders' plot index,
      * and increments the recipients' plot index.
      * 3. harvesting a plot properly decrements the senders' plot index.
      */

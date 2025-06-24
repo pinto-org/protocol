@@ -7,6 +7,8 @@ pragma solidity ^0.8.4;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+
 interface IMockFBeanstalk {
     enum CounterUpdateType {
         INCREASE,
@@ -220,7 +222,6 @@ interface IMockFBeanstalk {
         bool raining;
         uint64 sunriseBlock;
         bool abovePeg;
-        uint32 pegCrossSeason;
         uint256 start;
         uint256 period;
         uint256 timestamp;
@@ -1902,7 +1903,7 @@ interface IMockFBeanstalk {
 
     function getPegCrossStem(address token) external view returns (int96);
 
-    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256);
 
     function mockUpdateBdvConverted(uint256 bdvConverted) external;
 
@@ -1913,10 +1914,27 @@ interface IMockFBeanstalk {
         uint128 thisSeasonBeanSown
     ) external;
 
+    function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
+
+    function setPrevSeasonAndCultivationTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external;
+
     function setSeasonAbovePeg(bool abovePeg) external;
 
     function getConvertStalkPerBdvBonusAndRemainingCapacity()
         external
         view
         returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
+
+    function mockUpdateLastConvertBonusTaken(uint256 newLastConvertBonusTaken) external;
+
+    function mockStepGauges(LibEvaluate.BeanstalkState memory bs) external;
+
+    function mockUpdateStalkPerBdvPerSeasonForToken(
+        address token,
+        uint40 stalkEarnedPerSeason
+    ) external;
+
+    function mowAll(address account) external;
 }

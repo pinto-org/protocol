@@ -15,7 +15,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import "forge-std/console.sol";
 
-contract LEGACY_Pi6ForkTest is TestHelper {
+contract Legacy_Pi6ForkTest is TestHelper {
     using Decimal for Decimal.D256;
     using Strings for uint256;
 
