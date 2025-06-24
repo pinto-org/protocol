@@ -92,8 +92,10 @@ contract CasesTest is TestHelper {
         emit BeanToMaxLpGpPerBdvRatioChange(1, caseId, 0);
 
         uint256 prevTemp = bs.maxTemperature();
-        (uint256 updatedCaseId, ) = season.mockcalcCaseIdAndHandleRain(deltaB);
-        require(updatedCaseId == caseId, "CaseId did not match");
+        require(
+            season.mockcalcCaseIdAndHandleRain(deltaB).caseId == caseId,
+            "CaseId did not match"
+        );
         (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
 
         // verify that the prevSeasonTemp is set.

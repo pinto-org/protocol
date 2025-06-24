@@ -777,7 +777,8 @@ contract SunTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
 
         // Case 1: Soil sold out and Pod rate below lower bound - cultivationFactor should increase
@@ -1013,7 +1014,8 @@ contract SunTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e18, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
 
         // Case 1: Zero price should return (0, false)
@@ -1109,7 +1111,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Test with cultivationFactor = 1%
@@ -1342,7 +1345,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Test with cultivationFactor = 5%
@@ -1849,7 +1853,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: beanPrice,
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Set lastSowTime based on soilSoldOut

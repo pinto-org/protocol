@@ -25,18 +25,19 @@ abstract contract Weather is Sun {
      */
     function calcCaseIdAndHandleRain(
         int256 deltaB
-    ) internal returns (uint256 caseId, LibEvaluate.BeanstalkState memory bs) {
+    ) internal returns (LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
             s.sys.weather.temp = 1e6;
             // Returns an uninitialized Beanstalk State.
-            return (9, bs); // Reasonably low
+            bs.caseId = 9;
+            return bs; // Reasonably low
         }
 
-        // Calculate Case Id
-        (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, bs.oracleFailure);
-        LibFlood.handleRain(caseId);
+        // Evaluate Beanstalk State, and update temperature and BeanToMaxLpGpPerBdvRatio.
+        bs = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
+        LibFlood.handleRain(bs.caseId);
     }
 }

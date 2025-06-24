@@ -49,17 +49,15 @@ library LibWeather {
 
     /**
      * @notice updates the temperature and BeanToMaxLpGpPerBdvRatio, based on the caseId.
-     * @param caseId the state beanstalk is in, based on the current season.
      * @dev currently, an oracle failure does not affect the temperature, as
      * the temperature is not affected by liquidity levels. The function will
      * need to be updated if the temperature is affected by liquidity levels.
      * This is implemented such that liveliness in change in temperature is retained.
      */
     function updateTemperatureAndBeanToMaxLpGpPerBdvRatio(
-        uint256 caseId,
-        LibEvaluate.BeanstalkState memory bs,
-        bool oracleFailure
+        LibEvaluate.BeanstalkState memory bs
     ) external {
+        uint256 caseId = bs.caseId;
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
 
         // if the podrate is > 100% and deltaB is negative, set bt based on soil demand:
@@ -84,7 +82,7 @@ library LibWeather {
 
         // if one of the oracles needed to calculate usd liquidity fails,
         // the beanToMaxLpGpPerBdvRatio should not be updated.
-        if (oracleFailure) return;
+        if (bs.oracleFailure) return;
         updateBeanToMaxLPRatio(cd.bL, caseId);
     }
 

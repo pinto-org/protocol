@@ -725,7 +725,8 @@ contract ConvertTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
         testState.lpToSupplyRatio.value = 0.5e18; // 50% L2SR
         testState.podRate.value = 0.15e18; // 15% pod rate

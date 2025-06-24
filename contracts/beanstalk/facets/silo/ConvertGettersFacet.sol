@@ -164,7 +164,6 @@ contract ConvertGettersFacet {
 
     /**
      * @notice Returns the bonus stalk per bdv and the maximum convert capacity.
-     * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
     function getConvertStalkPerBdvBonusAndMaximumCapacity()
         external
@@ -183,7 +182,6 @@ contract ConvertGettersFacet {
 
     /**
      * @notice Returns the bonus stalk per bdv and the remaining convert capacity.
-     * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
     function getConvertStalkPerBdvBonusAndRemainingCapacity()
         external
@@ -226,7 +224,6 @@ contract ConvertGettersFacet {
 
     /**
      * @notice Returns the amount of grown stalk gained from the convert up bonus.
-     * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param bdvToConvert The resulting bdv of the convert.
      * @param grownStalk The initial grown stalk of the deposit.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.
