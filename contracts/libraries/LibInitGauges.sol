@@ -56,7 +56,9 @@ library LibInitGauges {
                 MIN_DELTA_CULTIVATION_FACTOR,
                 MAX_DELTA_CULTIVATION_FACTOR,
                 MIN_CULTIVATION_FACTOR,
-                MAX_CULTIVATION_FACTOR
+                MAX_CULTIVATION_FACTOR,
+                0,
+                0
             )
         );
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);

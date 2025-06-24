@@ -14,6 +14,7 @@ import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {console} from "forge-std/console.sol";
 

@@ -616,9 +616,6 @@ contract FieldTest is TestHelper {
             } else {
                 assertLe(temperature, maxTemperature, "temperature > max temperature");
             }
-            if (verbose) {
-                console.log("temp", temperature, "seconds since sunrise", i);
-            }
             vm.warp(block.timestamp + 1);
         }
     }
