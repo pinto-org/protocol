@@ -13,10 +13,10 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibWeather} from "../../libraries/Season/LibWeather.sol";
 
 /**
- * @title InitPIConvertBonus
+ * @title InitPI11
  * @dev Initializes parameters for pinto improvement 10.
  **/
-contract InitPIConvertBonus {
+contract InitPI11 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
     uint32 constant PEG_CROSS_SEASON = 2558;
     uint16 constant MORNING_DURATION = 600;
