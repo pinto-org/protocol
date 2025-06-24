@@ -14,7 +14,7 @@ import {LibWeather} from "../../libraries/Season/LibWeather.sol";
 
 /**
  * @title InitPI11
- * @dev Initializes parameters for pinto improvement 10.
+ * @dev Initializes parameters for pinto improvement 11.
  **/
 contract InitPI11 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
