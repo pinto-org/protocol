@@ -48,13 +48,6 @@ library LibWeather {
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
-     * @notice Emitted when the peg state is updated.
-     * @param season The season in which the peg state was updated.
-     * @param abovePeg Whether the peg is above or below.
-     */
-    event PegStateUpdated(uint32 season, bool abovePeg);
-
-    /**
      * @notice updates the temperature and BeanToMaxLpGpPerBdvRatio, based on the caseId.
      * @param caseId the state beanstalk is in, based on the current season.
      * @dev currently, an oracle failure does not affect the temperature, as
