@@ -869,7 +869,7 @@ library LibConvert {
         // if the bean seeds are greater than or equal to the max lp seeds,
         // the bonus is updated based on the convert demand.
         if (beanSeeds >= maxLpSeeds) {
-            uint256 bonusStalkPerBdvChange = (beanSeeds - maxLpSeeds) / C.PRECISION;
+            uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
 
             // adjust bonus based on convert demand
             if (convertDemand == ConvertDemand.INCREASING) {

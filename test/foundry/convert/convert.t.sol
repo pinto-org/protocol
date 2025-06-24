@@ -13,7 +13,6 @@ import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertTest
@@ -706,11 +705,6 @@ contract ConvertTest is TestHelper {
      * @notice verifies convert factors change properly with increasing/decreasing demand for converting.
      */
     function test_convertUpBonus_change() public {
-        // with increasing demand for converting, verify:
-        // convert factor decreases
-        // convert capacity increases.
-        // bonus stalk per bdv increases but decreases slower over time
-
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
             (LibGaugeHelpers.ConvertBonusGaugeValue)
@@ -721,8 +715,7 @@ contract ConvertTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        uint256 bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
-        uint256 deltaBonusStalkPerBdvBefore = type(uint256).max;
+        uint256 bonusStalkPerBdvBefore = type(uint256).max;
 
         // Create BeanstalkState with different pod rates and Bean prices to test different scenarios
         LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
@@ -745,8 +738,12 @@ contract ConvertTest is TestHelper {
         bs.mockUpdateStalkPerBdvPerSeasonForToken(BEAN_ETH_WELL, 1e6);
         bs.mockUpdateStalkPerBdvPerSeasonForToken(BEAN_WSTETH_WELL, 1e6);
         vm.warp(block.timestamp + 1800);
+        bs.mockUpdateStalkPerBdvBonus(1e10);
 
-        for (uint256 i = 0; i < 101; i++) {
+        // scenario 1: increasing demand for converting. A user sows the max amount of beans for the bonus
+        // Bonus should decrease over time.
+        // capacity should increase over time.
+        for (uint256 i = 0; i < 20; i++) {
             bs.mockUpdateBdvConverted(
                 abi
                     .decode(
@@ -756,7 +753,6 @@ contract ConvertTest is TestHelper {
                     .maxConvertCapacity
             );
 
-            bs.mockUpdateStalkPerBdvBonus(1e10);
             bs.mockStepGauges(testState);
             LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
                 bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
@@ -783,13 +779,17 @@ contract ConvertTest is TestHelper {
                 gd.maxSeasonTarget
             );
 
+            // In this test loop, we're mocking that maxConvertCapacity is fully used,
+            // which means capacity is FILLED, so capacity factor should INCREASE
+            uint256 expectedCapacityFactor = min(
+                LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR + (expectedDeltaChange * i),
+                LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
+            );
+
             assertEq(
                 gv.convertCapacityFactor,
-                min(
-                    LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR + (expectedDeltaChange * i),
-                    LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
-                ),
-                "convertCapacityFactor should be increasing"
+                expectedCapacityFactor,
+                "convertCapacityFactor should increase when capacity is filled"
             );
 
             assertEq(
@@ -804,23 +804,133 @@ contract ConvertTest is TestHelper {
                 "bonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
             );
 
-            assertGe(
+            assertLt(
                 gv.bonusStalkPerBdv,
                 bonusStalkPerBdvBefore,
-                "bonusStalkPerBdv should be always be equal or increasing"
+                "bonusStalkPerBdv should be decreasing"
             );
-
-            assertLe(
-                gv.bonusStalkPerBdv - bonusStalkPerBdvBefore,
-                deltaBonusStalkPerBdvBefore,
-                "deltaBonusStalkPerBdv should be always be equal or decreasing"
-            );
-            deltaBonusStalkPerBdvBefore = gv.bonusStalkPerBdv - bonusStalkPerBdvBefore;
             bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
         }
 
+        gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        uint256 previousCapacityFactor = gv.convertCapacityFactor;
+
+        // scenario 2: constant demand for converting.
+        // when demand is constant, bonus should stay the same. Example: a user places a maximum amount to convert to DCA into it.
+        uint256 constantBdvConverted = (abi
+            .decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            )
+            .maxConvertCapacity * 90) / 100; // 90% of the max capacity
+        for (uint256 i = 0; i < 10; i++) {
+            bs.mockUpdateBdvConverted(constantBdvConverted);
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            bs.mockStepGauges(testState);
+            gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            );
+            if (i > 0) {
+                assertEq(
+                    gv.bonusStalkPerBdv,
+                    bonusStalkPerBdvBefore,
+                    "bonusStalkPerBdv should be the same"
+                );
+            } else {
+                // for first iteration, bonusStalkPerBdv should be increasing. (because 90% * constantBdvConverted > 100% prev max capacity)
+                assertGt(
+                    gv.bonusStalkPerBdv,
+                    bonusStalkPerBdvBefore,
+                    "bonusStalkPerBdv should be increasing"
+                );
+            }
+
+            assertEq(
+                gv.convertCapacityFactor,
+                previousCapacityFactor,
+                "capacity factor should be the same"
+            );
+
+            bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
+        }
+
+        // scenario 2: constant demand for converting, but below the current capacity.
+        // when demand is constant, bonus should stay the same. Example: a user places a maximum amount to convert to DCA into it.
+        constantBdvConverted =
+            (abi
+                .decode(
+                    bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                    (LibGaugeHelpers.ConvertBonusGaugeValue)
+                )
+                .maxConvertCapacity * 20) /
+            100; // 20% of the max capacity
+        for (uint256 i = 0; i < 30; i++) {
+            uint256 mostlyFilledThreshold = (abi
+                .decode(
+                    bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                    (LibGaugeHelpers.ConvertBonusGaugeValue)
+                )
+                .maxConvertCapacity * 80) / 100; // 80% of the max capacity
+            bs.mockUpdateBdvConverted(constantBdvConverted);
+            warpToNextSeasonAndUpdateOracles();
+            vm.roll(block.number + 1800);
+            bs.mockStepGauges(testState);
+            gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            );
+            if (i == 0) {
+                // for first iteration, bonusStalkPerBdv should be increasing (less is being converted from the last session.)
+                assertGt(
+                    gv.bonusStalkPerBdv,
+                    bonusStalkPerBdvBefore,
+                    "bonusStalkPerBdv should be the increasing"
+                );
+            } else {
+                // but when a constant amount is being converted, bonusStalkPerBdv should stay the same.
+                assertEq(
+                    gv.bonusStalkPerBdv,
+                    bonusStalkPerBdvBefore,
+                    "bonusStalkPerBdv should stay the same"
+                );
+            }
+
+            if (constantBdvConverted <= mostlyFilledThreshold) {
+                // if the constantBdvConverted is less than 80% of the max capacity of the current season,
+                // the capacity factor should decrease over time to match the demand.
+                assertLt(
+                    gv.convertCapacityFactor,
+                    previousCapacityFactor,
+                    "capacity factor should decrease over time to match the demand"
+                );
+            } else {
+                // eventually, the capacity factor reaches the user's demand (unless we're already at the minimum capacity (1%))
+                assertEq(
+                    gv.convertCapacityFactor,
+                    previousCapacityFactor,
+                    "capacity factor should be the same"
+                );
+            }
+
+            bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
+            previousCapacityFactor = gv.convertCapacityFactor;
+        }
+
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+        uint256 lastConvertBonusTaken = gd.lastConvertBonusTaken;
+        bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
+
         // with decreasing demand for converting, verify:
-        // convert factor increases
+        // convert factor behavior depends on bonus effectiveness
         // convert capacity decreases.
         // see whitepaper for expected delta change.
         uint256 expectedDeltaChange = 1e12 /
@@ -842,27 +952,45 @@ contract ConvertTest is TestHelper {
             gd.maxSeasonTarget
         );
 
-        for (uint256 i = 1; i < 111; i++) {
+        // scenario 4: decreasing demand for converting.
+        for (uint256 i = 1; i < 20; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
+            // Mock zero conversions (decreasing demand)
+            bs.mockUpdateBdvConverted(0);
             bs.mockStepGauges(testState);
+
             LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
                 bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
                 (LibGaugeHelpers.ConvertBonusGaugeValue)
             );
 
             // verify behavior:
-            uint256 expectedConvertCapacityFactor = LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR -
-                (expectedDeltaChange * i) >=
-                LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR
-                ? LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR - (expectedDeltaChange * i)
-                : LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR;
+            // With decreasing demand (zero conversions) and lastConvertBonusTaken set,
+            // capacity factor should now decrease since demand is decreasing but
+            // current bonus < lastConvertBonusTaken (bonus will decrease over time)
 
-            assertEq(
-                gv.convertCapacityFactor,
-                expectedConvertCapacityFactor,
-                "convertCapacityFactor should be decreasing"
+            // Verify that capacity factor decreases when demand is low and bonus is ineffective
+            if (lastConvertBonusTaken > bonusStalkPerBdvBefore) {
+                assertEq(
+                    gv.convertCapacityFactor,
+                    previousCapacityFactor,
+                    "capacity factor should be the same"
+                );
+            } else {
+                assertLt(
+                    gv.convertCapacityFactor,
+                    previousCapacityFactor,
+                    "convertCapacityFactor should be decreasing with low demand"
+                );
+            }
+
+            assertGt(
+                gv.bonusStalkPerBdv,
+                bonusStalkPerBdvBefore,
+                "bonusStalkPerBdv should be increasing"
             );
+
             assertEq(
                 gv.maxConvertCapacity,
                 (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons,
@@ -874,6 +1002,7 @@ contract ConvertTest is TestHelper {
                 bs.getCalculatedBonusStalkPerBdv(),
                 "bonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
             );
+            bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
         }
     }
 
@@ -1009,8 +1138,6 @@ contract ConvertTest is TestHelper {
             expectedBdvBonus,
             "bdvConvertedThisSeason should be equal to expectedBdvBonus"
         );
-
-        console.log("gv.bonusStalkPerBdv", gv.bonusStalkPerBdv);
 
         assertLe(
             (usersStalkAfter - usersStalkBefore) - baseStalkedGainedFromConverting,

@@ -306,7 +306,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             } else if (
                 cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.NOT_FILLED &&
                 (cd != LibConvert.ConvertDemand.DECREASING ||
-                    gv.bonusStalkPerBdv < gd.lastConvertBonusTaken)
+                    gv.bonusStalkPerBdv >= gd.lastConvertBonusTaken)
             ) {
                 // this if block is executed when:
                 // 1) capacity not filled

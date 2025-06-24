@@ -1928,6 +1928,8 @@ interface IMockFBeanstalk {
 
     function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
 
+    function mockUpdateLastConvertBonusTaken(uint256 newLastConvertBonusTaken) external;
+
     function mockStepGauges(LibEvaluate.BeanstalkState memory bs) external;
 
     function mockUpdateStalkPerBdvPerSeasonForToken(
