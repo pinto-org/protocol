@@ -140,6 +140,8 @@ contract SeasonFacet is Invariable, Weather {
 
         LibTransfer.mintToken(IBean(s.sys.bean), incentiveAmount, account, mode);
 
+        uint256 test = 1;
+
         emit LibIncentive.Incentivization(account, incentiveAmount);
         return incentiveAmount;
     }

@@ -338,4 +338,8 @@ contract SeasonGettersFacet {
     {
         return LibFlood.getWellsByDeltaB();
     }
+
+    function getterTest() external view returns (uint256) {
+        return 1;
+    }
 }

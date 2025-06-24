@@ -848,9 +848,9 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
 
 task(
   "PI-11",
-  "Deploys Pinto improvement set 11, Misc. Improvements and convert up bonus"
+  "Mock modify facets - test to check claude deployment workflow"
 ).setAction(async function () {
-  const mock = true;
+  const mock = false;
   let owner;
   if (mock) {
     // await hre.run("updateOracleTimeouts");
@@ -863,54 +863,36 @@ task(
   await upgradeWithNewFacets({
     diamondAddress: L2_PINTO,
     facetNames: [
-      "FieldFacet",
-      "ConvertFacet",
-      "ConvertGettersFacet",
-      "PipelineConvertFacet",
-      "SiloGettersFacet",
-      "GaugeFacet",
       "GaugeGettersFacet",
       "SeasonFacet",
-      "SeasonGettersFacet",
-      "ApprovalFacet"
+      "SeasonGettersFacet"
     ],
     libraryNames: [
-      "LibTokenSilo",
-      "LibConvert",
-      "LibPipelineConvert",
-      "LibSilo",
       "LibEvaluate",
       "LibGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
-      "LibWeather",
       "LibFlood",
-      "LibGerminate"
+      "LibGerminate",
+      "LibWeather"
     ],
     facetLibraries: {
-      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
-      PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
       SeasonFacet: [
         "LibEvaluate",
         "LibGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
-        "LibWeather",
         "LibFlood",
-        "LibGerminate"
+        "LibGerminate",
+        "LibWeather"
       ],
       SeasonGettersFacet: ["LibWellMinting"]
     },
-    linkedLibraries: {
-      LibConvert: "LibTokenSilo"
-    },
     object: !mock,
     verbose: true,
-    account: owner,
-    initArgs: [],
-    initFacetName: "InitPI11"
+    account: owner
   });
 });
 
@@ -1953,7 +1935,8 @@ module.exports = {
     base: {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
-      timeout: 100000000
+      timeout: 100000000,
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : []
     },
     custom: {
       chainId: 41337,
