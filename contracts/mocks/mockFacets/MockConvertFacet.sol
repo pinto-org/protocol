@@ -116,7 +116,7 @@ contract MockConvertFacet is ConvertFacet {
     }
 
     function mockUpdateLastConvertBonusTaken(uint256 newLastConvertBonusTaken) external {
-        // Get current gauge data 
+        // Get current gauge data
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
             (LibGaugeHelpers.ConvertBonusGaugeData)
