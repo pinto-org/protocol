@@ -7,7 +7,6 @@ import {TestHelper} from "test/foundry/utils/TestHelper.sol";
 import "forge-std/console.sol";
 
 contract Pi11ForkTest is TestHelper {
-
     function setUp() public {
         initializeBeanstalkTestState(true, false);
     }
