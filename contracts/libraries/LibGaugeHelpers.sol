@@ -9,6 +9,54 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Gauge structs
+
+    //// Convert Bonus Gauge ////
+
+    /**
+     * @notice Struct for Convert Bonus Gauge Value
+     * @dev The value of the Convert Bonus Gauge is a struct that contains the following:
+     * - convertBonusFactor: The % of the baseBonusStalkPerBdv that a user recieves upon a successful WELL -> BEAN conversion.
+     * - convertCapacityFactor: The Factor used to determine the convert capacity. Capacity is a % of the twaDeltaB.
+     * - baseBonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
+     * - maxConvertCapacity: The maximum amount of bdv that can be converted in a season and get a bonus.
+     */
+    struct ConvertBonusGaugeValue {
+        uint256 convertBonusFactor;
+        uint256 convertCapacityFactor;
+        uint256 baseBonusStalkPerBdv;
+        uint256 maxConvertCapacity;
+    }
+
+    /**
+     * @notice Struct for Convert Bonus Gauge Data
+     * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
+     * - deltaC: The delta used in adjusting the convertBonusFactor.
+     * - deltaD: The delta used in adjusting the convertCapacityFactor.
+     * - minConvertBonusFactor: The minimum value of the conversion factor.
+     * - maxConvertBonusFactor: The maximum value of the conversion factor.
+     * - minCapacityFactor: The minimum value of the convert bonus bdv capacity factor.
+     * - maxCapacityFactor: The maximum value of the convert bonus bdv capacity factor.
+     * - lastSeasonBdvConverted: The amount of bdv converted last season.
+     * - thisSeasonBdvConverted: The amount of bdv converted this season.
+     * - thisSeasonBdvConvertedBonus: The amount of bdv converted this season that received a bonus.
+     * - deltaBdvConvertedDemandUpperBound: The percentage of bdv converted such that above this value, demand for converting is increasing.
+     * - deltaBdvConvertedDemandLowerBound: The percentage of bdv converted such that below this value, demand for converting is decreasing.
+     */
+    struct ConvertBonusGaugeData {
+        uint256 deltaC;
+        uint256 deltaD;
+        uint256 minConvertBonusFactor;
+        uint256 maxConvertBonusFactor;
+        uint256 minCapacityFactor;
+        uint256 maxCapacityFactor;
+        uint256 lastSeasonBdvConverted;
+        uint256 thisSeasonBdvConverted;
+        uint256 thisSeasonBdvConvertedBonus;
+        uint256 deltaBdvConvertedDemandUpperBound;
+        uint256 deltaBdvConvertedDemandLowerBound;
+    }
+
     // Gauge events
 
     /**

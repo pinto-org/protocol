@@ -1,5 +1,6 @@
 /*
- SPDX-License-Identifier: MIT*/
+ SPDX-License-Identifier: MIT
+ */
 
 pragma solidity ^0.8.20;
 
@@ -29,6 +30,7 @@ import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+import {LibWeather} from "contracts/libraries/Season/LibWeather.sol";
 
 /**
  * @title Mock Season Facet
@@ -64,6 +66,10 @@ contract MockSeasonFacet is SeasonFacet {
 
     function setYieldE(uint256 t) public {
         s.sys.weather.temp = uint32(t);
+    }
+
+    function setTotalStalkE(uint256 amount) public {
+        s.sys.silo.stalk = uint128(amount);
     }
 
     function siloSunrise(uint256 amount) public {
@@ -151,25 +157,21 @@ contract MockSeasonFacet is SeasonFacet {
         mockStepSilo(amount);
     }
 
-    function sunSunriseWithL2srScaling(int256 deltaB, uint256 caseId) public {
+    function sunSunriseWithL2srScaling(int256 deltaB, uint256) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
-        stepSun(caseId, bs);
+        (, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
+        stepSun(bs);
     }
 
-    function sunSunrise(
-        int256 deltaB,
-        uint256 caseId,
-        LibEvaluate.BeanstalkState memory bs
-    ) public {
+    function sunSunrise(int256 deltaB, uint256, LibEvaluate.BeanstalkState memory bs) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
         bs.twaDeltaB = deltaB;
         stepGauges(bs);
-        stepSun(caseId, bs);
+        stepSun(bs);
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) public {
@@ -185,21 +187,21 @@ contract MockSeasonFacet is SeasonFacet {
             largestLiquidWellTwapBeanPrice: 0,
             twaDeltaB: deltaB
         });
+
         LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
-        stepSun(caseId, bs); // Do not scale soil down using L2SR
+        stepSun(bs);
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {
         seedGaugeSunSunrise(deltaB, caseId, false);
     }
 
-    function sunTemperatureSunrise(int256 deltaB, uint256 caseId, uint32 t) public {
+    function sunTemperatureSunrise(int256 deltaB, uint256, uint32 t) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.weather.temp = t;
         s.sys.season.sunriseBlock = uint64(block.number);
         stepSun(
-            caseId,
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
@@ -298,6 +300,10 @@ contract MockSeasonFacet is SeasonFacet {
 
     function setSoilE(uint256 amount) public {
         setSoil(amount);
+    }
+
+    function setBeansSownE(uint128 amount) public {
+        s.sys.beanSown = amount;
     }
 
     function resetState() public {
@@ -455,7 +461,7 @@ contract MockSeasonFacet is SeasonFacet {
 
     function calculateCultivationFactorDeltaE(
         LibEvaluate.BeanstalkState memory bs
-    ) external returns (uint256) {
+    ) external view returns (uint256) {
         uint256 cultivationFactor = abi.decode(
             LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
@@ -477,16 +483,10 @@ contract MockSeasonFacet is SeasonFacet {
         (
             uint256 maxLpGpPerBdv,
             LibGauge.LpGaugePointData[] memory lpGpData,
-            uint256 totalGaugePoints,
             uint256 totalLpBdv
         ) = LibGauge.updateGaugePoints();
         if (totalLpBdv == type(uint256).max) return;
-        LibGauge.updateGrownStalkEarnedPerSeason(
-            maxLpGpPerBdv,
-            lpGpData,
-            totalGaugePoints,
-            totalLpBdv
-        );
+        LibGauge.updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalLpBdv);
     }
 
     function stepGauge() external {
@@ -504,7 +504,7 @@ contract MockSeasonFacet is SeasonFacet {
      * @dev used to test the updateGrownStalkPerSeason updating.
      */
     function mockUpdateAverageGrownStalkPerBdvPerSeason() external {
-        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 100e18, 0);
+        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 0);
     }
 
     function gaugePointsNoChange(
@@ -544,7 +544,10 @@ contract MockSeasonFacet is SeasonFacet {
     }
 
     function mockStartSop() internal {
-        LibFlood.handleRain(3);
+        // caseId is set to 75 because it satisfies the conditions in handleRain.
+        // caseId % 36 3-8 : execessively low pod rate
+        // cases / 36  >=2 : at least reasonably high l2sr
+        LibFlood.handleRain(75);
     }
 
     function mockIncrementGermination(
@@ -757,6 +760,9 @@ contract MockSeasonFacet is SeasonFacet {
         emit DeltaB(instDeltaB);
     }
 
+    function setOverallConvertCapacityUsedForBlock(uint256 capacity) external {
+        s.sys.convertCapacity[block.number].overallConvertCapacityUsed = capacity;
+    }
     function setLastSeasonAndThisSeasonBeanSown(
         uint128 lastSeasonBeanSown,
         uint128 thisSeasonBeanSown
@@ -765,7 +771,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.beanSown = thisSeasonBeanSown;
     }
 
-    function setMinSoilSownDemand(uint256 minSoilSownDemand) public {
-        s.sys.extEvaluationParameters.minSoilSownDemand = minSoilSownDemand;
+    function setSeasonAbovePeg(bool abovePeg) public {
+        s.sys.season.abovePeg = abovePeg;
     }
 }

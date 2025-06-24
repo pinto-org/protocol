@@ -9,6 +9,7 @@ env:
   FORKING_RPC: ${{ secrets.ANVIL_FORK_URL }}
   ARBITRUM_FORKING_RPC: ${{ secrets.ARBITRUM_FORKING_RPC }}
   BASE_RPC: ${{ secrets.BASE_RPC }}
+  ETHEREUM_RPC: ${{ secrets.ETHEREUM_RPC }}
 
 jobs:
   check-sol-changes:

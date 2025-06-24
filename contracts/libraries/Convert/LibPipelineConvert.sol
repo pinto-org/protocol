@@ -31,6 +31,7 @@ library LibPipelineConvert {
         address user;
         uint256 newBdv;
         uint256[] initialLpSupply;
+        uint256 initialGrownStalk;
     }
 
     function executePipelineConvert(
@@ -86,7 +87,7 @@ library LibPipelineConvert {
         address outputToken,
         LibConvert.DeltaBStorage memory dbs,
         uint256 overallConvertCapacity,
-        uint256 fromBdv,
+        uint256 toBdv,
         uint256[] memory initialLpSupply
     ) public returns (uint256) {
         dbs.afterOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
@@ -94,11 +95,15 @@ library LibPipelineConvert {
         // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts
         if (LibWell.isWell(inputToken)) {
             uint256 i = LibWhitelistedTokens.getIndexFromWhitelistedWellLpTokens(inputToken);
-            dbs.afterInputTokenDeltaB = LibDeltaB.scaledDeltaB(
-                initialLpSupply[i],
-                IERC20(inputToken).totalSupply(),
-                LibDeltaB.getCurrentDeltaB(inputToken)
-            );
+            // input token supply was burned, check to avoid division by zero
+            uint256 currentInputTokenSupply = IERC20(inputToken).totalSupply();
+            dbs.afterInputTokenDeltaB = currentInputTokenSupply == 0
+                ? int256(0)
+                : LibDeltaB.scaledDeltaB(
+                    initialLpSupply[i],
+                    currentInputTokenSupply,
+                    LibDeltaB.getCurrentDeltaB(inputToken)
+                );
         }
 
         if (LibWell.isWell(outputToken)) {
@@ -113,7 +118,7 @@ library LibPipelineConvert {
         return
             LibConvert.applyStalkPenalty(
                 dbs,
-                fromBdv,
+                toBdv,
                 overallConvertCapacity,
                 inputToken,
                 outputToken
@@ -181,8 +186,8 @@ library LibPipelineConvert {
         bytes calldata convertData,
         address fromToken,
         address toToken,
-        uint256 fromBdv
-    ) public {
+        uint256 toBdv
+    ) public returns (uint256 grownStalk) {
         LibConvertData.ConvertKind kind = convertData.convertKind();
         if (
             kind == LibConvertData.ConvertKind.BEANS_TO_WELL_LP ||
@@ -195,11 +200,15 @@ library LibPipelineConvert {
                 toToken,
                 pipeData.deltaB,
                 pipeData.overallConvertCapacity,
-                fromBdv,
+                toBdv,
                 pipeData.initialLpSupply
             );
 
-            require(pipeData.stalkPenaltyBdv == 0, "Convert: Non-zero Stalk Penalty");
+            // apply penalty to grown stalk as a % of bdv converted. See {LibConvert.executePipelineConvert}
+            grownStalk = (pipeData.grownStalk * (toBdv - pipeData.stalkPenaltyBdv)) / toBdv;
+        } else {
+            // apply no penalty to non BEANS_TO_WELL_LP or WELL_LP_TO_BEANS conversions.
+            grownStalk = pipeData.grownStalk;
         }
     }
 }
