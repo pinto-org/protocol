@@ -7,7 +7,7 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import {LibWeather} from "contracts/libraries/Season/LibWeather.sol";
+import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 /**
  * @title Weather
  * @notice Weather controls the Temperature and Grown Stalk to LP on the Farm.

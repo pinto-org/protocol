@@ -53,7 +53,7 @@ library LibConvert {
         INCREASING
     }
 
-    event ConvertDownPenalty(address account, uint256 grownStalkLost);
+    event ConvertDownPenalty(address account, uint256 grownStalkLost, uint256 grownStalkKept);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
 
     struct AssetsRemovedConvert {
@@ -648,7 +648,7 @@ library LibConvert {
                 grownStalk
             );
             if (grownStalkLost > 0) {
-                emit ConvertDownPenalty(account, grownStalkLost);
+                emit ConvertDownPenalty(account, grownStalkLost, newGrownStalk);
             }
             return newGrownStalk;
         } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
@@ -809,6 +809,7 @@ library LibConvert {
             if (bdvConvertedThisSeason > 0) {
                 return ConvertDemand.INCREASING;
             } else {
+                // if nothing was converted in this season and last season, demand is decreasing.
                 return ConvertDemand.DECREASING;
             }
         } else {

@@ -161,7 +161,7 @@ library LibGauge {
             // 1e6 = 1%
             uint256 percentDepositedBdv = depositedBdvs[i].mul(100e6).div(totalLpBdv);
             // If the token does not have any deposited BDV, the gauge points are not updated.
-            if (depositedBdvs[i] > 0) {
+            if (percentDepositedBdv > 0) {
                 // Calculate the new gauge points of the token.
                 gaugePoints[i] = calcGaugePoints(
                     ss,
@@ -438,9 +438,12 @@ library LibGauge {
     }
 
     /**
-     * @notice Caps the gauge points to the maximum value.
+     * @notice Enforces a maximum and minimum gauge points a whitelisted LP asset can have.
      * @param gaugePoints the gauge points to cap.
-     * @dev the cap is calculated as 2 * optimal percent deposited BDV * total gauge points
+     * @dev the cap is calculated as 2 * optimal percent deposited BDV * total gauge points.
+     * the minimum is 10% of the cap.
+     * @dev capping is done as a function of the optimal percent deposited BDV,
+     * given that the seeds issued to a whitelisted LP is a function of the gauge point per bdv.
      */
     function capGaugePoints(
         uint256 gaugePoints,
@@ -449,13 +452,15 @@ library LibGauge {
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 upperCap = (s.sys.seedGauge.maxTotalGaugePoints * optimalPercentDepositedBdv * 2) /
-            (totalOptimalDepositedBdvPercent);
+            totalOptimalDepositedBdvPercent;
         if (gaugePoints > upperCap) {
             return upperCap;
         }
 
-        if (gaugePoints < upperCap / 10) {
-            return upperCap / 10;
+        uint256 lowerCap = upperCap / 10;
+
+        if (gaugePoints < lowerCap) {
+            return lowerCap;
         }
         return gaugePoints;
     }

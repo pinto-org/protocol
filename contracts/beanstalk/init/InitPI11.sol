@@ -10,7 +10,7 @@ import {LibGauge} from "../../libraries/LibGauge.sol";
 import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibWeather} from "../../libraries/Season/LibWeather.sol";
+import {LibWeather} from "../../libraries/Sun/LibWeather.sol";
 
 /**
  * @title InitPI11
@@ -44,7 +44,12 @@ contract InitPI11 {
         LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_UP_BONUS, abi.encode(gv));
     }
 
-    function initMaxGaugePoints(uint256 /*maxGaugePoints*/) internal {
+    /**
+     * @notice Initializes the max total gauge points.
+     * @dev this function takes the current gauge points of the whitelisted LP tokens, and normalizes them to the max total gauge points.
+     * @param maxGaugePoints The max total gauge points.
+     */
+    function initMaxGaugePoints(uint256 maxGaugePoints) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Set the max total gauge points to MAX_TOTAL_GAUGE_POINTS
@@ -59,33 +64,18 @@ contract InitPI11 {
             totalGaugePoints += s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints;
         }
 
-        // Only normalize if totalGaugePoints > 0 to avoid division by zero
-        if (totalGaugePoints > 0) {
-            // set the gauge points to the normalized gauge points
-            for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
-                s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints = uint128(
-                    (uint256(s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints) *
-                        MAX_TOTAL_GAUGE_POINTS) / totalGaugePoints
-                );
-                emit LibGauge.GaugePointChange(
-                    s.sys.season.current,
-                    whitelistedLpTokens[i],
-                    s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints
-                );
-            }
-        } else if (whitelistedLpTokens.length > 0) {
-            // If all gauge points are 0, distribute equally among whitelisted tokens
-            uint256 pointsPerToken = MAX_TOTAL_GAUGE_POINTS / whitelistedLpTokens.length;
-            for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
-                s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints = uint128(
-                    pointsPerToken
-                );
-                emit LibGauge.GaugePointChange(
-                    s.sys.season.current,
-                    whitelistedLpTokens[i],
-                    pointsPerToken
-                );
-            }
+        // this init scripts assumes that the total gauge points is greater than 0 && there are whitelisted LP tokens.
+        // set the gauge points to the normalized gauge points
+        for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
+            s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints = uint128(
+                (uint256(s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints) *
+                    MAX_TOTAL_GAUGE_POINTS) / totalGaugePoints
+            );
+            emit LibGauge.GaugePointChange(
+                s.sys.season.current,
+                whitelistedLpTokens[i],
+                s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints
+            );
         }
     }
 }

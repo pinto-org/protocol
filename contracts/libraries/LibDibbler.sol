@@ -278,15 +278,22 @@ library LibDibbler {
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 maxTemperature = s.sys.weather.temp;
-        uint256 delta = block.timestamp - s.sys.season.timestamp;
+        uint256 delta;
+        // in theory, block.timestamp should never be less than s.sys.season.timestamp,
+        // but if so, we'll use the delta as 0.
+        if (block.timestamp > s.sys.season.timestamp) {
+            delta = block.timestamp - s.sys.season.timestamp;
+        }
+
         uint256 morningDuration = s.sys.weather.morningDuration;
+        // if the delta is greater than the morning duration, return the max temperature.
         if (delta >= morningDuration) {
             return maxTemperature;
         }
 
         uint256 scaledTemperature = _scaleTemperature(maxTemperature, morningDuration, delta);
 
-        // set a temperature floor of 1% of max temperature
+        // set a temperature floor of 1% of max temperature.
         if (scaledTemperature < maxTemperature / 100) {
             return maxTemperature / 100;
         }

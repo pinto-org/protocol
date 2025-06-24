@@ -29,7 +29,7 @@ import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
-import {LibWeather} from "contracts/libraries/Season/LibWeather.sol";
+import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 
 /**
  * @title Mock Season Facet
