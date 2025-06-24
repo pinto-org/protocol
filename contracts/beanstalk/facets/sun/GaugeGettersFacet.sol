@@ -257,4 +257,8 @@ contract GaugeGettersFacet {
         AssetSettings memory ss = s.sys.silo.assetSettings[token];
         return LibGauge.calcGaugePoints(ss, percentDepositedBdv, totalOptimalDepositedBdvPercent);
     }
+
+    function getterTest2() external view returns (uint256) {
+        return 1;
+    }
 }
