@@ -55,7 +55,7 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
-    uint256 initialSoil;
+    uint128 initialSoil;
     bytes32[15] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;

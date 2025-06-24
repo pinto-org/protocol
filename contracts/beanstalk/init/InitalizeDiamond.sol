@@ -330,6 +330,19 @@ contract InitalizeDiamond {
             INIT_AVG_GSPBDV,
             INIT_MAX_TOTAL_GAUGE_POINTS
         );
+        Gauge memory cultivationFactorGauge = Gauge(
+            abi.encode(INIT_CULTIVATION_FACTOR),
+            address(this),
+            IGaugeFacet.cultivationFactor.selector,
+            abi.encode(
+                MIN_DELTA_CULTIVATION_FACTOR,
+                MAX_DELTA_CULTIVATION_FACTOR,
+                MIN_CULTIVATION_FACTOR,
+                MAX_CULTIVATION_FACTOR,
+                0,
+                0
+            )
+        );
 
         LibInitGauges.initCultivationFactor(); // add the cultivation factor gauge
 

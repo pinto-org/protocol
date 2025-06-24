@@ -61,6 +61,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant INCREASING_CONVERT_DEMAND = 1e36;
     uint256 internal constant MIN_BDV_CONVERTED = 50e6;
 
+    // Cultivation Factor Gauge Constants //
+    uint256 internal constant SOIL_ALMOST_SOLD_OUT = type(uint32).max - 1;
+
     /**
      * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
      * The value increases as soil is sold out (and vice versa), with the amount being a function of
@@ -85,14 +88,36 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         }
 
         (
-            uint256 minDeltaCultivationFactor,
-            uint256 maxDeltaCultivationFactor,
-            uint256 minCultivationFactor,
-            uint256 maxCultivationFactor
-        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256));
+            uint256 minDeltaCultivationFactor, // min change in cultivation factor
+            uint256 maxDeltaCultivationFactor, // max change in cultivation factor
+            uint256 minCultivationFactor, // min cultivation factor.
+            uint256 maxCultivationFactor, // max cultivation factor.
+            uint256 cultivationTemp, // temperature when soil was selling out and demand for soil was not decreasing.
+            uint256 prevSeasonTemp // temperature of the previous season.
+        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
-        // determine increase or decrease based on demand for soil.
-        bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max;
+        // determine if soil was sold out or mostly sold out.
+        // the protocol uses the lastSowTime to determine if soil was sold out or mostly sold out. See LibEvaluate.calcDeltaPodDemand.
+        bool soilSoldOut = s.sys.weather.lastSowTime < SOIL_ALMOST_SOLD_OUT;
+        bool soilMostlySoldOut = s.sys.weather.lastSowTime == SOIL_ALMOST_SOLD_OUT;
+
+        // if soil was mostly sold out or sold out, and demand for soil is NOT decreasing (i.e. increasing or steady),
+        //  set cultivationTemp to the previous season temperature.
+        if (
+            (soilMostlySoldOut || soilSoldOut) &&
+            bs.deltaPodDemand.value >= s.sys.evaluationParameters.deltaPodDemandLowerBound
+        ) {
+            cultivationTemp = prevSeasonTemp;
+            gaugeData = abi.encode(
+                minDeltaCultivationFactor,
+                maxDeltaCultivationFactor,
+                minCultivationFactor,
+                maxCultivationFactor,
+                cultivationTemp,
+                prevSeasonTemp
+            );
+        }
+
         // determine amount change as a function of podRate.
         uint256 amountChange = LibGaugeHelpers.linearInterpolation(
             bs.podRate.value,
@@ -105,25 +130,47 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // update the change based on price.
         amountChange = (amountChange * bs.largestLiquidWellTwapBeanPrice) / PRICE_PRECISION;
 
-        // if soil did not sell out, inverse the amountChange.
-        if (!soilSoldOut) {
+        // update the cultivation factor based on
+        // 1) the sell state of soil (not selling out, almost selling out, or sold out)
+        // 2) the demand for soil (steady/increasing, or decreasing)
+        // 3) the previous season temperature (if it was above the cultivation temperature)
+        if (soilSoldOut) {
+            // increase cultivation factor if soil sold out.
+            currentValue = LibGaugeHelpers.linear256(
+                currentValue,
+                true,
+                amountChange,
+                minCultivationFactor,
+                maxCultivationFactor
+            );
+        } else if (soilMostlySoldOut) {
+            // if soil mostly sold out, return unchanged gauge data and value.
+            return (abi.encode(currentValue), gaugeData);
+        } else if (
+            bs.deltaPodDemand.value < s.sys.evaluationParameters.deltaPodDemandLowerBound &&
+            prevSeasonTemp < cultivationTemp
+        ) {
+            // if soil is not selling out, and previous season temperature < cultivation temperature,
+            // return unchanged gauge data and value.
+            return (abi.encode(currentValue), gaugeData);
+        } else {
+            // demand for soil is steady/increasing (but not selling out)
+            // or previous season temperature >= cultivation temperature.
+            // decrease cultivation factor.
+            // the decrease in cultivation factor is the inverse of the increase in cultivation factor.
+            // See Whitepaper for formula.
             amountChange = 1e12 / amountChange;
+            currentValue = LibGaugeHelpers.linear256(
+                currentValue,
+                false,
+                amountChange,
+                minCultivationFactor,
+                maxCultivationFactor
+            );
         }
 
-        // return the new cultivationFactor.
-        // return unchanged gaugeData.
-        return (
-            abi.encode(
-                LibGaugeHelpers.linear(
-                    int256(currentValue),
-                    soilSoldOut,
-                    amountChange,
-                    int256(minCultivationFactor),
-                    int256(maxCultivationFactor)
-                )
-            ),
-            gaugeData
-        );
+        // update the gauge data.
+        return (abi.encode(currentValue), gaugeData);
     }
 
     /**
@@ -169,8 +216,10 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // Scale L2SR by the optimal L2SR. Cap the current L2SR at the optimal L2SR.
         uint256 l2srRatio = (1e18 *
-            Math.min(bs.lpToSupplyRatio.value, s.sys.evaluationParameters.lpToSupplyRatioOptimal)) /
-            s.sys.evaluationParameters.lpToSupplyRatioOptimal;
+            Math.min(
+                bs.lpToSupplyRatio.value,
+                s.sys.evaluationParameters.lpToSupplyRatioLowerBound
+            )) / s.sys.evaluationParameters.lpToSupplyRatioLowerBound;
 
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
             PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);

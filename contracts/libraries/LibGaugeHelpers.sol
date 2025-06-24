@@ -94,11 +94,19 @@ library LibGaugeHelpers {
     event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
 
     /**
-     * @notice Emitted when a Gauge's data is updated.
+     * @notice Emitted when a Gauge's data is updated (outside of the engage function).
      * @param gaugeId The id of the Gauge that was updated.
      * @param data The data of the Gauge that was updated.
      */
     event UpdatedGaugeData(GaugeId gaugeId, bytes data);
+
+    /**
+     * @notice Emitted when a Gauge's value is updated (outside of the engage function).
+     * @param gaugeId The id of the Gauge that was updated.
+     * @param value The value of the Gauge that was updated.
+     */
+    event UpdatedGaugeValue(GaugeId gaugeId, bytes value);
+
     /**
      * @notice Calls all generalized Gauges, and updates their values.
      * @param systemData The system data to pass to the Gauges.
@@ -176,6 +184,13 @@ library LibGaugeHelpers {
         emit UpdatedGauge(gaugeId, g);
     }
 
+    function updateGaugeValue(GaugeId gaugeId, bytes memory value) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.gaugeData.gauges[gaugeId].value = value;
+
+        emit UpdatedGaugeValue(gaugeId, value);
+    }
+
     function updateGaugeData(GaugeId gaugeId, bytes memory data) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.sys.gaugeData.gauges[gaugeId].data = data;
@@ -209,6 +224,35 @@ library LibGaugeHelpers {
     function getGaugeValue(GaugeId gaugeId) internal view returns (bytes memory) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.sys.gaugeData.gauges[gaugeId].value;
+    }
+
+    function getGaugeData(GaugeId gaugeId) internal view returns (bytes memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.gaugeData.gauges[gaugeId].data;
+    }
+
+    /// GAUGE SPECIFIC HELPERS ///
+
+    /**
+     * @notice Updates the previous season temperature, in the Cultivation Factor Gauge.
+     * @param temperature The temperature of the last season.
+     */
+    function updatePrevSeasonTemp(uint256 temperature) internal {
+        (
+            uint256 minDeltaCf,
+            uint256 maxDeltaCf,
+            uint256 minCf,
+            uint256 maxCf,
+            uint256 soldOutTemp,
+
+        ) = abi.decode(
+                getGaugeData(GaugeId.CULTIVATION_FACTOR),
+                (uint256, uint256, uint256, uint256, uint256, uint256)
+            );
+        updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, soldOutTemp, temperature)
+        );
     }
 
     /// GAUGE BLOCKS ///
