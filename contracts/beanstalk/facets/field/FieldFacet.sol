@@ -452,4 +452,11 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
         }
     }
+
+    /**
+     * @notice Returns the number of Beans that have been Sown this season.
+     */
+    function beanSown() external view returns (uint256) {
+        return s.sys.beanSown;
+    }
 }

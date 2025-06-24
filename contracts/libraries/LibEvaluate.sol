@@ -12,6 +12,8 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {System, EvaluationParameters, Weather} from "contracts/beanstalk/storage/System.sol";
+import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 /**
@@ -46,6 +48,9 @@ library LibEvaluate {
     uint32 internal constant SOW_TIME_STEADY_LOWER = 300; // seconds, lower means closer to the bottom of the hour
     uint32 internal constant SOW_TIME_STEADY_UPPER = 300; // seconds, upper means closer to the top of the hour
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
+    uint256 internal constant SOIL_PRECISION = 1e6;
+    uint256 internal constant BEAN_PRECISION = 1e6;
+    uint256 internal constant MIN_BEAN_SUPPLY_BOUND = 10e6;
     uint256 internal constant HIGH_DEMAND_THRESHOLD = 1e18;
 
     struct BeanstalkState {
@@ -153,8 +158,12 @@ library LibEvaluate {
         returns (Decimal.D256 memory deltaPodDemand, uint32 lastSowTime, uint32 thisSowTime)
     {
         Weather storage w = LibAppStorage.diamondStorage().sys.weather;
+
+        // get the minimum soil sown threshold needed to calculate delta pod demand.
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold();
+
         // not enough soil sown, consider demand to be decreasing, reset sow times.
-        if (dsoil < LibAppStorage.diamondStorage().sys.extEvaluationParameters.minSoilSownDemand) {
+        if (dsoil < minDemandThreshold) {
             return (Decimal.zero(), w.thisSowTime, type(uint32).max);
         }
 
@@ -197,7 +206,7 @@ library LibEvaluate {
     function getDemand(
         uint256 soilSownThisSeason,
         uint256 soilSownLastSeason
-    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+    ) internal pure returns (Decimal.D256 memory deltaPodDemand) {
         if (soilSownThisSeason == 0) {
             deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
         } else if (soilSownLastSeason == 0) {
@@ -352,7 +361,37 @@ library LibEvaluate {
 
         if (!success) return 0;
         assembly {
-            liquidityWeight := mload(add(data, add(0x20, 0)))
+            liquidityWeight := mload(add(data, 0x20))
         }
+    }
+
+    /**
+     * @notice Calculates the minimum soil sown needed to properly calculate delta pod demand.
+     * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
+     * occurs without substantial cost.
+     * @dev if not min(max(0,001% of supply, 10), 25% of soil issued)
+     * was sown, Beanstalk assumes demand is decreasing.
+     */
+    function calcMinSoilDemandThreshold() internal view returns (uint256 minDemandThreshold) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
+
+        // calculate the minimum threshold of bean to calculate delta pod demand.
+        uint256 calculatedThreshold = (beanSupply *
+            s.sys.extEvaluationParameters.supplyPodDemandScalar) / BEAN_PRECISION;
+
+        // take the maximum of the calculated threshold and the minimum supply bound.
+        uint256 beanSupplyThreshold = calculatedThreshold > MIN_BEAN_SUPPLY_BOUND
+            ? calculatedThreshold
+            : MIN_BEAN_SUPPLY_BOUND;
+
+        // scale s.sys.initialSoil by the initialSoilPodDemandScalar, currently 25%.
+        uint256 scaledInitialSoil = (s.sys.initialSoil *
+            s.sys.extEvaluationParameters.initialSoilPodDemandScalar) / SOIL_PRECISION;
+
+        // take the minimum of the scaled initial soil and the bean supply threshold.
+        minDemandThreshold = beanSupplyThreshold < scaledInitialSoil
+            ? beanSupplyThreshold
+            : scaledInitialSoil;
     }
 }

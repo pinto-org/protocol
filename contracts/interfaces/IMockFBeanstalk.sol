@@ -125,8 +125,9 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        uint256 minSoilSownDemand;
-        bytes32[60] buffer;
+        uint256 supplyPodDemandScalar;
+        uint256 initialSoilPodDemandScalar;
+        bytes32[59] buffer;
     }
 
     struct Facet {
@@ -219,6 +220,7 @@ interface IMockFBeanstalk {
         bool raining;
         uint64 sunriseBlock;
         bool abovePeg;
+        uint32 pegCrossSeason;
         uint256 start;
         uint256 period;
         uint256 timestamp;
@@ -322,7 +324,9 @@ interface IMockFBeanstalk {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
     event DeltaB(int256 deltaB);
     event DepositApproval(
@@ -494,6 +498,7 @@ interface IMockFBeanstalk {
     event URI(string _uri, uint256 indexed _id);
     event Unpause(uint256 timestamp, uint256 timePassed);
     event UpdateAverageStalkPerBdvPerSeason(uint256 newStalkPerBdvPerSeason);
+    event UpdateMaxTotalGaugePoints(uint256 newMaxTotalGaugePoints);
     event UpdateGaugeSettings(
         address indexed token,
         bytes4 gpSelector,
@@ -1616,6 +1621,8 @@ interface IMockFBeanstalk {
 
     function setYieldE(uint256 t) external;
 
+    function setBeansSownE(uint128 amount) external;
+
     function setCultivationFactor(uint256 cultivationFactor) external;
 
     function siloSunrise(uint256 amount) external;
@@ -1881,11 +1888,25 @@ interface IMockFBeanstalk {
 
     function wrapEth(uint256 amount, uint8 mode) external payable;
 
+    function getMaxTotalGaugePoints() external view returns (uint256);
+
+    function setOverallConvertCapacityUsedForBlock(uint256 capacity) external;
+
     function downPenalizedGrownStalk(
         address well,
         uint256 bdvToConvert,
         uint256 grownStalkToConvert
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256);
+
+    function getPegCrossStem(address token) external view returns (int96);
+
+    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+
+    function mockUpdateBdvConverted(uint256 bdvConverted) external;
+
+    function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external;
 
     function setLastSeasonAndThisSeasonBeanSown(
         uint128 lastSeasonBeanSown,
@@ -1895,4 +1916,10 @@ interface IMockFBeanstalk {
     function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
 
     function setPrevSeasonAndCultivationTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external;
+    function setSeasonAbovePeg(bool abovePeg) external;
+
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
 }

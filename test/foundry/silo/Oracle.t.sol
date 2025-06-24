@@ -303,7 +303,7 @@ contract OracleTest is TestHelper {
     }
 
     function testForkMainnetWBTCOracle() public {
-        forkMainnetAndUpgradeAllFacets(20641000, vm.envString("FORKING_RPC"), BEANSTALK);
+        forkMainnetAndUpgradeAllFacets(20641000, vm.envString("ETHEREUM_RPC"), BEANSTALK);
 
         setupUniswapWBTCOracleImplementation();
 
@@ -317,7 +317,7 @@ contract OracleTest is TestHelper {
     }
 
     function testForkMainnetAAVEOracle() public {
-        forkMainnetAndUpgradeAllFacets(20666000, vm.envString("FORKING_RPC"), BEANSTALK);
+        forkMainnetAndUpgradeAllFacets(20666000, vm.envString("ETHEREUM_RPC"), BEANSTALK);
 
         setupUniswapAaveOracleImplementation();
 
@@ -331,7 +331,7 @@ contract OracleTest is TestHelper {
     }
 
     function testForkMainnetWSTETHOracle() public {
-        forkMainnetAndUpgradeAllFacets(20666000, vm.envString("FORKING_RPC"), BEANSTALK);
+        forkMainnetAndUpgradeAllFacets(20666000, vm.envString("ETHEREUM_RPC"), BEANSTALK);
 
         setupUniswapWstethOracleImplementation();
 
@@ -340,7 +340,7 @@ contract OracleTest is TestHelper {
     }
 
     function testForkMainnetWBTCDeltaB() public {
-        forkMainnetAndUpgradeAllFacets(20666000, vm.envString("FORKING_RPC"), BEANSTALK);
+        forkMainnetAndUpgradeAllFacets(20666000, vm.envString("ETHEREUM_RPC"), BEANSTALK);
 
         setupUniswapWBTCOracleImplementation();
 
