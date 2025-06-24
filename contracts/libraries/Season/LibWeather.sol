@@ -160,21 +160,4 @@ library LibWeather {
 
         emit BeanToMaxLpGpPerBdvRatioChange(s.sys.season.current, caseId, bL);
     }
-
-    /**
-     * @notice Updates the peg state based on the twaDeltaB and whether the peg was crossed.
-     * @param twaDeltaB The twaDeltaB from the Oracle.
-     */
-    function updatePegState(int256 twaDeltaB) external {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        bool lastSeasonPeg = s.sys.season.abovePeg;
-        s.sys.season.abovePeg = twaDeltaB > 0;
-
-        // if the last season peg state is not the same as the current peg state,
-        // the system has crossed peg.
-        if (lastSeasonPeg != s.sys.season.abovePeg) {
-            s.sys.season.pegCrossSeason = s.sys.season.current;
-            emit PegStateUpdated(s.sys.season.current, s.sys.season.abovePeg);
-        }
-    }
 }

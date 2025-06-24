@@ -36,7 +36,6 @@ abstract contract Weather is Sun {
 
         // Calculate Case Id
         (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        LibWeather.updatePegState(bs.twaDeltaB);
         LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, bs.oracleFailure);
         LibFlood.handleRain(caseId);
     }
