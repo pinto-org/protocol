@@ -222,7 +222,7 @@ contract SiloGettersFacet is ReentrancyGuard {
     //////////////////////// SILO: TOTALS ////////////////////////
 
     /**
-     * @notice Returns the total supply of Stalk. Does NOT include Grown Stalk.
+     * @notice Returns the total supply of Stalk. Does NOT include unmown Grown Stalk.
      */
     function totalStalk() external view returns (uint256) {
         return s.sys.silo.stalk;

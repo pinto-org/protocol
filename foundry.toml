@@ -36,6 +36,7 @@ fs_permissions = [
   { access = "read", path = "./out" },
   { access = "read-write", path = "./test/generated/" },
   { access = "read-write", path = "./oscillation_data.csv" },
+  { access = "read-write", path = "./convert_up_data.csv" },
 ]
 ignored_warnings_from = [
   "test",
