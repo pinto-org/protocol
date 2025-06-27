@@ -19,6 +19,7 @@ import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedToken
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 
 /**
  * @title GaugeFacet
@@ -230,7 +231,6 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     /**
      * @notice Calculates the stalk per bdv the protocol is willing to issue along with the
      * corresponding bdv capacity.
-     * ----------------------------------------------------------------
      * @return value
      *  The gauge value is encoded as LibGaugeHelpers.ConvertBonusGaugeValue.
      * @return gaugeData
@@ -255,21 +255,22 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // initialize convert demand to decreasing.
         LibConvert.ConvertDemand cd = LibConvert.ConvertDemand.DECREASING;
+        LibGaugeHelpers.ConvertBonusCapacityUtilization cbu = LibGaugeHelpers
+            .ConvertBonusCapacityUtilization
+            .NOT_FILLED;
 
         // if there is a non-zero convert capacity, calculate the demand for a bonus and update the capacity factor.
         if (gv.maxConvertCapacity > 0) {
             // determined if capacity is filled or mostly filled.
-            LibGaugeHelpers.ConvertBonusCapacityUtilization cbu = LibGaugeHelpers
-                .getConvertBonusCapacityUtilization(
-                    gd.bdvConvertedThisSeason,
-                    gv.maxConvertCapacity
-                );
+            cbu = LibGaugeHelpers.getConvertBonusCapacityUtilization(
+                gd.bdvConvertedThisSeason,
+                gv.maxConvertCapacity
+            );
 
             cd = LibConvert.calculateConvertDemand(
                 gd.bdvConvertedThisSeason,
                 gd.bdvConvertedLastSeason
             );
-
             // if the capacity is filled or mostly filled, and the demand for convert is not decreasing,
             // set the last convert bonus taken to the current bonus stalk per bdv.
             if (
@@ -332,6 +333,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // update the bonus stalk per bdv.
         gv.bonusStalkPerBdv = LibConvert.updateBonusStalkPerBdv(
             gv.bonusStalkPerBdv,
+            cbu,
             cd,
             bs.twaDeltaB
         );
@@ -362,9 +364,13 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             }
 
             // Calculate convert capacity
-            // `twaDeltaB`, `targetSeasons`, and `convertCapacityFactor` have 6 decimal precision.
-            // 6 + 6 - 6 = 6 decimal precision.
-            gv.maxConvertCapacity = (gd.maxTwaDeltaB * gv.convertCapacityFactor) / targetSeasons;
+            // `twaDeltaB` and `targetSeasons` have 6 decimal precision.
+            // `convertCapacityFactor` has 8 decimal precision.
+            // 6 + 8 - 6 = 8 decimal precision.
+            gv.maxConvertCapacity =
+                (gd.maxTwaDeltaB * gv.convertCapacityFactor) /
+                targetSeasons /
+                100;
         }
 
         // always reset bdv converted tracking for next season

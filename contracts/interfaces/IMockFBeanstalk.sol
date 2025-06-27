@@ -1937,4 +1937,6 @@ interface IMockFBeanstalk {
     ) external;
 
     function mowAll(address account) external;
+
+    function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
 }

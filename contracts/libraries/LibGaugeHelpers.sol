@@ -345,8 +345,13 @@ library LibGaugeHelpers {
     ) internal pure returns (uint256) {
         // verify that x1 is less than x2.
         // verify that y1 is less than y2.
-        if (x1 > x2 || y1 > y2 || x1 == x2 || y1 == y2) {
+        if (x1 > x2 || y1 > y2 || x1 == x2) {
             revert("invalid values");
+        }
+
+        // if the y values are the same, return y1.
+        if (y1 == y2) {
+            return y1;
         }
 
         // if the current value is greater than the max value, return y2 or y1, depending on proportional.

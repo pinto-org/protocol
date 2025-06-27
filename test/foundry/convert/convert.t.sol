@@ -41,7 +41,12 @@ contract ConvertTest is TestHelper {
     );
 
     event ConvertDownPenalty(address account, uint256 grownStalk, uint256 grownStalkLost);
-    event ConvertUpBonus(address account, uint256 grownStalk, uint256 grownStalkGained);
+    event ConvertUpBonus(
+        address account,
+        uint256 grownStalk,
+        uint256 grownStalkGained,
+        uint256 bdvConverted
+    );
     // Interfaces.
     MockConvertFacet convert = MockConvertFacet(BEANSTALK);
     BeanstalkPrice beanstalkPrice = BeanstalkPrice(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
@@ -1117,7 +1122,7 @@ contract ConvertTest is TestHelper {
         uint256 expectedStalkBonus = 329000684615378400;
 
         vm.expectEmit();
-        emit ConvertUpBonus(farmers[0], expectedStalkBonus, expectedBdvBonus);
+        emit ConvertUpBonus(farmers[0], expectedStalkBonus, expectedBdvBonus, expectedBdvBonus);
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
@@ -1156,7 +1161,12 @@ contract ConvertTest is TestHelper {
 
         vm.prank(farmers[0]);
         vm.expectEmit();
-        emit ConvertUpBonus(farmers[0], gv.bonusStalkPerBdv * expectedBdvBonus, expectedBdvBonus);
+        emit ConvertUpBonus(
+            farmers[0],
+            gv.bonusStalkPerBdv * expectedBdvBonus,
+            expectedBdvBonus,
+            expectedBdvBonus
+        );
         convert.convert(convertData, new int96[](1), amounts);
         usersStalkAfter = bs.balanceOfStalk(farmers[0]);
         gd = abi.decode(

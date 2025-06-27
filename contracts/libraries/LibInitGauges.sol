@@ -37,8 +37,8 @@ library LibInitGauges {
     // Gauge data
     uint256 internal constant MIN_SEASON_TARGET = 100e6; // the minimum seasons to reach value target via conversions. 6 decimal precision.
     uint256 internal constant MAX_SEASON_TARGET = 500e6; // the maximum seasons to reach value target via conversions. 6 decimal precision.
-    uint256 internal constant MIN_DELTA_CAPACITY = 0.5e6; // the minimum value that the convert capacity factor can be adjusted by. 6 decimal precision.
-    uint256 internal constant MAX_DELTA_CAPACITY = 2e6; // the maximum value that the convert capacity factor can be adjusted by. 6 decimal precision.
+    uint256 internal constant MIN_DELTA_CAPACITY = 0.3e6; // the minimum value that the convert capacity factor can be adjusted by. 6 decimal precision.
+    uint256 internal constant MAX_DELTA_CAPACITY = 0.5e6; // the maximum value that the convert capacity factor can be adjusted by. 6 decimal precision.
 
     //////////// Cultivation Factor Gauge ////////////
 

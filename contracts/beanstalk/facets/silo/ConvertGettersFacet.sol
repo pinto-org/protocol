@@ -176,8 +176,7 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
-        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
-        return (bonusStalkPerBdv, gv.maxConvertCapacity);
+        return (gv.bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
     /**
@@ -199,15 +198,13 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
-
         uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
 
         if (gd.bdvConvertedThisSeason >= convertCapacity) {
-            return (bonusStalkPerBdv, 0);
+            return (gv.bonusStalkPerBdv, 0);
         }
 
-        return (bonusStalkPerBdv, convertCapacity - gd.bdvConvertedThisSeason);
+        return (gv.bonusStalkPerBdv, convertCapacity - gd.bdvConvertedThisSeason);
     }
 
     /**

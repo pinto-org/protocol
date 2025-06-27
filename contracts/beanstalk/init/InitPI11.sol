@@ -27,7 +27,7 @@ contract InitPI11 {
         initMaxGaugePoints(MAX_TOTAL_GAUGE_POINTS);
 
         // add the convert up bonus gauge
-        LibInitGauges.initConvertUpBonusGauge(0);
+        LibInitGauges.initConvertUpBonusGauge(960_000e6);
 
         // update the gauge with the stalk per bdv bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(

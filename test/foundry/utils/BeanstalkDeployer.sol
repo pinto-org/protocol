@@ -305,21 +305,45 @@ contract BeanstalkDeployer is Utils {
         address beanstalkAddress,
         string memory initContractName
     ) internal {
-        vm.createSelectFork(forkingUrl, blockNumber);
-        upgradeAllFacets(beanstalkAddress, initContractName);
+        forkMainnetAndUpgradeAllFacets(
+            blockNumber,
+            forkingUrl,
+            beanstalkAddress,
+            initContractName,
+            new bytes(0)
+        );
     }
 
-    function upgradeAllFacets(address beanstalkAddress, string memory initContractName) internal {
+    /**
+     * @notice Forks mainnet at a given block,
+     */
+    function forkMainnetAndUpgradeAllFacets(
+        uint256 blockNumber,
+        string memory forkingUrl,
+        address beanstalkAddress,
+        string memory initContractName,
+        bytes memory initData
+    ) internal {
+        vm.createSelectFork(forkingUrl, blockNumber);
+        upgradeAllFacets(beanstalkAddress, initContractName, initData);
+    }
+
+    function upgradeAllFacets(
+        address beanstalkAddress,
+        string memory initContractName,
+        bytes memory initData
+    ) internal {
         setupFacetAddresses(true, false, true);
 
         // Deploy the init contract if a name is provided
         address initAddress = address(0);
-        bytes memory initData = new bytes(0);
 
         if (bytes(initContractName).length > 0) {
             // Deploy the initialization contract
             initAddress = address(deployCode(initContractName));
-            initData = abi.encodeWithSignature("init()");
+            if (initData.length == 0) {
+                initData = abi.encodeWithSignature("init()");
+            }
         }
 
         // upgradeDiamondFacet();

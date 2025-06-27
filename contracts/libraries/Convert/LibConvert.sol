@@ -54,7 +54,12 @@ library LibConvert {
     }
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost, uint256 grownStalkKept);
-    event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
+    event ConvertUpBonus(
+        address account,
+        uint256 grownStalkGained,
+        uint256 bdvCapacityUsed,
+        uint256 bdvConverted
+    );
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -661,10 +666,12 @@ library LibConvert {
                 if (grownStalkGained > 0) {
                     // update the grown stalk by the amount of grown stalk gained
                     newGrownStalk += grownStalk + grownStalkGained;
-                    emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed);
+                    emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed, toBdv);
+                    return newGrownStalk;
                 }
             }
         }
+        // if the convert is not a BEAN -> WELL or WELL -> BEAN, return the grown stalk as is.
         return grownStalk;
     }
 
@@ -772,6 +779,11 @@ library LibConvert {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
+        // if the bonus stalk per bdv is 0, there is no capacity used / grown stalk gained.
+        if (gv.bonusStalkPerBdv == 0) {
+            return (0, 0);
+        }
+
         uint256 convertCapacity = getConvertCapacity(gv.maxConvertCapacity);
         // if the max convert capacity has been reached, return 0
         if (gd.bdvConvertedThisSeason >= convertCapacity) {
@@ -788,8 +800,15 @@ library LibConvert {
         // limit the bonus to the stalk grown.
         if (grownStalk < grownStalkGained) {
             grownStalkGained = grownStalk;
+            // if this occurs, the we recalculate the effective bdv that was used.
+            // example: if the bonus stalk is 10, with a bonus capacity of 5 bdv (i.e 2 grown stalk per bdv),
+            // and a user converted a deposit that has 5 stalk (with 5 bdv),
+            // the user converted 5 bdv, but will only get 5 stalk (due to the deposit not having enough grown stalk).
+            // this is equivalent to converting a deposit with >=5 stalk and 2.5 bdv.
+            // thus, to prevent the ability for other users to limit others from converting,
+            // we recalculate the effective bdv that was used to deduct from the bonus capacity.
+            bdvWithBonus = grownStalk / gv.bonusStalkPerBdv;
         }
-
         return (bdvWithBonus, grownStalkGained);
     }
 
@@ -848,12 +867,14 @@ library LibConvert {
      * @notice Gets the bonus stalk per bdv for the current season.
      * @dev the bonus stalk per Bdv is updated based on the convert demand and the difference between the bean seeds and the max lp seeds.
      * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
+     * @param cbu The convert bonus capacity utilization.
      * @param convertDemand The convert demand state (INCREASING, STEADY, or DECREASING).
      * @param twaDeltaB The twaDeltaB of the current season.
      * @return The updated bonus stalk per bdv.
      */
     function updateBonusStalkPerBdv(
         uint256 bonusStalkPerBdv,
+        LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
         ConvertDemand convertDemand,
         int256 twaDeltaB
     ) internal view returns (uint256) {
@@ -869,11 +890,19 @@ library LibConvert {
 
         // if the bean seeds are greater than or equal to the max lp seeds,
         // the bonus is updated based on the convert demand.
+
+        // 9 states:
+        // 1. demand increasing, capacity filled: bonus decreases
+        // 2. demand increasing, capacity mostly filled: bonus increases
+
         if (beanSeeds >= maxLpSeeds) {
             uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
 
             // adjust bonus based on convert demand
-            if (convertDemand == ConvertDemand.INCREASING) {
+            if (
+                convertDemand == ConvertDemand.INCREASING ||
+                cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED
+            ) {
                 if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
                     return 0;
                 } else {
