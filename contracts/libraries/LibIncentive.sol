@@ -50,7 +50,8 @@ library LibIncentive {
 
     /**
      * @dev fraxExp scales up the bean reward based on the seconds late.
-     * the formula is beans * (1.01)^(seconds late).
+     * This function uses an if-ladder with pre-calculated scaling factors to determine
+     * the reward based on `secondsLate`. The underlying compounding factor is 1.01 per second.
      */
     function fracExp(
         uint256 beans,
@@ -66,9 +67,6 @@ library LibIncentive {
         // would rather incentivize slightly more to call sunrise earlier than to incentivize slightly less for a later sunrise.
         // repeat until 300 seconds:
         if (secondsLate <= 30) {
-            if (secondsLate == 0) {
-                return _scaleReward(beans, 1_000_000);
-            }
             if (secondsLate <= 2) {
                 return _scaleReward(beans, 1_020_100);
             }
