@@ -807,7 +807,7 @@ library LibConvert {
             // this is equivalent to converting a deposit with >=5 stalk and 2.5 bdv.
             // thus, to prevent the ability for other users to limit others from converting,
             // we recalculate the effective bdv that was used to deduct from the bonus capacity.
-            bdvWithBonus = grownStalk / gv.bonusStalkPerBdv;
+            bdvWithBonus = grownStalkGained / gv.bonusStalkPerBdv;
         }
         return (bdvWithBonus, grownStalkGained);
     }
@@ -899,6 +899,7 @@ library LibConvert {
             uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
 
             // adjust bonus based on convert demand
+
             if (
                 convertDemand == ConvertDemand.INCREASING ||
                 cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED

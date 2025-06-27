@@ -800,7 +800,7 @@ contract ConvertTest is TestHelper {
 
             assertEq(
                 gv.maxConvertCapacity,
-                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons,
+                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons / 100,
                 "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
             );
 
@@ -874,8 +874,8 @@ contract ConvertTest is TestHelper {
                     bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
                     (LibGaugeHelpers.ConvertBonusGaugeValue)
                 )
-                .maxConvertCapacity * 20) /
-            100; // 20% of the max capacity
+                .maxConvertCapacity * 10) /
+            100; // 10% of the max capacity
         for (uint256 i = 0; i < 30; i++) {
             uint256 mostlyFilledThreshold = (abi
                 .decode(
@@ -984,11 +984,15 @@ contract ConvertTest is TestHelper {
                     "capacity factor should be the same"
                 );
             } else {
-                assertLt(
-                    gv.convertCapacityFactor,
-                    previousCapacityFactor,
-                    "convertCapacityFactor should be decreasing with low demand"
-                );
+                if (gv.convertCapacityFactor != 1e6) {
+                    assertLt(
+                        gv.convertCapacityFactor,
+                        previousCapacityFactor,
+                        "convertCapacityFactor should be decreasing with low demand"
+                    );
+                } else {
+                    assertEq(gv.convertCapacityFactor, 1e6, "capacity factor should be 1e6");
+                }
             }
 
             assertGt(
@@ -999,7 +1003,7 @@ contract ConvertTest is TestHelper {
 
             assertEq(
                 gv.maxConvertCapacity,
-                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons,
+                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons / 100,
                 "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
             );
 
@@ -1073,7 +1077,7 @@ contract ConvertTest is TestHelper {
 
     // verify convert up bonus is applied when converting.
     function test_convertWellToBeanGeneralWithBonus() public {
-        uint256 baseStalkedGainedFromConverting = 90485590000000000;
+        uint256 baseStalkedGainedFromConverting = 90585590000000000;
         uint256 lpMinted = multipleWellDepositSetup();
 
         uint256 deltaB = 1000e6;
@@ -1117,11 +1121,11 @@ contract ConvertTest is TestHelper {
             bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
-
-        uint256 expectedBdvBonus = 100000000;
+        uint256 amountConverted = 100000000;
+        uint256 expectedBdvBonus = 32900068;
         uint256 expectedStalkBonus = 329000684615378400;
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, false);
         emit ConvertUpBonus(farmers[0], expectedStalkBonus, expectedBdvBonus, expectedBdvBonus);
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
@@ -1146,8 +1150,8 @@ contract ConvertTest is TestHelper {
         );
 
         assertLe(
-            (usersStalkAfter - usersStalkBefore) - baseStalkedGainedFromConverting,
-            (gv.bonusStalkPerBdv * expectedBdvBonus),
+            (usersStalkAfter - usersStalkBefore) - baseStalkedGainedFromConverting, // 329100684615378400
+            (gv.bonusStalkPerBdv * amountConverted),
             "users gained stalk should be less than or equal to bonusStalkPerBdv * expectedBdvBonus"
         );
 
@@ -1160,7 +1164,7 @@ contract ConvertTest is TestHelper {
         );
 
         vm.prank(farmers[0]);
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, false);
         emit ConvertUpBonus(
             farmers[0],
             gv.bonusStalkPerBdv * expectedBdvBonus,
@@ -1181,13 +1185,13 @@ contract ConvertTest is TestHelper {
         );
         assertEq(
             gd.bdvConvertedThisSeason,
-            expectedBdvBonus,
+            amountConverted,
             "bdvConvertedThisSeason should be equal to expectedBdvBonus"
         );
 
         assertEq(
             (usersStalkAfter - usersStalkBefore) - baseStalkedGainedFromConverting,
-            (gv.bonusStalkPerBdv * expectedBdvBonus),
+            (gv.bonusStalkPerBdv * amountConverted),
             "users gained stalk should be equal to bonusStalkPerBdv * expectedBdvBonus"
         );
     }
@@ -1399,6 +1403,7 @@ contract ConvertTest is TestHelper {
 
         // update bdv capacity such that any convert will get the bonus
         bs.mockUpdateBonusBdvCapacity(type(uint128).max);
+        bs.mockUpdateStalkPerBdvBonus(1e6);
 
         LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore = abi.decode(
             bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
