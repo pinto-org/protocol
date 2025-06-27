@@ -1995,6 +1995,32 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "secondsSinceStart",
+        "type": "uint256"
+      }
+    ],
+    "name": "SoilMostlySoldOut",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "secondsSinceStart",
+        "type": "uint256"
+      }
+    ],
+    "name": "SoilSoldOut",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "account",
@@ -2166,6 +2192,32 @@
         "internalType": "struct FieldFacet.Plot[]",
         "name": "plots",
         "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getSoilMostlySoldOutThreshold",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getSoilSoldOutThreshold",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -8277,25 +8329,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "uint32",
-        "name": "season",
-        "type": "uint32"
-      },
-      {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "abovePeg",
-        "type": "bool"
-      }
-    ],
-    "name": "PegStateUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "uint256",
         "name": "season",
@@ -8858,11 +8891,6 @@
             "type": "bool"
           },
           {
-            "internalType": "uint32",
-            "name": "pegCrossSeason",
-            "type": "uint32"
-          },
-          {
             "internalType": "uint256",
             "name": "start",
             "type": "uint256"
@@ -9223,11 +9251,6 @@
             "type": "bool"
           },
           {
-            "internalType": "uint32",
-            "name": "pegCrossSeason",
-            "type": "uint32"
-          },
-          {
             "internalType": "uint256",
             "name": "start",
             "type": "uint256"
@@ -9322,19 +9345,19 @@
             "type": "uint32"
           },
           {
-            "internalType": "uint32",
+            "internalType": "uint64",
             "name": "temp",
-            "type": "uint32"
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint128",
+            "name": "morningControl",
+            "type": "uint128"
           },
           {
             "internalType": "uint16",
             "name": "morningDuration",
             "type": "uint16"
-          },
-          {
-            "internalType": "uint256",
-            "name": "morningControl",
-            "type": "uint256"
           },
           {
             "internalType": "bytes32[3]",
@@ -10902,6 +10925,19 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "newLastConvertBonusTaken",
+        "type": "uint256"
+      }
+    ],
+    "name": "mockUpdateLastConvertBonusTaken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "newStalkPerBdvBonus",
         "type": "uint256"
       }
@@ -11068,6 +11104,24 @@
       }
     ],
     "name": "setMaxTemp",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prevSeasonTemp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "cultivationTemp",
+        "type": "uint256"
+      }
+    ],
+    "name": "setPrevSeasonAndCultivationTemp",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -11326,6 +11380,11 @@
             "internalType": "int256",
             "name": "twaDeltaB",
             "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "caseId",
+            "type": "uint256"
           }
         ],
         "internalType": "struct LibEvaluate.BeanstalkState",
@@ -11736,6 +11795,11 @@
             "internalType": "int256",
             "name": "twaDeltaB",
             "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "caseId",
+            "type": "uint256"
           }
         ],
         "internalType": "struct LibEvaluate.BeanstalkState",
@@ -11799,11 +11863,6 @@
     "name": "mockcalcCaseIdAndHandleRain",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "caseId",
-        "type": "uint256"
-      },
-      {
         "components": [
           {
             "components": [
@@ -11860,6 +11919,11 @@
             "internalType": "int256",
             "name": "twaDeltaB",
             "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "caseId",
+            "type": "uint256"
           }
         ],
         "internalType": "struct LibEvaluate.BeanstalkState",
@@ -12408,6 +12472,11 @@
             "internalType": "int256",
             "name": "twaDeltaB",
             "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "caseId",
+            "type": "uint256"
           }
         ],
         "internalType": "struct LibEvaluate.BeanstalkState",
@@ -12868,6 +12937,24 @@
       }
     ],
     "name": "addWhitelistStatus",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint40",
+        "name": "stalkEarnedPerSeason",
+        "type": "uint40"
+      }
+    ],
+    "name": "mockUpdateStalkPerBdvPerSeasonForToken",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
