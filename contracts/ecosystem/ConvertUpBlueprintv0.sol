@@ -193,13 +193,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             params.convertUpParams.maxConvertBdvPerExecution
         );
 
-        // Fetch current price and check if price is within acceptable range
-        validatePriceRange(
-            beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES).price,
-            params.convertUpParams.minPriceToConvertUp,
-            params.convertUpParams.maxPriceToConvertUp
-        );
-
         // Apply slippage ratio if needed
         uint256 slippageRatio = params.convertUpParams.slippageRatio;
         if (slippageRatio == 0) {
@@ -294,6 +287,15 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         require(
             cup.minPriceToConvertUp <= cup.maxPriceToConvertUp,
             "Min price to convert up > max price"
+        );
+        uint256 currentPrice = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES).price;
+        require(
+            currentPrice >= cup.minPriceToConvertUp,
+            "Current price below minimum price for convert up"
+        );
+        require(
+            currentPrice <= cup.maxPriceToConvertUp,
+            "Current price above maximum price for convert up"
         );
 
         // Time constraint validation
@@ -394,27 +396,6 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      */
     function updateLastExecutedTimestamp(bytes32 orderHash, uint256 timestamp) internal {
         orderInfo[orderHash].lastExecutedTimestamp = timestamp;
-    }
-
-    /**
-     * @notice Validates that the current price is within the acceptable range for converting up
-     * @param currentPrice The current price from BeanstalkPrice
-     * @param minPriceToConvertUp Minimum price at which to convert up
-     * @param maxPriceToConvertUp Maximum price at which to convert up
-     */
-    function validatePriceRange(
-        uint256 currentPrice,
-        uint256 minPriceToConvertUp,
-        uint256 maxPriceToConvertUp
-    ) internal pure {
-        require(
-            currentPrice >= minPriceToConvertUp,
-            "Current price below minimum price for convert up"
-        );
-        require(
-            currentPrice <= maxPriceToConvertUp,
-            "Current price above maximum price for convert up"
-        );
     }
 
     /**
