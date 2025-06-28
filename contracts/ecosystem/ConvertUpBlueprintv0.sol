@@ -31,20 +31,13 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         uint256 amountConverted
     );
 
-    // Constants for specifying token selection strategies
-    uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
-    uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
-
     /**
      * @notice Struct to hold local variables for the convert up operation to avoid stack too deep errors
      * @param orderHash Hash of the current blueprint order
      * @param account Address of the user's account (current Tractor user), not operator
      * @param tipAddress Address to send tip to
-     * @param currentTimestamp Current block timestamp
-     * @param lastExecution Last time this blueprint was executed
      * @param pdvLeftToConvert Amount of PDV left to convert from the total
      * @param currentPdvToConvert Amount of PDV to convert in this execution
-     * @param currentPrice Current price for the conversion
      * @param amountConverted Amount actually converted
      * @param withdrawalPlan Plan for withdrawing tokens for conversion
      */
@@ -52,11 +45,8 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         bytes32 orderHash;
         address account;
         address tipAddress;
-        uint256 currentTimestamp;
-        uint256 lastExecution;
         uint256 pdvLeftToConvert;
         uint256 currentPdvToConvert;
-        uint256 currentPrice;
         uint256 amountConverted;
         LibSiloHelpers.WithdrawalPlan withdrawalPlan;
     }
@@ -163,16 +153,11 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
         ConvertUpLocalVars memory vars;
-        vars.currentTimestamp = block.timestamp;
-
         // Get order hash
         vars.orderHash = beanstalk.getCurrentBlueprintHash();
 
         // Get user account
         vars.account = beanstalk.tractorUser();
-
-        // Get the last execution timestamp
-        vars.lastExecution = getLastExecutedTimestamp(vars.orderHash);
 
         // Validate parameters
         validateParams(params);
@@ -196,10 +181,8 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         // If pdvLeftToConvert is max, revert, as the order has already been completed
         if (vars.pdvLeftToConvert == type(uint256).max) {
             revert("Order has already been completed");
-        }
-
-        // If pdvLeftToConvert is 0, initialize it with the total amount
-        if (vars.pdvLeftToConvert == 0) {
+        } else if (vars.pdvLeftToConvert == 0) {
+            // If pdvLeftToConvert is 0, initialize it with the total amount
             vars.pdvLeftToConvert = params.convertUpParams.totalConvertPdv;
         }
 
@@ -210,16 +193,18 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             params.convertUpParams.maxConvertPdvPerExecution
         );
 
-        // Get current price and check price constraints using BeanstalkPrice
-        BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
-        vars.currentPrice = p.price;
-
-        // Check if price is within acceptable range
+        // Fetch current price and check if price is within acceptable range
         validatePriceRange(
-            vars.currentPrice,
+            beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES).price,
             params.convertUpParams.minPriceToConvertUp,
             params.convertUpParams.maxPriceToConvertUp
         );
+
+        // Apply slippage ratio if needed
+        uint256 slippageRatio = params.convertUpParams.slippageRatio;
+        if (slippageRatio == 0) {
+            slippageRatio = DEFAULT_SLIPPAGE_RATIO;
+        }
 
         // First withdraw Beans from which to tip Operator (using a newer deposit burns less stalk)
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
@@ -231,7 +216,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
                 params.convertUpParams.maxGrownStalkPerBdv,
                 true, // excludeBean from the withdrawal plan (only applies if using a strategy)
                 true, // excludeGerminatingDeposits from the withdrawal plan
-                params.convertUpParams.slippageRatio,
+                slippageRatio,
                 LibTransfer.To.INTERNAL,
                 emptyPlan
             );
@@ -248,34 +233,28 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             emptyPlan
         );
 
-        // Apply slippage ratio if needed
-        uint256 slippageRatio = params.convertUpParams.slippageRatio;
-        if (slippageRatio == 0) {
-            slippageRatio = DEFAULT_SLIPPAGE_RATIO;
-        }
+        address beanToken = beanstalk.getBeanToken();
 
         // Execute the conversion using Beanstalk's convert function
         vars.amountConverted = executeConvertUp(
             vars,
+            beanToken,
             slippageRatio,
             params.convertUpParams.maxGrownStalkPerPdvPenalty
         );
 
         // Update the state
         // If all PDV has been converted, set to max to indicate completion
-        if (vars.pdvLeftToConvert - vars.currentPdvToConvert == 0) {
-            updatePdvLeftToConvert(vars.orderHash, type(uint256).max);
-        } else {
-            // Update the PDV left to convert
-            updatePdvLeftToConvert(
-                vars.orderHash,
-                vars.pdvLeftToConvert - vars.currentPdvToConvert
-            );
-        }
+        uint256 pdvConverted = vars.pdvLeftToConvert - vars.currentPdvToConvert == 0
+            ? type(uint256).max
+            : vars.pdvLeftToConvert - vars.currentPdvToConvert;
+
+        // Update the PDV left to convert
+        updatePdvLeftToConvert(vars.orderHash, pdvConverted);
 
         // Tip the operator
         tractorHelpers.tip(
-            beanstalk.getBeanToken(),
+            beanToken,
             vars.account,
             vars.tipAddress,
             params.opParams.operatorTipAmount,
@@ -284,7 +263,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         );
 
         // Update the last executed timestamp for this blueprint
-        updateLastExecutedTimestamp(vars.orderHash, vars.currentTimestamp);
+        updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
 
         // Emit completion event
         emit ConvertUpOrderComplete(vars.orderHash, vars.account, vars.amountConverted);
@@ -456,10 +435,10 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      */
     function executeConvertUp(
         ConvertUpLocalVars memory vars,
+        address beanToken,
         uint256 slippageRatio,
         int256 maxGrownStalkPerPdvPenalty
     ) internal returns (uint256 totalAmountConverted) {
-        address beanToken = beanstalk.getBeanToken();
         totalAmountConverted = 0;
 
         // Process each token type in the withdrawal plan
