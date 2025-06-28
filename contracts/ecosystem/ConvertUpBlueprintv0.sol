@@ -276,7 +276,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
 
     /**
      * @notice Validates the parameters for the convert up operation
-     * @param params The ConvertUpBlueprintStruct containing all parameters for the convert up operation
+     * @param cup The ConvertUpParams containing all parameters for the convert up operation
      */
     function validateParams(ConvertUpParams memory cup) internal view returns (bytes32 orderHash) {
         // Source tokens validation
