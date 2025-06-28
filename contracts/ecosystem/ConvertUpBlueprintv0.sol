@@ -238,12 +238,11 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
 
         // Update the state
         // If all BDV has been converted, set to max to indicate completion
-        uint256 bdvConverted = vars.bdvLeftToConvert - vars.currentBdvToConvert == 0
-            ? type(uint256).max
-            : vars.bdvLeftToConvert - vars.currentBdvToConvert;
+        uint256 bdvRemaining = vars.bdvLeftToConvert - vars.currentBdvToConvert;
+        if (bdvRemaining == 0) bdvRemaining = type(uint256).max;
 
         // Update the BDV left to convert
-        updateBdvLeftToConvert(vars.orderHash, bdvConverted);
+        updateBdvLeftToConvert(vars.orderHash, bdvRemaining);
 
         // Tip the operator
         tractorHelpers.tip(
