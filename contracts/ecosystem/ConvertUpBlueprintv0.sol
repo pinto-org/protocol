@@ -262,7 +262,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
             vars.orderHash,
             vars.account,
             vars.amountConverted,
-            bdvConverted
+            vars.currentBdvToConvert
         );
     }
 
