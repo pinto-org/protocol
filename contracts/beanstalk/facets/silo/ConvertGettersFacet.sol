@@ -12,6 +12,7 @@ import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
@@ -163,7 +164,6 @@ contract ConvertGettersFacet {
 
     /**
      * @notice Returns the bonus stalk per bdv and the maximum convert capacity.
-     * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
     function getConvertStalkPerBdvBonusAndMaximumCapacity()
         external
@@ -176,13 +176,11 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
-        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
-        return (bonusStalkPerBdv, gv.maxConvertCapacity);
+        return (gv.bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
     /**
      * @notice Returns the bonus stalk per bdv and the remaining convert capacity.
-     * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
     function getConvertStalkPerBdvBonusAndRemainingCapacity()
         external
@@ -200,15 +198,13 @@ contract ConvertGettersFacet {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        uint256 bonusStalkPerBdv = (gv.bonusStalkPerBdv * gv.convertCapacityFactor) / C.PRECISION;
-
         uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
 
-        if (gd.totalBdvConvertedBonus >= convertCapacity) {
-            return (bonusStalkPerBdv, 0);
+        if (gd.bdvConvertedThisSeason >= convertCapacity) {
+            return (gv.bonusStalkPerBdv, 0);
         }
 
-        return (bonusStalkPerBdv, convertCapacity - gd.totalBdvConvertedBonus);
+        return (gv.bonusStalkPerBdv, convertCapacity - gd.bdvConvertedThisSeason);
     }
 
     /**
@@ -225,7 +221,6 @@ contract ConvertGettersFacet {
 
     /**
      * @notice Returns the amount of grown stalk gained from the convert up bonus.
-     * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param bdvToConvert The resulting bdv of the convert.
      * @param grownStalk The initial grown stalk of the deposit.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.

@@ -35,6 +35,8 @@ fs_permissions = [
   { access = "read", path = "../" },
   { access = "read", path = "./out" },
   { access = "read-write", path = "./test/generated/" },
+  { access = "read-write", path = "./oscillation_data.csv" },
+  { access = "read-write", path = "./convert_up_data.csv" },
 ]
 ignored_warnings_from = [
   "test",
@@ -45,8 +47,8 @@ gas_reports = ['*']
 # Cache to `$HOME/.foundry/cache/<chain id>/<block number>`.
 no_storage_caching = false
 
-# Exclude any tests that contain the word "LEGACY"
-no_match_contract = "LEGACY"
+# Exclude deployment tests so CI works
+no_match_contract = "Legacy"
 
 [profile.differential]
 match_test = "testDiff"

@@ -53,6 +53,18 @@ library LibEvaluate {
     uint256 internal constant MIN_BEAN_SOWN_DEMAND = 50e6;
     uint256 internal constant MIN_BEAN_SOWN_DEMAND_PERCENT = 0.05e6; // 5%
 
+    /**
+     * @notice BeanstalkState is the state of Beanstalk at the end of a season.
+     * Beanstalk uses the state to determine how to adjust itself based on the state.
+     * @param deltaPodDemand The change in demand for Soil between the current and previous Season.
+     * @param lpToSupplyRatio The ratio of liquidity to supply.
+     * @param podRate The ratio of Pods outstanding against the bean supply.
+     * @param largestLiqWell The address of the largest liquidity well.
+     * @param oracleFailure Whether the oracle failed.
+     * @param largestLiquidWellTwapBeanPrice The price of the largest liquidity well in USD.
+     * @param twaDeltaB The amount of beans needed to be bought/sold to reach peg.
+     * @param caseId The caseId of the BeanstalkState.
+     */
     struct BeanstalkState {
         Decimal.D256 deltaPodDemand;
         Decimal.D256 lpToSupplyRatio;
@@ -61,6 +73,7 @@ library LibEvaluate {
         bool oracleFailure;
         uint256 largestLiquidWellTwapBeanPrice;
         int256 twaDeltaB;
+        uint256 caseId;
     }
 
     event SeasonMetrics(
@@ -170,11 +183,14 @@ library LibEvaluate {
         deltaPodDemand = getDemand(dsoil, w.lastDeltaSoil);
 
         // `s.weather.thisSowTime` is set to the number of seconds in it took for
-        // Soil to sell out during the current Season. If Soil didn't sell out,
-        // it remains `type(uint32).max`.
-        if (w.thisSowTime < type(uint32).max) {
+        // Soil to sell out during the current Season.
+        //  If Soil didn't sell out, `w.thisSowTime` is set to `type(uint32).max`.
+        //  If Soil is mostly sold out, `w.thisSowTime` is set to `type(uint32).max - 1`.
+        //  If Soil is sold out, `w.thisSowTime` is set to the seconds it took to sell out.
+        if (w.thisSowTime < type(uint32).max - 1) {
+            // soil sold out this season.
             if (
-                w.lastSowTime == type(uint32).max || // Didn't Sow all last Season
+                w.lastSowTime >= type(uint32).max - 1 || // Didn't Sow all last Season
                 w.thisSowTime < SOW_TIME_DEMAND_INCR || // Sow'd all instantly this Season
                 (w.lastSowTime > SOW_TIME_STEADY_UPPER &&
                     w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY_LOWER)) // Sow'd all faster
@@ -325,14 +341,15 @@ library LibEvaluate {
     function evaluateBeanstalk(
         int256 deltaB,
         uint256 beanSupply
-    ) external returns (uint256, BeanstalkState memory) {
+    ) external returns (BeanstalkState memory) {
         BeanstalkState memory bs = updateAndGetBeanstalkState(beanSupply);
         bs.twaDeltaB = deltaB;
         uint256 caseId = evalPodRate(bs.podRate) // Evaluate Pod Rate
             .add(evalPrice(deltaB, bs.largestLiquidWellTwapBeanPrice))
             .add(evalDeltaPodDemand(bs.deltaPodDemand))
             .add(evalLpToSupplyRatio(bs.lpToSupplyRatio)); // Evaluate Price // Evaluate Delta Soil Demand // Evaluate LP to Supply Ratio
-        return (caseId, bs);
+        bs.caseId = caseId;
+        return bs;
     }
 
     /**

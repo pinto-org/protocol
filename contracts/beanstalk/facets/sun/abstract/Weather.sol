@@ -7,7 +7,7 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import {LibWeather} from "contracts/libraries/Season/LibWeather.sol";
+import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 /**
  * @title Weather
  * @notice Weather controls the Temperature and Grown Stalk to LP on the Farm.
@@ -25,19 +25,19 @@ abstract contract Weather is Sun {
      */
     function calcCaseIdAndHandleRain(
         int256 deltaB
-    ) internal returns (uint256 caseId, LibEvaluate.BeanstalkState memory bs) {
+    ) internal returns (LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
             s.sys.weather.temp = 1e6;
             // Returns an uninitialized Beanstalk State.
-            return (9, bs); // Reasonably low
+            bs.caseId = 9;
+            return bs; // Reasonably low
         }
 
-        // Calculate Case Id
-        (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        LibWeather.updatePegState(bs.twaDeltaB);
-        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, bs.oracleFailure);
-        LibFlood.handleRain(caseId);
+        // Evaluate Beanstalk State, and update temperature and BeanToMaxLpGpPerBdvRatio.
+        bs = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
+        LibFlood.handleRain(bs.caseId);
     }
 }

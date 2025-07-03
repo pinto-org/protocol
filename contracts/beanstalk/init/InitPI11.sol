@@ -10,26 +10,24 @@ import {LibGauge} from "../../libraries/LibGauge.sol";
 import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibWeather} from "../../libraries/Season/LibWeather.sol";
+import {LibWeather} from "../../libraries/Sun/LibWeather.sol";
 
 /**
- * @title InitPI10
- * @dev Initializes parameters for pinto improvement 10.
+ * @title InitPI11
+ * @dev Initializes parameters for pinto improvement 11.
  **/
-contract InitPI10 {
+contract InitPI11 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
-    uint32 constant PEG_CROSS_SEASON = 2558;
+    uint16 constant MORNING_DURATION = 600;
+    uint128 constant MORNING_CONTROL = uint128(1e18) / 240;
 
     function init(uint256 bonusStalkPerBdv) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // initialize the gauge point update.
         initMaxGaugePoints(MAX_TOTAL_GAUGE_POINTS);
 
-        // initialize peg cross season.
-        s.sys.season.pegCrossSeason = PEG_CROSS_SEASON;
-        emit LibWeather.PegStateUpdated(s.sys.season.pegCrossSeason, s.sys.season.abovePeg);
-
-        LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
+        // add the convert up bonus gauge
+        LibInitGauges.initConvertUpBonusGauge(960_000e6);
 
         // update the gauge with the stalk per bdv bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
@@ -37,10 +35,20 @@ contract InitPI10 {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
+        // initialize morning Auction Control variables.
+        s.sys.weather.morningDuration = MORNING_DURATION;
+        s.sys.weather.morningControl = MORNING_CONTROL;
+
+        // update the convert up bonus gauge value.
         gv.bonusStalkPerBdv = bonusStalkPerBdv;
         LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_UP_BONUS, abi.encode(gv));
     }
 
+    /**
+     * @notice Initializes the max total gauge points.
+     * @dev this function takes the current gauge points of the whitelisted LP tokens, and normalizes them to the max total gauge points.
+     * @param maxGaugePoints The max total gauge points.
+     */
     function initMaxGaugePoints(uint256 maxGaugePoints) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
@@ -55,6 +63,8 @@ contract InitPI10 {
         for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
             totalGaugePoints += s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints;
         }
+
+        // this init scripts assumes that the total gauge points is greater than 0 && there are whitelisted LP tokens.
         // set the gauge points to the normalized gauge points
         for (uint256 i = 0; i < whitelistedLpTokens.length; i++) {
             s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints = uint128(

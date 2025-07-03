@@ -114,4 +114,18 @@ contract MockConvertFacet is ConvertFacet {
         // Encode and store updated gauge data
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
     }
+
+    function mockUpdateLastConvertBonusTaken(uint256 newLastConvertBonusTaken) external {
+        // Get current gauge data
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        // Update lastConvertBonusTaken
+        gd.lastConvertBonusTaken = newLastConvertBonusTaken;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(gd);
+    }
 }

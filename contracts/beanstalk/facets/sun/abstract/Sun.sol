@@ -79,6 +79,7 @@ abstract contract Sun is Oracle, Distribution {
                 priorHarvestable +
                 s.sys.rain.floodHarvestablePods;
             setSoilAbovePeg(newHarvestable, bs.podRate);
+            s.sys.season.abovePeg = true;
         } else {
             // Below peg
             int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
@@ -94,6 +95,7 @@ abstract contract Sun is Oracle, Distribution {
                 soil = Math.min(uint256(-twaDeltaB), uint256(-instDeltaB));
                 setSoil(scaleSoilBelowPeg(soil, bs.lpToSupplyRatio));
             }
+            s.sys.season.abovePeg = false;
         }
     }
 
@@ -209,7 +211,7 @@ abstract contract Sun is Oracle, Distribution {
      */
     function setSoil(uint256 amount) internal {
         s.sys.soil = amount.toUint128();
-        s.sys.initialSoil = s.sys.soil;
+        s.sys.initialSoil = amount.toUint128();
         emit Soil(s.sys.season.current, amount.toUint128());
     }
 }

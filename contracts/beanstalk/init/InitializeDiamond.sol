@@ -189,7 +189,7 @@ contract InitializeDiamond {
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
         s.sys.weather.morningDuration = 600; // 10 minutes
-        s.sys.weather.morningControl = uint256(1e18) / 240; // 1 / 240 = 0.004166666667
+        s.sys.weather.morningControl = uint128(1e18) / 240; // 1 / 240 = 0.004166666667
         s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
     }
 
@@ -332,6 +332,6 @@ contract InitializeDiamond {
 
         LibInitGauges.initConvertDownPenalty(); // add the convert down penalty gauge
 
-        LibInitGauges.initConvertUpBonusGauge(); // add the convert up bonus gauge
+        LibInitGauges.initConvertUpBonusGauge(0); // add the convert up bonus gauge
     }
 }

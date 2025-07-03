@@ -29,7 +29,7 @@ import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
-import {LibWeather} from "contracts/libraries/Season/LibWeather.sol";
+import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 
 /**
  * @title Mock Season Facet
@@ -160,7 +160,7 @@ contract MockSeasonFacet is SeasonFacet {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        (, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
+        LibEvaluate.BeanstalkState memory bs = calcCaseIdAndHandleRain(deltaB);
         stepSun(bs);
     }
 
@@ -184,11 +184,11 @@ contract MockSeasonFacet is SeasonFacet {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 0,
-            twaDeltaB: deltaB
+            twaDeltaB: deltaB,
+            caseId: caseId
         });
-
-        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
-        stepSun(bs);
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
+        stepSun(bs); // Do not scale soil down using L2SR
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {
@@ -208,7 +208,8 @@ contract MockSeasonFacet is SeasonFacet {
                 largestLiqWell: address(0),
                 oracleFailure: false,
                 largestLiquidWellTwapBeanPrice: 0,
-                twaDeltaB: deltaB
+                twaDeltaB: deltaB,
+                caseId: 0
             })
         ); // Do not scale soil down using L2SR
     }
@@ -703,17 +704,17 @@ contract MockSeasonFacet is SeasonFacet {
      */
     function mockcalcCaseIdAndHandleRain(
         int256 deltaB
-    ) public returns (uint256 caseId, LibEvaluate.BeanstalkState memory bs) {
+    ) public returns (LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
             s.sys.weather.temp = 1e6;
-            return (9, bs); // Reasonably low
+            return (bs); // Reasonably low
         }
         // Calculate Case Id
-        (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, false);
-        LibFlood.handleRain(caseId);
+        bs = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
+        LibFlood.handleRain(bs.caseId);
     }
 
     function getSeasonStart() external view returns (uint256) {

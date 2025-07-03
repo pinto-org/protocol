@@ -3,12 +3,19 @@ pragma solidity ^0.8.20;
 import {Gauge, GaugeId} from "../beanstalk/storage/System.sol";
 import {LibAppStorage} from "./LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
+import {C} from "contracts/C.sol";
 
 /**
  * @title LibGaugeHelpers
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Convert Bonus Gauge Constants
+    uint256 internal constant MIN_CONVERT_CAPACITY_FACTOR = 1e6;
+    uint256 internal constant MAX_CONVERT_CAPACITY_FACTOR = 100e6;
+    uint256 internal constant CONVERT_CAPACITY_FILLED = 0.95e6;
+    uint256 internal constant CONVERT_CAPACITY_MOSTLY_FILLED = 0.80e6;
+
     // Gauge structs
 
     //// Convert Bonus Gauge ////
@@ -16,37 +23,42 @@ library LibGaugeHelpers {
     /**
      * @notice Struct for Convert Bonus Gauge Value
      * @dev The value of the Convert Bonus Gauge is a struct that contains the following:
-     * - convertBonusFactor: The % of the bonusStalkPerBdv that a user receives upon a successful WELL -> BEAN conversion.
-     * - convertCapacityFactor: The Factor used to determine the convert capacity. Capacity is a % of the twaDeltaB.
      * - bonusStalkPerBdv: The base bonus stalk per bdv that can be issued as a bonus.
      * - maxConvertCapacity: The maximum amount of bdv that can be converted in a season and get a bonus.
+     * - convertCapacityFactor: The Factor used to determine the convert capacity.
      */
     struct ConvertBonusGaugeValue {
-        uint256 convertBonusFactor;
-        uint256 convertCapacityFactor;
         uint256 bonusStalkPerBdv;
         uint256 maxConvertCapacity;
+        uint256 convertCapacityFactor;
     }
 
     /**
      * @notice Struct for Convert Bonus Gauge Data
      * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
-     * - deltaC: The delta used in adjusting the convertBonusFactor.
-     * - deltaD: The delta used in adjusting the convertCapacityFactor.
-     * - minConvertBonusFactor: The minimum value of the conversion factor.
-     * - maxConvertBonusFactor: The maximum value of the conversion factor.
-     * - minCapacityFactor: The minimum value of the convert bonus bdv capacity factor.
-     * - maxCapacityFactor: The maximum value of the convert bonus bdv capacity factor.
-     * - totalBdvConvertedBonus: The amount of bdv converted this season that received a bonus.
+     * - minSeasonTarget: The minimum target seasons to return to value target via conversions.
+     * - maxSeasonTarget: The maximum target seasons to return to value target via conversions.
+     * - minDeltaCapacity: The minimum delta capacity used to change the rate of change in the capacity factor.
+     * - maxDeltaCapacity: The maximum delta capacity used to change the rate of change in the capacity factor.
+     * - bdvConvertedThisSeason: The amount of bdv converted that received a bonus this season.
+     * - bdvConvertedLastSeason: The amount of bdv converted that received a bonus last season.
+     * - maxTwaDeltaB: The maximum recorded negative twaDeltaB while the bonus was active.
      */
     struct ConvertBonusGaugeData {
-        uint256 deltaC;
-        uint256 deltaD;
-        uint256 minConvertBonusFactor;
-        uint256 maxConvertBonusFactor;
-        uint256 minCapacityFactor;
-        uint256 maxCapacityFactor;
-        uint256 totalBdvConvertedBonus;
+        uint256 minSeasonTarget;
+        uint256 maxSeasonTarget;
+        uint256 minDeltaCapacity;
+        uint256 maxDeltaCapacity;
+        uint256 bdvConvertedThisSeason;
+        uint256 bdvConvertedLastSeason;
+        uint256 maxTwaDeltaB;
+        uint256 lastConvertBonusTaken;
+    }
+
+    enum ConvertBonusCapacityUtilization {
+        NOT_FILLED,
+        MOSTLY_FILLED,
+        FILLED
     }
 
     // Gauge events
@@ -223,6 +235,54 @@ library LibGaugeHelpers {
         return s.sys.gaugeData.gauges[gaugeId].data;
     }
 
+    /// GAUGE SPECIFIC HELPERS ///
+
+    /**
+     * @notice Updates the previous season temperature, in the Cultivation Factor Gauge.
+     * @param temperature The temperature of the last season.
+     */
+    function updatePrevSeasonTemp(uint256 temperature) internal {
+        (
+            uint256 minDeltaCf,
+            uint256 maxDeltaCf,
+            uint256 minCf,
+            uint256 maxCf,
+            uint256 soldOutTemp,
+
+        ) = abi.decode(
+                getGaugeData(GaugeId.CULTIVATION_FACTOR),
+                (uint256, uint256, uint256, uint256, uint256, uint256)
+            );
+        updateGaugeData(
+            GaugeId.CULTIVATION_FACTOR,
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, soldOutTemp, temperature)
+        );
+    }
+
+    /**
+     * @notice Returns an enum indicating how much of the convert capacity has been filled. Used in the Convert Bonus Gauge.
+     * @param bdvConvertedThisSeason The amount of bdv converted this season.
+     * @param maxConvertCapacity The maximum amount of bdv that can be converted in a season and get a bonus.
+     * @return The capacity filled state.
+     */
+    function getConvertBonusCapacityUtilization(
+        uint256 bdvConvertedThisSeason,
+        uint256 maxConvertCapacity
+    ) internal pure returns (ConvertBonusCapacityUtilization) {
+        if (
+            bdvConvertedThisSeason >= (maxConvertCapacity * CONVERT_CAPACITY_FILLED) / C.PRECISION_6
+        ) {
+            return ConvertBonusCapacityUtilization.FILLED;
+        } else if (
+            bdvConvertedThisSeason >=
+            (maxConvertCapacity * CONVERT_CAPACITY_MOSTLY_FILLED) / C.PRECISION_6
+        ) {
+            return ConvertBonusCapacityUtilization.MOSTLY_FILLED;
+        } else {
+            return ConvertBonusCapacityUtilization.NOT_FILLED;
+        }
+    }
+
     /// GAUGE BLOCKS ///
 
     /**
@@ -285,8 +345,13 @@ library LibGaugeHelpers {
     ) internal pure returns (uint256) {
         // verify that x1 is less than x2.
         // verify that y1 is less than y2.
-        if (x1 > x2 || y1 > y2 || x1 == x2 || y1 == y2) {
+        if (x1 > x2 || y1 > y2 || x1 == x2) {
             revert("invalid values");
+        }
+
+        // if the y values are the same, return y1.
+        if (y1 == y2) {
+            return y1;
         }
 
         // if the current value is greater than the max value, return y2 or y1, depending on proportional.
