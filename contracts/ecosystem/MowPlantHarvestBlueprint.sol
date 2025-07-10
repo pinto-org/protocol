@@ -63,6 +63,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     ////////////////////////////////////////////////////////////////
     // General:
     // If someone plants or harvests, we should mow by default.
+    // Do we add a function to simulate execution of multiple blueprints
+    // like in {SowBlueprint.validateParamsAndReturnBeanstalkStateArray}?
+    ////////////////////////////////////////////////////////////////
 
     /**
      * @notice Struct to hold mow, plant and harvest parameters
@@ -83,7 +86,8 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         uint256 minHarvestAmount;
         // Harvest specific parameters
         bool shouldRedeposit;
-        // Where to send the harvested beans (only applicable if shouldRedeposit is false from a user pov)
+        // Where to send the harvested beans 
+        // (only applicable if shouldRedeposit is false from a user pov)
         LibTransfer.To harvestDestination;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
@@ -389,7 +393,12 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             params.mowPlantHarvestParams.sourceTokenIndices.length > 0,
             "Must provide at least one source token"
         );
-        /// todo: add more validation here depending on the parameters
+        // enforce that the harvest destination is either internal or external
+        require(
+            params.mowPlantHarvestParams.harvestDestination == LibTransfer.To.INTERNAL ||
+                params.mowPlantHarvestParams.harvestDestination == LibTransfer.To.EXTERNAL,
+            "Invalid harvest destination"
+        );
     }
 
     /// @dev validates info related to the blueprint such as the order hash and the last executed season
