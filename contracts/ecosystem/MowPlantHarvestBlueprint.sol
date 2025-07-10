@@ -40,6 +40,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         OperatorParams opParams;
     }
 
+    // we want them to mow continuously from a protocol perspective
+    // the user wants to mow when the system is about to print (good point)
+    // for planting--> use min pinto amount to plant --> or as a % of tip compared to pinto planted
+    // for harvesting --> plots are partially harvestable. do we want to harvest partial plots?
+
     /**
      * @notice Struct to hold mow, plant and harvest parameters
      * @param minMowAmount The stalk threshold to mow
@@ -83,6 +88,17 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         int256 operatorTipAmount;
     }
 
+    struct MowPlantHarvestLocalVars {
+        bytes32 orderHash;
+        address account;
+        address tipAddress;
+        uint256 totalClaimableStalk;
+        uint256 totalPlantableBeans;
+        uint256 totalHarvestablePods;
+        uint256[] harvestablePlots;
+        LibTractorHelpers.WithdrawalPlan plan;
+    }
+
     constructor(
         address _beanstalk,
         address _owner,
@@ -96,31 +112,34 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     function mowPlantHarvestBlueprint(
         MowPlantHarvestBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
+        // Initialize local variables
+        MowPlantHarvestLocalVars memory vars;
+
         ////////////////////// Validation ////////////////////////
 
         // get order hash
-        bytes32 orderHash = beanstalk.getCurrentBlueprintHash();
+        vars.orderHash = beanstalk.getCurrentBlueprintHash();
         // get the tractor user
-        address account = beanstalk.tractorUser();
+        vars.account = beanstalk.tractorUser();
         // get the tip address
-        address tipAddress = params.opParams.tipAddress;
+        vars.tipAddress = params.opParams.tipAddress;
 
-        // get the user state from the protocol
+        // get the user state from the protocol and validate against params
         (
-            uint256 totalClaimableStalk,
-            uint256 totalPlantableBeans,
-            uint256 totalHarvestablePods,
-            uint256[] memory harvestablePlots
-        ) = _getUserState(account);
+            vars.totalClaimableStalk,
+            vars.totalPlantableBeans,
+            vars.totalHarvestablePods,
+            vars.harvestablePlots
+        ) = _getAndValidateUserState(vars.account, params);
 
         // validate blueprint
-        _validateBlueprint(orderHash);
+        _validateBlueprint(vars.orderHash);
 
         // validate order params and revert early if invalid
         _validateParams(params);
 
         // if tip address is not set, set it to the operator
-        if (tipAddress == address(0)) tipAddress = beanstalk.operator();
+        if (vars.tipAddress == address(0)) vars.tipAddress = beanstalk.operator();
 
         ////////////////////// Withdrawal Plan and Tip ////////////////////////
 
@@ -128,7 +147,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         LibTractorHelpers.WithdrawalPlan memory tempPlan;
         LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers
             .getWithdrawalPlanExcludingPlan(
-                account,
+                vars.account,
                 params.mowPlantHarvestParams.sourceTokenIndices,
                 uint256(params.opParams.operatorTipAmount),
                 params.mowPlantHarvestParams.maxGrownStalkPerBdv,
@@ -137,7 +156,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         // Execute the withdrawal plan to withdraw the tip amount
         tractorHelpers.withdrawBeansFromSources(
-            account,
+            vars.account,
             params.mowPlantHarvestParams.sourceTokenIndices,
             uint256(params.opParams.operatorTipAmount),
             params.mowPlantHarvestParams.maxGrownStalkPerBdv,
@@ -149,8 +168,8 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // Tip the operator with the withdrawn beans
         tractorHelpers.tip(
             beanstalk.getBeanToken(),
-            account,
-            tipAddress,
+            vars.account,
+            vars.tipAddress,
             params.opParams.operatorTipAmount,
             LibTransfer.From.INTERNAL,
             LibTransfer.To.INTERNAL
@@ -166,8 +185,8 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // or to a percentage of total user stalk
         // note: prob want this to be conditional aka the user decides to claim if he has claimable stalk
         // to avoid paying the tip for a marginal benefit. (could this be season based?)
-        if (totalClaimableStalk > params.mowPlantHarvestParams.minMowAmount) {
-            beanstalk.mowAll(account);
+        if (vars.totalClaimableStalk > params.mowPlantHarvestParams.minMowAmount) {
+            beanstalk.mowAll(vars.account);
         }
 
         // if user can plant, try to plant
@@ -175,7 +194,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // (or to a percentage of total portfolio size?)
         // note: generally people would want to plant if they have any amount of plantable beans
         // to get the compounding effect when printing
-        if (totalPlantableBeans > params.mowPlantHarvestParams.minPlantAmount) {
+        if (vars.totalPlantableBeans > params.mowPlantHarvestParams.minPlantAmount) {
             beanstalk.plant();
         }
 
@@ -183,9 +202,56 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // note: execute when harvestable pods are at least x?
         // note: for sure one parameter should be if to redeposit to the silo or not
         // note: if not deposited,for sure one parameter should be where the pinto should be sent (internal or external balance)
-        if (totalHarvestablePods > params.mowPlantHarvestParams.minHarvestAmount) {
-            beanstalk.harvest(beanstalk.activeField(), harvestablePlots, LibTransfer.To.INTERNAL);
+        if (vars.totalHarvestablePods > params.mowPlantHarvestParams.minHarvestAmount) {
+            beanstalk.harvest(
+                beanstalk.activeField(),
+                vars.harvestablePlots,
+                LibTransfer.To.INTERNAL
+            );
         }
+    }
+
+    /**
+     * @notice Helper function to get the user state and validate against parameters
+     * @param account The address of the user
+     * @param params The parameters for the mow, plant and harvest operation
+     * @return totalClaimableStalk The total amount of claimable stalk
+     * @return totalPlantableBeans The total amount of plantable beans
+     * @return totalHarvestablePods The total amount of harvestable pods
+     */
+    function _getAndValidateUserState(
+        address account,
+        MowPlantHarvestBlueprintStruct calldata params
+    )
+        internal
+        view
+        returns (
+            uint256 totalClaimableStalk,
+            uint256 totalPlantableBeans,
+            uint256 totalHarvestablePods,
+            uint256[] memory harvestablePlots
+        )
+    {
+        // get user state
+        (
+            totalClaimableStalk,
+            totalPlantableBeans,
+            totalHarvestablePods,
+            harvestablePlots
+        ) = _getUserState(account);
+
+        // validate params - only revert if none of the conditions are met
+        bool canMow = totalClaimableStalk >= params.mowPlantHarvestParams.minMowAmount;
+        bool canPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
+        bool canHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
+
+        require(
+            canMow || canPlant || canHarvest,
+            "None of the mow, plant or harvest conditions are met"
+        );
+
+        // return user state
+        return (totalClaimableStalk, totalPlantableBeans, totalHarvestablePods, harvestablePlots);
     }
 
     /**
@@ -250,7 +316,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         uint256 count;
         for (uint256 i = 0; i < plots.length; i++) {
             uint256 startIndex = plots[i].index;
-            uint256 plotPods = plots[i].pods;
             if (startIndex < harvestableIndex) {
                 count++;
             }
@@ -280,12 +345,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     }
 
     /// @dev validates the parameters for the mow, plant and harvest operation
-    function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal view {
+    function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal pure {
         require(
             params.mowPlantHarvestParams.sourceTokenIndices.length > 0,
             "Must provide at least one source token"
         );
-
         /// todo: add more validation here depending on the parameters
     }
 
