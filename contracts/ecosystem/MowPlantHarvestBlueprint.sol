@@ -40,10 +40,28 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         OperatorParams opParams;
     }
 
-    // we want them to mow continuously from a protocol perspective
-    // the user wants to mow when the system is about to print (good point)
-    // for planting--> use min pinto amount to plant --> or as a % of tip compared to pinto planted
-    // for harvesting --> plots are partially harvestable. do we want to harvest partial plots?
+
+    /////////////////////// Parameters notes ////////////////////////
+    // Mow:
+    // We want them to mow continuously from a protocol perspective for stalk to be as real time as possible
+    // The user wants to mow when the system is about to print (what does that mean? maybe a deltaB threshold?)
+    ////////////////////////////////////////////////////////////////
+    // Plant:
+    // Generally people would want to plant if they have any amount of plantable beans
+    // to get the compounding effect when printing.
+    // One simple parameter is a min plant amount as a threshold after which the user would want to plant.
+    // We can protect against them losing money from tips so that a new parameter should be
+    // to plant if the plantable beans are more than the tip amount. 
+    // Or whether the tip is a minimum percentage of the plantable beans.
+    ////////////////////////////////////////////////////////////////
+    // Harvest:
+    // Plots are partially harvestable. Do we want to harvest partial plots?
+    // One parameter could be whether to harvest partial plots or not.
+    // For sure one parameter should be if to redeposit to the silo or not.
+    // Again, like planting, we can protect against them losing money from tips so that a new parameter should be
+    // to harvest if the harvested beans are more than the tip amount. 
+    // Or whether the tip is a minimum percentage of the harvested beans.
+    ////////////////////////////////////////////////////////////////
 
     /**
      * @notice Struct to hold mow, plant and harvest parameters
@@ -62,6 +80,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         uint256 minMowAmount;
         uint256 minPlantAmount;
         uint256 minHarvestAmount;
+        // Harvest specific parameters
+        bool shouldRedeposit;
+        // Where to send the harvested beans (only applicable if shouldRedeposit is false from a user pov)
+        LibTransfer.To harvestDestination;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
         uint256 maxGrownStalkPerBdv;
@@ -144,14 +166,13 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         ////////////////////// Withdrawal Plan and Tip ////////////////////////
 
         // Check if enough beans are available using getWithdrawalPlan
-        LibTractorHelpers.WithdrawalPlan memory tempPlan;
         LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers
             .getWithdrawalPlanExcludingPlan(
                 vars.account,
                 params.mowPlantHarvestParams.sourceTokenIndices,
                 uint256(params.opParams.operatorTipAmount),
                 params.mowPlantHarvestParams.maxGrownStalkPerBdv,
-                tempPlan // Passed in plan is empty
+                vars.plan // Passed in plan is empty
             );
 
         // Execute the withdrawal plan to withdraw the tip amount
@@ -178,36 +199,35 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         ////////////////////// Mow, Plant and Harvest ////////////////////////
 
         // note: in case the user has harvestable pods or plantable beans, generally the blueprint should be executed
-        // in this case, we should check for those 2 scenarios first and proceed if the conditions are met
+        // in this case, we should check for those 2 scenarios first and proceed if the conditions are met.
+        // If plant or harvest are executed, we should mow by default.
 
-        // if user can mow, try to mow
-        // this could be changed to a threshold as absolute value of claimable stalk
-        // or to a percentage of total user stalk
-        // note: prob want this to be conditional aka the user decides to claim if he has claimable stalk
-        // to avoid paying the tip for a marginal benefit. (could this be season based?)
+        // if user should mow, try to mow
         if (vars.totalClaimableStalk > params.mowPlantHarvestParams.minMowAmount) {
             beanstalk.mowAll(vars.account);
         }
 
-        // if user can plant, try to plant
-        // this could be changed to a threshold as an absolute value
-        // (or to a percentage of total portfolio size?)
-        // note: generally people would want to plant if they have any amount of plantable beans
-        // to get the compounding effect when printing
+        // if user should plant, try to plant
         if (vars.totalPlantableBeans > params.mowPlantHarvestParams.minPlantAmount) {
             beanstalk.plant();
         }
 
-        // if user can harvest, try to harvest
-        // note: execute when harvestable pods are at least x?
-        // note: for sure one parameter should be if to redeposit to the silo or not
-        // note: if not deposited,for sure one parameter should be where the pinto should be sent (internal or external balance)
+        // if user should harvest, try to harvest and redeposit if desired
         if (vars.totalHarvestablePods > params.mowPlantHarvestParams.minHarvestAmount) {
-            beanstalk.harvest(
+            uint256 harvestedPods = beanstalk.harvest(
                 beanstalk.activeField(),
                 vars.harvestablePlots,
-                LibTransfer.To.INTERNAL
+                params.mowPlantHarvestParams.harvestDestination
             );
+
+            // if the user wants to redeposit, pull them from the harvest destination and deposit into silo
+            if (params.mowPlantHarvestParams.shouldRedeposit) {
+                beanstalk.deposit(
+                    beanstalk.getBeanToken(),
+                    harvestedPods,
+                    params.mowPlantHarvestParams.harvestDestination
+                );
+            }
         }
     }
 
