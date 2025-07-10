@@ -40,7 +40,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         OperatorParams opParams;
     }
 
-
     /////////////////////// Parameters notes ////////////////////////
     // Mow:
     // We want them to mow continuously from a protocol perspective for stalk to be as real time as possible
@@ -51,7 +50,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     // to get the compounding effect when printing.
     // One simple parameter is a min plant amount as a threshold after which the user would want to plant.
     // We can protect against them losing money from tips so that a new parameter should be
-    // to plant if the plantable beans are more than the tip amount. 
+    // to plant if the plantable beans are more than the tip amount.
     // Or whether the tip is a minimum percentage of the plantable beans.
     ////////////////////////////////////////////////////////////////
     // Harvest:
@@ -59,9 +58,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     // One parameter could be whether to harvest partial plots or not.
     // For sure one parameter should be if to redeposit to the silo or not.
     // Again, like planting, we can protect against them losing money from tips so that a new parameter should be
-    // to harvest if the harvested beans are more than the tip amount. 
+    // to harvest if the harvested beans are more than the tip amount.
     // Or whether the tip is a minimum percentage of the harvested beans.
     ////////////////////////////////////////////////////////////////
+    // General:
+    // If someone plants or harvests, we should mow by default.
 
     /**
      * @notice Struct to hold mow, plant and harvest parameters
@@ -93,8 +94,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     // Mapping to track the last executed season for each order hash
     mapping(bytes32 orderHash => uint32 lastExecutedSeason) public orderLastExecutedSeason;
 
-    uint256 internal constant STALK_PER_BEAN = 1e10;
-
     IBeanstalk public immutable beanstalk;
     TractorHelpers public immutable tractorHelpers;
 
@@ -110,6 +109,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         int256 operatorTipAmount;
     }
 
+    /**
+     * @notice Local variables for the mow, plant and harvest function
+     * @dev Used to avoid stack too deep errors
+     */
     struct MowPlantHarvestLocalVars {
         bytes32 orderHash;
         address account;
@@ -117,6 +120,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         uint256 totalClaimableStalk;
         uint256 totalPlantableBeans;
         uint256 totalHarvestablePods;
+        bool shouldMow;
+        bool shouldPlant;
+        bool shouldHarvest;
         uint256[] harvestablePlots;
         LibTractorHelpers.WithdrawalPlan plan;
     }
@@ -151,7 +157,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             vars.totalClaimableStalk,
             vars.totalPlantableBeans,
             vars.totalHarvestablePods,
-            vars.harvestablePlots
+            vars.harvestablePlots,
+            vars.shouldMow,
+            vars.shouldPlant,
+            vars.shouldHarvest
         ) = _getAndValidateUserState(vars.account, params);
 
         // validate blueprint
@@ -198,37 +207,38 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         ////////////////////// Mow, Plant and Harvest ////////////////////////
 
-        // note: in case the user has harvestable pods or plantable beans, generally the blueprint should be executed
-        // in this case, we should check for those 2 scenarios first and proceed if the conditions are met.
-        // If plant or harvest are executed, we should mow by default.
+        // Check if user should harvest or plant
+        // In the case a harvest or plant is executed, mow by default
+        if (vars.shouldPlant || vars.shouldHarvest) vars.shouldMow = true;
 
-        // if user should mow, try to mow
-        if (vars.totalClaimableStalk > params.mowPlantHarvestParams.minMowAmount) {
-            beanstalk.mowAll(vars.account);
-        }
+        // Execute operations in order: mow first (if needed), then plant, then harvest
+        if (vars.shouldMow) beanstalk.mowAll(vars.account);
 
-        // if user should plant, try to plant
-        if (vars.totalPlantableBeans > params.mowPlantHarvestParams.minPlantAmount) {
-            beanstalk.plant();
-        }
+        // Plant if the conditions are met
+        if (vars.shouldPlant) beanstalk.plant();
 
-        // if user should harvest, try to harvest and redeposit if desired
-        if (vars.totalHarvestablePods > params.mowPlantHarvestParams.minHarvestAmount) {
+        // Harvest if the conditions are met
+        if (vars.shouldHarvest) {
             uint256 harvestedPods = beanstalk.harvest(
                 beanstalk.activeField(),
                 vars.harvestablePlots,
                 params.mowPlantHarvestParams.harvestDestination
             );
 
+            // Determine the deposit mode based on the harvest destination
+            LibTransfer.From depositMode = params.mowPlantHarvestParams.harvestDestination ==
+                LibTransfer.To.EXTERNAL
+                ? LibTransfer.From.EXTERNAL
+                : LibTransfer.From.INTERNAL;
+
             // if the user wants to redeposit, pull them from the harvest destination and deposit into silo
             if (params.mowPlantHarvestParams.shouldRedeposit) {
-                beanstalk.deposit(
-                    beanstalk.getBeanToken(),
-                    harvestedPods,
-                    params.mowPlantHarvestParams.harvestDestination
-                );
+                beanstalk.deposit(beanstalk.getBeanToken(), harvestedPods, depositMode);
             }
         }
+
+        // Update the last executed season for this blueprint
+        updateLastExecutedSeason(vars.orderHash, beanstalk.time().current);
     }
 
     /**
@@ -249,7 +259,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             uint256 totalClaimableStalk,
             uint256 totalPlantableBeans,
             uint256 totalHarvestablePods,
-            uint256[] memory harvestablePlots
+            uint256[] memory harvestablePlots,
+            bool shouldMow,
+            bool shouldPlant,
+            bool shouldHarvest
         )
     {
         // get user state
@@ -261,21 +274,31 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         ) = _getUserState(account);
 
         // validate params - only revert if none of the conditions are met
-        bool canMow = totalClaimableStalk >= params.mowPlantHarvestParams.minMowAmount;
-        bool canPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
-        bool canHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
+        shouldMow = totalClaimableStalk >= params.mowPlantHarvestParams.minMowAmount;
+        shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
+        shouldHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
 
         require(
-            canMow || canPlant || canHarvest,
+            shouldMow || shouldPlant || shouldHarvest,
             "None of the mow, plant or harvest conditions are met"
         );
 
         // return user state
-        return (totalClaimableStalk, totalPlantableBeans, totalHarvestablePods, harvestablePlots);
+        return (
+            totalClaimableStalk,
+            totalPlantableBeans,
+            totalHarvestablePods,
+            harvestablePlots,
+            shouldMow,
+            shouldPlant,
+            shouldHarvest
+        );
     }
 
     /**
      * @notice helper function to get the user state to compare against parameters
+     * @dev Increasing the total claimable stalk when planting or harvesting does not really matter
+     * since we mow by default if we plant or harvest
      */
     function _getUserState(
         address account
@@ -304,13 +327,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         }
 
         // check if user has plantable beans
-        // increment total claimable stalk with stalk gained from plantable beans
         totalPlantableBeans = beanstalk.balanceOfEarnedBeans(account);
-        // note: this should be counted towards the total only if the conditions for planting are met
-        totalClaimableStalk += totalPlantableBeans * STALK_PER_BEAN;
 
         // check if user has harvestable beans
-        // note: when harvesting, beans are not auto-deposited so no stalk is gained
         (totalHarvestablePods, harvestablePlots) = _userHarvestablePods(account);
 
         return (totalClaimableStalk, totalPlantableBeans, totalHarvestablePods, harvestablePlots);
@@ -380,5 +399,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             orderLastExecutedSeason[orderHash] < beanstalk.time().current,
             "Blueprint already executed this season"
         );
+    }
+
+    /// @dev updates the last executed season for a given order hash
+    function updateLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
+        orderLastExecutedSeason[orderHash] = season;
     }
 }
