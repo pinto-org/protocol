@@ -86,7 +86,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         uint256 minHarvestAmount;
         // Harvest specific parameters
         bool shouldRedeposit;
-        // Where to send the harvested beans 
+        // Where to send the harvested beans
         // (only applicable if shouldRedeposit is false from a user pov)
         LibTransfer.To harvestDestination;
         // Withdrawal plan parameters for tipping
@@ -213,6 +213,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         // Check if user should harvest or plant
         // In the case a harvest or plant is executed, mow by default
+        // note: plant() does mow but only the bean token, harvest() does not mow
         if (vars.shouldPlant || vars.shouldHarvest) vars.shouldMow = true;
 
         // Execute operations in order: mow first (if needed), then plant, then harvest
@@ -223,7 +224,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         // Harvest if the conditions are met
         if (vars.shouldHarvest) {
-            uint256 harvestedPods = beanstalk.harvest(
+            uint256 harvestedBeans = beanstalk.harvest(
                 beanstalk.activeField(),
                 vars.harvestablePlots,
                 params.mowPlantHarvestParams.harvestDestination
@@ -237,7 +238,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
             // if the user wants to redeposit, pull them from the harvest destination and deposit into silo
             if (params.mowPlantHarvestParams.shouldRedeposit) {
-                beanstalk.deposit(beanstalk.getBeanToken(), harvestedPods, depositMode);
+                beanstalk.deposit(beanstalk.getBeanToken(), harvestedBeans, depositMode);
             }
         }
 
