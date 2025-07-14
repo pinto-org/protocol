@@ -6,11 +6,13 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
 
 contract TractorHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprintv0 internal sowBlueprintv0;
+    MowPlantHarvestBlueprint internal mowPlantHarvestBlueprint;
 
     enum SourceMode {
         PURE_PINTO,
@@ -24,6 +26,10 @@ contract TractorHelper is TestHelper {
 
     function setSowBlueprintv0(address _sowBlueprintv0) internal {
         sowBlueprintv0 = SowBlueprintv0(_sowBlueprintv0);
+    }
+
+    function setMowPlantHarvestBlueprint(address _mowPlantHarvestBlueprint) internal {
+        mowPlantHarvestBlueprint = MowPlantHarvestBlueprint(_mowPlantHarvestBlueprint);
     }
 
     function createRequisitionWithPipeCall(
@@ -143,6 +149,8 @@ contract TractorHelper is TestHelper {
                 signature: signature
             });
     }
+
+    //////////////////////////// SowBlueprintv0 ////////////////////////////
 
     // Helper function that takes SowAmounts struct
     function setupSowBlueprintv0Blueprint(
@@ -267,6 +275,85 @@ contract TractorHelper is TestHelper {
         });
 
         // Return the encoded farm call
+        return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    }
+
+    //////////////////////////// MowPlantHarvestBlueprint ////////////////////////////
+
+    function setupMowPlantHarvestBlueprint(
+        address account,
+        SourceMode sourceMode
+    )
+        internal
+        returns (
+            IMockFBeanstalk.Requisition memory,
+            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+        )
+    {
+
+        // build struct params (TODO: modify and implement based on desired parameters)
+        // params = createMowPlantHarvestBlueprintStruct(
+        //     uint8(sourceMode),
+        //     sowAmounts,
+        //     minTemp,
+        //     operatorTipAmount,
+        //     tipAddress,
+        //     maxPodlineLength,
+        //     maxGrownStalkLimitPerBdv,
+        //     runBlocksAfterSunrise,
+        //     address(tractorHelpers),
+        //     address(bs)
+        // );
+
+        // create pipe call data
+        bytes memory pipeCallData = createMowPlantHarvestBlueprintCallData(params);
+
+        // create requisition
+        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
+            account,
+            pipeCallData,
+            address(bs)
+        );
+
+        // publish requisition
+        vm.prank(account);
+        bs.publishRequisition(req);
+
+        return (req, params);
+    }
+
+    
+    // TODO: modify and implement based on desired parameters
+    // function createMowPlantHarvestBlueprintStruct(
+    //     uint8 sourceMode,
+    //     SowBlueprintv0.SowAmounts memory sowAmounts,
+    //     uint256 minTemp,
+    //     int256 operatorTipAmount,
+    //     address tipAddress
+    // ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {}
+
+
+    /// @dev this is good to go
+    function createMowPlantHarvestBlueprintCallData(
+        MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+    ) internal view returns (bytes memory) {
+        // create the mowPlantHarvestBlueprint pipe call
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(mowPlantHarvestBlueprint),
+            callData: abi.encodeWithSelector(MowPlantHarvestBlueprint.mowPlantHarvestBlueprint.selector, params),
+            clipboard: hex"0000"
+        });
+
+        // wrap the pipe calls in a farm call
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+
+        // return the encoded farm call
         return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
     }
 }

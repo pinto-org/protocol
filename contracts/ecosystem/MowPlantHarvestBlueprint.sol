@@ -14,6 +14,9 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
 contract MowPlantHarvestBlueprint is PerFunctionPausable {
+    /// @dev Buffer to check if the protocol is close to printing
+    uint256 public constant SMART_MOW_BUFFER = 1 minutes;
+
     /**
      * @notice Event emitted when a mow, plant and harvest order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
@@ -40,33 +43,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         OperatorParams opParams;
     }
 
-    /////////////////////// Parameters notes ////////////////////////
-    // Mow:
-    // We want them to mow continuously from a protocol perspective for stalk to be as real time as possible
-    // The user wants to mow when the system is about to print (what does that mean? maybe a deltaB threshold?)
-    ////////////////////////////////////////////////////////////////
-    // Plant:
-    // Generally people would want to plant if they have any amount of plantable beans
-    // to get the compounding effect when printing.
-    // One simple parameter is a min plant amount as a threshold after which the user would want to plant.
-    // We can protect against them losing money from tips so that a new parameter should be
-    // to plant if the plantable beans are more than the tip amount.
-    // Or whether the tip is a minimum percentage of the plantable beans.
-    ////////////////////////////////////////////////////////////////
-    // Harvest:
-    // Plots are partially harvestable. Do we want to harvest partial plots?
-    // One parameter could be whether to harvest partial plots or not.
-    // For sure one parameter should be if to redeposit to the silo or not.
-    // Again, like planting, we can protect against them losing money from tips so that a new parameter should be
-    // to harvest if the harvested beans are more than the tip amount.
-    // Or whether the tip is a minimum percentage of the harvested beans.
-    ////////////////////////////////////////////////////////////////
-    // General:
-    // If someone plants or harvests, we should mow by default.
-    // Do we add a function to simulate execution of multiple blueprints
-    // like in {SowBlueprint.validateParamsAndReturnBeanstalkStateArray}?
-    ////////////////////////////////////////////////////////////////
-
     /**
      * @notice Struct to hold mow, plant and harvest parameters
      * @param minMowAmount The stalk threshold to mow
@@ -81,14 +57,8 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
      */
     struct MowPlantHarvestParams {
         // Regular parameters for mow, plant and harvest
-        uint256 minMowAmount;
         uint256 minPlantAmount;
         uint256 minHarvestAmount;
-        // Harvest specific parameters
-        bool shouldRedeposit;
-        // Where to send the harvested beans
-        // (only applicable if shouldRedeposit is false from a user pov)
-        LibTransfer.To harvestDestination;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
         uint256 maxGrownStalkPerBdv;
@@ -227,19 +197,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             uint256 harvestedBeans = beanstalk.harvest(
                 beanstalk.activeField(),
                 vars.harvestablePlots,
-                params.mowPlantHarvestParams.harvestDestination
+                LibTransfer.To.INTERNAL
             );
 
-            // Determine the deposit mode based on the harvest destination
-            LibTransfer.From depositMode = params.mowPlantHarvestParams.harvestDestination ==
-                LibTransfer.To.EXTERNAL
-                ? LibTransfer.From.EXTERNAL
-                : LibTransfer.From.INTERNAL;
-
-            // if the user wants to redeposit, pull them from the harvest destination and deposit into silo
-            if (params.mowPlantHarvestParams.shouldRedeposit) {
-                beanstalk.deposit(beanstalk.getBeanToken(), harvestedBeans, depositMode);
-            }
+            // pull from the harvest destination and deposit into silo
+            beanstalk.deposit(beanstalk.getBeanToken(), harvestedBeans, LibTransfer.From.INTERNAL);
         }
 
         // Update the last executed season for this blueprint
@@ -279,7 +241,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         ) = _getUserState(account);
 
         // validate params - only revert if none of the conditions are met
-        shouldMow = totalClaimableStalk >= params.mowPlantHarvestParams.minMowAmount;
+        // generally, i would say users want to mow if enough stalk has accumulated
+        // even if the protocol is not close to printing so a minMowAmoun or something similar is not unreasonable here
+        shouldMow = _incomingPrintSeason();
         shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
         shouldHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
 
@@ -298,6 +262,23 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             shouldPlant,
             shouldHarvest
         );
+    }
+
+    /**
+     * @notice Check if the protocol is close to printing by checking the twaDeltaB and the time until next season
+     * @dev Used to determine if the user should mow to get advantage of the increase in stalk.
+     * note: Assumes sunrise is called at the top of the hour.
+     * @return bool True if the protocol is close to printing, false otherwise
+     */
+    function _incomingPrintSeason() internal view returns (bool) {
+        IBeanstalk.Season memory seasonInfo = beanstalk.time();
+        // if the time until next season is more than 1 minute, return false
+        if (block.timestamp + SMART_MOW_BUFFER > seasonInfo.timestamp + seasonInfo.period)
+            return false;
+
+        // if the totalDeltaB is positive, return true
+        // todo: i think we need to do what we do in sunrise here to get the twaDeltaB
+        return beanstalk.totalDeltaB() > 0;
     }
 
     /**
