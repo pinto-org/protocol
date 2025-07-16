@@ -222,16 +222,15 @@ library LibSiloHelpers {
      * @param token The token of the deposit
      * @param stem The stem of the deposit
      * @param amount The amount of the deposit
-     * @param remainingAmount The remaining amount of the deposit
      * @param excludingPlan The plan to check against
      */
     function checkDepositInExistingPlan(
         address token,
         int96 stem,
         uint256 amount,
-        uint256 remainingAmount,
         WithdrawalPlan memory excludingPlan
     ) internal pure returns (uint256) {
+        uint256 remainingAmount = amount;
         for (uint256 i; i < excludingPlan.sourceTokens.length; i++) {
             if (excludingPlan.sourceTokens[i] == token) {
                 for (uint256 j; j < excludingPlan.stems[i].length; j++) {

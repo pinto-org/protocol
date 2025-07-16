@@ -65,7 +65,6 @@ contract SiloHelpers is PerFunctionPausable {
         uint256 depositAmount;
         uint256 remainingAmount;
         uint256 amountFromDeposit;
-        uint256 i;
         int96[] lowStalkStems;
         uint256[] lowStalkAmounts;
         uint256 lowStalkCount;
@@ -217,16 +216,17 @@ contract SiloHelpers is PerFunctionPausable {
 
             address sourceToken = vars.whitelistedTokens[tokenIndices[i]];
 
-            // Calculate minimum stem tip from grown stalk for this token
-            // note: `maxGrownStalkPerBdv` assumes that 1 BDV = 1e6. While not the most correct,
-            // it was kept for backwards compatibility.
-            (filterParams.minStem, ) = beanstalk.calculateStemForTokenFromGrownStalk(
-                sourceToken,
-                filterParams.maxGrownStalkPerBdv,
-                1e6
-            );
+            int96 stemTip = beanstalk.stemTipForToken(sourceToken);
+            // Calculate minimum stem tip from grown stalk for this token.
+        // note: in previous version, `maxGrownStalkPerBdv` assumed that 1 BDV = 1e6.
+            // This is not correct and should be noted if UIs uses previous blueprint functions.
+            filterParams.minStem = stemTip - int96(int256(filterParams.maxGrownStalkPerBdv));
 
-            // filterParams.maxStem =
+            // if the user wants to use the low stalk deposits last,
+            // calculate the maximum stem.
+            if (filterParams.useLowStalkDepositsLast) {
+                filterParams.maxStem = stemTip - int96(int256(filterParams.lowGrownStalkPerBdv));
+            }
 
             // If source is bean token, calculate direct withdrawal
             if (sourceToken == vars.beanToken) {
@@ -528,8 +528,8 @@ contract SiloHelpers is PerFunctionPausable {
         }
 
         // Initialize arrays with max possible size
-        int96[] memory tempStems = new int96[](vars.depositIds.length);
-        uint256[] memory tempAmounts = new uint256[](vars.depositIds.length);
+        stems = new int96[](vars.depositIds.length);
+        amounts = new uint256[](vars.depositIds.length);
 
         // if we are using the smallest stalk deposits, initialize an additional
         // temporary array to store the stems and amounts
@@ -544,8 +544,8 @@ contract SiloHelpers is PerFunctionPausable {
         vars.availableAmount = 0;
 
         // Process deposits in reverse order (highest stem to lowest)
-        for (vars.i = vars.depositIds.length; vars.i > 0; vars.i--) {
-            (, vars.stem) = getAddressAndStem(vars.depositIds[vars.i - 1]);
+        for (uint256 i = vars.depositIds.length; i > 0; i--) {
+            (, vars.stem) = getAddressAndStem(vars.depositIds[i - 1]);
 
             // Skip deposit if:
             // 1: stem is less than minStem (implying a high stalk deposit),
@@ -558,25 +558,24 @@ contract SiloHelpers is PerFunctionPausable {
                 continue;
             }
 
-            // if the deposit is a low stalk deposit, and we want to use the low stalk deposits last,
-            // add it to the low stalk deposits array.
-            // if (filterParams.useLowStalkDepositsLast && vars.stem > filterParams.maxStem) {
-            //     // add the deposit to the low stalk deposits array if so.
-            //     vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
-            //     vars.lowStalkAmounts[vars.lowStalkCount] = vars.depositAmount;
-            //     vars.lowStalkCount++;
-            //     continue;
-            // }
-
             (vars.depositAmount, ) = beanstalk.getDeposit(account, token, vars.stem);
 
+            // if the deposit is a low stalk deposit, and we want to use the low stalk deposits last,
+            // add it to the low stalk deposits array, and skip. See `LibSiloHelpers.FilterParams` to
+            // determine what is considered a low stalk deposit.
+            if (filterParams.useLowStalkDepositsLast && vars.stem > filterParams.maxStem) {
+                // add the deposit to the low stalk deposits array if so.
+                vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
+                vars.lowStalkAmounts[vars.lowStalkCount] = vars.depositAmount;
+                vars.lowStalkCount++;
+                continue;
+            }
+
             // Check if this deposit is in the existing plan and calculate remaining amount
-            vars.remainingAmount = vars.depositAmount;
             vars.remainingAmount = LibSiloHelpers.checkDepositInExistingPlan(
                 token,
                 vars.stem,
                 vars.depositAmount,
-                vars.remainingAmount,
                 excludingPlan
             );
 
@@ -589,8 +588,8 @@ contract SiloHelpers is PerFunctionPausable {
                 vars.amountFromDeposit = vars.remainingBeansNeeded;
             }
 
-            tempStems[vars.currentIndex] = vars.stem;
-            tempAmounts[vars.currentIndex] = vars.amountFromDeposit;
+            stems[vars.currentIndex] = vars.stem;
+            amounts[vars.currentIndex] = vars.amountFromDeposit;
             vars.availableAmount += vars.amountFromDeposit;
             vars.remainingBeansNeeded -= vars.amountFromDeposit;
             vars.currentIndex++;
@@ -598,14 +597,49 @@ contract SiloHelpers is PerFunctionPausable {
             if (vars.remainingBeansNeeded == 0) break;
         }
 
-        // Create new arrays with the correct size
-        stems = new int96[](vars.currentIndex);
-        amounts = new uint256[](vars.currentIndex);
+        // if the user wants to use the low stalk deposits last, and there are remaining beans needed,
+        // and there are low stalk deposits, process them.
+        if (
+            filterParams.useLowStalkDepositsLast &&
+            vars.remainingBeansNeeded > 0 &&
+            vars.lowStalkCount > 0
+        ) {
+            // (stems and amounts are ordered backwards from the previous for loop, and thus does
+            // not need to loop backwards).
+            for (uint256 i = 0; i < vars.lowStalkCount && vars.remainingBeansNeeded > 0; i++) {
+                vars.stem = vars.lowStalkStems[i];
+                vars.depositAmount = vars.lowStalkAmounts[i];
 
-        // Copy data to the resized arrays
-        for (vars.i = 0; vars.i < vars.currentIndex; vars.i++) {
-            stems[vars.i] = tempStems[vars.i];
-            amounts[vars.i] = tempAmounts[vars.i];
+                // Check against existing plan
+                vars.remainingAmount = LibSiloHelpers.checkDepositInExistingPlan(
+                    token,
+                    vars.stem,
+                    vars.depositAmount,
+                    excludingPlan
+                );
+
+                if (vars.remainingAmount == 0) continue;
+
+                vars.amountFromDeposit = vars.remainingAmount;
+                if (vars.remainingAmount > vars.remainingBeansNeeded) {
+                    vars.amountFromDeposit = vars.remainingBeansNeeded;
+                }
+
+                stems[vars.currentIndex] = vars.stem;
+                amounts[vars.currentIndex] = vars.amountFromDeposit;
+                vars.availableAmount += vars.amountFromDeposit;
+                vars.remainingBeansNeeded -= vars.amountFromDeposit;
+                vars.currentIndex++;
+
+                if (vars.remainingBeansNeeded == 0) break;
+            }
+        }
+
+        // Set the length of the arrays
+        uint256 currentIndex = vars.currentIndex;
+        assembly {
+            mstore(stems, currentIndex)
+            mstore(amounts, currentIndex)
         }
 
         return (stems, amounts, vars.availableAmount);
