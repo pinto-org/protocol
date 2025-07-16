@@ -17,6 +17,27 @@ library LibSiloHelpers {
         uint256 totalAvailableBeans;
     }
 
+    /**
+     * @notice Filter parameters for deposits
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param minStem The minimum stem value to consider for withdrawal
+     * @param excludeGerminatingDeposits Whether to exclude germinating deposits
+     * @param excludeBean Whether to exclude beans
+     * @param useLowStalkDepositsLast If enabled, the tractor will use the lowest stalk deposits after all other valid deposits have been used.
+     * @param lowGrownStalkPerBdv amount of grown stalk per bdv such that the deposit considered a "low stalk" deposit. Only used if `useLowStalkDepositsLast` is false.
+     * @param maxStem The maximum stem value to consider for withdrawal.
+     * @dev `minStem` and `maxStem`
+     */
+    struct FilterParams {
+        uint256 maxGrownStalkPerBdv;
+        int96 minStem;
+        bool excludeGerminatingDeposits;
+        bool excludeBean;
+        bool useLowStalkDepositsLast;
+        uint256 lowGrownStalkPerBdv;
+        int96 maxStem;
+    }
+
     // Struct to hold variables for the combineWithdrawalPlans function
     struct CombineWithdrawalPlansStruct {
         address[] tempSourceTokens;
@@ -177,5 +198,58 @@ library LibSiloHelpers {
         }
 
         return combinedPlan;
+    }
+
+    /**
+     * @notice Returns a deposit filter with no exclusions
+     * @return FilterParams The default deposit filter parameters
+     */
+    function getDefaultFilterParams() public pure returns (FilterParams memory) {
+        return
+            FilterParams({
+                maxGrownStalkPerBdv: uint256(int256(type(int96).max)), // any amount of grown stalk per bdv is allowed. Maximum set at int96, as this is used to derive the minStem.
+                minStem: type(int96).min, // include all stems
+                lowGrownStalkPerBdv: 0, // no minimum grown stalk per bdv
+                maxStem: type(int96).max, // include all stems
+                excludeGerminatingDeposits: false, // no germinating deposits are excluded
+                excludeBean: false, // beans are included in the set of deposits.
+                useLowStalkDepositsLast: false // the contract will use the smallest stalk deposits last
+            });
+    }
+
+    /**
+     * @notice Checks if a deposit is already in an existing plan
+     * @param token The token of the deposit
+     * @param stem The stem of the deposit
+     * @param amount The amount of the deposit
+     * @param remainingAmount The remaining amount of the deposit
+     * @param excludingPlan The plan to check against
+     */
+    function checkDepositInExistingPlan(
+        address token,
+        int96 stem,
+        uint256 amount,
+        uint256 remainingAmount,
+        WithdrawalPlan memory excludingPlan
+    ) internal pure returns (uint256) {
+        for (uint256 i; i < excludingPlan.sourceTokens.length; i++) {
+            if (excludingPlan.sourceTokens[i] == token) {
+                for (uint256 j; j < excludingPlan.stems[i].length; j++) {
+                    if (excludingPlan.stems[i][j] == stem) {
+                        // If the deposit was fully used in the existing plan, skip it
+                        if (excludingPlan.amounts[i][j] >= amount) {
+                            remainingAmount = 0;
+                            break;
+                        } else {
+                            // Otherwise, subtract the used amount from the remaining amount
+                            remainingAmount = amount - excludingPlan.amounts[i][j];
+                            break;
+                        }
+                    }
+                }
+                if (remainingAmount == 0) return 0;
+            }
+        }
+        return remainingAmount;
     }
 }

@@ -14,6 +14,7 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {AdvancedFarmCall} from "contracts/libraries/LibFarm.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
@@ -33,6 +34,7 @@ contract TractorHelpersTest is TractorTestHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
     BeanstalkPrice beanstalkPrice;
+    LibSiloHelpers.FilterParams testFilterParams;
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
@@ -91,6 +93,9 @@ contract TractorHelpersTest is TractorTestHelper {
             10010e6, // 10,010 Beans
             10 ether // 10 ether.
         );
+
+        testFilterParams = LibSiloHelpers.getDefaultFilterParams();
+        testFilterParams.maxGrownStalkPerBdv = MAX_GROWN_STALK_PER_BDV;
     }
 
     function test_getDepositStemsAndAmountsToWithdraw() public {
@@ -135,6 +140,7 @@ contract TractorHelpersTest is TractorTestHelper {
                         totalAvailableForStem += depositAmount;
                     }
                 }
+                testFilterParams.minStem = minStems[j];
 
                 (
                     int96[] memory stems,
@@ -144,8 +150,7 @@ contract TractorHelpersTest is TractorTestHelper {
                         farmers[0],
                         BEAN,
                         testAmounts[i],
-                        minStems[j],
-                        false,
+                        testFilterParams,
                         emptyPlan
                     );
 
@@ -190,7 +195,13 @@ contract TractorHelpersTest is TractorTestHelper {
 
         // Test with non-existent account
         (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = siloHelpers
-            .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, false, emptyPlan);
+            .getDepositStemsAndAmountsToWithdraw(
+                address(0x123),
+                BEAN,
+                1000e6,
+                testFilterParams,
+                emptyPlan
+            );
         assertEq(noStems.length, 0, "Should return empty stems array for non-existent account");
         assertEq(noAmounts.length, 0, "Should return empty amounts array for non-existent account");
         assertEq(noAvailable, 0, "Should return 0 available for non-existent account");
@@ -267,8 +278,7 @@ contract TractorHelpersTest is TractorTestHelper {
                 testWallet,
                 PINTO,
                 requestAmount,
-                0,
-                false,
+                testFilterParams,
                 emptyPlan
             );
 
@@ -395,9 +405,7 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV,
-            false,
-            false
+            testFilterParams
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
@@ -405,9 +413,7 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV,
-            false,
-            false,
+            testFilterParams,
             plan
         );
 
@@ -624,13 +630,12 @@ contract TractorHelpersTest is TractorTestHelper {
             LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
             // Get withdrawal plan
+            testFilterParams.maxGrownStalkPerBdv = MAX_GROWN_STALK_PER_BDV;
             LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV,
-                false,
-                false
+                testFilterParams
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
@@ -638,9 +643,7 @@ contract TractorHelpersTest is TractorTestHelper {
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV,
-                false,
-                false,
+                testFilterParams,
                 0.01e18, // 1%
                 LibTransfer.To.EXTERNAL,
                 plan
@@ -1337,9 +1340,7 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV,
-            false,
-            false
+            testFilterParams
         );
 
         // totalAvailableBeans should be 1900e6
@@ -1453,9 +1454,7 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV,
-            false, // Don't exclude Bean
-            false // Don't exclude germinating deposits
+            testFilterParams
         );
 
         // Verify both BEAN and BEAN_ETH_WELL are included
@@ -1493,13 +1492,12 @@ contract TractorHelpersTest is TractorTestHelper {
         uint8[] memory strategyIndex = new uint8[](1);
         strategyIndex[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
 
+        testFilterParams.excludeBean = true;
         LibSiloHelpers.WithdrawalPlan memory planExcludeBean = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndex,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV,
-            true, // Exclude Bean
-            false // Don't exclude germinating deposits
+            testFilterParams
         );
 
         // Verify only BEAN_ETH_WELL is included
@@ -1510,13 +1508,13 @@ contract TractorHelpersTest is TractorTestHelper {
         assertEq(planExcludeBean.stems[0].length, 4, "Should include all LP deposits");
 
         // Test case 3: Exclude germinating deposits only
+        testFilterParams.excludeBean = false;
+        testFilterParams.excludeGerminatingDeposits = true;
         LibSiloHelpers.WithdrawalPlan memory planExcludeGerminating = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV,
-            false, // Don't exclude Bean
-            true // Exclude germinating deposits
+            testFilterParams
         );
 
         // Should still include both token types
@@ -1557,13 +1555,13 @@ contract TractorHelpersTest is TractorTestHelper {
         }
 
         // Test case 4: Exclude both Bean and germinating deposits
+        testFilterParams.excludeBean = true;
+        testFilterParams.excludeGerminatingDeposits = true;
         LibSiloHelpers.WithdrawalPlan memory planExcludeBoth = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndex, // Use LOWEST_PRICE_STRATEGY
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV,
-            true, // Exclude Bean
-            true // Exclude germinating deposits
+            testFilterParams
         );
 
         // Verify only BEAN_ETH_WELL is included
@@ -1647,9 +1645,7 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV,
-            false,
-            false
+            testFilterParams
         );
 
         // Get the second plan excluding the first plan
@@ -1657,9 +1653,7 @@ contract TractorHelpersTest is TractorTestHelper {
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV,
-            false,
-            false,
+            testFilterParams,
             plan
         );
 

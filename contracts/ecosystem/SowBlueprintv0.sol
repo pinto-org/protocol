@@ -189,13 +189,14 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Execute the withdrawal plan
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
+
         vars.beansWithdrawn = siloHelpers.withdrawBeansFromSources(
             vars.account,
             params.sowParams.sourceTokenIndices,
             vars.totalBeansNeeded,
-            params.sowParams.maxGrownStalkPerBdv,
-            false,
-            false,
+            filterParams,
             slippageRatio,
             LibTransfer.To.INTERNAL,
             vars.withdrawalPlan
@@ -439,13 +440,14 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Check if enough beans are available using getWithdrawalPlan
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
+
         plan = siloHelpers.getWithdrawalPlanExcludingPlan(
             blueprintPublisher,
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,
-            params.sowParams.maxGrownStalkPerBdv,
-            false,
-            false,
+            filterParams,
             plan // Passed in plan is empty
         );
 
