@@ -145,6 +145,8 @@ interface IBeanstalk {
 
     function plant() external payable returns (uint256);
 
+    function totalDeltaB() external view returns (int256);
+
     function harvest(
         uint256 fieldId,
         uint256[] calldata plots,

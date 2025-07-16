@@ -14,24 +14,9 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
 contract MowPlantHarvestBlueprint is PerFunctionPausable {
-    /// @dev Buffer to check if the protocol is close to printing
-    uint256 public constant SMART_MOW_BUFFER = 1 minutes;
 
-    /**
-     * @notice Event emitted when a mow, plant and harvest order is complete, or no longer executable due to min sow being less than min sow per season
-     * @param blueprintHash The hash of the blueprint
-     * @param publisher The address of the publisher
-     * @param totalAmountMowed The amount of beans mowed
-     * @param totalAmountPlanted The amount of beans planted
-     * @param totalAmountHarvested The amount of beans harvested
-     */
-    event MowPlantHarvestOrderComplete(
-        bytes32 indexed blueprintHash,
-        address indexed publisher,
-        uint256 totalAmountMowed,
-        uint256 totalAmountPlanted,
-        uint256 totalAmountHarvested
-    );
+    /// @dev Buffer for operators to check if the protocol is close to printing
+    uint256 public constant SMART_MOW_BUFFER = 5 minutes;
 
     /**
      * @notice Main struct for mow, plant and harvest blueprint
@@ -45,19 +30,23 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
     /**
      * @notice Struct to hold mow, plant and harvest parameters
-     * @param minMowAmount The stalk threshold to mow
+     * @param minMowAmount The minimum total claimable stalk threshold to mow
+     * @param mintwaDeltaB The minimum twaDeltaB to mow if the protocol is close to printing
      * @param minPlantAmount The earned beans threshold to plant
      * @param minHarvestAmount The bean threshold to harvest
-     * ---------------------------------------------------------
+     * -----------------------------------------------------------
      * @param sourceTokenIndices Indices of source tokens to withdraw from
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV allowed
-     * @param slippageRatio The price slippage ratio for a lp token withdrawal.
+     * @param slippageRatio The price slippage ratio for lp token withdrawal.
      * Only applicable for lp token withdrawals.
-     * todo: add more parameters here if needed and validate them
      */
     struct MowPlantHarvestParams {
-        // Regular parameters for mow, plant and harvest
+        // Mow
+        uint256 minMowAmount;
+        uint256 mintwaDeltaB;
+        // Plant
         uint256 minPlantAmount;
+        // Harvest
         uint256 minHarvestAmount;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
@@ -110,20 +99,19 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         tractorHelpers = TractorHelpers(_tractorHelpers);
     }
 
-    /// @dev main entry point
+    /**
+     * @notice Main entry point for the mow, plant and harvest blueprint
+     * @param params The parameters for the mow, plant and harvest operation
+     */
     function mowPlantHarvestBlueprint(
         MowPlantHarvestBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
         MowPlantHarvestLocalVars memory vars;
 
-        ////////////////////// Validation ////////////////////////
-
-        // get order hash
+        // Validate
         vars.orderHash = beanstalk.getCurrentBlueprintHash();
-        // get the tractor user
         vars.account = beanstalk.tractorUser();
-        // get the tip address
         vars.tipAddress = params.opParams.tipAddress;
 
         // get the user state from the protocol and validate against params
@@ -146,8 +134,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // if tip address is not set, set it to the operator
         if (vars.tipAddress == address(0)) vars.tipAddress = beanstalk.operator();
 
-        ////////////////////// Withdrawal Plan and Tip ////////////////////////
-
+        // Withdrawal Plan and Tip
         // Check if enough beans are available using getWithdrawalPlan
         LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers
             .getWithdrawalPlanExcludingPlan(
@@ -179,11 +166,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             LibTransfer.To.INTERNAL
         );
 
-        ////////////////////// Mow, Plant and Harvest ////////////////////////
-
+        // Mow, Plant and Harvest
         // Check if user should harvest or plant
         // In the case a harvest or plant is executed, mow by default
-        // note: plant() does mow but only the bean token, harvest() does not mow
         if (vars.shouldPlant || vars.shouldHarvest) vars.shouldMow = true;
 
         // Execute operations in order: mow first (if needed), then plant, then harvest
@@ -241,9 +226,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         ) = _getUserState(account);
 
         // validate params - only revert if none of the conditions are met
-        // generally, i would say users want to mow if enough stalk has accumulated
-        // even if the protocol is not close to printing so a minMowAmoun or something similar is not unreasonable here
-        shouldMow = _incomingPrintSeason();
+        shouldMow = _checkSmartMowConditions(
+            params.mowPlantHarvestParams.mintwaDeltaB,
+            params.mowPlantHarvestParams.minMowAmount,
+            totalClaimableStalk
+        );
         shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
         shouldHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
 
@@ -265,20 +252,26 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     }
 
     /**
-     * @notice Check if the protocol is close to printing by checking the twaDeltaB and the time until next season
-     * @dev Used to determine if the user should mow to get advantage of the increase in stalk.
+     * @notice Check smart mow conditions to trigger a mow
+     * @dev A smart mow happens when the protocol is about to print
+     * and the user has enough claimable stalk such as he gets more yield.
      * note: Assumes sunrise is called at the top of the hour.
-     * @return bool True if the protocol is close to printing, false otherwise
+     * @return bool True if the user should smart mow, false otherwise
      */
-    function _incomingPrintSeason() internal view returns (bool) {
+    function _checkSmartMowConditions(
+        uint256 mintwaDeltaB,
+        uint256 minMowAmount,
+        uint256 totalClaimableStalk
+    ) internal view returns (bool) {
         IBeanstalk.Season memory seasonInfo = beanstalk.time();
-        // if the time until next season is more than 1 minute, return false
+
+        // if the time until next season is more than the buffer, return false
         if (block.timestamp + SMART_MOW_BUFFER > seasonInfo.timestamp + seasonInfo.period)
             return false;
 
-        // if the totalDeltaB is positive, return true
+        // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
         // todo: i think we need to do what we do in sunrise here to get the twaDeltaB
-        return beanstalk.totalDeltaB() > 0;
+        return beanstalk.totalDeltaB() > int256(mintwaDeltaB) && totalClaimableStalk > minMowAmount;
     }
 
     /**
@@ -370,17 +363,29 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     }
 
     /// @dev validates the parameters for the mow, plant and harvest operation
-    function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal pure {
+    function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal view {
         require(
             params.mowPlantHarvestParams.sourceTokenIndices.length > 0,
             "Must provide at least one source token"
         );
-        // enforce that the harvest destination is either internal or external
+        // Check if the executing operator (msg.sender) is whitelisted
         require(
-            params.mowPlantHarvestParams.harvestDestination == LibTransfer.To.INTERNAL ||
-                params.mowPlantHarvestParams.harvestDestination == LibTransfer.To.EXTERNAL,
-            "Invalid harvest destination"
+            tractorHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
+            "Operator not whitelisted"
         );
+        // Validate that minPlantAmount and minHarvestAmount result in profit
+        if (params.opParams.operatorTipAmount >= 0) {
+            require(
+                params.mowPlantHarvestParams.minPlantAmount >
+                    uint256(params.opParams.operatorTipAmount),
+                "Min plant amount must be greater than operator tip amount"
+            );
+            require(
+                params.mowPlantHarvestParams.minHarvestAmount >
+                    uint256(params.opParams.operatorTipAmount),
+                "Min harvest amount must be greater than operator tip amount"
+            );
+        }
     }
 
     /// @dev validates info related to the blueprint such as the order hash and the last executed season

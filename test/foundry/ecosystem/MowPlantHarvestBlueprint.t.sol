@@ -14,13 +14,25 @@ import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import "forge-std/console.sol";
 
 contract MowPlantHarvestBlueprintTest is TractorHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
     BeanstalkPrice beanstalkPrice;
 
+    uint256 STALK_DECIMALS = 1e10;
+    uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
 
+    struct TestState {
+        address user;
+        address operator;
+        address beanToken;
+        uint256 initialUserBeanBalance;
+        uint256 initialOperatorBeanBalance;
+        uint256 mintAmount;
+        int256 tipAmount;
+    }
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
@@ -54,59 +66,110 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         setTractorHelpers(address(tractorHelpers));
         setMowPlantHarvestBlueprint(address(mowPlantHarvestBlueprint));
 
-        addLiquidityToWell(
-            BEAN_ETH_WELL,
-            10000e6, // 10,000 Beans
-            10 ether // 10 ether.
-        );
-
-        addLiquidityToWell(
-            BEAN_WSTETH_WELL,
-            10010e6, // 10,010 Beans
-            10 ether // 10 ether.
-        );
+        // Advance season to grow stalk
+        advanceSeason();
     }
 
     // Break out the setup into a separate function
-    // function setupMowPlantHarvestBlueprintTest(
-    //     bool shouldMow, // if should mow, set up conditions for mowing
-    //     bool shouldPlant, // if should plant, set up conditions for planting
-    //     bool shouldHarvest // if should harvest, set up conditions for harvesting
-    // ) internal returns (TestState memory) {
-        // TestState memory state;
-        // state.user = farmers[0];
-        // state.operator = address(this);
-        // state.beanToken = bs.getBeanToken();
-        // state.initialUserBeanBalance = IERC20(state.beanToken).balanceOf(state.user);
-        // state.initialOperatorBeanBalance = bs.getInternalBalance(state.operator, state.beanToken);
-        // state.sowAmount = 1000e6; // 1000 BEAN
-        // state.tipAmount = 10e6; // 10 BEAN
-        // state.initialSoil = 100000e6; // 100,000 BEAN
+    function setupMowPlantHarvestBlueprintTest(
+        bool shouldMow, // if should mow, set up conditions for mowing
+        bool shouldPlant, // if should plant, set up conditions for planting
+        bool shouldHarvest, // if should harvest, set up conditions for harvesting
+        bool abovePeg // if above peg, set up conditions for above peg
+    ) internal returns (TestState memory) {
+        // Create test state
+        TestState memory state;
+        state.user = farmers[0];
+        state.operator = address(this);
+        state.beanToken = bs.getBeanToken();
+        state.initialUserBeanBalance = IERC20(state.beanToken).balanceOf(state.user);
+        state.initialOperatorBeanBalance = bs.getInternalBalance(state.operator, state.beanToken);
+        state.mintAmount = 100000e6;
+        state.tipAmount = 10e6; // 10 BEAN
 
-        // // For test case 6, we need to deposit more than initialSoil
-        // uint256 extraAmount = state.initialSoil + 1e6;
+        // Mint 2x the amount to ensure we have enough for all test cases
+        mintTokensToUser(state.user, state.beanToken, state.mintAmount);
 
-        // // Setup initial conditions with extra amount for test case 6
-        // // Mint 2x the amount to ensure we have enough for all test cases
-        // mintTokensToUser(state.user, state.beanToken, (extraAmount + uint256(state.tipAmount)) * 2);
+        vm.prank(state.user);
+        IERC20(state.beanToken).approve(address(bs), type(uint256).max);
 
-        // vm.prank(state.user);
-        // IERC20(state.beanToken).approve(address(bs), type(uint256).max);
+        vm.prank(state.user);
+        bs.deposit(state.beanToken, state.mintAmount, uint8(LibTransfer.From.EXTERNAL));
 
-        // bs.setSoilE(state.initialSoil);
+        // For farmer 1, deposit 1000e6 beans, and mint them 1000e6 beans
+        mintTokensToUser(farmers[1], state.beanToken, 1000e6);
+        vm.prank(farmers[1]);
+        bs.deposit(state.beanToken, 1000e6, uint8(LibTransfer.From.EXTERNAL));
 
-        // vm.prank(state.user);
-        // bs.deposit(
-        //     state.beanToken,
-        //     extraAmount + uint256(state.tipAmount),
-        //     uint8(LibTransfer.From.EXTERNAL)
-        // );
+        // Add liquidity to manipulate deltaB
+        if (abovePeg) {
+            addLiquidityToWell(
+                BEAN_ETH_WELL,
+                10000e6, // 10,000 Beans
+                11 ether // 10 ether.
+            );
+            addLiquidityToWell(
+                BEAN_WSTETH_WELL,
+                10010e6, // 10,010 Beans
+                11 ether // 10 ether.
+            );
+        } else {
+            addLiquidityToWell(
+                BEAN_ETH_WELL,
+                10000e6, // 10,000 Beans
+                10 ether // 10 ether.
+            );
+            addLiquidityToWell(
+                BEAN_WSTETH_WELL,
+                10000e6, // 10,010 Beans
+                10 ether // 10 ether.
+            );
+        }
 
-        // // For farmer 1, deposit 1000e6 beans, and mint them 1000e6 beans
-        // mintTokensToUser(farmers[1], state.beanToken, 1000e6);
-        // vm.prank(farmers[1]);
-        // bs.deposit(state.beanToken, 1000e6, uint8(LibTransfer.From.EXTERNAL));
+        return state;
+    }
 
-        // return state;
-    // }
+    // Advance to the next season and update oracles
+    function advanceSeason() internal {
+        warpToNextSeasonTimestamp();
+        bs.sunrise();
+        updateAllChainlinkOraclesWithPreviousData();
+    }
+
+    /////////////////////////// TESTS ///////////////////////////
+
+    function test_mowPlantHarvestBlueprint_smartMow() public {
+        // Setup test state
+        TestState memory state = setupMowPlantHarvestBlueprintTest(true, true, true, true);
+
+        // Advance season to grow stalk
+        advanceSeason();
+
+        // get user state before mow see SiloGettersFacet
+        uint256 userGrownStalk = bs.balanceOfGrownStalk(state.user, state.beanToken);
+        console.log("userGrownStalk before mow", userGrownStalk);
+
+        // log totalDeltaB
+        console.log("totalDeltaB", bs.totalDeltaB());
+
+        // Setup mowPlantHarvestBlueprint
+        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+            state.user, // account
+            SourceMode.PURE_PINTO,
+            1 * STALK_DECIMALS, // minMowAmount (1 stalk)
+            10e6, // mintwaDeltaB
+            type(uint256).max, // minPlantAmount
+            type(uint256).max, // minHarvestAmount
+            state.operator, // tipAddress
+            state.tipAmount, // operatorTipAmount
+            MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
+        );
+
+        executeRequisition(state.operator, req, address(bs));
+
+        // get user state after mow see SiloGettersFacet
+        uint256 userGrownStalkAfterMow = bs.balanceOfGrownStalk(state.user, state.beanToken);
+        // assert that this is 0 (all the grown stalk was mowed)
+        assertEq(userGrownStalkAfterMow, 0);
+    }
 }

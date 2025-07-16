@@ -282,7 +282,14 @@ contract TractorHelper is TestHelper {
 
     function setupMowPlantHarvestBlueprint(
         address account,
-        SourceMode sourceMode
+        SourceMode sourceMode,
+        uint256 minMowAmount,
+        uint256 mintwaDeltaB,
+        uint256 minPlantAmount,
+        uint256 minHarvestAmount,
+        address tipAddress,
+        int256 operatorTipAmount,
+        uint256 maxGrownStalkPerBdv
     )
         internal
         returns (
@@ -290,20 +297,17 @@ contract TractorHelper is TestHelper {
             MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
         )
     {
-
-        // build struct params (TODO: modify and implement based on desired parameters)
-        // params = createMowPlantHarvestBlueprintStruct(
-        //     uint8(sourceMode),
-        //     sowAmounts,
-        //     minTemp,
-        //     operatorTipAmount,
-        //     tipAddress,
-        //     maxPodlineLength,
-        //     maxGrownStalkLimitPerBdv,
-        //     runBlocksAfterSunrise,
-        //     address(tractorHelpers),
-        //     address(bs)
-        // );
+        // build struct params
+        params = createMowPlantHarvestBlueprintStruct(
+            uint8(sourceMode),
+            minMowAmount,
+            mintwaDeltaB,
+            minPlantAmount,
+            minHarvestAmount,
+            tipAddress,
+            operatorTipAmount,
+            maxGrownStalkPerBdv
+        );
 
         // create pipe call data
         bytes memory pipeCallData = createMowPlantHarvestBlueprintCallData(params);
@@ -322,16 +326,62 @@ contract TractorHelper is TestHelper {
         return (req, params);
     }
 
-    
-    // TODO: modify and implement based on desired parameters
-    // function createMowPlantHarvestBlueprintStruct(
-    //     uint8 sourceMode,
-    //     SowBlueprintv0.SowAmounts memory sowAmounts,
-    //     uint256 minTemp,
-    //     int256 operatorTipAmount,
-    //     address tipAddress
-    // ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {}
+    // Creates and returns the struct params for the mowPlantHarvestBlueprint
+    function createMowPlantHarvestBlueprintStruct(
+        uint8 sourceMode,
+        uint256 minMowAmount,
+        uint256 mintwaDeltaB,
+        uint256 minPlantAmount,
+        uint256 minHarvestAmount,
+        address tipAddress,
+        int256 operatorTipAmount,
+        uint256 maxGrownStalkPerBdv
+    ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {
+        // Create default whitelisted operators array with msg.sender
+        address[] memory whitelistedOps = new address[](3);
+        whitelistedOps[0] = msg.sender;
+        whitelistedOps[1] = tipAddress;
+        whitelistedOps[2] = address(this);
 
+        // Create array with single index for the token based on source mode
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+                IMockFBeanstalk(address(bs)).getBeanToken()
+            );
+        } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
+            sourceTokenIndices[0] = type(uint8).max;
+        } else {
+            // LOWEST_SEED
+            sourceTokenIndices[0] = type(uint8).max - 1;
+        }
+
+        // Create MowPlantHarvestParams struct
+        MowPlantHarvestBlueprint.MowPlantHarvestParams
+            memory mowPlantHarvestParams = MowPlantHarvestBlueprint.MowPlantHarvestParams({
+                minMowAmount: minMowAmount,
+                mintwaDeltaB: mintwaDeltaB,
+                minPlantAmount: minPlantAmount,
+                minHarvestAmount: minHarvestAmount,
+                sourceTokenIndices: sourceTokenIndices,
+                maxGrownStalkPerBdv: maxGrownStalkPerBdv,
+                slippageRatio: 0.01e18 // 1%
+            });
+
+        // Create OperatorParams struct
+        MowPlantHarvestBlueprint.OperatorParams memory opParams = MowPlantHarvestBlueprint
+            .OperatorParams({
+                whitelistedOperators: whitelistedOps,
+                tipAddress: tipAddress,
+                operatorTipAmount: operatorTipAmount
+            });
+
+        return
+            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
+                mowPlantHarvestParams: mowPlantHarvestParams,
+                opParams: opParams
+            });
+    }
 
     /// @dev this is good to go
     function createMowPlantHarvestBlueprintCallData(
@@ -342,7 +392,10 @@ contract TractorHelper is TestHelper {
 
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
             target: address(mowPlantHarvestBlueprint),
-            callData: abi.encodeWithSelector(MowPlantHarvestBlueprint.mowPlantHarvestBlueprint.selector, params),
+            callData: abi.encodeWithSelector(
+                MowPlantHarvestBlueprint.mowPlantHarvestBlueprint.selector,
+                params
+            ),
             clipboard: hex"0000"
         });
 
