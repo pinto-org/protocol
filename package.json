@@ -5,6 +5,9 @@
   "installConfig": {
     "hoistingLimits": "dependencies"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/BeanstalkFarms/Beanstalk.git",
