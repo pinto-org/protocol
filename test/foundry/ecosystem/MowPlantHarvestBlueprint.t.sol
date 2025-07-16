@@ -72,9 +72,8 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     // Break out the setup into a separate function
     function setupMowPlantHarvestBlueprintTest(
-        bool shouldMow, // if should mow, set up conditions for mowing
-        bool shouldPlant, // if should plant, set up conditions for planting
-        bool shouldHarvest, // if should harvest, set up conditions for harvesting
+        bool setupPlant, // if setupPlant, set up conditions for planting
+        bool setupHarvest, // if setupHarvest, set up conditions for harvesting
         bool abovePeg // if above peg, set up conditions for above peg
     ) internal returns (TestState memory) {
         // Create test state
@@ -102,28 +101,29 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         bs.deposit(state.beanToken, 1000e6, uint8(LibTransfer.From.EXTERNAL));
 
         // Add liquidity to manipulate deltaB
-        if (abovePeg) {
-            addLiquidityToWell(
-                BEAN_ETH_WELL,
-                10000e6, // 10,000 Beans
-                11 ether // 10 ether.
-            );
-            addLiquidityToWell(
-                BEAN_WSTETH_WELL,
-                10010e6, // 10,010 Beans
-                11 ether // 10 ether.
-            );
-        } else {
-            addLiquidityToWell(
-                BEAN_ETH_WELL,
-                10000e6, // 10,000 Beans
-                10 ether // 10 ether.
-            );
-            addLiquidityToWell(
-                BEAN_WSTETH_WELL,
-                10000e6, // 10,010 Beans
-                10 ether // 10 ether.
-            );
+        addLiquidityToWell(
+            BEAN_ETH_WELL,
+            abovePeg ? 10000e6 : 10010e6, // 10,000 Beans if above peg, 10,010 Beans if below peg
+            abovePeg ? 11 ether : 10 ether // 11 eth if above peg, 10 ether. if below peg
+        );
+        addLiquidityToWell(
+            BEAN_WSTETH_WELL,
+            abovePeg ? 10000e6 : 10010e6, // 10,010 Beans if above peg, 10,000 Beans if below peg
+            abovePeg ? 11 ether : 10 ether // 11 eth if above peg, 10 ether. if below peg
+        );
+
+        if (setupPlant) {
+            // advance season 2 times to get rid of germination
+            advanceSeason();
+            advanceSeason();
+        }
+
+        if (setupHarvest) {
+            // set soil to 1000e6
+            bs.setSoilE(1000e6);
+            // sow 1000e6 beans
+            vm.prank(state.user);
+            bs.sow(1000e6, 0, uint8(LibTransfer.From.EXTERNAL));
         }
 
         return state;
@@ -140,17 +140,21 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     function test_mowPlantHarvestBlueprint_smartMow() public {
         // Setup test state
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, true, true, true);
+        // setupPlant: false, setupHarvest: false, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, true);
 
-        // Advance season to grow stalk
+        // Advance season to grow stalk but not enough to plant
         advanceSeason();
+        vm.warp(block.timestamp + 1 seconds);
 
-        // get user state before mow see SiloGettersFacet
+        // get user state before mow
         uint256 userGrownStalk = bs.balanceOfGrownStalk(state.user, state.beanToken);
-        console.log("userGrownStalk before mow", userGrownStalk);
-
-        // log totalDeltaB
-        console.log("totalDeltaB", bs.totalDeltaB());
+        // assert user has grown stalk
+        assertGt(userGrownStalk, 0, "user should have grown stalk to mow");
+        // get user total stalk before mow
+        uint256 userTotalStalkBeforeMow = bs.balanceOfStalk(state.user);
+        // assert totalDeltaB is greater than 0
+        assertGt(bs.totalDeltaB(), 0, "totalDeltaB should be greater than 0");
 
         // Setup mowPlantHarvestBlueprint
         (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
@@ -164,12 +168,26 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             state.tipAmount, // operatorTipAmount
             MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
         );
-
+        
+        // Try to execute before the last minutes of the season, expect revert
+        vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
         executeRequisition(state.operator, req, address(bs));
 
-        // get user state after mow see SiloGettersFacet
+        // Try to execute after the last minutes of the season
+        vm.warp(bs.getNextSeasonStart() - 1 seconds);
+        executeRequisition(state.operator, req, address(bs));
+
+        // assert all grown stalk was mowed
         uint256 userGrownStalkAfterMow = bs.balanceOfGrownStalk(state.user, state.beanToken);
-        // assert that this is 0 (all the grown stalk was mowed)
         assertEq(userGrownStalkAfterMow, 0);
+
+        // get user total stalk after mow
+        uint256 userTotalStalkAfterMow = bs.balanceOfStalk(state.user);
+        // assert the user total stalk has increased
+        assertGt(
+            userTotalStalkAfterMow,
+            userTotalStalkBeforeMow,
+            "userTotalStalk should have increased"
+        );
     }
 }

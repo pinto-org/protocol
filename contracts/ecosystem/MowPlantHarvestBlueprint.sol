@@ -7,6 +7,7 @@ import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import "forge-std/console.sol";
 
 /**
  * @title MowPlantHarvestBlueprint
@@ -14,7 +15,6 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
 contract MowPlantHarvestBlueprint is PerFunctionPausable {
-
     /// @dev Buffer for operators to check if the protocol is close to printing
     uint256 public constant SMART_MOW_BUFFER = 5 minutes;
 
@@ -124,6 +124,17 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             vars.shouldPlant,
             vars.shouldHarvest
         ) = _getAndValidateUserState(vars.account, params);
+
+        console.log("--------------------------------");
+        console.log("vars.totalClaimableStalk", vars.totalClaimableStalk);
+        console.log("vars.totalPlantableBeans", vars.totalPlantableBeans);
+        console.log("vars.totalHarvestablePods", vars.totalHarvestablePods);
+        for (uint256 i = 0; i < vars.harvestablePlots.length; i++) {
+            console.log("vars.harvestablePlots[", i, "]", vars.harvestablePlots[i]);
+        }
+        console.log("vars.shouldMow", vars.shouldMow);
+        console.log("vars.shouldPlant", vars.shouldPlant);
+        console.log("vars.shouldHarvest", vars.shouldHarvest);
 
         // validate blueprint
         _validateBlueprint(vars.orderHash);
@@ -236,7 +247,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         require(
             shouldMow || shouldPlant || shouldHarvest,
-            "None of the mow, plant or harvest conditions are met"
+            "MowPlantHarvestBlueprint: None of the order conditions are met"
         );
 
         // return user state
@@ -265,12 +276,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     ) internal view returns (bool) {
         IBeanstalk.Season memory seasonInfo = beanstalk.time();
 
-        // if the time until next season is more than the buffer, return false
-        if (block.timestamp + SMART_MOW_BUFFER > seasonInfo.timestamp + seasonInfo.period)
-            return false;
+        // if the time until next season is more than the buffer don't mow, too early
+        uint256 nextSeasonExpectedTimestamp = seasonInfo.timestamp + seasonInfo.period;
+        if (nextSeasonExpectedTimestamp - block.timestamp > SMART_MOW_BUFFER) return false;
 
         // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
-        // todo: i think we need to do what we do in sunrise here to get the twaDeltaB
         return beanstalk.totalDeltaB() > int256(mintwaDeltaB) && totalClaimableStalk > minMowAmount;
     }
 
