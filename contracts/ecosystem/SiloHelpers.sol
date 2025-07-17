@@ -12,7 +12,7 @@ import {PriceManipulation} from "./PriceManipulation.sol";
 
 /**
  * @title SiloHelpers
- * @author FordPinto
+ * @author FordPinto, Frijo
  * @notice Helper contract for Silo operations related to sorting deposits and managing their order
  */
 contract SiloHelpers is PerFunctionPausable {
@@ -218,7 +218,7 @@ contract SiloHelpers is PerFunctionPausable {
 
             int96 stemTip = beanstalk.stemTipForToken(sourceToken);
             // Calculate minimum stem tip from grown stalk for this token.
-        // note: in previous version, `maxGrownStalkPerBdv` assumed that 1 BDV = 1e6.
+            // note: in previous version, `maxGrownStalkPerBdv` assumed that 1 BDV = 1e6.
             // This is not correct and should be noted if UIs uses previous blueprint functions.
             filterParams.minStem = stemTip - int96(int256(filterParams.maxGrownStalkPerBdv));
 

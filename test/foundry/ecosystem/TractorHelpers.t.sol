@@ -1985,4 +1985,243 @@ contract TractorHelpersTest is TractorTestHelper {
             }
         }
     }
+
+    /**
+     * @notice Tests result of `getDepositStemsAndAmountsToWithdraw` when parameters do not affect the result.
+     */
+    function test_useLowStalkDepositsLast_unaffected() public {
+        // Setup: Create deposits with different stalk levels
+        uint256 beanAmount = 1000e6;
+        uint256 numDeposits = 5;
+
+        // Deposit beans multiple times with sunrises to create different stem values
+        mintTokensToUser(farmers[0], BEAN, beanAmount * numDeposits);
+        vm.startPrank(farmers[0]);
+        MockToken(BEAN).approve(address(bs), beanAmount * numDeposits);
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            bs.deposit(BEAN, beanAmount, 0);
+            bs.siloSunrise(0); // Advance stems
+        }
+        vm.stopPrank();
+
+        // Configure filter params with useLowStalkDepositsLast enabled
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+
+        // check that if the lowDepositLast is false, OR set true but no low stalk deposits (i.e lowGrownStalkPerBdv is 0),
+        // the deposits are processed in the correct order.
+        for (uint256 i = 0; i < 2; i++) {
+            if (i == 0) {
+                filterParams.useLowStalkDepositsLast = false;
+            } else {
+                filterParams.useLowStalkDepositsLast = true;
+                filterParams.lowGrownStalkPerBdv = 1; // set a very low stalkPerBdv threshold.
+            }
+
+            (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+                .getDepositStemsAndAmountsToWithdraw(
+                    farmers[0],
+                    BEAN,
+                    beanAmount * 3, // Request 3 deposits worth
+                    filterParams,
+                    LibSiloHelpers.WithdrawalPlan(
+                        new address[](0),
+                        new int96[][](0),
+                        new uint256[][](0),
+                        new uint256[](0),
+                        0
+                    )
+                );
+
+            // Verify we got deposits back
+            assertEq(stems.length, 3, "Should have 3 deposits");
+            assertEq(amounts.length, 3, "Should have 3 amounts");
+            assertEq(availableAmount, beanAmount * 3, "Should withdraw exact amount requested");
+
+            // Verify stems are ordered properly (higher stems first, then lower stems)
+            for (uint256 i = 1; i < stems.length; i++) {
+                assertGt(stems[i - 1], stems[i], "Stems should be in descending order");
+            }
+        }
+    }
+
+    /**
+     * @notice Tests useLowStalkDepositsLast with mixed high and low stalk deposits
+     */
+    function test_useLowStalkDepositsLast_mixed_deposits() public {
+        uint256 beanAmount = 1000e6;
+        {
+            uint256 numDeposits = 4;
+            // Create deposits with different stalk levels
+            mintTokensToUser(farmers[0], BEAN, beanAmount * numDeposits);
+            vm.startPrank(farmers[0]);
+            MockToken(BEAN).approve(address(bs), beanAmount * numDeposits);
+
+            for (uint256 i = 0; i < numDeposits; i++) {
+                bs.deposit(BEAN, beanAmount, 0);
+                if (i < numDeposits - 1) {
+                    bs.siloSunrise(0); // Create stem gaps
+                }
+            }
+        }
+        vm.stopPrank();
+
+        // Test with useLowStalkDepositsLast disabled
+        LibSiloHelpers.FilterParams memory filterParamsNormal = LibSiloHelpers
+            .getDefaultFilterParams();
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
+        filterParamsNormal.useLowStalkDepositsLast = false;
+        filterParamsNormal.maxGrownStalkPerBdv = 500e16;
+
+        (
+            int96[] memory stemsNormal,
+            uint256[] memory amountsNormal,
+            uint256 availableNormal
+        ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                beanAmount * 2,
+                filterParamsNormal,
+                withdrawalPlan
+            );
+
+        // Test with useLowStalkDepositsLast enabled
+        LibSiloHelpers.FilterParams memory filterParamsLowLast = LibSiloHelpers
+            .getDefaultFilterParams();
+        filterParamsLowLast.useLowStalkDepositsLast = true;
+        filterParamsLowLast.maxGrownStalkPerBdv = 500e16;
+        filterParamsLowLast.lowGrownStalkPerBdv = 100e16;
+        uint256 numDepositsToWithdraw = 2;
+
+        (
+            int96[] memory stemsLowLast,
+            uint256[] memory amountsLowLast,
+            uint256 availableLowLast
+        ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                beanAmount * numDepositsToWithdraw,
+                filterParamsLowLast,
+                withdrawalPlan
+            );
+
+        // Both should get the same total amount
+        assertEq(availableNormal, availableLowLast, "Available amounts should be equal");
+
+        // Both should have the same number of deposits used
+        assertEq(stemsNormal.length, stemsLowLast.length, "Should use same number of deposits");
+
+        // Both should have the same number of deposits used
+        assertEq(stemsNormal.length, numDepositsToWithdraw, "Should use same number of deposits");
+
+        // Verify we got expected amount
+        assertEq(
+            availableLowLast,
+            beanAmount * numDepositsToWithdraw,
+            "Should withdraw exact amount requested"
+        );
+    }
+
+    /**
+     * @notice Tests edge case where all deposits are low stalk deposits (all deposits should be used.)
+     */
+    function test_useLowStalkDepositsLast_all_low_stalk() public {
+        uint256 beanAmount = 1000e6;
+        uint256 numDeposits = 3;
+
+        // Create all deposits at current stem tip (newest deposits = low stalk)
+        mintTokensToUser(farmers[0], BEAN, beanAmount * numDeposits);
+        vm.startPrank(farmers[0]);
+        MockToken(BEAN).approve(address(bs), beanAmount * numDeposits);
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            bs.deposit(BEAN, beanAmount, 0);
+            bs.siloSunrise(0); // Advance stems.
+        }
+
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
+        filterParams.useLowStalkDepositsLast = true;
+        filterParams.lowGrownStalkPerBdv = 1000e16; // High threshold - all deposits are low stalk
+
+        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+            .getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                beanAmount * 2,
+                filterParams,
+                withdrawalPlan
+            );
+
+        // Should still work and return deposits
+        assertTrue(stems.length > 0, "Should have deposits even if all are low stalk");
+        assertEq(availableAmount, beanAmount * 2, "Should withdraw requested amount");
+    }
+
+    /**
+     * @notice verifies that deposits with low stalks are processed last.
+     */
+    function test_getWithdrawalPlan_with_low_stalk_deposits(int96 stem) public {
+        uint256 numDeposits = 5;
+        uint256 seeds = 2e6;
+        uint256 totalAmount = 5000e6;
+        int96 largestStem = int96(int256((numDeposits - 1) * seeds));
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxStem = int96(bound(stem, 0, largestStem)); // set a very low stem threshold.
+
+        // Create mixed deposits
+        mintTokensToUser(farmers[0], BEAN, totalAmount);
+        vm.startPrank(farmers[0]);
+        MockToken(BEAN).approve(address(bs), totalAmount);
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            bs.deposit(BEAN, totalAmount / numDeposits, 0);
+            bs.siloSunrise(0);
+        }
+        vm.stopPrank();
+
+        filterParams.useLowStalkDepositsLast = true;
+
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
+
+        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+            .getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                totalAmount,
+                filterParams,
+                withdrawalPlan
+            );
+
+        // independent of the stem threshold, the number of deposits should be the same.
+        assertEq(stems.length, numDeposits, "Should have same number of deposits");
+        assertEq(amounts.length, stems.length, "Should have same number of amounts");
+
+        // determine how many low/high stems there are.
+        console.log("filterParams.maxStem", filterParams.maxStem);
+        uint256 numLowStems;
+        if (filterParams.maxStem == largestStem) {
+            numLowStems = 0;
+        } else {
+            numLowStems = ((uint256(uint96((largestStem - filterParams.maxStem - 1))) / seeds) + 1);
+        }
+        uint256 numHighStems = numDeposits - numLowStems;
+
+        for (uint256 i = 0; i < stems.length; i++) {
+            if (i < numHighStems) {
+                if (i != 0) {
+                    assertLe(stems[i], stems[i - 1], "stems should be in descending order");
+                }
+            } else {
+                if (i != numHighStems - 1) {
+                    assertGt(stems[i], filterParams.maxStem, "Should be low stem");
+                    if (i > numHighStems) {
+                        assertLe(stems[i], stems[i - 1], "stems should be in descending order");
+                    }
+                } else {
+                    assertEq(stems[i], largestStem, "the last high stem should be 0");
+                }
+            }
+        }
+    }
 }
