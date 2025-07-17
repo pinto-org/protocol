@@ -12,7 +12,7 @@ import {PriceManipulation} from "./PriceManipulation.sol";
 
 /**
  * @title SiloHelpers
- * @author FordPinto
+ * @author FordPinto, Frijo
  * @notice Helper contract for Silo operations related to sorting deposits and managing their order
  */
 contract SiloHelpers is PerFunctionPausable {
@@ -41,6 +41,7 @@ contract SiloHelpers is PerFunctionPausable {
         uint256[] validAvailableBeans;
         uint256 validSourceCount;
         uint256 totalAvailableBeans;
+        int96 minStem;
     }
 
     struct WithdrawBeansLocalVars {
@@ -64,9 +65,9 @@ contract SiloHelpers is PerFunctionPausable {
         uint256 depositAmount;
         uint256 remainingAmount;
         uint256 amountFromDeposit;
-        uint256 i;
-        uint256 j;
-        uint256 k;
+        int96[] lowStalkStems;
+        uint256[] lowStalkAmounts;
+        uint256 lowStalkCount;
     }
 
     constructor(
@@ -172,9 +173,7 @@ contract SiloHelpers is PerFunctionPausable {
      * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
-     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
-     * @param excludeBean Whether to exclude the Bean token when using special strategies
-     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
+     * @param filterParams Contains minStem, excludeGerminatingDeposits, lowPriorityStemThreshold, excludeBean, and maxGrownStalkPerBdv
      * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
@@ -182,9 +181,7 @@ contract SiloHelpers is PerFunctionPausable {
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
-        uint256 maxGrownStalkPerBdv,
-        bool excludeBean,
-        bool excludeGerminatingDeposits,
+        LibSiloHelpers.FilterParams memory filterParams,
         LibSiloHelpers.WithdrawalPlan memory excludingPlan
     ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
@@ -199,10 +196,10 @@ contract SiloHelpers is PerFunctionPausable {
         if (tokenIndices.length == 1) {
             if (tokenIndices[0] == LOWEST_PRICE_STRATEGY) {
                 // Use ascending price strategy
-                (tokenIndices, ) = tractorHelpers.getTokensAscendingPrice(excludeBean);
+                (tokenIndices, ) = tractorHelpers.getTokensAscendingPrice(filterParams.excludeBean);
             } else if (tokenIndices[0] == LOWEST_SEED_STRATEGY) {
                 // Use ascending seeds strategy
-                (tokenIndices, ) = tractorHelpers.getTokensAscendingSeeds(excludeBean);
+                (tokenIndices, ) = tractorHelpers.getTokensAscendingSeeds(filterParams.excludeBean);
             }
         }
 
@@ -219,12 +216,12 @@ contract SiloHelpers is PerFunctionPausable {
 
             address sourceToken = vars.whitelistedTokens[tokenIndices[i]];
 
-            // Calculate minimum stem tip from grown stalk for this token
-            (int96 minStem, ) = beanstalk.calculateStemForTokenFromGrownStalk(
-                sourceToken,
-                maxGrownStalkPerBdv,
-                1e6
-            );
+            int96 stemTip = beanstalk.stemTipForToken(sourceToken);
+            // Calculate minimum stem tip from grown stalk for this token.
+            // note: in previous version, `maxGrownStalkPerBdv` assumed that 1 BDV = 1e6.
+            // This is not correct and should be noted if UIs uses previous blueprint functions.
+            filterParams.minStem = stemTip - int96(int256(filterParams.maxGrownStalkPerBdv));
+            filterParams.maxStem = stemTip - int96(int256(filterParams.lowGrownStalkPerBdv));
 
             // If source is bean token, calculate direct withdrawal
             if (sourceToken == vars.beanToken) {
@@ -236,8 +233,7 @@ contract SiloHelpers is PerFunctionPausable {
                     account,
                     sourceToken,
                     vars.remainingBeansNeeded,
-                    minStem,
-                    excludeGerminatingDeposits,
+                    filterParams,
                     excludingPlan
                 );
 
@@ -270,8 +266,7 @@ contract SiloHelpers is PerFunctionPausable {
                     account,
                     sourceToken,
                     vars.lpNeeded,
-                    minStem,
-                    excludeGerminatingDeposits,
+                    filterParams,
                     excludingPlan
                 );
 
@@ -332,16 +327,14 @@ contract SiloHelpers is PerFunctionPausable {
      * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
-     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param filterParams Contains minStem, excludeGerminatingDeposits, lowPriorityStemThreshold, excludeBean, and maxGrownStalkPerBdv
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
     function getWithdrawalPlan(
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
-        uint256 maxGrownStalkPerBdv,
-        bool excludeBean,
-        bool excludeGerminatingDeposits
+        LibSiloHelpers.FilterParams memory filterParams
     ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         return
@@ -349,9 +342,7 @@ contract SiloHelpers is PerFunctionPausable {
                 account,
                 tokenIndices,
                 targetAmount,
-                maxGrownStalkPerBdv,
-                excludeBean,
-                excludeGerminatingDeposits,
+                filterParams,
                 emptyPlan
             );
     }
@@ -364,9 +355,7 @@ contract SiloHelpers is PerFunctionPausable {
      * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
-     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
-     * @param excludeBean Whether to exclude the Bean token when using special strategies
-     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
+     * @param filterParams Contains minStem, excludeGerminatingDeposits, lowPriorityStemThreshold, excludeBean, and maxGrownStalkPerBdv
      * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
      * @param mode The transfer mode for sending tokens back to user
      * @param plan The withdrawal plan to use, or null to generate one
@@ -376,9 +365,7 @@ contract SiloHelpers is PerFunctionPausable {
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
-        uint256 maxGrownStalkPerBdv,
-        bool excludeBean,
-        bool excludeGerminatingDeposits,
+        LibSiloHelpers.FilterParams memory filterParams,
         uint256 slippageRatio,
         LibTransfer.To mode,
         LibSiloHelpers.WithdrawalPlan memory plan
@@ -387,14 +374,7 @@ contract SiloHelpers is PerFunctionPausable {
 
         // If passed in plan is empty, get one
         if (plan.sourceTokens.length == 0) {
-            plan = getWithdrawalPlan(
-                account,
-                tokenIndices,
-                targetAmount,
-                maxGrownStalkPerBdv,
-                excludeBean,
-                excludeGerminatingDeposits
-            );
+            plan = getWithdrawalPlan(account, tokenIndices, targetAmount, filterParams);
         }
 
         vars.amountWithdrawn = 0;
@@ -484,7 +464,7 @@ contract SiloHelpers is PerFunctionPausable {
 
     /**
      * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
-     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @dev Convenience function that uses default filter parameters (no exclusions, all deposits high priority)
      * @param account The address of the account that owns the deposits
      * @param token The token to get deposits for
      * @param amount The amount of tokens to withdraw
@@ -503,21 +483,21 @@ contract SiloHelpers is PerFunctionPausable {
         view
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.minStem = minStem;
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
-        return
-            getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, false, emptyPlan);
+        return getDepositStemsAndAmountsToWithdraw(account, token, amount, filterParams, emptyPlan);
     }
 
     /**
-     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
-     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @notice Returns arrays of stems and amounts for all deposits, with priority-based ordering
+     * @dev Processes high priority deposits first (stem <= lowPriorityStemThreshold), then low priority deposits
      * @param account The address of the account that owns the deposits
      * @param token The token to get deposits for
      * @param amount The amount of tokens to withdraw
-     * @param minStem The minimum stem value to consider for withdrawal
-     * @param excludeGerminatingDeposits If true, deposits with stems greater than getHighestNonGerminatingStem are skipped
+     * @param filterParams Contains minStem, excludeGerminatingDeposits, lowPriorityStemThreshold, excludeBean, and maxGrownStalkPerBdv
      * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
-     * @return stems Array of stems in descending order
+     * @return stems Array of stems in priority order (high priority first, then low priority, both in descending order)
      * @return amounts Array of corresponding amounts for each stem
      * @return availableAmount The total amount available to withdraw (may be less than requested amount)
      */
@@ -525,8 +505,7 @@ contract SiloHelpers is PerFunctionPausable {
         address account,
         address token,
         uint256 amount,
-        int96 minStem,
-        bool excludeGerminatingDeposits,
+        LibSiloHelpers.FilterParams memory filterParams,
         LibSiloHelpers.WithdrawalPlan memory excludingPlan
     )
         public
@@ -539,13 +518,20 @@ contract SiloHelpers is PerFunctionPausable {
         if (vars.depositIds.length == 0) return (new int96[](0), new uint256[](0), 0);
 
         // Get the highest non-germinating stem for the token if needed
-        if (excludeGerminatingDeposits) {
+        if (filterParams.excludeGerminatingDeposits) {
             vars.highestNonGerminatingStem = beanstalk.getHighestNonGerminatingStem(token);
         }
 
         // Initialize arrays with max possible size
-        int96[] memory tempStems = new int96[](vars.depositIds.length);
-        uint256[] memory tempAmounts = new uint256[](vars.depositIds.length);
+        stems = new int96[](vars.depositIds.length);
+        amounts = new uint256[](vars.depositIds.length);
+
+        // if we are using the smallest stalk deposits, initialize an additional
+        // temporary array to store the stems and amounts
+        if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
+            vars.lowStalkStems = new int96[](vars.depositIds.length);
+            vars.lowStalkAmounts = new uint256[](vars.depositIds.length);
+        }
 
         // Track state
         vars.remainingBeansNeeded = amount;
@@ -553,42 +539,44 @@ contract SiloHelpers is PerFunctionPausable {
         vars.availableAmount = 0;
 
         // Process deposits in reverse order (highest stem to lowest)
-        for (vars.i = vars.depositIds.length; vars.i > 0; vars.i--) {
-            (, vars.stem) = getAddressAndStem(vars.depositIds[vars.i - 1]);
+        for (uint256 i = vars.depositIds.length; i > 0; i--) {
+            (, vars.stem) = getAddressAndStem(vars.depositIds[i - 1]);
 
-            // Skip if stem is less than minStem
-            if (vars.stem < minStem) {
-                continue;
-            }
-
-            // Skip if deposit is germinating and excludeGerminatingDeposits is true
-            if (excludeGerminatingDeposits && vars.stem > vars.highestNonGerminatingStem) {
+            // Skip deposit if:
+            // 1: stem is less than minStem (implying a high stalk deposit),
+            // 2: deposit is germinating and excludeGerminatingDeposits is true
+            if (
+                vars.stem < filterParams.minStem ||
+                (filterParams.excludeGerminatingDeposits &&
+                    vars.stem > vars.highestNonGerminatingStem)
+            ) {
                 continue;
             }
 
             (vars.depositAmount, ) = beanstalk.getDeposit(account, token, vars.stem);
 
-            // Check if this deposit is in the existing plan and calculate remaining amount
-            vars.remainingAmount = vars.depositAmount;
-            for (vars.j = 0; vars.j < excludingPlan.sourceTokens.length; vars.j++) {
-                if (excludingPlan.sourceTokens[vars.j] == token) {
-                    for (vars.k = 0; vars.k < excludingPlan.stems[vars.j].length; vars.k++) {
-                        if (excludingPlan.stems[vars.j][vars.k] == vars.stem) {
-                            // If the deposit was fully used in the existing plan, skip it
-                            if (excludingPlan.amounts[vars.j][vars.k] >= vars.depositAmount) {
-                                vars.remainingAmount = 0;
-                                break;
-                            }
-                            // Otherwise, subtract the used amount from the remaining amount
-                            vars.remainingAmount =
-                                vars.depositAmount -
-                                excludingPlan.amounts[vars.j][vars.k];
-                            break;
-                        }
-                    }
-                    if (vars.remainingAmount == 0) break;
+            // if the deposit is a low stalk deposit, check if we want to use the low stalk deposits last.
+            if (
+                filterParams.lowStalkDeposits != LibSiloHelpers.Mode.USE &&
+                vars.stem > filterParams.maxStem
+            ) {
+                // add the deposit to the low stalk deposits array if we want to use the low stalk deposits last.
+                if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
+                    vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
+                    vars.lowStalkAmounts[vars.lowStalkCount] = vars.depositAmount;
+                    vars.lowStalkCount++;
                 }
+                // skip if we don't want to use low stalk deposits.
+                continue;
             }
+
+            // Check if this deposit is in the existing plan and calculate remaining amount
+            vars.remainingAmount = LibSiloHelpers.checkDepositInExistingPlan(
+                token,
+                vars.stem,
+                vars.depositAmount,
+                excludingPlan
+            );
 
             // Skip if no remaining amount available
             if (vars.remainingAmount == 0) continue;
@@ -599,8 +587,8 @@ contract SiloHelpers is PerFunctionPausable {
                 vars.amountFromDeposit = vars.remainingBeansNeeded;
             }
 
-            tempStems[vars.currentIndex] = vars.stem;
-            tempAmounts[vars.currentIndex] = vars.amountFromDeposit;
+            stems[vars.currentIndex] = vars.stem;
+            amounts[vars.currentIndex] = vars.amountFromDeposit;
             vars.availableAmount += vars.amountFromDeposit;
             vars.remainingBeansNeeded -= vars.amountFromDeposit;
             vars.currentIndex++;
@@ -608,14 +596,49 @@ contract SiloHelpers is PerFunctionPausable {
             if (vars.remainingBeansNeeded == 0) break;
         }
 
-        // Create new arrays with the correct size
-        stems = new int96[](vars.currentIndex);
-        amounts = new uint256[](vars.currentIndex);
+        // if the user wants to use the low stalk deposits last, and there are remaining beans needed,
+        // and there are low stalk deposits, process them.
+        if (
+            filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST &&
+            vars.remainingBeansNeeded > 0 &&
+            vars.lowStalkCount > 0
+        ) {
+            // (stems and amounts are ordered backwards from the previous for loop, and thus does
+            // not need to loop backwards).
+            for (uint256 i = 0; i < vars.lowStalkCount && vars.remainingBeansNeeded > 0; i++) {
+                vars.stem = vars.lowStalkStems[i];
+                vars.depositAmount = vars.lowStalkAmounts[i];
 
-        // Copy data to the resized arrays
-        for (vars.i = 0; vars.i < vars.currentIndex; vars.i++) {
-            stems[vars.i] = tempStems[vars.i];
-            amounts[vars.i] = tempAmounts[vars.i];
+                // Check against existing plan
+                vars.remainingAmount = LibSiloHelpers.checkDepositInExistingPlan(
+                    token,
+                    vars.stem,
+                    vars.depositAmount,
+                    excludingPlan
+                );
+
+                if (vars.remainingAmount == 0) continue;
+
+                vars.amountFromDeposit = vars.remainingAmount;
+                if (vars.remainingAmount > vars.remainingBeansNeeded) {
+                    vars.amountFromDeposit = vars.remainingBeansNeeded;
+                }
+
+                stems[vars.currentIndex] = vars.stem;
+                amounts[vars.currentIndex] = vars.amountFromDeposit;
+                vars.availableAmount += vars.amountFromDeposit;
+                vars.remainingBeansNeeded -= vars.amountFromDeposit;
+                vars.currentIndex++;
+
+                if (vars.remainingBeansNeeded == 0) break;
+            }
+        }
+
+        // Set the length of the arrays
+        uint256 currentIndex = vars.currentIndex;
+        assembly {
+            mstore(stems, currentIndex)
+            mstore(amounts, currentIndex)
         }
 
         return (stems, amounts, vars.availableAmount);

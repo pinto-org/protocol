@@ -13,6 +13,7 @@ import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice, ReservesType} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/console.sol";
@@ -50,7 +51,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         uint256 minTimeBetweenConverts;
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 minGrownStalkPerBdvBonusThreshold;
+        uint256 minGrownStalkPerBdvBonus;
         uint256 minPriceToConvertUp;
         uint256 maxPriceToConvertUp;
         int256 maxGrownStalkPerBdvPenalty;
@@ -201,7 +202,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -325,7 +326,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -547,7 +548,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.99e6,
                 maxPriceToConvertUp: 1.01e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -581,7 +582,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -635,7 +636,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -748,7 +749,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -801,11 +802,12 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: params.minTimeBetweenConverts,
                 minConvertBonusCapacity: params.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,
-                minGrownStalkPerBdvBonusThreshold: params.minGrownStalkPerBdvBonusThreshold,
+                minGrownStalkPerBdvBonus: params.minGrownStalkPerBdvBonus,
                 maxPriceToConvertUp: params.maxPriceToConvertUp,
                 minPriceToConvertUp: params.minPriceToConvertUp,
                 maxGrownStalkPerBdvPenalty: params.maxGrownStalkPerBdvPenalty,
-                slippageRatio: params.slippageRatio
+                slippageRatio: params.slippageRatio,
+                lowStalkDeposits: LibSiloHelpers.Mode.USE
             });
 
         // Create the operator whitelist array
@@ -953,7 +955,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0, // No minimum capacity requirement
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 6e16, // Higher than available 5e16
+                minGrownStalkPerBdvBonus: 6e16, // Higher than available 5e16
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -981,7 +983,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 2000e6, // Higher than available 1000e6
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0, // No minimum stalk per BDV requirement
+                minGrownStalkPerBdvBonus: 0, // No minimum stalk per BDV requirement
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -1006,7 +1008,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 500e6, // Lower than available 1000e6
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 4e16, // Lower than available 5e16
+                minGrownStalkPerBdvBonus: 4e16, // Lower than available 5e16
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -1050,7 +1052,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
@@ -1125,7 +1127,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonusThreshold: 0,
+                minGrownStalkPerBdvBonus: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
