@@ -10,14 +10,10 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
  */
 library LibSiloHelpers {
     enum Mode {
-        USE,      // 0 - use low stalk deposits
-        OMIT,     // 1 - omit low stalk deposits
-        USE_LAST  // 2 - use low stalk deposits last
+        USE, // 0 - use low stalk deposits
+        OMIT, // 1 - omit low stalk deposits
+        USE_LAST // 2 - use low stalk deposits last
     }
-
-    // Legacy constants for backward compatibility
-    uint8 internal constant USE_LOW_STALK_DEPOSITS = 0;
-    uint8 internal constant DO_NOT_USE_LOW_STALK_DEPOSITS = 1;
 
     struct WithdrawalPlan {
         address[] sourceTokens;
@@ -33,17 +29,17 @@ library LibSiloHelpers {
      * @param minStem The minimum stem value to consider for withdrawal. Stems smaller than this are considered "high stalk" deposits and cannot be used.
      * @param excludeGerminatingDeposits Whether to exclude germinating deposits
      * @param excludeBean Whether to exclude beans
-     * @param lowDeposits how low stalk deposits are processed. USE (0), OMIT (1), USE_LAST (2).
+     * @param lowStalkDeposits how low stalk deposits are processed. USE (0), OMIT (1), USE_LAST (2).
      * @param lowGrownStalkPerBdv amount of grown stalk per bdv such that the deposit considered a "low stalk" deposit.
      * @param maxStem The maximum stem value to consider for withdrawal. Stems larger than this are considered "low stalk" deposits.
-     * @dev lowDeposits needed a way to handle low stalk deposits last for the convert bonus.
+     * @dev lowStalkDeposits needed a way to handle low stalk deposits last for the convert bonus.
      */
     struct FilterParams {
         uint256 maxGrownStalkPerBdv;
         int96 minStem;
         bool excludeGerminatingDeposits;
         bool excludeBean;
-        Mode lowDeposits;
+        Mode lowStalkDeposits;
         uint256 lowGrownStalkPerBdv;
         int96 maxStem;
     }
@@ -223,7 +219,7 @@ library LibSiloHelpers {
                 maxStem: type(int96).max, // include all stems
                 excludeGerminatingDeposits: false, // no germinating deposits are excluded
                 excludeBean: false, // beans are included in the set of deposits.
-                lowDeposits: Mode.USE // the contract will use the smallest stalk deposits normally
+                lowStalkDeposits: Mode.USE // the contract will use the smallest stalk deposits normally
             });
     }
 

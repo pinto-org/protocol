@@ -529,7 +529,7 @@ contract SiloHelpers is PerFunctionPausable {
 
         // if we are using the smallest stalk deposits, initialize an additional
         // temporary array to store the stems and amounts
-        if (filterParams.lowDeposits == LibSiloHelpers.Mode.USE_LAST) {
+        if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
             vars.lowStalkStems = new int96[](vars.depositIds.length);
             vars.lowStalkAmounts = new uint256[](vars.depositIds.length);
         }
@@ -558,12 +558,12 @@ contract SiloHelpers is PerFunctionPausable {
 
             // if the deposit is a low stalk deposit, check if we want to use the low stalk deposits last.
             if (
-                filterParams.lowDeposits != LibSiloHelpers.Mode.USE &&
+                filterParams.lowStalkDeposits != LibSiloHelpers.Mode.USE &&
                 vars.stem > filterParams.maxStem
             ) {
                 console.log("low stalk deposit", vars.stem);
                 // add the deposit to the low stalk deposits array if we want to use the low stalk deposits last.
-                if (filterParams.lowDeposits == LibSiloHelpers.Mode.USE_LAST) {
+                if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
                     vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
                     vars.lowStalkAmounts[vars.lowStalkCount] = vars.depositAmount;
                     vars.lowStalkCount++;
@@ -601,7 +601,7 @@ contract SiloHelpers is PerFunctionPausable {
         // if the user wants to use the low stalk deposits last, and there are remaining beans needed,
         // and there are low stalk deposits, process them.
         if (
-            filterParams.lowDeposits == LibSiloHelpers.Mode.USE_LAST &&
+            filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST &&
             vars.remainingBeansNeeded > 0 &&
             vars.lowStalkCount > 0
         ) {
