@@ -5,7 +5,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 
 /**
  * @title LibTractorHelpers
- * @author FordPinto
+ * @author FordPinto, Frijo
  * @notice Library with helper functions for Silo operations
  */
 library LibSiloHelpers {

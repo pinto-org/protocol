@@ -14,7 +14,7 @@ import {SiloHelpers} from "./SiloHelpers.sol";
 
 /**
  * @title ConvertUpBlueprintv0
- * @author FordPinto
+ * @author FordPinto, Frijo
  * @notice Contract for converting up with Tractor, with a number of conditions
  * @dev This contract always converts up to Bean token, which is obtained from beanstalk.getBeanToken()
  */
