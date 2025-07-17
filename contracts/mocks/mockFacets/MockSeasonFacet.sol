@@ -713,6 +713,7 @@ contract MockSeasonFacet is SeasonFacet {
         }
         // Calculate Case Id
         bs = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        bs.oracleFailure = false;
         LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
         LibFlood.handleRain(bs.caseId);
     }
