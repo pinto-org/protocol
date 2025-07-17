@@ -9,7 +9,6 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
 import {PriceManipulation} from "./PriceManipulation.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title SiloHelpers
@@ -561,7 +560,6 @@ contract SiloHelpers is PerFunctionPausable {
                 filterParams.lowStalkDeposits != LibSiloHelpers.Mode.USE &&
                 vars.stem > filterParams.maxStem
             ) {
-                console.log("low stalk deposit", vars.stem);
                 // add the deposit to the low stalk deposits array if we want to use the low stalk deposits last.
                 if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
                     vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
