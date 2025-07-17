@@ -2005,16 +2005,16 @@ contract TractorHelpersTest is TractorTestHelper {
         }
         vm.stopPrank();
 
-        // Configure filter params with useLowStalkDepositsLast enabled
+        // Configure filter params with lowStalkDepositUse enabled
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
 
         // check that if the lowDepositLast is false, OR set true but no low stalk deposits (i.e lowGrownStalkPerBdv is 0),
         // the deposits are processed in the correct order.
         for (uint256 i = 0; i < 2; i++) {
             if (i == 0) {
-                filterParams.useLowStalkDepositsLast = false;
+                filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS;
             } else {
-                filterParams.useLowStalkDepositsLast = true;
+                filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
                 filterParams.lowGrownStalkPerBdv = 1; // set a very low stalkPerBdv threshold.
             }
 
@@ -2046,7 +2046,7 @@ contract TractorHelpersTest is TractorTestHelper {
     }
 
     /**
-     * @notice Tests useLowStalkDepositsLast with mixed high and low stalk deposits
+     * @notice Tests lowStalkDepositUse with mixed high and low stalk deposits
      */
     function test_useLowStalkDepositsLast_mixed_deposits() public {
         uint256 beanAmount = 1000e6;
@@ -2066,11 +2066,11 @@ contract TractorHelpersTest is TractorTestHelper {
         }
         vm.stopPrank();
 
-        // Test with useLowStalkDepositsLast disabled
+        // Test with lowStalkDepositUse disabled
         LibSiloHelpers.FilterParams memory filterParamsNormal = LibSiloHelpers
             .getDefaultFilterParams();
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
-        filterParamsNormal.useLowStalkDepositsLast = false;
+        filterParamsNormal.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS;
         filterParamsNormal.maxGrownStalkPerBdv = 500e16;
 
         (
@@ -2085,10 +2085,10 @@ contract TractorHelpersTest is TractorTestHelper {
                 withdrawalPlan
             );
 
-        // Test with useLowStalkDepositsLast enabled
+        // Test with lowStalkDepositUse enabled
         LibSiloHelpers.FilterParams memory filterParamsLowLast = LibSiloHelpers
             .getDefaultFilterParams();
-        filterParamsLowLast.useLowStalkDepositsLast = true;
+        filterParamsLowLast.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
         filterParamsLowLast.maxGrownStalkPerBdv = 500e16;
         filterParamsLowLast.lowGrownStalkPerBdv = 100e16;
         uint256 numDepositsToWithdraw = 2;
@@ -2141,7 +2141,7 @@ contract TractorHelpersTest is TractorTestHelper {
 
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
-        filterParams.useLowStalkDepositsLast = true;
+        filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
         filterParams.lowGrownStalkPerBdv = 1000e16; // High threshold - all deposits are low stalk
 
         (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
@@ -2167,7 +2167,7 @@ contract TractorHelpersTest is TractorTestHelper {
         uint256 totalAmount = 5000e6;
         int96 largestStem = int96(int256((numDeposits - 1) * seeds));
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxStem = int96(bound(stem, 0, largestStem)); // set a very low stem threshold.
+        filterParams.maxStem = int96(bound(stem, 1, largestStem)); // set a very low stem threshold.
 
         // Create mixed deposits
         mintTokensToUser(farmers[0], BEAN, totalAmount);
@@ -2180,46 +2180,76 @@ contract TractorHelpersTest is TractorTestHelper {
         }
         vm.stopPrank();
 
-        filterParams.useLowStalkDepositsLast = true;
-
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
 
-        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
-            .getDepositStemsAndAmountsToWithdraw(
-                farmers[0],
-                BEAN,
-                totalAmount,
-                filterParams,
-                withdrawalPlan
-            );
+        // test checks 2 cases:
+        // 1. DO_NOT_USE_LOW_STALK_DEPOSITS (0): no low stalk deposits are used.
+        // 2. USE_LOW_STALK_DEPOSITS_LAST (2): low stalk deposits are used last.
+        for (uint256 i = 0; i < 2; i++) {
+            if (i == 0) {
+                filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
+            } else {
+                filterParams.lowStalkDepositUse = LibSiloHelpers.DO_NOT_USE_LOW_STALK_DEPOSITS;
+            }
 
-        // independent of the stem threshold, the number of deposits should be the same.
-        assertEq(stems.length, numDeposits, "Should have same number of deposits");
-        assertEq(amounts.length, stems.length, "Should have same number of amounts");
+            (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+                .getDepositStemsAndAmountsToWithdraw(
+                    farmers[0],
+                    BEAN,
+                    totalAmount,
+                    filterParams,
+                    withdrawalPlan
+                );
 
-        // determine how many low/high stems there are.
-        console.log("filterParams.maxStem", filterParams.maxStem);
-        uint256 numLowStems;
-        if (filterParams.maxStem == largestStem) {
-            numLowStems = 0;
-        } else {
-            numLowStems = ((uint256(uint96((largestStem - filterParams.maxStem - 1))) / seeds) + 1);
-        }
-        uint256 numHighStems = numDeposits - numLowStems;
+            for (uint256 i = 0; i < stems.length; i++) {
+                console.log("stem", stems[i]);
+            }
 
-        for (uint256 i = 0; i < stems.length; i++) {
-            if (i < numHighStems) {
-                if (i != 0) {
-                    assertLe(stems[i], stems[i - 1], "stems should be in descending order");
+            // determine how many low/high stems there are.
+            uint256 numLowStems;
+            if (filterParams.maxStem == largestStem) {
+                numLowStems = 0;
+            } else {
+                numLowStems = ((uint256(uint96((largestStem - filterParams.maxStem - 1))) / seeds) +
+                    1);
+            }
+            uint256 numHighStems = numDeposits - numLowStems;
+
+            if (i == 0) {
+                // independent of the stem threshold, the number of deposits should be the same.
+                assertEq(stems.length, numDeposits, "Should have same number of deposits");
+                assertEq(amounts.length, stems.length, "Should have same number of amounts");
+                for (uint256 i = 0; i < stems.length; i++) {
+                    if (i < numHighStems) {
+                        if (i != 0) {
+                            assertLe(stems[i], stems[i - 1], "stems should be in descending order");
+                        }
+                    } else {
+                        if (i != numHighStems - 1) {
+                            assertGt(stems[i], filterParams.maxStem, "Should be low stem");
+                            if (i > numHighStems) {
+                                assertLe(
+                                    stems[i],
+                                    stems[i - 1],
+                                    "stems should be in descending order"
+                                );
+                            }
+                        } else {
+                            assertEq(stems[i], largestStem, "the last high stem should be 0");
+                        }
+                    }
                 }
             } else {
-                if (i != numHighStems - 1) {
-                    assertGt(stems[i], filterParams.maxStem, "Should be low stem");
-                    if (i > numHighStems) {
-                        assertLe(stems[i], stems[i - 1], "stems should be in descending order");
-                    }
-                } else {
-                    assertEq(stems[i], largestStem, "the last high stem should be 0");
+                // if we don't want to use low stalk deposits, we should only have high stalk deposits.
+                assertEq(stems.length, numHighStems, "Should have same number of deposits");
+                assertEq(amounts.length, stems.length, "Should have same number of amounts");
+
+                for (uint256 j = 0; j < stems.length; j++) {
+                    assertLe(
+                        stems[j],
+                        filterParams.maxStem,
+                        "stems should be lower than maxStem (for higher stalk)"
+                    );
                 }
             }
         }

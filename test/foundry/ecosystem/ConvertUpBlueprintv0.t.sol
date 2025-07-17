@@ -13,6 +13,7 @@ import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice, ReservesType} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/console.sol";
@@ -806,7 +807,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minPriceToConvertUp: params.minPriceToConvertUp,
                 maxGrownStalkPerBdvPenalty: params.maxGrownStalkPerBdvPenalty,
                 slippageRatio: params.slippageRatio,
-                useLowStalkDepositsLast: false
+                lowStalkDepositUse: LibSiloHelpers.USE_LOW_STALK_DEPOSITS
             });
 
         // Create the operator whitelist array

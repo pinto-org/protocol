@@ -78,7 +78,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @param minPriceToConvertUp Minimum price at which to convert up (for range targeting)
      * @param maxGrownStalkPerBdvPenalty Maximum grown stalk per BDV penalty to accept
      * @param slippageRatio Slippage tolerance ratio for the conversion
-     * @param useLowStalkDepositsLast Whether to use the filtered deposits that do not meet the stalk threshold needed to get the full bonus. If this is enabled, the tractor will use these deposits after all other valid deposits have been used.
+     * @param lowStalkDepositUse A bitmask of how low stalk deposits are processed. See LibSiloHelpers.FilterParams.lowStalkDepositUse for more details.
      */
     struct ConvertUpParams {
         // Source tokens to withdraw from
@@ -100,7 +100,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         int256 maxGrownStalkPerBdvPenalty;
         // Execution parameters
         uint256 slippageRatio;
-        bool useLowStalkDepositsLast;
+        uint8 lowStalkDepositUse; // USE_LOW_STALK_DEPOSITS (0): use low stalk deposit. DO_NOT_USE_LOW_STALK_DEPOSITS (1): do not use low stalk deposits. USE_LOW_STALK_DEPOSITS_LAST (2): use low stalk deposits last.
     }
 
     /**
@@ -226,7 +226,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
         // the contract will attempt to withdraw deposits that have this amount,
         // then the remaining deposits.
         filterParams.lowGrownStalkPerBdv = vars.bonusStalkPerBdv;
-        filterParams.useLowStalkDepositsLast = params.convertUpParams.useLowStalkDepositsLast;
+        filterParams.lowStalkDepositUse = params.convertUpParams.lowStalkDepositUse;
 
         // Get withdrawal plan for the tokens to convert
         vars.withdrawalPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
