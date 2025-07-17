@@ -6,7 +6,7 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
+import {SowBlueprintv0_1} from "contracts/ecosystem/SowBlueprintv0_1.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -64,17 +64,17 @@ contract SowBlueprintv0Test is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers and SiloHelpers addresses
-        sowBlueprintv0 = new SowBlueprintv0(
+        // Deploy SowBlueprintv0_1 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0_1 = new SowBlueprintv0_1(
             address(bs),
             address(this),
             address(tractorHelpers),
             address(siloHelpers)
         );
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        vm.label(address(sowBlueprintv0_1), "SowBlueprintv0_1");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0));
+        setSowBlueprintv0(address(sowBlueprintv0_1));
         setSiloHelpers(address(siloHelpers));
 
         addLiquidityToWell(
@@ -159,7 +159,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
             // Expect the SowOrderComplete event to be emitted for complete order
             vm.expectEmit(true, true, true, true);
-            emit SowBlueprintv0.SowOrderComplete(
+            emit SowBlueprintv0_1.SowOrderComplete(
                 req.blueprintHash,
                 state.user,
                 state.sowAmount / 4,
@@ -485,7 +485,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
             // Verify the counter was updated correctly, there should be 210 left to sow, because we took the user's 1000 beans, sowed 990, tipped 10.
             assertEq(
-                sowBlueprintv0.getPintosLeftToSow(req.blueprintHash),
+                sowBlueprintv0_1.getPintosLeftToSow(req.blueprintHash),
                 200e6 + uint256(state.tipAmount),
                 "Counter not correct"
             );
@@ -512,7 +512,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
             // Expect the SowOrderComplete event to be emitted for complete order
             vm.expectEmit(true, true, true, true);
-            emit SowBlueprintv0.SowOrderComplete(
+            emit SowBlueprintv0_1.SowOrderComplete(
                 req.blueprintHash,
                 state.user,
                 60e6, // 60e6 sowed
@@ -556,12 +556,12 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Verify first sow used the available soil and check counter
         assertEq(bs.totalSoil(), 0, "First sow should use all soil");
-        counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
+        counter = sowBlueprintv0_1.getPintosLeftToSow(orderHash);
         assertEq(counter, 1400e6, "Counter should be 1400 BEAN after first sow");
 
         // Verify the last executed season was recorded properly
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0_1.getLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be current season"
         );
@@ -577,12 +577,12 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Verify second sow used the available soil and check counter
         assertEq(bs.totalSoil(), 0, "Second sow should use all soil");
-        counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
+        counter = sowBlueprintv0_1.getPintosLeftToSow(orderHash);
         assertEq(counter, 900e6, "Counter should be 900 BEAN after second sow");
 
         // Verify the last executed season was updated
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0_1.getLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be updated to current season"
         );
@@ -598,7 +598,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Verify third sow used the available soil and check counter
         assertEq(bs.totalSoil(), 0, "Third sow should use all soil");
-        counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
+        counter = sowBlueprintv0_1.getPintosLeftToSow(orderHash);
         assertEq(counter, 400e6, "Counter should be 500 BEAN after third sow");
 
         // Advance to next season
@@ -612,7 +612,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Verify fourth sow used the available soil and check counter
         assertEq(bs.totalSoil(), 100e6, "Fourth sow should use all soil except 100e6");
-        counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
+        counter = sowBlueprintv0_1.getPintosLeftToSow(orderHash);
         assertEq(counter, type(uint256).max, "Counter should be max uint256 after fourth sow");
 
         // Advance to next season
@@ -622,7 +622,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
         bs.setSoilE(smallerSoil);
 
         // Check counter before attempting fifth sow
-        counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
+        counter = sowBlueprintv0_1.getPintosLeftToSow(orderHash);
         assertEq(
             counter,
             type(uint256).max,
@@ -658,12 +658,12 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Test that both counter and lastExecutedSeason are correctly stored and retrieved
         assertEq(
-            sowBlueprintv0.getPintosLeftToSow(orderHash),
+            sowBlueprintv0_1.getPintosLeftToSow(orderHash),
             500e6,
             "Counter should be 500e6 after first sow"
         );
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0_1.getLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be properly recorded"
         );
@@ -680,14 +680,14 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Check lastExecutedSeason updated
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0_1.getLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be updated to new season"
         );
 
         // Test that both counter and lastExecutedSeason are correctly stored and retrieved
         assertEq(
-            sowBlueprintv0.getPintosLeftToSow(orderHash),
+            sowBlueprintv0_1.getPintosLeftToSow(orderHash),
             type(uint256).max,
             "Counter should be max uint256 after full sow"
         );
@@ -697,9 +697,9 @@ contract SowBlueprintv0Test is TractorTestHelper {
         uint256 amountToSow,
         uint256 minAmountToSow,
         uint256 maxAmountToSowPerSeason
-    ) internal pure returns (SowBlueprintv0.SowAmounts memory) {
+    ) internal pure returns (SowBlueprintv0_1.SowAmounts memory) {
         return
-            SowBlueprintv0.SowAmounts({
+            SowBlueprintv0_1.SowAmounts({
                 totalAmountToSow: amountToSow,
                 minAmountToSowPerSeason: minAmountToSow,
                 maxAmountToSowPerSeason: maxAmountToSowPerSeason
@@ -713,7 +713,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
         TestState memory state = setupSowBlueprintv0Test();
 
         // Setup mock data
-        SowBlueprintv0.SowAmounts memory sowAmounts = SowBlueprintv0.SowAmounts({
+        SowBlueprintv0_1.SowAmounts memory sowAmounts = SowBlueprintv0_1.SowAmounts({
             totalAmountToSow: 10000e6,
             minAmountToSowPerSeason: 1000e6,
             maxAmountToSowPerSeason: 1000e6
@@ -798,7 +798,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
         TestState memory state = setupSowBlueprintv0Test();
 
         // Setup mock data
-        SowBlueprintv0.SowAmounts memory sowAmounts = SowBlueprintv0.SowAmounts({
+        SowBlueprintv0_1.SowAmounts memory sowAmounts = SowBlueprintv0_1.SowAmounts({
             totalAmountToSow: 1000e6,
             minAmountToSowPerSeason: 1000e6,
             maxAmountToSowPerSeason: type(uint256).max
@@ -925,9 +925,8 @@ contract SowBlueprintv0Test is TractorTestHelper {
 
         // Array to hold requisitions
         IMockFBeanstalk.Requisition[] memory requisitions = new IMockFBeanstalk.Requisition[](8);
-        SowBlueprintv0.SowBlueprintStruct[] memory params = new SowBlueprintv0.SowBlueprintStruct[](
-            8
-        );
+        SowBlueprintv0_1.SowBlueprintStruct[]
+            memory params = new SowBlueprintv0_1.SowBlueprintStruct[](8);
         address[] memory blueprintPublishers = new address[](8);
         bytes32[] memory orderHashes = new bytes32[](8);
 
@@ -935,7 +934,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
         for (uint256 i = 0; i < 4; i++) {
             (
                 IMockFBeanstalk.Requisition memory req,
-                SowBlueprintv0.SowBlueprintStruct memory paramStruct
+                SowBlueprintv0_1.SowBlueprintStruct memory paramStruct
             ) = setupSowBlueprintv0Blueprint(
                     state.user,
                     SourceMode.PURE_PINTO,
@@ -961,7 +960,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
         for (uint256 i = 0; i < 4; i++) {
             (
                 IMockFBeanstalk.Requisition memory req,
-                SowBlueprintv0.SowBlueprintStruct memory paramStruct
+                SowBlueprintv0_1.SowBlueprintStruct memory paramStruct
             ) = setupSowBlueprintv0Blueprint(
                     state.user,
                     SourceMode.PURE_PINTO,
@@ -988,7 +987,7 @@ contract SowBlueprintv0Test is TractorTestHelper {
         vm.warp(block.timestamp + tenMinutesInSeconds); // Advance time by 10 minutes
         vm.roll(block.number + (10 * 60)); // Advance blocks (assuming ~1 block per second)
 
-        bytes32[] memory validOrderHashes = sowBlueprintv0
+        bytes32[] memory validOrderHashes = sowBlueprintv0_1
             .validateParamsAndReturnBeanstalkStateArray(params, orderHashes, blueprintPublishers);
 
         assertEq(validOrderHashes.length, 4, "Expected 4 valid order hashes");

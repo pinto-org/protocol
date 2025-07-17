@@ -724,8 +724,8 @@ task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setActi
     await tractorHelpersContract.deployed();
     console.log("\nTractorHelpers deployed to:", tractorHelpersContract.address);
 
-    // Deploy SowBlueprintv0 and connect it to the existing TractorHelpers
-    const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+    // Deploy SowBlueprintv0_1 and connect it to the existing TractorHelpers
+    const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0_1");
     const sowBlueprintContract = await sowBlueprint.deploy(
       L2_PINTO, // diamond address
       L2_PCM, // owner address
@@ -1042,8 +1042,8 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   await siloHelpersContract.deployed();
   console.log("SiloHelpers deployed to:", siloHelpersContract.address);
 
-  // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
-  const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+  // Deploy SowBlueprintv0_1 and connect it to the existing SiloHelpers
+  const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0_1");
   const sowBlueprintContract = await sowBlueprint.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
@@ -1051,7 +1051,7 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
     siloHelpersContract.address // siloHelpers contract address
   );
   await sowBlueprintContract.deployed();
-  console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
+  console.log("SowBlueprintv0_1 deployed to:", sowBlueprintContract.address);
 
   // Rest of the facet upgrades...
   await upgradeWithNewFacets({
@@ -1969,10 +1969,10 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
       JSON.stringify(siloHelpersArtifact.abi, null, 2)
     );
 
-    // Generate SowBlueprintv0 ABI
-    const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0");
+    // Generate SowBlueprintv0_1 ABI
+    const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0_1");
     fs.writeFileSync(
-      `${outputDir}/SowBlueprintv0.json`,
+      `${outputDir}/SowBlueprintv0_1.json`,
       JSON.stringify(sowBlueprintArtifact.abi, null, 2)
     );
 

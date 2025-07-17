@@ -13,7 +13,7 @@ import {SiloHelpers} from "./SiloHelpers.sol";
  * @author FordPinto, Frijo
  * @notice Contract for sowing with Tractor, with a number of conditions
  */
-contract SowBlueprintv0 is PerFunctionPausable {
+contract SowBlueprintv0_1 is PerFunctionPausable {
     /**
      * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
@@ -147,7 +147,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @notice Sows beans using specified source tokens in order of preference
      * @param params The SowBlueprintStruct containing all parameters for the sow operation
      */
-    function sowBlueprintv0(
+    function sowBlueprintv0_1(
         SowBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables

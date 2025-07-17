@@ -230,7 +230,7 @@
                     "type": "uint256"
                   }
                 ],
-                "internalType": "struct SowBlueprintv0.SowAmounts",
+                "internalType": "struct SowBlueprintv0_1.SowAmounts",
                 "name": "sowAmounts",
                 "type": "tuple"
               },
@@ -260,7 +260,7 @@
                 "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprintv0.SowParams",
+            "internalType": "struct SowBlueprintv0_1.SowParams",
             "name": "sowParams",
             "type": "tuple"
           },
@@ -282,17 +282,17 @@
                 "type": "int256"
               }
             ],
-            "internalType": "struct SowBlueprintv0.OperatorParams",
+            "internalType": "struct SowBlueprintv0_1.OperatorParams",
             "name": "opParams",
             "type": "tuple"
           }
         ],
-        "internalType": "struct SowBlueprintv0.SowBlueprintStruct",
+        "internalType": "struct SowBlueprintv0_1.SowBlueprintStruct",
         "name": "params",
         "type": "tuple"
       }
     ],
-    "name": "sowBlueprintv0",
+    "name": "sowBlueprintv0_1",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -365,7 +365,7 @@
                     "type": "uint256"
                   }
                 ],
-                "internalType": "struct SowBlueprintv0.SowAmounts",
+                "internalType": "struct SowBlueprintv0_1.SowAmounts",
                 "name": "sowAmounts",
                 "type": "tuple"
               },
@@ -395,7 +395,7 @@
                 "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprintv0.SowParams",
+            "internalType": "struct SowBlueprintv0_1.SowParams",
             "name": "sowParams",
             "type": "tuple"
           },
@@ -417,12 +417,12 @@
                 "type": "int256"
               }
             ],
-            "internalType": "struct SowBlueprintv0.OperatorParams",
+            "internalType": "struct SowBlueprintv0_1.OperatorParams",
             "name": "opParams",
             "type": "tuple"
           }
         ],
-        "internalType": "struct SowBlueprintv0.SowBlueprintStruct",
+        "internalType": "struct SowBlueprintv0_1.SowBlueprintStruct",
         "name": "params",
         "type": "tuple"
       },
@@ -534,7 +534,7 @@
                     "type": "uint256"
                   }
                 ],
-                "internalType": "struct SowBlueprintv0.SowAmounts",
+                "internalType": "struct SowBlueprintv0_1.SowAmounts",
                 "name": "sowAmounts",
                 "type": "tuple"
               },
@@ -564,7 +564,7 @@
                 "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprintv0.SowParams",
+            "internalType": "struct SowBlueprintv0_1.SowParams",
             "name": "sowParams",
             "type": "tuple"
           },
@@ -586,12 +586,12 @@
                 "type": "int256"
               }
             ],
-            "internalType": "struct SowBlueprintv0.OperatorParams",
+            "internalType": "struct SowBlueprintv0_1.OperatorParams",
             "name": "opParams",
             "type": "tuple"
           }
         ],
-        "internalType": "struct SowBlueprintv0.SowBlueprintStruct[]",
+        "internalType": "struct SowBlueprintv0_1.SowBlueprintStruct[]",
         "name": "paramsArray",
         "type": "tuple[]"
       },
