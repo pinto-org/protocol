@@ -221,12 +221,7 @@ contract SiloHelpers is PerFunctionPausable {
             // note: in previous version, `maxGrownStalkPerBdv` assumed that 1 BDV = 1e6.
             // This is not correct and should be noted if UIs uses previous blueprint functions.
             filterParams.minStem = stemTip - int96(int256(filterParams.maxGrownStalkPerBdv));
-
-            // if the user wants to use the low stalk deposits last,
-            // calculate the maximum stem.
-            if (filterParams.useLowStalkDepositsLast) {
-                filterParams.maxStem = stemTip - int96(int256(filterParams.lowGrownStalkPerBdv));
-            }
+            filterParams.maxStem = stemTip - int96(int256(filterParams.lowGrownStalkPerBdv));
 
             // If source is bean token, calculate direct withdrawal
             if (sourceToken == vars.beanToken) {
@@ -533,7 +528,7 @@ contract SiloHelpers is PerFunctionPausable {
 
         // if we are using the smallest stalk deposits, initialize an additional
         // temporary array to store the stems and amounts
-        if (filterParams.useLowStalkDepositsLast) {
+        if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
             vars.lowStalkStems = new int96[](vars.depositIds.length);
             vars.lowStalkAmounts = new uint256[](vars.depositIds.length);
         }
@@ -560,14 +555,18 @@ contract SiloHelpers is PerFunctionPausable {
 
             (vars.depositAmount, ) = beanstalk.getDeposit(account, token, vars.stem);
 
-            // if the deposit is a low stalk deposit, and we want to use the low stalk deposits last,
-            // add it to the low stalk deposits array, and skip. See `LibSiloHelpers.FilterParams` to
-            // determine what is considered a low stalk deposit.
-            if (filterParams.useLowStalkDepositsLast && vars.stem > filterParams.maxStem) {
-                // add the deposit to the low stalk deposits array if so.
-                vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
-                vars.lowStalkAmounts[vars.lowStalkCount] = vars.depositAmount;
-                vars.lowStalkCount++;
+            // if the deposit is a low stalk deposit, check if we want to use the low stalk deposits last.
+            if (
+                filterParams.lowStalkDeposits != LibSiloHelpers.Mode.USE &&
+                vars.stem > filterParams.maxStem
+            ) {
+                // add the deposit to the low stalk deposits array if we want to use the low stalk deposits last.
+                if (filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST) {
+                    vars.lowStalkStems[vars.lowStalkCount] = vars.stem;
+                    vars.lowStalkAmounts[vars.lowStalkCount] = vars.depositAmount;
+                    vars.lowStalkCount++;
+                }
+                // skip if we don't want to use low stalk deposits.
                 continue;
             }
 
@@ -600,7 +599,7 @@ contract SiloHelpers is PerFunctionPausable {
         // if the user wants to use the low stalk deposits last, and there are remaining beans needed,
         // and there are low stalk deposits, process them.
         if (
-            filterParams.useLowStalkDepositsLast &&
+            filterParams.lowStalkDeposits == LibSiloHelpers.Mode.USE_LAST &&
             vars.remainingBeansNeeded > 0 &&
             vars.lowStalkCount > 0
         ) {

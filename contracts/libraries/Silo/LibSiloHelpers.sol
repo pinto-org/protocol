@@ -9,6 +9,12 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
  * @notice Library with helper functions for Silo operations
  */
 library LibSiloHelpers {
+    enum Mode {
+        USE, // 0 - use low stalk deposits
+        OMIT, // 1 - omit low stalk deposits
+        USE_LAST // 2 - use low stalk deposits last
+    }
+
     struct WithdrawalPlan {
         address[] sourceTokens;
         int96[][] stems;
@@ -20,20 +26,20 @@ library LibSiloHelpers {
     /**
      * @notice Filter parameters for deposits
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
-     * @param minStem The minimum stem value to consider for withdrawal
+     * @param minStem The minimum stem value to consider for withdrawal. Stems smaller than this are considered "high stalk" deposits and cannot be used.
      * @param excludeGerminatingDeposits Whether to exclude germinating deposits
      * @param excludeBean Whether to exclude beans
-     * @param useLowStalkDepositsLast If enabled, the tractor will use the lowest stalk deposits after all other valid deposits have been used.
-     * @param lowGrownStalkPerBdv amount of grown stalk per bdv such that the deposit considered a "low stalk" deposit. Only used if `useLowStalkDepositsLast` is false.
-     * @param maxStem The maximum stem value to consider for withdrawal.
-     * @dev `minStem` and `maxStem`
+     * @param lowStalkDeposits how low stalk deposits are processed. USE (0), OMIT (1), USE_LAST (2).
+     * @param lowGrownStalkPerBdv amount of grown stalk per bdv such that the deposit considered a "low stalk" deposit.
+     * @param maxStem The maximum stem value to consider for withdrawal. Stems larger than this are considered "low stalk" deposits.
+     * @dev lowStalkDeposits needed a way to handle low stalk deposits last for the convert bonus.
      */
     struct FilterParams {
         uint256 maxGrownStalkPerBdv;
         int96 minStem;
         bool excludeGerminatingDeposits;
         bool excludeBean;
-        bool useLowStalkDepositsLast;
+        Mode lowStalkDeposits;
         uint256 lowGrownStalkPerBdv;
         int96 maxStem;
     }
@@ -213,7 +219,7 @@ library LibSiloHelpers {
                 maxStem: type(int96).max, // include all stems
                 excludeGerminatingDeposits: false, // no germinating deposits are excluded
                 excludeBean: false, // beans are included in the set of deposits.
-                useLowStalkDepositsLast: false // the contract will use the smallest stalk deposits last
+                lowStalkDeposits: Mode.USE // the contract will use the smallest stalk deposits normally
             });
     }
 
