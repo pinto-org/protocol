@@ -9,8 +9,8 @@ import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
 
 /**
- * @title SowBlueprintv0
- * @author FordPinto
+ * @title SowBlueprintv0_1
+ * @author FordPinto, Frijo
  * @notice Contract for sowing with Tractor, with a number of conditions
  */
 contract SowBlueprintv0 is PerFunctionPausable {
