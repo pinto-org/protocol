@@ -2012,9 +2012,9 @@ contract TractorHelpersTest is TractorTestHelper {
         // the deposits are processed in the correct order.
         for (uint256 i = 0; i < 2; i++) {
             if (i == 0) {
-                filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS;
+                filterParams.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.USE;
             } else {
-                filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
+                filterParams.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.USE_LAST;
                 filterParams.lowGrownStalkPerBdv = 1; // set a very low stalkPerBdv threshold.
             }
 
@@ -2070,7 +2070,7 @@ contract TractorHelpersTest is TractorTestHelper {
         LibSiloHelpers.FilterParams memory filterParamsNormal = LibSiloHelpers
             .getDefaultFilterParams();
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
-        filterParamsNormal.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS;
+        filterParamsNormal.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.USE;
         filterParamsNormal.maxGrownStalkPerBdv = 500e16;
 
         (
@@ -2088,7 +2088,7 @@ contract TractorHelpersTest is TractorTestHelper {
         // Test with lowStalkDepositUse enabled
         LibSiloHelpers.FilterParams memory filterParamsLowLast = LibSiloHelpers
             .getDefaultFilterParams();
-        filterParamsLowLast.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
+        filterParamsLowLast.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.USE_LAST;
         filterParamsLowLast.maxGrownStalkPerBdv = 500e16;
         filterParamsLowLast.lowGrownStalkPerBdv = 100e16;
         uint256 numDepositsToWithdraw = 2;
@@ -2141,7 +2141,7 @@ contract TractorHelpersTest is TractorTestHelper {
 
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
-        filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
+        filterParams.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.USE_LAST;
         filterParams.lowGrownStalkPerBdv = 1000e16; // High threshold - all deposits are low stalk
 
         (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
@@ -2183,13 +2183,13 @@ contract TractorHelpersTest is TractorTestHelper {
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
 
         // test checks 2 cases:
-        // 1. DO_NOT_USE_LOW_STALK_DEPOSITS (0): no low stalk deposits are used.
-        // 2. USE_LOW_STALK_DEPOSITS_LAST (2): low stalk deposits are used last.
+        // 1. OMIT (1): no low stalk deposits are used.
+        // 2. USE_LAST (2): low stalk deposits are used last.
         for (uint256 i = 0; i < 2; i++) {
             if (i == 0) {
-                filterParams.lowStalkDepositUse = LibSiloHelpers.USE_LOW_STALK_DEPOSITS_LAST;
+                filterParams.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.USE_LAST;
             } else {
-                filterParams.lowStalkDepositUse = LibSiloHelpers.DO_NOT_USE_LOW_STALK_DEPOSITS;
+                filterParams.lowStalkDepositUse = LibSiloHelpers.LowStalkDepositUse.OMIT;
             }
 
             (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers

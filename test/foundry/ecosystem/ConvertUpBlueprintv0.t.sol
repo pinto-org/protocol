@@ -807,7 +807,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
                 minPriceToConvertUp: params.minPriceToConvertUp,
                 maxGrownStalkPerBdvPenalty: params.maxGrownStalkPerBdvPenalty,
                 slippageRatio: params.slippageRatio,
-                lowStalkDepositUse: LibSiloHelpers.USE_LOW_STALK_DEPOSITS
+                lowStalkDepositUse: LibSiloHelpers.LowStalkDepositUse.USE
             });
 
         // Create the operator whitelist array
