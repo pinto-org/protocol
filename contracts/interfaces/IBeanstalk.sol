@@ -160,7 +160,10 @@ interface IBeanstalk {
         LibTransfer.From mode
     ) external payable returns (uint256 pods);
 
-    function getPlotsFromAccount(address account, uint256 fieldId) external view returns (Plot[] memory plots);
+    function getPlotsFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (Plot[] memory plots);
 
     function mowAll(address account) external payable;
 

@@ -393,9 +393,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             advanceSeason();
 
             // assert user has harvestable pods
-            (, uint256[] memory harvestablePlots) = _userHarvestablePods(
-                state.user
-            );
+            (, uint256[] memory harvestablePlots) = _userHarvestablePods(state.user);
             assertEq(harvestablePlots.length, 2, "user should have 2 harvestable plots");
 
             // get user total bdv before harvest
