@@ -144,6 +144,19 @@ contracts/
 - Foundry tests in `test/foundry/`  
 - Fork testing against mainnet state
 
+#### Test Structure and Patterns
+- **Field Tests**: Located in `test/foundry/field/Field.t.sol`
+  - Tests for sowing, harvesting, and plot transfers
+  - Fuzz testing with bounded inputs using `bound()` function
+  - Uses `vm.prank()` for impersonation and `vm.expectRevert()` for error testing
+
+#### Common Test Patterns
+- **Authorization Tests**: Always test unauthorized access with `vm.expectRevert("Contract: Insufficient approval.")`
+- **Fuzz Testing**: Use `bound()` to constrain random inputs to valid ranges
+- **State Verification**: Check both contract state and user balances after operations
+- **Event Testing**: Use `vm.expectEmit()` to verify events are emitted correctly
+- **Snapshot Testing**: Use `vm.snapshot()` and `vm.revertTo()` for test isolation
+
 ## Development Notes
 
 ### Build Commands

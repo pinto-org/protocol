@@ -310,6 +310,12 @@ describe("Marketplace", function () {
             await mockBeanstalk.connect(user).createPodListing(this.podListing);
           });
 
+          it("Fill Listing zero payment fails", async function () {
+            await expect(
+              mockBeanstalk.connect(user).fillPodListing(this.podListing, 0, EXTERNAL)
+            ).to.be.revertedWith("Marketplace: Zero payment.");
+          });
+
           it("Fill Listing non-listed Index Fails", async function () {
             let brokenListing = this.podListing;
             brokenListing.index = 1;

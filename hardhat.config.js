@@ -814,7 +814,7 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
     }
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["FieldFacet", "SeasonFacet", "GaugeFacet"],
+      facetNames: ["FieldFacet", "SeasonFacet", "GaugeFacet", "MarketplaceFacet"],
       libraryNames: [
         "LibEvaluate",
         "LibGauge",

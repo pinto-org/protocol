@@ -322,7 +322,7 @@ contract InitializeDiamond {
     }
 
     function initializeGauges() internal {
-        InitializeSeedGauge(
+        initalizeSeedGauge(
             INIT_BEAN_TO_MAX_LP_GP_RATIO,
             INIT_AVG_GSPBDV,
             INIT_MAX_TOTAL_GAUGE_POINTS
