@@ -5,9 +5,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
-import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
-import "forge-std/console.sol";
 
 /**
  * @title MowPlantHarvestBlueprint
@@ -33,7 +31,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
      * @param minMowAmount The minimum total claimable stalk threshold to mow
      * @param mintwaDeltaB The minimum twaDeltaB to mow if the protocol is close to printing
      * @param minPlantAmount The earned beans threshold to plant
-     * @param minHarvestAmount The bean threshold to harvest
+     * @param minHarvestAmount The total harvestable pods threshold to harvest
      * -----------------------------------------------------------
      * @param sourceTokenIndices Indices of source tokens to withdraw from
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV allowed
@@ -53,12 +51,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         uint256 maxGrownStalkPerBdv;
         uint256 slippageRatio;
     }
-
-    // Mapping to track the last executed season for each order hash
-    mapping(bytes32 orderHash => uint32 lastExecutedSeason) public orderLastExecutedSeason;
-
-    IBeanstalk public immutable beanstalk;
-    TractorHelpers public immutable tractorHelpers;
 
     /**
      * @notice Struct to hold operator parameters
@@ -90,6 +82,13 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         LibTractorHelpers.WithdrawalPlan plan;
     }
 
+    // Mapping to track the last executed season for each order hash
+    mapping(bytes32 orderHash => uint32 lastExecutedSeason) public orderLastExecutedSeason;
+
+    // Contracts
+    IBeanstalk public immutable beanstalk;
+    TractorHelpers public immutable tractorHelpers;
+
     constructor(
         address _beanstalk,
         address _owner,
@@ -116,25 +115,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         // get the user state from the protocol and validate against params
         (
-            vars.totalClaimableStalk,
-            vars.totalPlantableBeans,
-            vars.totalHarvestablePods,
             vars.harvestablePlots,
             vars.shouldMow,
             vars.shouldPlant,
             vars.shouldHarvest
         ) = _getAndValidateUserState(vars.account, params);
-
-        console.log("--------------------------------");
-        console.log("vars.totalClaimableStalk", vars.totalClaimableStalk);
-        console.log("vars.totalPlantableBeans", vars.totalPlantableBeans);
-        console.log("vars.totalHarvestablePods", vars.totalHarvestablePods);
-        for (uint256 i = 0; i < vars.harvestablePlots.length; i++) {
-            console.log("vars.harvestablePlots[", i, "]", vars.harvestablePlots[i]);
-        }
-        console.log("vars.shouldMow", vars.shouldMow);
-        console.log("vars.shouldPlant", vars.shouldPlant);
-        console.log("vars.shouldHarvest", vars.shouldHarvest);
 
         // validate blueprint
         _validateBlueprint(vars.orderHash);
@@ -208,9 +193,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
      * @notice Helper function to get the user state and validate against parameters
      * @param account The address of the user
      * @param params The parameters for the mow, plant and harvest operation
-     * @return totalClaimableStalk The total amount of claimable stalk
-     * @return totalPlantableBeans The total amount of plantable beans
-     * @return totalHarvestablePods The total amount of harvestable pods
+     * @return harvestablePlots The harvestable plot ids for the user, if any
+     * @return shouldMow True if the user should mow
+     * @return shouldPlant True if the user should plant
+     * @return shouldHarvest True if the user should harvest
      */
     function _getAndValidateUserState(
         address account,
@@ -219,9 +205,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         internal
         view
         returns (
-            uint256 totalClaimableStalk,
-            uint256 totalPlantableBeans,
-            uint256 totalHarvestablePods,
             uint256[] memory harvestablePlots,
             bool shouldMow,
             bool shouldPlant,
@@ -230,10 +213,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     {
         // get user state
         (
-            totalClaimableStalk,
-            totalPlantableBeans,
-            totalHarvestablePods,
-            harvestablePlots
+            uint256 totalClaimableStalk,
+            uint256 totalPlantableBeans,
+            uint256 totalHarvestablePods,
+            uint256[] memory harvestablePlots
         ) = _getUserState(account);
 
         // validate params - only revert if none of the conditions are met
@@ -250,16 +233,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             "MowPlantHarvestBlueprint: None of the order conditions are met"
         );
 
-        // return user state
-        return (
-            totalClaimableStalk,
-            totalPlantableBeans,
-            totalHarvestablePods,
-            harvestablePlots,
-            shouldMow,
-            shouldPlant,
-            shouldHarvest
-        );
+        return (harvestablePlots, shouldMow, shouldPlant, shouldHarvest);
     }
 
     /**
@@ -281,6 +255,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         if (nextSeasonExpectedTimestamp - block.timestamp > SMART_MOW_BUFFER) return false;
 
         // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
+        // This also guards against double dipping the blueprint after planting or harvesting since stalk will be 0
         return beanstalk.totalDeltaB() > int256(mintwaDeltaB) && totalClaimableStalk > minMowAmount;
     }
 
