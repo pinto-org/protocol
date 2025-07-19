@@ -407,10 +407,11 @@ contract TestHelper is
     function updateForkedChainlinkOracle(address chainlinkOracle, address tokenInWell) internal {
         // save latest answer
         (, int256 answer, , , ) = MockChainlinkAggregator(chainlinkOracle).latestRoundData();
+        uint8 decimals = MockChainlinkAggregator(chainlinkOracle).decimals();
 
         // overwrite chainlinkOracle with a MockChainlinkAggregator, add mock rounds
         deployCodeTo("MockChainlinkAggregator.sol", new bytes(0), chainlinkOracle);
-        MockChainlinkAggregator(chainlinkOracle).setDecimals(6);
+        MockChainlinkAggregator(chainlinkOracle).setDecimals(decimals);
         mockAddRound(chainlinkOracle, answer, 4500);
         mockAddRound(chainlinkOracle, answer, 900);
     }

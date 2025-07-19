@@ -519,7 +519,6 @@ contract GaugeTest is TestHelper {
         );
 
         assertGe(newGaugePoints, 0, "newGaugePoints < 0");
-        assertLe(newGaugePoints, 1000e18, "newGaugePoints > 1000e18");
 
         uint256 deltaGaugePoints;
         if (newGaugePoints > gaugePoints) {

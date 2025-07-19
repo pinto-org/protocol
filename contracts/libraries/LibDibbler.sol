@@ -34,9 +34,6 @@ library LibDibbler {
     /// @dev The precision of s.sys.weather.temp
     uint256 internal constant TEMPERATURE_PRECISION = 1e6;
 
-    /// @dev The divisor of s.sys.weather.temp in the morning auction
-    uint256 internal constant TEMPERATURE_DIVISOR = 1e12;
-
     /// @dev Simplifies conversion of Beans to Pods:
     /// `pods = beans * (1 + temperature)`
     /// `pods = beans * (100% + temperature) / 100%`
@@ -48,9 +45,6 @@ library LibDibbler {
     uint256 internal constant SOLD_OUT_THRESHOLD_PERCENT = 10e6;
     uint256 internal constant ALMOST_SOLD_OUT_THRESHOLD_PERCENT = 20e6;
     uint256 internal constant SOLD_OUT_PRECISION = 100e6;
-
-    uint256 internal constant L1_BLOCK_TIME = 1200;
-    uint256 internal constant L2_BLOCK_TIME = 200;
 
     uint32 internal constant SOIL_ALMOST_SOLD_OUT_TIME = type(uint32).max - 1;
 
@@ -276,26 +270,30 @@ library LibDibbler {
     //////////////////// TEMPERATURE ////////////////////
 
     /**
-     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
+     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the second delta.
      * Precision level 1e6, as soil has 1e6 precision (1% = 1e6)
-     * the formula `log2(A * CHUNKS_ELAPSED + 1)/log2(A * MAX_CHUNKS + 1)` is applied, where:
+     * the formula `log2(A * delta  + 1)/log2(A * s.sys.weather.morningDuration + 1)` is applied, where:
      * `A = 0.1`
-     * `MAX_BLOCK_ELAPSED = 25`
-     * @dev L2 block times are significantly shorter than L1. To adjust for this,
-     * `delta` is scaled down by the ratio of L2 block time to L1 block time.
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 maxTemperature = s.sys.weather.temp;
-        uint256 delta = block.timestamp - s.sys.season.timestamp;
+        uint256 delta;
+        // in theory, block.timestamp should never be less than s.sys.season.timestamp,
+        // but if so, we'll use the delta as 0.
+        if (block.timestamp > s.sys.season.timestamp) {
+            delta = block.timestamp - s.sys.season.timestamp;
+        }
+
         uint256 morningDuration = s.sys.weather.morningDuration;
+        // if the delta is greater than the morning duration, return the max temperature.
         if (delta >= morningDuration) {
             return maxTemperature;
         }
 
         uint256 scaledTemperature = _scaleTemperature(maxTemperature, morningDuration, delta);
 
-        // set a temperature floor of 1% of max temperature
+        // set a temperature floor of 1% of max temperature.
         if (scaledTemperature < maxTemperature / 100) {
             return maxTemperature / 100;
         }

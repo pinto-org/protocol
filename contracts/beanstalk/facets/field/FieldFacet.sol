@@ -402,7 +402,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice Returns the max Temperature that Beanstalk is willing to offer this Season.
-     * @dev For gas efficiency, Beanstalk stores `s.sys.weather.temp` as a uint32 with precision of 1e6.
+     * @dev For gas efficiency, Beanstalk stores `s.sys.weather.temp` as a uint64 with precision of 1e6.
      */
     function maxTemperature() external view returns (uint256) {
         return uint256(s.sys.weather.temp);

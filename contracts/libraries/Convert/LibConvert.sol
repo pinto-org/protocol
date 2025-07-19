@@ -28,6 +28,7 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+
 /**
  * @title LibConvert
  */
@@ -41,12 +42,24 @@ library LibConvert {
     uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
     uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
 
-    uint256 internal constant PRECISION = 1e18;
-    uint256 internal constant INITIAL_CAPACITY = 0.1e18; // 10% of the total capacity
-    uint256 internal constant CAPACITY_RATE = 0.75e18; // hits 100% total capacity 75% into the season
+    // convert bonus gauge
+    uint256 internal constant CAPACITY_RATE = 0.50e18; // hits 100% total capacity 50% into the season
+    uint256 constant CONVERT_DEMAND_UPPER_BOUND = 1.05e6; // 5% above 1
+    uint256 constant CONVERT_DEMAND_LOWER_BOUND = 0.95e6; // 5% below 1
 
-    event ConvertDownPenalty(address account, uint256 grownStalkLost);
-    event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
+    enum ConvertDemand {
+        DECREASING,
+        STEADY,
+        INCREASING
+    }
+
+    event ConvertDownPenalty(address account, uint256 grownStalkLost, uint256 grownStalkKept);
+    event ConvertUpBonus(
+        address account,
+        uint256 grownStalkGained,
+        uint256 bdvCapacityUsed,
+        uint256 bdvConverted
+    );
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -639,25 +652,27 @@ library LibConvert {
                 toBdv,
                 grownStalk
             );
-            emit ConvertDownPenalty(account, grownStalkLost);
+            if (grownStalkLost > 0) {
+                emit ConvertDownPenalty(account, grownStalkLost, newGrownStalk);
+            }
+            return newGrownStalk;
         } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
-            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
+            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv, grownStalk);
 
-            // update how much bdv was converted this season.
-            updateBdvConverted(toBdv, bdvCapacityUsed);
             if (bdvCapacityUsed > 0) {
-                // update the grown stalk by the amount of grown stalk gained
-                newGrownStalk = grownStalk + grownStalkGained;
-                emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed);
-            } else {
-                newGrownStalk = grownStalk;
+                // update how much bdv was converted this season.
+                updateBdvConverted(bdvCapacityUsed);
+                if (grownStalkGained > 0) {
+                    // update the grown stalk by the amount of grown stalk gained
+                    newGrownStalk += grownStalk + grownStalkGained;
+                    emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed, toBdv);
+                    return newGrownStalk;
+                }
             }
-        } else {
-            // no penalty/bonus
-            newGrownStalk = grownStalk;
         }
-        return newGrownStalk;
+        // if the convert is not a BEAN -> WELL or WELL -> BEAN, return the grown stalk as is.
+        return grownStalk;
     }
 
     /**
@@ -743,11 +758,13 @@ library LibConvert {
      * @notice Calculates the stalk bonus for a convert. Credits the user with bonus grown stalk.
      * @dev This function is used to calculate the bonus grown stalk for a convert.
      * @param toBdv The bdv of the deposit to convert.
+     * @param grownStalk Initial grown stalk of the deposit.
      * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
-        uint256 toBdv
+        uint256 toBdv,
+        uint256 grownStalk
     ) internal view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
@@ -762,31 +779,77 @@ library LibConvert {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
+        // if the bonus stalk per bdv is 0, there is no capacity used / grown stalk gained.
+        if (gv.bonusStalkPerBdv == 0) {
+            return (0, 0);
+        }
+
         uint256 convertCapacity = getConvertCapacity(gv.maxConvertCapacity);
         // if the max convert capacity has been reached, return 0
-        if (gd.thisSeasonBdvConvertedBonus >= convertCapacity) {
+        if (gd.bdvConvertedThisSeason >= convertCapacity) {
             return (0, 0);
         }
 
         // limit the bdv that can get the bonus
-        uint256 remainingCapacity = convertCapacity - gd.thisSeasonBdvConvertedBonus;
-        uint256 bdvWithBonus = min(toBdv, remainingCapacity);
+        uint256 bdvWithBonus = min(toBdv, convertCapacity - gd.bdvConvertedThisSeason);
 
-        // Then calculate the bonus stalk based on the limited BDV
-        // bonus stalk per bdv = gv.baseBonusStalkPerBdv * gv.convertBonusFactor
-        // bonusStalkPerBdv * BdvWithBonus = GrownStalkGained.
-        grownStalkGained =
-            (bdvWithBonus * gv.baseBonusStalkPerBdv * gv.convertBonusFactor) /
-            C.PRECISION;
+        // Calculate the bonus stalk based on the eligible bdv.
+        grownStalkGained = gv.bonusStalkPerBdv * bdvWithBonus;
 
+        // if the stalk of the deposit is less than the bonus stalk,
+        // limit the bonus to the stalk grown.
+        if (grownStalk < grownStalkGained) {
+            grownStalkGained = grownStalk;
+            // if this occurs, the we recalculate the effective bdv that was used.
+            // example: if the bonus stalk is 10, with a bonus capacity of 5 bdv (i.e 2 grown stalk per bdv),
+            // and a user converted a deposit that has 5 stalk (with 5 bdv),
+            // the user converted 5 bdv, but will only get 5 stalk (due to the deposit not having enough grown stalk).
+            // this is equivalent to converting a deposit with >=5 stalk and 2.5 bdv.
+            // thus, to prevent the ability for other users to limit others from converting,
+            // we recalculate the effective bdv that was used to deduct from the bonus capacity.
+            bdvWithBonus = grownStalkGained / gv.bonusStalkPerBdv;
+        }
         return (bdvWithBonus, grownStalkGained);
+    }
+
+    /**
+     * @notice Calculates the demand for converts based on current and previous season BDV converted.
+     * @param bdvConvertedThisSeason The BDV converted in the current season.
+     * @param bdvConvertedLastSeason The BDV converted in the previous season.
+     * @return The convert demand state (INCREASING, STEADY, or DECREASING).
+     */
+    function calculateConvertDemand(
+        uint256 bdvConvertedThisSeason,
+        uint256 bdvConvertedLastSeason
+    ) internal pure returns (ConvertDemand) {
+        // if nothing was converted last season, and something was converted this season,
+        // the demand is increasing.
+        if (bdvConvertedLastSeason == 0) {
+            if (bdvConvertedThisSeason > 0) {
+                return ConvertDemand.INCREASING;
+            } else {
+                // if nothing was converted in this season and last season, demand is decreasing.
+                return ConvertDemand.DECREASING;
+            }
+        } else {
+            // calculate the convert demand in order to determine if the demand is increasing or decreasing.
+            uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /
+                bdvConvertedLastSeason;
+            if (convertDemand > CONVERT_DEMAND_UPPER_BOUND) {
+                return ConvertDemand.INCREASING;
+            } else if (convertDemand < CONVERT_DEMAND_LOWER_BOUND) {
+                return ConvertDemand.DECREASING;
+            } else {
+                return ConvertDemand.STEADY;
+            }
+        }
     }
 
     /**
      * @notice Gets the time weighted convert capacity for the current season
      * @dev the amount of bdv that can be converted with a bonus ramps up linearly over the course of the season,
      * allowing converts to be more efficient and incur less slippage.
-     * the initial capacity starts at 10% of the max capacity and ramps up linearly to 100% of the max capacity at 75% of the season.
+     * capacity ramps up linearly to 100% of the max capacity at 50% of the season.
      */
     function getConvertCapacity(uint256 maxConvertCapacity) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -797,44 +860,77 @@ library LibConvert {
         if (timeElapsed > convertRampPeriod) {
             return maxConvertCapacity;
         } else {
-            // Initial capacity starts at 10% of max capacity
-            // Formula: initialCapacity + (maxCapacity - initialCapacity) * timeElapsed / rampPeriod
-            uint256 initialCapacity = (maxConvertCapacity * INITIAL_CAPACITY) / C.PRECISION; // 10% of max capacity
-            return
-                initialCapacity +
-                ((maxConvertCapacity - initialCapacity) * timeElapsed) /
-                convertRampPeriod;
+            return (maxConvertCapacity * timeElapsed) / convertRampPeriod;
         }
     }
     /**
      * @notice Gets the bonus stalk per bdv for the current season.
-     * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
-     * and the stemTip at a peg cross, and choosing the smallest amongst all whitelisted lp tokens.
-     * This way the bonus cannot be gamed since someone could withdraw, deposit and convert without losing stalk.
-     * @return stalkPerBdv The bonus stalk per bdv for the current season.
+     * @dev the bonus stalk per Bdv is updated based on the convert demand and the difference between the bean seeds and the max lp seeds.
+     * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
+     * @param cbu The convert bonus capacity utilization.
+     * @param convertDemand The convert demand state (INCREASING, STEADY, or DECREASING).
+     * @param twaDeltaB The twaDeltaB of the current season.
+     * @return The updated bonus stalk per bdv.
      */
-    function getCurrentBaseBonusStalkPerBdv() internal view returns (uint256) {
+    function updateBonusStalkPerBdv(
+        uint256 bonusStalkPerBdv,
+        LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
+        ConvertDemand convertDemand,
+        int256 twaDeltaB
+    ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // get stem tips for all whitelisted lp tokens and get the min
         address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-        uint96 stalkPerBdv = type(uint96).max;
+        uint256 beanSeeds = s.sys.silo.assetSettings[s.sys.bean].stalkEarnedPerSeason;
+        uint256 maxLpSeeds;
         for (uint256 i = 0; i < lpTokens.length; i++) {
-            int96 currentStemTip = LibTokenSilo.stemTipForToken(lpTokens[i]);
-            uint96 tokenStalkPerBdv = uint96(
-                currentStemTip - s.sys.belowPegCrossStems[lpTokens[i]]
-            );
-            if (tokenStalkPerBdv < stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
+            uint256 lpSeeds = s.sys.silo.assetSettings[lpTokens[i]].stalkEarnedPerSeason;
+            if (lpSeeds > maxLpSeeds) maxLpSeeds = lpSeeds;
         }
-        return uint256(stalkPerBdv);
+
+        // if the bean seeds are greater than or equal to the max lp seeds,
+        // the bonus is updated based on the convert demand.
+
+        // 9 states:
+        // 1. demand increasing, capacity filled: bonus decreases
+        // 2. demand increasing, capacity mostly filled: bonus increases
+
+        if (beanSeeds >= maxLpSeeds) {
+            uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
+
+            // adjust bonus based on convert demand
+
+            if (
+                convertDemand == ConvertDemand.INCREASING ||
+                cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED
+            ) {
+                if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
+                    return 0;
+                } else {
+                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
+                }
+            } else if (convertDemand == ConvertDemand.DECREASING) {
+                return bonusStalkPerBdv + bonusStalkPerBdvChange;
+            } else {
+                return bonusStalkPerBdv;
+            }
+        } else if (twaDeltaB >= 0) {
+            // if the bean seeds are less than the max lp seeds (implying the crop ratio < 100%),
+            // and twaDeltaB is positive, the bonus is reset.
+            return 0;
+        } else {
+            // if the bean seeds are less than the max lp seeds, and twaDeltaB is negative,
+            // the bonus remains unchanged.
+            return bonusStalkPerBdv;
+        }
     }
 
     /**
      * @notice Updates the convert bonus bdv capacity in the convert bonus gauge data.
      * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
-     * @param bdvConverted The amount of bdv that was converted.
      * @param bdvConvertedBonus The amount of bdv that was converted with a bonus.
      */
-    function updateBdvConverted(uint256 bdvConverted, uint256 bdvConvertedBonus) internal {
+    function updateBdvConverted(uint256 bdvConvertedBonus) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Get current gauge data using the new struct
@@ -844,8 +940,7 @@ library LibConvert {
         );
 
         // Update this season's converted amount
-        gd.thisSeasonBdvConverted += bdvConverted;
-        gd.thisSeasonBdvConvertedBonus += bdvConvertedBonus;
+        gd.bdvConvertedThisSeason += bdvConvertedBonus;
         // Encode and store updated gauge data
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
     }
@@ -855,7 +950,7 @@ library LibConvert {
      * @param newGrownStalk The grown stalk of the deposit after applying the various penalty/bonus.
      * @param originalGrownStalk The original grown stalk of the deposit(s) that were converted.
      * @param grownStalkSlippage The slippage percentage. 100% = 1e18.
-     * @dev a negative grownStalkSlippage implies the user requires less grown stalk than they started with. (i.e a bonus)
+     * @dev a negative grownStalkSlippage implies the user requires more grown stalk than they started with. (i.e a bonus)
      */
     function checkGrownStalkSlippage(
         uint256 newGrownStalk,

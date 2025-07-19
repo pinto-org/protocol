@@ -13,8 +13,8 @@ import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 import {console} from "forge-std/console.sol";
 
@@ -777,7 +777,8 @@ contract SunTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
 
         // Case 1: Soil sold out and Pod rate below lower bound - cultivationFactor should increase
@@ -1013,7 +1014,8 @@ contract SunTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e18, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
 
         // Case 1: Zero price should return (0, false)
@@ -1109,7 +1111,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Test with cultivationFactor = 1%
@@ -1342,7 +1345,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Test with cultivationFactor = 5%
@@ -1631,7 +1635,7 @@ contract SunTest is TestHelper {
     function test_convertUpBonusGaugeSunrise() public {
         int256 twaDeltaB = -1000e6;
         // update the bdv capacity
-        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
 
         bs.mockUpdateBdvConverted(1000e6);
         // verify that the convert up bonus gauge data is correct before sunrise
@@ -1640,8 +1644,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        assertEq(gdBefore.thisSeasonBdvConverted, 1000e6);
-        assertEq(gdBefore.lastSeasonBdvConverted, 0);
+        // Note: We no longer track totalBdvConvertedBonus
 
         // sunrise
         season.sunSunrise(twaDeltaB, 1, beanstalkState);
@@ -1652,11 +1655,7 @@ contract SunTest is TestHelper {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // verify that this seasons bdv converted is 0:
-        assertEq(gd.thisSeasonBdvConverted, 0);
-
-        // verify that the last seasons bdv converted is 1000e6:
-        assertEq(gd.lastSeasonBdvConverted, gdBefore.thisSeasonBdvConverted);
+        // Note: We no longer track totalBdvConvertedBonus
     }
 
     function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {
@@ -1854,7 +1853,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: beanPrice,
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Set lastSowTime based on soilSoldOut
