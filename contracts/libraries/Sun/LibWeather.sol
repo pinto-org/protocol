@@ -12,7 +12,6 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title LibWeather
@@ -84,7 +83,6 @@ library LibWeather {
 
         // if one of the oracles needed to calculate usd liquidity fails,
         // the beanToMaxLpGpPerBdvRatio should not be updated.
-        console.log("bs.oracleFailure", bs.oracleFailure);
         if (bs.oracleFailure) return;
         updateBeanToMaxLPRatio(cd.bL, caseId);
     }
