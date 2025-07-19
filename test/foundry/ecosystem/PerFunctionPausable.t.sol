@@ -6,14 +6,15 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
+import {SowBlueprintv0_1} from "contracts/ecosystem/SowBlueprintv0_1.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {PerFunctionPausable} from "contracts/ecosystem/PerFunctionPausable.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
-contract PerFunctionPausableTest is TractorHelper {
+contract PerFunctionPausableTest is TractorTestHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
 
@@ -41,26 +42,41 @@ contract PerFunctionPausableTest is TractorHelper {
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation),
+            address(this)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0_1 with TractorHelpers and SiloHelpers addresses
+        sowBlueprintv0_1 = new SowBlueprintv0_1(
+            address(bs),
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprintv0_1), "SowBlueprintv0_1");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0));
+        setSowBlueprintv0(address(sowBlueprintv0_1));
+        setSiloHelpers(address(siloHelpers));
     }
 
     function test_pause() public {
         // Get function selectors for the functions we want to test
-        bytes4 sowSelector = SowBlueprintv0.sowBlueprintv0.selector;
-        bytes4 withdrawSelector = TractorHelpers.withdrawBeansFromSources.selector;
+        bytes4 sowSelector = SowBlueprintv0_1.sowBlueprintv0_1.selector;
+        bytes4 withdrawSelector = SiloHelpers.withdrawBeansFromSources.selector;
 
         // Test initial state
         assertFalse(
-            sowBlueprintv0.functionPaused(sowSelector),
-            "sowBlueprintv0 should not be paused initially"
+            sowBlueprintv0_1.functionPaused(sowSelector),
+            "sowBlueprintv0_1 should not be paused initially"
         );
         assertFalse(
-            tractorHelpers.functionPaused(withdrawSelector),
+            siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should not be paused initially"
         );
 
@@ -69,23 +85,26 @@ contract PerFunctionPausableTest is TractorHelper {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        sowBlueprintv0.pauseFunction(sowSelector);
+        sowBlueprintv0_1.pauseFunction(sowSelector);
 
         vm.prank(farmers[1]);
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        tractorHelpers.pauseFunction(withdrawSelector);
+        siloHelpers.pauseFunction(withdrawSelector);
 
         // Test pausing individual functions
         vm.startPrank(address(this));
-        sowBlueprintv0.pauseFunction(sowSelector);
-        tractorHelpers.pauseFunction(withdrawSelector);
+        sowBlueprintv0_1.pauseFunction(sowSelector);
+        siloHelpers.pauseFunction(withdrawSelector);
         vm.stopPrank();
 
-        assertTrue(sowBlueprintv0.functionPaused(sowSelector), "sowBlueprintv0 should be paused");
         assertTrue(
-            tractorHelpers.functionPaused(withdrawSelector),
+            sowBlueprintv0_1.functionPaused(sowSelector),
+            "sowBlueprintv0_1 should be paused"
+        );
+        assertTrue(
+            siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should be paused"
         );
 
@@ -150,26 +169,26 @@ contract PerFunctionPausableTest is TractorHelper {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        sowBlueprintv0.unpauseFunction(sowSelector);
+        sowBlueprintv0_1.unpauseFunction(sowSelector);
 
         vm.prank(farmers[1]);
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        tractorHelpers.unpauseFunction(withdrawSelector);
+        siloHelpers.unpauseFunction(withdrawSelector);
 
         // Test unpausing functions
         vm.startPrank(address(this));
-        sowBlueprintv0.unpauseFunction(sowSelector);
-        tractorHelpers.unpauseFunction(withdrawSelector);
+        sowBlueprintv0_1.unpauseFunction(sowSelector);
+        siloHelpers.unpauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertFalse(
-            sowBlueprintv0.functionPaused(sowSelector),
-            "sowBlueprintv0 should be unpaused"
+            sowBlueprintv0_1.functionPaused(sowSelector),
+            "sowBlueprintv0_1 should be unpaused"
         );
         assertFalse(
-            tractorHelpers.functionPaused(withdrawSelector),
+            siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should be unpaused"
         );
 
@@ -214,9 +233,9 @@ contract PerFunctionPausableTest is TractorHelper {
         uint256 amountToSow,
         uint256 minAmountToSow,
         uint256 maxAmountToSowPerSeason
-    ) internal pure returns (SowBlueprintv0.SowAmounts memory) {
+    ) internal pure returns (SowBlueprintv0_1.SowAmounts memory) {
         return
-            SowBlueprintv0.SowAmounts({
+            SowBlueprintv0_1.SowAmounts({
                 totalAmountToSow: amountToSow,
                 minAmountToSowPerSeason: minAmountToSow,
                 maxAmountToSowPerSeason: maxAmountToSowPerSeason

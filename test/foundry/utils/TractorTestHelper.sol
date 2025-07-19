@@ -5,11 +5,10 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {SowBlueprintv0_1} from "contracts/ecosystem/SowBlueprintv0_1.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
-contract TractorHelper is TestHelper {
+contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprintv0_1 internal sowBlueprintv0_1;
@@ -219,7 +218,7 @@ contract TractorHelper is TestHelper {
         // Create array with single index for the token based on source mode
         uint8[] memory sourceTokenIndices = new uint8[](1);
         if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
-            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+            sourceTokenIndices[0] = TractorHelpers(tractorHelpersAddress).getTokenIndex(
                 IMockFBeanstalk(bsAddress).getBeanToken()
             );
         } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {

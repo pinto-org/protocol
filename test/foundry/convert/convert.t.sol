@@ -599,7 +599,7 @@ contract ConvertTest is TestHelper {
             assertGt(
                 newGrownStalkPerBdv,
                 lastGrownStalkPerBdv,
-                "Grown stalk per pdv should increase"
+                "Grown stalk per bdv should increase"
             );
             lastGrownStalkPerBdv = newGrownStalkPerBdv;
             warpToNextSeasonAndUpdateOracles();
