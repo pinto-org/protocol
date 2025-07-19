@@ -24,7 +24,7 @@ contract UpgradeDiamond is TestHelper {
      * @dev FORKING_RPC must be set as an environment variable.
      */
     function setUp() public {
-        mainnetForkId = vm.createFork(vm.envString("FORKING_RPC"));
+        mainnetForkId = vm.createFork(vm.envString("ETHEREUM_RPC"));
         vm.selectFork(mainnetForkId);
         string[] memory facetNames = new string[](1);
         facetNames[0] = "MockUpgradeFacet";

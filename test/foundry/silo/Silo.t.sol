@@ -365,6 +365,27 @@ contract SiloTest is TestHelper {
         // check first.
     }
 
+    function test_approveAll() public {
+        mintTokensToUser(farmers[0], BEAN, 1000e6);
+
+        //////////// DEPOSIT ////////////
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 1000e6, 0);
+
+        //verify farmer 1 cannot transfer
+        vm.prank(farmers[1]);
+        vm.expectRevert("Silo: insufficient allowance");
+        uint256 depositId = LibBytes.packAddressAndStem(BEAN, 0);
+        bs.safeTransferFrom(farmers[0], farmers[1], depositId, 1000e6, "");
+
+        vm.prank(farmers[0]);
+        bs.setApprovalForAll(farmers[1], true);
+        assertEq(bs.isApprovedForAll(farmers[0], farmers[1]), true);
+
+        vm.prank(farmers[1]);
+        bs.safeTransferFrom(farmers[0], farmers[1], depositId, 1000e6, "");
+    }
+
     // silo list helpers //
     function verifyDepositIdLengths(
         uint256[] memory depositIds,

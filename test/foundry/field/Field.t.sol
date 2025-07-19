@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import {console} from "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -602,6 +603,22 @@ contract FieldTest is TestHelper {
         verifyPlotIndexAndPlotLengths(farmers[0], activeField, 0);
 
         assertGt(field.fieldCount(), 1, "field count");
+    }
+
+    function test_morningAuctionTemperature() public {
+        bool verbose = false;
+        uint256 temperature = field.temperature();
+        uint256 maxTemperature = bs.maxTemperature();
+        for (uint256 i; i < 605; i++) {
+            uint256 temperature = field.temperature();
+            assertGe(temperature, temperature, "temperature is not increasing");
+            if (i >= 600) {
+                assertEq(temperature, maxTemperature, "temperature != max temperature");
+            } else {
+                assertLe(temperature, maxTemperature, "temperature > max temperature");
+            }
+            vm.warp(block.timestamp + 1);
+        }
     }
 
     // field helpers.

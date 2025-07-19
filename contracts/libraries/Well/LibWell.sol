@@ -226,8 +226,7 @@ library LibWell {
     }
 
     /**
-     * @notice Returns the USD / TKN price stored in {AppStorage.usdTokenPrice}.
-     * @dev assumes TKN has 18 decimals.
+     * @notice Returns the TKN / USD price stored in {AppStorage.usdTokenPrice}.
      */
     function getUsdTokenPriceForWell(address well) internal view returns (uint tokenUsd) {
         tokenUsd = LibAppStorage.diamondStorage().sys.usdTokenPrice[well];
@@ -303,8 +302,7 @@ library LibWell {
     }
 
     /**
-     * @notice Returns the TKN / USD price stored in {AppStorage.usdTokenPrice}.
-     * @dev assumes TKN has 18 decimals.
+     * @notice Returns the stored twaReserves stored in {AppStorage.twaReserves}.
      */
     function getTwaReservesForWell(
         address well
@@ -375,6 +373,11 @@ library LibWell {
         returns (uint256 lpTokenSupply) {
             address nonBeanToken = address(IWell(well).tokens()[nonBeanIndex]);
             uint256 oldReserve = reserves[nonBeanIndex];
+
+            // if the bean reserves are less than the minimum balance, calculating a real price
+            // is difficult and thus this returns a price of 0.
+            if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) return 0;
+
             reserves[beanIndex] = reserves[beanIndex] + BEAN_UNIT;
 
             try

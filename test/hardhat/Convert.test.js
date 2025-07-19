@@ -497,7 +497,15 @@ describe("Convert", function () {
         .withArgs(userAddress, this.newSiloToken.address, this.newStem, "100", "900000"); // last param = updated bdv
       await expect(this.result)
         .to.emit(mockBeanstalk, "Convert")
-        .withArgs(userAddress, this.newSiloToken.address, this.newSiloToken.address, "100", "100");
+        .withArgs(
+          userAddress,
+          this.newSiloToken.address,
+          this.newSiloToken.address,
+          "100",
+          "100",
+          "1000000",
+          "900000"
+        );
     });
   });
 
@@ -560,7 +568,15 @@ describe("Convert", function () {
         .withArgs(userAddress, this.newSiloToken.address, this.newStem, "100", "1100000"); // last param = updated bdv
       await expect(this.result)
         .to.emit(mockBeanstalk, "Convert")
-        .withArgs(userAddress, this.newSiloToken.address, this.newSiloToken.address, "100", "100");
+        .withArgs(
+          userAddress,
+          this.newSiloToken.address,
+          this.newSiloToken.address,
+          "100",
+          "100",
+          "1000000",
+          "1100000"
+        );
     });
   });
 
