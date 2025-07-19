@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
+
       - name: Check for Solidity file changes
         id: changes
         run: |
@@ -33,9 +33,9 @@ jobs:
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
           fi
-          
+
           echo "Checking for .sol file changes between $BASE_SHA and $HEAD_SHA"
-          
+
           if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E '\.sol$'; then
             echo "Solidity files changed"
             echo "sol-changed=true" >> $GITHUB_OUTPUT
@@ -61,7 +61,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18"
+          node-version: "20"
 
       - name: Cache Node Modules
         id: node-modules-cache

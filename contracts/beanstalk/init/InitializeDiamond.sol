@@ -227,7 +227,7 @@ contract InitializeDiamond {
         LibCases.setCasesV2();
     }
 
-    function InitializeSeedGauge(
+    function initializeSeedGauge(
         uint128 beanToMaxLpGpRatio,
         uint128 averageGrownStalkPerBdvPerSeason,
         uint128 maxTotalGaugePoints
@@ -322,7 +322,7 @@ contract InitializeDiamond {
     }
 
     function initializeGauges() internal {
-        initalizeSeedGauge(
+        initializeSeedGauge(
             INIT_BEAN_TO_MAX_LP_GP_RATIO,
             INIT_AVG_GSPBDV,
             INIT_MAX_TOTAL_GAUGE_POINTS
