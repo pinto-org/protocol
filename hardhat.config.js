@@ -36,6 +36,9 @@ const { task } = require("hardhat/config");
 const { upgradeWithNewFacets, decodeDiamondCutAction } = require("./scripts/diamond.js");
 const { resolveDependencies } = require("./scripts/resolveDependencies");
 const { getFacetBytecode, compareBytecode } = require("./test/hardhat/utils/bytecode");
+const {
+  populateBeanstalkField
+} = require("./scripts/beanstalkShipments/populateBeanstalkField.js");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -1917,6 +1920,20 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     }
 
     console.log("-----------------------------------");
+  });
+
+task("populateBeanstalkField", "Populates the beanstalk field with data from beanstalkPlots.json")
+  .setAction(async () => {
+    console.log("🌱 Starting Beanstalk field population...");
+    const verbose = true;
+
+    // Use the diamond deployer as the account
+    const account = await impersonateSigner(L2_PCM);
+    await mintEth(account.address);
+
+    await populateBeanstalkField(L2_PINTO, account, verbose);
+
+    console.log("✅ Beanstalk field recreation completed successfully!");
   });
 
 //////////////////////// CONFIGURATION ////////////////////////
