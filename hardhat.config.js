@@ -1923,15 +1923,17 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
   });
 
 task("populateBeanstalkField", "Populates the beanstalk field with data from beanstalkPlots.json")
-  .setAction(async () => {
+  .addOptionalParam("noChunking", "Whether to process all plots in one transaction")
+  .setAction(async (taskArgs) => {
     console.log("🌱 Starting Beanstalk field population...");
     const verbose = true;
+    const noChunking = taskArgs.noChunking || true;
 
     // Use the diamond deployer as the account
     const account = await impersonateSigner(L2_PCM);
     await mintEth(account.address);
 
-    await populateBeanstalkField(L2_PINTO, account, verbose);
+    await populateBeanstalkField(L2_PINTO, account, verbose, noChunking);
 
     console.log("✅ Beanstalk field recreation completed successfully!");
   });
