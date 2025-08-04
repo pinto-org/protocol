@@ -10,12 +10,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract UnripeDistributor is ERC20, Ownable {
     uint256 public constant PRECISION = 1e6; // 6 decimal precision
+    uint256 public constant MIN_SIZE = 1e6; // 1 Pinto
 
     /// @dev error thrown when the user tries to claim but has no unripe bdv tokens
     error NoUnripeBdvTokens();
-
-    /// @dev error thrown when the user has already claimed in the current season
-    error AlreadyClaimed();
 
     IBeanstalk public pintoProtocol;
     IERC20 public pinto;
@@ -25,9 +23,14 @@ contract UnripeDistributor is ERC20, Ownable {
         uint256 bdv;
     }
 
-    /// @dev tracks the last season a user claimed their unripe bdv tokens
-    /// @dev we should make the tokens soul-bound such that they cannot be transferred to prevent double claiming
-    mapping(address account => uint256 lastSeasonClaimed) public userLastSeasonClaimed;
+    /// @dev event emitted when user redeems bdv tokens for underlying pinto
+    event Redeemed(address indexed user, uint256 amount);
+
+    /// @dev tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
+    uint256 public totalDistributed;
+
+    /// @dev tracks the total underlying pdv in the contract
+    uint256 public totalUnerlyingPdv;
 
     constructor(
         address _pinto,
@@ -35,6 +38,8 @@ contract UnripeDistributor is ERC20, Ownable {
     ) ERC20("UnripeBdvReceipt", "urBDV") Ownable(msg.sender) {
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
+        // Approve the Pinto Diamond to spend pinto tokens for deposits
+        pinto.approve(pintoProtocol, type(uint256).max);
     }
 
     /**
@@ -48,38 +53,28 @@ contract UnripeDistributor is ERC20, Ownable {
         // just mint the tokens to the recipients
         for (uint256 i = 0; i < unripeReceipts.length; i++) {
             _mint(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
+            totalDistributed += unripeReceipts[i].bdv;
         }
     }
 
-    /**
-     * @notice Claim unripe bdv tokens for the user. Claim is pro rata based on the user's percentage ownership.
-     */
-    function claimUnripeBdvTokens(address recipient, LibTransfer.To toMode) external {
-        // check if the user has claimed in the current season
-        if (userLastSeasonClaimed[msg.sender] == pintoProtocol.time().current) {
-            revert AlreadyClaimed();
-        }
+    /// redeem bdv tokens for a portion of the underlying pdv
+    function redeem(address recipient, LibTransfer.To toMode) external {
+        // check if the user has any bdv tokens
+        uint256 userBalance = balanceOf(msg.sender);
+        if (userBalance == 0) revert NoUnripeBdvTokens();
 
-        // check if the user has any unripe bdv tokens
-        uint256 userUnripeBdv = balanceOf(msg.sender);
-        if (userUnripeBdv == 0) revert NoUnripeBdvTokens();
-
-        // calculate the amount of pintos to claim
+        // calculate the amount of pintos to redeem, pro rata based on the user's percentage ownership of the total distributed bdv tokens
         uint256 userUnripeBdvBalance = balanceOf(msg.sender);
-        uint256 pintoToClaim = (userUnripeBdvBalance * PRECISION) / totalUnderlyingPinto();
+        uint256 pintoToRedeem = (userUnripeBdvBalance * PRECISION) / totalDistributed;
 
-        // no need to burn here, the user will keep claiming pro rata until repayment is complete
-        // like a static pinto deposit system
+        // burn the corresponding amount of unripe bdv tokens
+        _burn(msg.sender, userUnripeBdvBalance);
 
         // send the underlying pintos to the user
-        // TODO: "From" here is wherever this contract receives the pintos from the shipments
-        pintoProtocol.transferToken(pinto, recipient, pintoToClaim, LibTransfer.From.INTERNAL, toMode);
-
-        // update the last season claimed
-        userLastSeasonClaimed[msg.sender] = pintoProtocol.time().current;
+        pintoProtocol.transferToken(pinto, recipient, pintoToRedeem, LibTransfer.From.INTERNAL, toMode);
     }
 
-    /// @dev tracks how many pintos have beed received by the diamond shipments
+    /// @dev tracks how many underlying pintos are available to redeem
     function totalUnderlyingPinto() public view returns (uint256) {
         return pinto.balanceOf(address(this));
     }
@@ -87,5 +82,32 @@ contract UnripeDistributor is ERC20, Ownable {
     /// @dev override the decimals to 6 decimal places, like bdv
     function decimals() public view override returns (uint8) {
         return 6;
+    }
+
+    /**
+     * @notice Deposits distributed pintos to start earning yield, mows if needed
+     * @dev This function should be called before any redeeming of bdv tokens to update the underlying pdv.
+     */
+    function claim() public {
+        // Check for newly received pintos, deposit them if needed
+        if (pinto.balanceOf(address(this)) > MIN_SIZE) {
+            (, uint256 bdv, ) = pintoProtocol.deposit(
+                address(pinto),
+                pinto.balanceOf(address(this)),
+                LibTransfer.From.EXTERNAL
+            );
+            totalUnerlyingPdv += bdv;
+        }
+
+        // Check for pinto yield from existing deposits, plant if needed
+        // Earned pinto also increases the total underlying pdv
+        if (pintoProtocol.balanceOfEarnedBeans(address(this)) > MIN_SIZE) {
+            (uint256 earnedPinto, ) = pintoProtocol.plant();
+            totalUnerlyingPdv += earnedPinto;
+        }
+        // Attempt to mow if the protocol did not plant (planting invokes a mow).
+        else if (pintoProtocol.balanceOfGrownStalk(address(this), address(pinto)) > 0) {
+            pintoProtocol.mow(address(this), address(pinto));
+        }
     }
 }
