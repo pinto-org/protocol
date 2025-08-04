@@ -29,16 +29,13 @@ contract UnripeDistributor is ERC20, Ownable {
     /// @dev tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
     uint256 public totalDistributed;
 
-    /// @dev tracks the total underlying pdv in the contract
-    uint256 public totalUnerlyingPdv;
-
     constructor(
         address _pinto,
         address _pintoProtocol
     ) ERC20("UnripeBdvReceipt", "urBDV") Ownable(msg.sender) {
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
-        // Approve the Pinto Diamond to spend pinto tokens for deposits
+        // Approve the Pinto Diamond to spend pinto tokens for transfers
         pinto.approve(pintoProtocol, type(uint256).max);
     }
 
@@ -57,57 +54,46 @@ contract UnripeDistributor is ERC20, Ownable {
         }
     }
 
-    /// redeem bdv tokens for a portion of the underlying pdv
-    function redeem(address recipient, LibTransfer.To toMode) external {
-        // check if the user has any bdv tokens
-        uint256 userBalance = balanceOf(msg.sender);
-        if (userBalance == 0) revert NoUnripeBdvTokens();
-
-        // calculate the amount of pintos to redeem, pro rata based on the user's percentage ownership of the total distributed bdv tokens
-        uint256 userUnripeBdvBalance = balanceOf(msg.sender);
-        uint256 pintoToRedeem = (userUnripeBdvBalance * PRECISION) / totalDistributed;
-
+    /**
+     * @notice Redeems a given amount of unripe bdv tokens for underlying pinto
+     * @param amount the amount of unripe bdv tokens to redeem
+     * @param recipient the address to send the underlying pinto to
+     * @param toMode the mode to send the underlying pinto in
+     */
+    function redeem(uint256 amount, address recipient, LibTransfer.To toMode) external {
+        uint256 pintoToRedeem = unripeToUnerlyingPinto(amount);
         // burn the corresponding amount of unripe bdv tokens
-        _burn(msg.sender, userUnripeBdvBalance);
-
+        _burn(msg.sender, amount);
         // send the underlying pintos to the user
-        pintoProtocol.transferToken(pinto, recipient, pintoToRedeem, LibTransfer.From.INTERNAL, toMode);
+        pintoProtocol.transferToken(
+            pinto,
+            recipient,
+            pintoToRedeem,
+            LibTransfer.From.EXTERNAL,
+            toMode
+        );
     }
 
-    /// @dev tracks how many underlying pintos are available to redeem
+    /**
+     * @dev Gets the amount of underlying pinto that corresponds to a given amount of unripe bdv tokens
+     * according to the current exchange rate.
+     * @param amount the amount of unripe bdv tokens to redeem
+     */
+    function unripeToUnerlyingPinto(uint256 amount) public view returns (uint256) {
+        if (totalSupply() == 0) return 0;
+        return (amount * totalUnderlyingPinto()) / totalSupply();
+    }
+
+    /**
+     * @dev Tracks how many underlying pintos are available to redeem
+     * @return the total amount of underlying pintos in the contract
+     */
     function totalUnderlyingPinto() public view returns (uint256) {
         return pinto.balanceOf(address(this));
     }
 
-    /// @dev override the decimals to 6 decimal places, like bdv
+    /// @dev override the decimals to 6 decimal places, BDV has 6 decimals
     function decimals() public view override returns (uint8) {
         return 6;
-    }
-
-    /**
-     * @notice Deposits distributed pintos to start earning yield, mows if needed
-     * @dev This function should be called before any redeeming of bdv tokens to update the underlying pdv.
-     */
-    function claim() public {
-        // Check for newly received pintos, deposit them if needed
-        if (pinto.balanceOf(address(this)) > MIN_SIZE) {
-            (, uint256 bdv, ) = pintoProtocol.deposit(
-                address(pinto),
-                pinto.balanceOf(address(this)),
-                LibTransfer.From.EXTERNAL
-            );
-            totalUnerlyingPdv += bdv;
-        }
-
-        // Check for pinto yield from existing deposits, plant if needed
-        // Earned pinto also increases the total underlying pdv
-        if (pintoProtocol.balanceOfEarnedBeans(address(this)) > MIN_SIZE) {
-            (uint256 earnedPinto, ) = pintoProtocol.plant();
-            totalUnerlyingPdv += earnedPinto;
-        }
-        // Attempt to mow if the protocol did not plant (planting invokes a mow).
-        else if (pintoProtocol.balanceOfGrownStalk(address(this), address(pinto)) > 0) {
-            pintoProtocol.mow(address(this), address(pinto));
-        }
     }
 }
