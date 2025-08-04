@@ -4,50 +4,48 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract UnripeDistributor is ERC20, Ownable {
-    uint256 public constant PRECISION = 1e6; // 6 decimal precision
-    uint256 public constant MIN_SIZE = 1e6; // 1 Pinto
-
-    /// @dev error thrown when the user tries to claim but has no unripe bdv tokens
-    error NoUnripeBdvTokens();
-
-    IBeanstalk public pintoProtocol;
-    IERC20 public pinto;
-
-    struct UnripeReceiptBdvTokenData {
+contract UnripeDistributor is Initializable, ERC20Upgradeable, OwnableUpgradeable {
+    struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;
     }
 
-    /// @dev event emitted when user redeems bdv tokens for underlying pinto
-    event Redeemed(address indexed user, uint256 amount);
+    /// @dev the Pinto Diamond contract
+    IBeanstalk public pintoProtocol;
+    /// @dev the Pinto token
+    IERC20 public pinto;
 
-    /// @dev tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
+    /// @dev Tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
     uint256 public totalDistributed;
 
-    constructor(
-        address _pinto,
-        address _pintoProtocol
-    ) ERC20("UnripeBdvReceipt", "urBDV") Ownable(msg.sender) {
+    /// @dev event emitted when user redeems bdv tokens for underlying pinto
+    event Redeemed(address indexed user, uint256 unripeBdvAmount, uint256 underlyingPintoAmount);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _pinto, address _pintoProtocol) public initializer {
+        __ERC20_init("UnripeBdvToken", "urBDV");
+        __Ownable_init(msg.sender);
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
         // Approve the Pinto Diamond to spend pinto tokens for transfers
-        pinto.approve(pintoProtocol, type(uint256).max);
+        pinto.approve(_pintoProtocol, type(uint256).max);
     }
 
     /**
      * @notice Distribute unripe bdv tokens to the old beanstalk participants.
      * Called in batches after deployment to make sure we don't run out of gas.
-     * @param unripeReceipts Array of UnripeReceiptBdvTokenData
+     * @param unripeReceipts Array of UnripeBdvTokenData
      */
-    function distributeUnripeBdvTokens(
-        UnripeReceiptBdvTokenData[] memory unripeReceipts
-    ) external onlyOwner {
-        // just mint the tokens to the recipients
+    function batchDistribute(UnripeBdvTokenData[] memory unripeReceipts) external onlyOwner {
         for (uint256 i = 0; i < unripeReceipts.length; i++) {
             _mint(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
             totalDistributed += unripeReceipts[i].bdv;
@@ -61,7 +59,7 @@ contract UnripeDistributor is ERC20, Ownable {
      * @param toMode the mode to send the underlying pinto in
      */
     function redeem(uint256 amount, address recipient, LibTransfer.To toMode) external {
-        uint256 pintoToRedeem = unripeToUnerlyingPinto(amount);
+        uint256 pintoToRedeem = unripeToUnderlyingPinto(amount);
         // burn the corresponding amount of unripe bdv tokens
         _burn(msg.sender, amount);
         // send the underlying pintos to the user
@@ -72,6 +70,7 @@ contract UnripeDistributor is ERC20, Ownable {
             LibTransfer.From.EXTERNAL,
             toMode
         );
+        emit Redeemed(msg.sender, amount, pintoToRedeem);
     }
 
     /**
@@ -79,7 +78,7 @@ contract UnripeDistributor is ERC20, Ownable {
      * according to the current exchange rate.
      * @param amount the amount of unripe bdv tokens to redeem
      */
-    function unripeToUnerlyingPinto(uint256 amount) public view returns (uint256) {
+    function unripeToUnderlyingPinto(uint256 amount) public view returns (uint256) {
         if (totalSupply() == 0) return 0;
         return (amount * totalUnderlyingPinto()) / totalSupply();
     }
