@@ -180,16 +180,20 @@
       "data": "0x000000000000000000000000b0cdb715D8122bd976a30996866Ebe5e51bb18b0"
     },
     {
-      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
-      "planSelector": "0x6fc9267a",
-      "recipient": "0x2",
-      "data": "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000002cf82605402912C6a79078a9BBfcCf061CbfD507"
+      // Call to make from 
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2", // ShipmentPlanner
+      "planSelector": "0x6fc9267a", // getPaybackFieldPlan
+      "recipient": "0x2", // FIELD RECEIPIENT,
+      "data": "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000002cf82605402912C6a79078a9BBfcCf061CbfD507" // DATA: abi.encode(fieldId, paybackContract)
     },
+    // TODO: This needs changing since there will be 2 payback contracts. 
+    // 1 for unripe silo distributor
+    // 1 for fertilizer
     {
-      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2",
-      "planSelector": "0x441d1e5b",
-      "recipient": "0x4",
-      "data": "0x0000000000000000000000002cf82605402912C6a79078a9BBfcCf061CbfD507"
+      "planContract": "0x73924B07D9E087b5Cb331c305A65882101bC2fa2", // ShipmentPlanner
+      "planSelector": "0x441d1e5b", // getPaybackPlan
+      "recipient": "0x4", // EXTERNAL_BALANCE
+      "data": "0x0000000000000000000000002cf82605402912C6a79078a9BBfcCf061CbfD507" // DATA: abi.encode(paybackContract)
     }
   ],
   "wellComponents": {

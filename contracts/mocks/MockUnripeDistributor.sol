@@ -4,12 +4,13 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract UnripeDistributor is Initializable, ERC20Upgradeable, OwnableUpgradeable {
+
+// TODO: Change this with non redeemable tokens that claim before a transfer and indexes etc.
+contract MockUnripeDistributor is ERC20, Ownable {
     struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;
@@ -26,14 +27,10 @@ contract UnripeDistributor is Initializable, ERC20Upgradeable, OwnableUpgradeabl
     /// @dev event emitted when user redeems bdv tokens for underlying pinto
     event Redeemed(address indexed user, uint256 unripeBdvAmount, uint256 underlyingPintoAmount);
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(address _pinto, address _pintoProtocol) public initializer {
-        __ERC20_init("UnripeBdvToken", "urBDV");
-        __Ownable_init(msg.sender);
+    constructor(
+        address _pinto,
+        address _pintoProtocol
+    ) ERC20("UnripeBdvToken", "urBDV") Ownable(msg.sender) {
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
         // Approve the Pinto Diamond to spend pinto tokens for transfers
@@ -95,6 +92,4 @@ contract UnripeDistributor is Initializable, ERC20Upgradeable, OwnableUpgradeabl
     function decimals() public view override returns (uint8) {
         return 6;
     }
-
-    // TODO: Add a siloRemaining function to check how much is left to pay off
 }

@@ -5,6 +5,15 @@ pragma solidity ^0.8.20;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPayback} from "contracts/interfaces/IPayback.sol";
 
+
+// TODO: This is an old assumpttion on how the payback contract will be used. 
+// We need to update this to reflect the new structure. 
+// We will have 2 payback contracts:
+// 1 for unripe silo distributor
+// 1 for fertilizer
+// So the contract will be split into 2 contracts:
+// 1 for unripe silo distributor with siloRemaining 
+// 1 for fertilizer with barnRemaining
 contract MockPayback is IPayback {
     uint256 constant INITIAL_REMAINING = 1_000_000_000e6;
 
