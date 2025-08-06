@@ -5,11 +5,11 @@ pragma abicoder v2;
 import {TestHelper} from "test/foundry/utils/TestHelper.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {MockUnripeDistributor} from "contracts/mocks/MockUnripeDistributor.sol";
+import {MockSiloPayback} from "contracts/mocks/MockSiloPayback.sol";
 
 contract BeanstalkShipmentsTest is TestHelper {
 
-    MockUnripeDistributor unripeDistributor;
+    MockSiloPayback siloPayback;
 
     // we need to:
     // - 1. recreate a mock beanstalk repayment field with a mock podline
@@ -24,7 +24,7 @@ contract BeanstalkShipmentsTest is TestHelper {
         // add new field, init some plots (see sun.t.sol)
 
         // deploy unripe distributor
-        unripeDistributor = new MockUnripeDistributor(PINTO, BEANSTALK);
+        siloPayback = new MockSiloPayback(PINTO, BEANSTALK);
 
         // upddate routes here
         setRoutes_all();

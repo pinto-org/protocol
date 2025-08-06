@@ -39,6 +39,7 @@ const { getFacetBytecode, compareBytecode } = require("./test/hardhat/utils/byte
 const {
   populateBeanstalkField
 } = require("./scripts/beanstalkShipments/populateBeanstalkField.js");
+const { deployAndSetupContracts } = require("./scripts/beanstalkShipments/deployContracts.js");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -1922,20 +1923,57 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     console.log("-----------------------------------");
   });
 
-task("populateBeanstalkField", "Populates the beanstalk field with data from beanstalkPlots.json")
-  .addOptionalParam("noChunking", "Whether to process all plots in one transaction")
+task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments")
+  .addOptionalParam("noFieldChunking", "Whether to process all plots in one transaction")
+  .addOptionalParam("deploy", "Whether to deploy the new contracts")
   .setAction(async (taskArgs) => {
-    console.log("🌱 Starting Beanstalk field population...");
+    console.log("🌱 Starting Beanstalk shipments initialization...");
     const verbose = true;
-    const noChunking = taskArgs.noChunking || true;
+    const noFieldChunking = taskArgs.noFieldChunking || true;
+    const deploy = taskArgs.deploy || false;
 
     // Use the diamond deployer as the account
-    const account = await impersonateSigner(L2_PCM);
-    await mintEth(account.address);
+    const mock = true;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
 
-    await populateBeanstalkField(L2_PINTO, account, verbose, noChunking);
+    // Step 0: Deploy all new contracts here and perform any actions before handing over ownership
+    let contracts = {};
+    if (deploy) {
+      contracts = await deployAndSetupContracts({
+        PINTO,
+        L2_PINTO,
+        L2_PCM,
+        owner,
+        verbose
+      });
+    }
 
-    console.log("✅ Beanstalk field recreation completed successfully!");
+    // Step 1: Populate the beanstalk field
+    console.log("Populating beanstalk field...");
+    await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
+
+    // Step 2: Update the shipment routes
+    // Read the routes from the json file
+    const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
+    const routes = JSON.parse(fs.readFileSync(routesPath));
+
+    // Refresh the shipment routes with the new routes
+    console.log("Refreshing shipment routes...");
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [],
+      initFacetName: "InitBeanstalkShipments",
+      initArgs: [routes],
+      verbose: verbose,
+      account: owner
+    });
+
+    console.log("✅ Beanstalk shipments initialization completed successfully!");
   });
 
 //////////////////////// CONFIGURATION ////////////////////////

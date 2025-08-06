@@ -43,7 +43,6 @@ contract InitReplaymentField {
         if (s.sys.fieldCount == 2) return;
         uint256 fieldId = s.sys.fieldCount;
         s.sys.fieldCount++;
-        console.log("new fieldId", fieldId);
         emit FieldAdded(fieldId);
     }
 

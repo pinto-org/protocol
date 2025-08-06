@@ -10,7 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 
 // TODO: Change this with non redeemable tokens that claim before a transfer and indexes etc.
-contract MockUnripeDistributor is ERC20, Ownable {
+contract MockSiloPayback is ERC20, Ownable {
     struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;

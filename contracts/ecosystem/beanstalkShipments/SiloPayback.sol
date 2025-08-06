@@ -9,7 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract UnripeDistributor is Initializable, ERC20Upgradeable, OwnableUpgradeable {
+contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;
@@ -45,7 +45,7 @@ contract UnripeDistributor is Initializable, ERC20Upgradeable, OwnableUpgradeabl
      * Called in batches after deployment to make sure we don't run out of gas.
      * @param unripeReceipts Array of UnripeBdvTokenData
      */
-    function batchDistribute(UnripeBdvTokenData[] memory unripeReceipts) external onlyOwner {
+    function batchMint(UnripeBdvTokenData[] memory unripeReceipts) external onlyOwner {
         for (uint256 i = 0; i < unripeReceipts.length; i++) {
             _mint(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
             totalDistributed += unripeReceipts[i].bdv;
