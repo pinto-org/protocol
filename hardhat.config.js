@@ -1943,6 +1943,8 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
 
     // Step 0: Deploy all new contracts here and perform any actions before handing over ownership
     let contracts = {};
+    // todo: it might be better to deploy the proxies in the shipments init script and hardcode the addresses
+    // if we do that we still need to distribute the unripe bdv tokens and hand over ownership to the PCM from here
     if (deploy) {
       contracts = await deployAndSetupContracts({
         PINTO,
