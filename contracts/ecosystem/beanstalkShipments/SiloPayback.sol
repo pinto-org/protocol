@@ -10,6 +10,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
+    /// @dev struct to store the unripe bdv token data for batch minting
     struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;
@@ -25,17 +26,26 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /// @dev Tracks total received pinto from shipments.
     uint256 public totalReceived;
 
-    /// @dev Synthetix-style reward distribution variables
+    /// @dev Global accumulator tracking total rewards per token since contract inception (scaled by 1e18)
     uint256 public rewardPerTokenStored;
+    /// @dev Per-user checkpoint of rewardPerTokenStored at their last reward update (prevents double claiming)
     mapping(address => uint256) public userRewardPerTokenPaid;
+    /// @dev Per-user accumulated rewards ready to claim (updated on transfers/claims)
     mapping(address => uint256) public rewards;
 
-    /// @dev event emitted when user redeems bdv tokens for underlying pinto
-    event Redeemed(address indexed user, uint256 unripeBdvAmount, uint256 underlyingPintoAmount);
     /// @dev event emitted when user claims rewards
     event Claimed(address indexed user, uint256 amount, uint256 rewards);
     /// @dev event emitted when rewards are received from shipments
     event RewardsReceived(uint256 amount, uint256 newIndex);
+
+    /// @notice Modifier to update rewards for an account before a claim
+    modifier updateReward(address account) {
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -66,6 +76,24 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Receives Pinto rewards from shipments
+     * @dev Called by the protocol to distribute rewards and update state
+     * @param amount The amount of Pinto rewards received
+     */
+    function receiveRewards(uint256 amount) external {
+        require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
+        require(amount > 0, "SiloPayback: shipment amount must be greater than 0");
+
+        uint256 tokenTotalSupply = totalSupply();
+        if (tokenTotalSupply > 0) {
+            rewardPerTokenStored += (amount * 1e18) / tokenTotalSupply;
+            totalReceived += amount;
+        }
+
+        emit RewardsReceived(amount, rewardPerTokenStored);
+    }
+
+    /**
      * @notice Claims accumulated rewards for the caller
      * @param recipient the address to send the rewards to
      * @param toMode the mode to send the rewards in
@@ -73,9 +101,9 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     function claim(address recipient, LibTransfer.To toMode) external updateReward(msg.sender) {
         uint256 rewardsToClaim = rewards[msg.sender];
         require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
-        
+
         rewards[msg.sender] = 0;
-        
+
         // Transfer the rewards to the recipient
         pintoProtocol.transferToken(
             pinto,
@@ -84,108 +112,72 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             LibTransfer.From.EXTERNAL,
             toMode
         );
-        
+
         emit Claimed(msg.sender, rewardsToClaim, rewardsToClaim);
     }
 
-
-    /// @notice Modifier to update rewards for an account
-    /// @param account The account to update rewards for
-    modifier updateReward(address account) {
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
-        }
-        _;
-    }
-
-    /// @notice Calculate earned rewards for an account.
-    /// The pro-rata delta between the current rewardPerTokenStored and the user's userRewardPerTokenPaid
-    /// rewardPerTokenStored is the ratio of the total amount of rewards received to the total amount of tokens distributed.
-    /// Since tokens cannot be burned, this will only increase over time.
-    /// @param account The account to calculate rewards for
-    /// @return The total earned rewards
+    /**
+     * @notice Calculate earned rewards for an account
+     * @dev Calculates the pro-rata share of rewards based on the delta between rewardPerTokenStored
+     * and userRewardPerTokenPaid.
+     * ------------------------------------------------------------
+     * - `rewardPerTokenStored` represents the cumulative ratio of total rewards to total tokens,
+     *    which monotonically increases since tokens cannot be burned and totalSupply is fixed.
+     * - `userRewardPerTokenPaid` is the checkpoint of rewardPerTokenStored at the last reward update.
+     * - `rewards` is the accumulated rewards of the user ready to claim.
+     * - `rewardPerTokenStored` can be at most 1e18 * totalSupply() since distribution is capped.
+     * ------------------------------------------------------------
+     * @param account The account to calculate rewards for
+     * @return The total earned rewards for the account
+     */
     function earned(address account) public view returns (uint256) {
-        return ((balanceOf(account) * (rewardPerTokenStored - userRewardPerTokenPaid[account])) / 1e18) + rewards[account];
+        return
+            ((balanceOf(account) * (rewardPerTokenStored - userRewardPerTokenPaid[account])) /
+                1e18) + rewards[account];
     }
 
-    /// @dev override the decimals to 6 decimal places, BDV has 6 decimals
-    function decimals() public view override returns (uint8) {
-        return 6;
-    }
-
-    /// @dev view function to get the remaining amount of silo payback tokens to be distributed
+    /// @dev get the remaining amount of silo payback tokens to be distributed, called by the planner
     function siloRemaining() public view returns (uint256) {
         return totalDistributed - totalReceived;
     }
 
-    /**
-     * @notice Receives Bean rewards from Beanstalk shipments
-     * @dev Called by the Beanstalk protocol to distribute rewards
-     * @param amount The amount of Bean rewards received
-     */
-    function receiveRewards(uint256 amount) external {
-        require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
-        require(amount > 0, "SiloPayback: amount must be greater than 0");
-        
-        uint256 tokenTotalSupply = totalSupply();
-        if (tokenTotalSupply > 0) {
-            rewardPerTokenStored += (amount * 1e18) / tokenTotalSupply;
-            totalReceived += amount;
-        }
-        
-        emit RewardsReceived(amount, rewardPerTokenStored);
-    }
-
-    /**
-     * @notice View function to calculate pending rewards for a user
-     * @param user The address to check pending rewards for
-     * @return The amount of pending rewards
-     */
-    function pendingRewards(address user) external view returns (uint256) {
-        return earned(user);
-    }
-
-    /**
-     * @notice View function to get the total amount of rewards distributed
-     * @return The total rewards distributed since inception
-     */
-    function totalRewardsDistributed() external view returns (uint256) {
-        return (rewardPerTokenStored * totalSupply()) / 1e18;
-    }
-
-    /////////////////// Transfer Hooks ///////////////////
+    /////////////////// Transfer Hook and ERC20 overrides ///////////////////
 
     /// @dev pre transfer hook to update rewards for both sender and receiver
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal {
-        // Update rewards for both sender and receiver to prevent gaming
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal {
+        
         if (from != address(0)) {
+            // capture any existing rewards for the sender, update their checkpoint to current global state
             rewards[from] = earned(from);
             userRewardPerTokenPaid[from] = rewardPerTokenStored;
         }
+        
         if (to != address(0)) {
+            // capture any existing rewards for the receiver, update their checkpoint to current global state
             rewards[to] = earned(to);
             userRewardPerTokenPaid[to] = rewardPerTokenStored;
         }
+
+        // result: token balances change, but both parties have been
+        // "checkpointed" to prevent any reward manipulation through transfers
+        // claims happen when the users decide to claim. 
+        // This way all claims can also happen in the internal balance.
     }
 
-    /// @dev need to override the transfer function to update rewards
+    /// @dev override the standard transfer function to update rewards
     function transfer(address to, uint256 amount) public override returns (bool) {
         _beforeTokenTransfer(msg.sender, to, amount);
         return super.transfer(to, amount);
     }
 
-    /// @dev need to override the transferFrom function to update rewards
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public override returns (bool) {
+    /// @dev override the standard transferFrom function to update rewards
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
         _beforeTokenTransfer(from, to, amount);
         return super.transferFrom(from, to, amount);
+    }
+
+    /// @dev override the decimals to 6 decimal places, BDV has 6 decimals
+    function decimals() public view override returns (uint8) {
+        return 6;
     }
 }
