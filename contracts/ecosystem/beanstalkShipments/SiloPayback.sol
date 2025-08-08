@@ -28,7 +28,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
     /// @dev Global accumulator tracking total rewards per token since contract inception (scaled by 1e18)
     uint256 public rewardPerTokenStored;
-    /// @dev Per-user checkpoint of rewardPerTokenStored at their last reward update (prevents double claiming)
+    /// @dev Per-user checkpoint of rewardPerTokenStored at their last reward update to prevent double claiming
     mapping(address => uint256) public userRewardPerTokenPaid;
     /// @dev Per-user accumulated rewards ready to claim (updated on transfers/claims)
     mapping(address => uint256) public rewards;
