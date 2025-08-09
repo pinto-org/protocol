@@ -33,6 +33,8 @@ library LibWell {
 
     uint256 private constant BEAN_UNIT = 1e6;
 
+    uint256 internal constant DEFAULT_RATE = 1e6;
+
     function getRatiosAndBeanIndex(
         IERC20[] memory tokens
     ) internal view returns (uint[] memory ratios, uint beanIndex, bool success) {
@@ -46,6 +48,19 @@ library LibWell {
     function getRatiosAndBeanIndex(
         IERC20[] memory tokens,
         uint256 lookback
+    ) internal view returns (uint[] memory ratios, uint beanIndex, bool success) {
+        return getRatiosAndBeanIndexAtRate(tokens, lookback, DEFAULT_RATE);
+    }
+
+    /**
+     * @dev Returns the price ratios between `tokens` and the index of Bean in `tokens` at a given rate.
+     * These actions are combined into a single function for gas efficiency.
+     * @dev `rate` has 6 decimals. This scales the bean reserve to the rate.
+     */
+    function getRatiosAndBeanIndexAtRate(
+        IERC20[] memory tokens,
+        uint256 lookback,
+        uint256 rate
     ) internal view returns (uint[] memory ratios, uint beanIndex, bool success) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         success = true;
@@ -86,6 +101,9 @@ library LibWell {
         }
 
         require(beanIndex != type(uint256).max, "Bean not in Well.");
+
+        // Scale ratio by rate.
+        ratios[beanIndex] = (ratios[beanIndex] * BEAN_UNIT) / rate;
     }
 
     /**

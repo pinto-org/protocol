@@ -19,6 +19,7 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibPipelineConvert} from "contracts/libraries/Convert/LibPipelineConvert.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
  * @title PipelineConvertFacet handles converting Deposited assets within the Silo,
@@ -69,8 +70,11 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
         // Require that input and output tokens be wells.
+        // note: the input token does not need to be a currently whitelisted well,
+        // but must be previously whitelisted.
+        // but the output token must be a currently whitelisted well.
         require(
-            LibWell.isWell(inputToken) || inputToken == s.sys.bean,
+            LibWhitelistedTokens.wellIsOrWasSoppable(inputToken) || inputToken == s.sys.bean,
             "Convert: Input token must be Bean or a well"
         );
         require(
@@ -112,7 +116,8 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             (grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
                 outputToken,
                 toBdv,
-                grownStalk
+                grownStalk,
+                fromAmount
             );
             emit LibConvert.ConvertDownPenalty(LibTractor._user(), grownStalkLost, grownStalk);
         }

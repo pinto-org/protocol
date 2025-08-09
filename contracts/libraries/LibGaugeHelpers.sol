@@ -9,6 +9,42 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Gauge structs
+
+    // Convert Down Penalty Gauge structs
+
+    /**
+     * @notice The value of the Convert Down Penalty Gauge.
+     * @param penaltyRatio The % of grown stalk lost on a down convert (1e18 = 100% penalty).
+     * @param rollingSeasonsAbovePeg The rolling count of seasons above peg.
+     */
+    struct ConvertDownPenaltyValue {
+        uint256 penaltyRatio;
+        uint256 rollingSeasonsAbovePeg;
+    }
+
+    /**
+     * @notice The data of the Convert Down Penalty Gauge.
+     * @param rollingSeasonsAbovePegRate The rate at which the rolling count of seasons above peg increases.
+     * @param rollingSeasonsAbovePegCap The cap on the rolling count of seasons above peg.
+     * @param beansMintedAbovePeg The amount of beans minted above peg after the system crosses value target.
+     * @param beanMintedThreshold The absolute Bean amount that needs to be minted above the threshold before penalty reduction.
+     * @param runningThreshold a threshold used to track subsequent threshold, after the initial threshold is set.
+     * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases (used to calculate beanMintedThreshold during below-peg seasons).
+     * @param convertDownPenaltyRate The rate at which any exchange rate below this value is penalized.
+     * @param thresholdSet Flag indicating if the `beanMintedThreshold` is set. `set` in this instance means that the threshold is "locked" until enough beans are minted.
+     */
+    struct ConvertDownPenaltyData {
+        uint256 rollingSeasonsAbovePegRate;
+        uint256 rollingSeasonsAbovePegCap;
+        uint256 beansMintedAbovePeg;
+        uint256 beanMintedThreshold;
+        uint256 runningThreshold;
+        uint256 percentSupplyThresholdRate;
+        uint256 convertDownPenaltyRate;
+        bool thresholdSet;
+    }
+
     // Gauge events
 
     /**

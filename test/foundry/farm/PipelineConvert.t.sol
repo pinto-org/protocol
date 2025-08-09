@@ -417,6 +417,91 @@ contract PipelineConvertTest is TestHelper {
         assertGt(bs.getWellConvertCapacity(pd.outputWell), pd.beforeOutputWellCapacity);
     }
 
+    function testConvertDewhitelistedLPToLP(
+        uint256 amount,
+        uint256 inputIndex,
+        uint256 outputIndex,
+        uint256 dewhitelistTarget
+    ) public {
+        vm.pauseGasMetering();
+
+        // well is initalized with 10000 beans. cap add liquidity
+        // to reasonable amounts.
+        amount = bound(amount, 10e6, 5000e6);
+
+        inputIndex = bound(inputIndex, 0, 1); // update to 0-3 when more wells supported/whitelisted
+        outputIndex = bound(outputIndex, 0, 1); // update to 0-3 when more wells supported/whitelisted
+        dewhitelistTarget = bound(dewhitelistTarget, 0, 1); // 0 = dewhitelist input, 1 = dewhitelist output
+
+        if (inputIndex == outputIndex) {
+            return; // skip converting between same wells for now, but could setup later
+        }
+
+        address[] memory convertWells = new address[](4);
+        convertWells[0] = BEAN_ETH_WELL;
+        convertWells[1] = BEAN_WSTETH_WELL;
+        convertWells[2] = BEAN_USDC_WELL;
+        convertWells[3] = BEAN_USDT_WELL;
+
+        address[] memory convertTokens = new address[](4);
+        convertTokens[0] = WETH;
+        convertTokens[1] = WSTETH;
+        convertTokens[2] = USDC;
+        convertTokens[3] = USDT;
+
+        PipelineTestData memory pd;
+        pd.inputWell = convertWells[inputIndex];
+        pd.outputWell = convertWells[outputIndex];
+
+        pd.inputWellEthToken = convertTokens[inputIndex];
+        pd.outputWellEthToken = convertTokens[outputIndex];
+
+        // update pumps
+        updateMockPumpUsingWellReserves(pd.inputWell);
+        updateMockPumpUsingWellReserves(pd.outputWell);
+
+        (pd.stem, pd.amountOfDepositedLP) = depositLPAndPassGermination(amount, pd.inputWell);
+
+        // modify deltaB's so that the user already owns LP token, and then perfectly even deltaB's are setup
+        setDeltaBforWell(-int256(amount), pd.inputWell, pd.inputWellEthToken);
+        setDeltaBforWell(int256(amount), pd.outputWell, pd.outputWellEthToken);
+
+        // Dewhitelist the target well (input or output based on dewhitelistTarget)
+        address wellToDewhitelist = dewhitelistTarget == 0 ? pd.inputWell : pd.outputWell;
+
+        vm.prank(BEANSTALK);
+        bs.dewhitelistToken(wellToDewhitelist);
+
+        int96[] memory stems = new int96[](1);
+        stems[0] = pd.stem;
+
+        AdvancedPipeCall[] memory lpToLPPipeCalls = createLPToLPPipeCalls(
+            pd.amountOfDepositedLP,
+            pd.inputWell,
+            pd.outputWell
+        );
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = pd.amountOfDepositedLP;
+
+        vm.resumeGasMetering();
+
+        if (dewhitelistTarget != 0) {
+            // Output well is dewhitelisted - should revert when trying to convert from it
+            vm.expectRevert("Convert: Output token must be Bean or a well");
+        }
+        // else
+
+        vm.prank(users[1]);
+        pipelineConvert.pipelineConvert(
+            pd.inputWell, // input token
+            stems, // stems
+            amounts, // amount
+            pd.outputWell, // token out
+            lpToLPPipeCalls // pipeData
+        );
+    }
+
     function testBeanToLPUsingRemainingConvertCapacity(uint256 amount, uint256 tradeAmount) public {
         vm.pauseGasMetering();
 
@@ -751,7 +836,7 @@ contract PipelineConvertTest is TestHelper {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 1000e6;
 
-        vm.expectRevert("Convert: Input token must be Bean or a well");
+        vm.expectRevert("LibWhitelistedTokens: Token not found");
         // convert non-whitelisted asset to lp
         vm.prank(users[1]);
         pipelineConvert.pipelineConvert(

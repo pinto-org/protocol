@@ -165,7 +165,10 @@ library LibPipelineConvert {
             } else {
                 (, , fromToken) = convertData.convertWithAddress();
                 toToken = s.sys.bean;
-                require(LibWell.isWell(fromToken), "Convert: Invalid Well");
+                require(
+                    LibWhitelistedTokens.wellIsOrWasSoppable(fromToken),
+                    "Convert: Invalid Well"
+                );
             }
 
             pipeData = populatePipelineConvertData(fromToken, toToken);

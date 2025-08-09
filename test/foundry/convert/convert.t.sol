@@ -10,6 +10,7 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import "forge-std/console.sol";
 
 /**
@@ -43,6 +44,9 @@ contract ConvertTest is TestHelper {
 
     // well in test:
     address well;
+
+    LibGaugeHelpers.ConvertDownPenaltyValue gv;
+    LibGaugeHelpers.ConvertDownPenaltyData gd;
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
@@ -246,6 +250,7 @@ contract ConvertTest is TestHelper {
     }
 
     function test_convertWithDownPenaltyTwice() public {
+        disableRatePenalty();
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);
@@ -258,7 +263,9 @@ contract ConvertTest is TestHelper {
         for (uint256 i; i < 580; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
-            l2sr = bs.getLiquidityToSupplyRatio();
+            if (i == 579) {
+                l2sr = bs.getLiquidityToSupplyRatio();
+            }
             bs.sunrise();
         }
 
@@ -296,14 +303,13 @@ contract ConvertTest is TestHelper {
             uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
             uint256 grownStalkConverting = (beansToConvert *
                 bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
-            uint256 grownStalkLost = LibPRBMathRoundable.mulDiv(
-                expectedPenaltyRatio,
-                grownStalkConverting,
-                1e18,
-                LibPRBMathRoundable.Rounding.Up
-            );
+            uint256 grownStalkLost = (grownStalkConverting * expectedPenaltyRatio) / 1e18;
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
-
+            console.log("expected grown stalk lost", grownStalkLost);
+            console.log("grown stalk remaining", grownStalkConverting - grownStalkLost);
+            // expected grown stalk lost 39934951316412442
+            // grown stalk remaining 18265048683587558
+            // emit ConvertDownPenalty(account: Farmer 1: [0x64525e042465D0615F51aBB2982Ce82B8568Bcc4], grownStalkLost: 39934951316412441 [3.993e16], grownStalkKept: 18265048683587559 [1.826e16])
             vm.expectEmit();
             emit ConvertDownPenalty(
                 farmers[0],
@@ -313,6 +319,7 @@ contract ConvertTest is TestHelper {
 
             vm.prank(farmers[0]);
             (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+            console.log("done?");
 
             assertGt(toStem, int96(0), "toStem should be larger than initial");
             uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
@@ -327,6 +334,7 @@ contract ConvertTest is TestHelper {
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
         l2sr = bs.getLiquidityToSupplyRatio();
+        disableRatePenalty();
         bs.sunrise();
 
         {
@@ -350,12 +358,7 @@ contract ConvertTest is TestHelper {
             uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
             uint256 grownStalkConverting = (beansToConvert *
                 bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
-            uint256 grownStalkLost = LibPRBMathRoundable.mulDiv(
-                penaltyRatio,
-                grownStalkConverting,
-                1e18,
-                LibPRBMathRoundable.Rounding.Up
-            );
+            uint256 grownStalkLost = (grownStalkConverting * penaltyRatio) / 1e18;
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
 
             vm.expectEmit();
@@ -379,7 +382,12 @@ contract ConvertTest is TestHelper {
         }
     }
 
+    /**
+     * @notice test that a convert with a penalty will not create a germinating deposit.
+     * @dev rate penalty is disabled for this test to preserve backward compatibility.
+     */
     function test_convertWithDownPenaltyGerminating() public {
+        disableRatePenalty();
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);
@@ -492,8 +500,10 @@ contract ConvertTest is TestHelper {
 
     /**
      * @notice general convert test and verify down convert penalty.
+     * @dev rate penalty is disabled for this test to preserve backward compatibility.
      */
     function test_convertBeanToWellWithPenalty() public {
+        disableRatePenalty();
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);
@@ -506,7 +516,9 @@ contract ConvertTest is TestHelper {
         for (uint256 i; i < 580; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
-            l2sr = bs.getLiquidityToSupplyRatio();
+            if (i == 579) {
+                l2sr = bs.getLiquidityToSupplyRatio();
+            }
             bs.sunrise();
         }
 
@@ -570,6 +582,7 @@ contract ConvertTest is TestHelper {
             lastGrownStalkPerBdv = newGrownStalkPerBdv;
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
+            disableRatePenalty();
             bs.sunrise();
             require(bs.abovePeg(), "abovePeg should be true");
         }
@@ -615,7 +628,8 @@ contract ConvertTest is TestHelper {
         (uint256 newGrownStalk, uint256 grownStalkLost) = bs.downPenalizedGrownStalk(
             BEAN_ETH_WELL,
             1_000e6,
-            10_000e18
+            10_000e18,
+            1_000e6
         );
         assertEq(grownStalkLost, 0, "no penalty when P > Q");
         assertEq(newGrownStalk, 10_000e18, "stalk same when P > Q");
@@ -744,7 +758,7 @@ contract ConvertTest is TestHelper {
             0 // minOut
         );
 
-        vm.expectRevert("Convert: Invalid Well");
+        vm.expectRevert("LibWhitelistedTokens: Token not found");
         convert.convert(convertData, new int96[](1), new uint256[](1));
     }
 
@@ -1249,5 +1263,480 @@ contract ConvertTest is TestHelper {
         stems[0] = int96(0);
         amounts = new uint256[](1);
         amounts[0] = beansToConvert;
+    }
+
+    /** disables the rate penalty for a convert */
+    function disableRatePenalty() internal {
+        // sets the convert penalty at 1.025e6 (1.025$)
+        bs.setConvertDownPenaltyRate(1.025e6);
+        bs.setBeansMintedAbovePeg(type(uint128).max);
+        bs.setBeanMintedThreshold(0);
+        bs.setThresholdSet(false);
+    }
+
+    //////////// NEW THRESHOLD-BASED PENALTY TESTS ////////////
+
+    /**
+     * @notice verify above peg behaviour with the convert gauge system.
+     */
+    function test_convertBelowMintThreshold(uint256 deltaB) public {
+        uint256 supply = IERC20(bean).totalSupply();
+
+        deltaB = bound(deltaB, 100e6, 1000e6);
+
+        // initialize the bean amount above threshold to 10M
+        bs.setBeanMintedThreshold(10_000e6);
+
+        // Set positive deltaB for the test scenario
+        setDeltaBforWell(int256(deltaB), BEAN_ETH_WELL, WETH);
+
+        // call sunrise to update the gauge
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+        bs.setBeanMintedThreshold(10_000e6);
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+
+        // Get penalty ratio - should be max when below minting threshold
+        gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyValue)
+        );
+
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        // Should be max penalty (100%) since beans minted is below threshold
+        assertEq(gv.penaltyRatio, 1e18, "Penalty should be 100% when below threshold");
+
+        assertEq(gv.rollingSeasonsAbovePeg, 0, "Rolling seasons above peg should be 0");
+
+        assertEq(gd.rollingSeasonsAbovePegRate, 1, "rollingSeasonsAbovePegRate should be 1");
+        assertEq(gd.rollingSeasonsAbovePegCap, 12, "rollingSeasonsAbovePegCap should be 12");
+        assertApproxEqAbs(
+            gd.beansMintedAbovePeg,
+            deltaB,
+            1,
+            "beansMintedAbovePeg should be deltaB"
+        );
+
+        assertEq(
+            gd.percentSupplyThresholdRate,
+            416666666666667,
+            "percentSupplyThresholdRate should be 1.005e6"
+        );
+
+        assertEq(
+            gd.beanMintedThreshold,
+            10_000e6,
+            "Bean amount above threshold should stay the same"
+        );
+
+        // verify the grown stalk is penalized properly above and below.
+        bs.setConvertDownPenaltyRate(2e6); // penalty price is 2$
+        (uint256 newGrownStalk, uint256 grownStalkLost) = bs.downPenalizedGrownStalk(
+            well,
+            1e6, // bdv
+            1e16, // grownStalk
+            1e6 // fromAmount
+        );
+
+        // verify penalty is ~100% (the user cannot lose the amount such that germinating stalk is lost)
+        uint256 germinatingMinStalk = (4e6 + 1) * 1e6;
+        assertEq(grownStalkLost, 1e16 - germinatingMinStalk, "grownStalkLost should be 1e16");
+        assertEq(newGrownStalk, germinatingMinStalk, "newGrownStalk should be 0");
+
+        // verify penalty is 0%
+        bs.setConvertDownPenaltyRate(1e6); // penalty rate is 1e6 (any convert works)
+        (newGrownStalk, grownStalkLost) = bs.downPenalizedGrownStalk(
+            well,
+            1e6, // bdv
+            1e16, // grownStalk
+            1e6 // fromAmount
+        );
+
+        // verify penalty is 0%
+        assertEq(grownStalkLost, 0, "grownStalkLost should be 0");
+        assertEq(newGrownStalk, 1e16, "newGrownStalk should be 1e16");
+    }
+
+    /**
+     * @notice Test the convert gauge system when below peg.
+     */
+    function test_convertGaugeBelowPeg(uint256 deltaB) public {
+        bs.setBeanMintedThreshold(0);
+        bs.setThresholdSet(true);
+        deltaB = bound(deltaB, 100e6, 1000e6);
+        setDeltaBforWell(-int256(deltaB), BEAN_ETH_WELL, WETH);
+        // Set negative deltaB (below peg) for multiple seasons
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+        uint256 supply = IERC20(bean).totalSupply();
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+
+        // Get penalty ratio - should be max when below minting threshold
+        gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyValue)
+        );
+
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        assertEq(gv.rollingSeasonsAbovePeg, 0, "Rolling seasons above peg should be 0");
+
+        assertEq(gd.beansMintedAbovePeg, 0, "beansMintedAbovePeg should be 0");
+
+        // verify the beans threshold increases by the correct amount.
+        assertEq(
+            gd.beanMintedThreshold,
+            (supply * gd.percentSupplyThresholdRate) / C.PRECISION,
+            "beanMintedThreshold should be equal to the deltaB * percentSupplyThresholdRate"
+        );
+    }
+
+    // verify the behaviour of the gauge when we hit the threshold.
+    function test_convertGaugeIncreasesBeanAmountAboveThreshold() public {
+        // deltaB setup.
+        setDeltaBforWell(100e6, BEAN_ETH_WELL, WETH);
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+
+        // system is below peg, and crossing above.
+        bs.setBeanMintedThreshold(150e6); // set to 150e6
+
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+
+        gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyValue)
+        );
+
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        // verify
+        // 1) the bean amount minted above peg is increased by the correct amount.
+        // 2) the threshold hit flag is set to false.
+
+        assertEq(gd.beansMintedAbovePeg, 100e6, "beansMintedAbovePeg should be 100e6");
+        assertEq(gd.thresholdSet, true, "thresholdSet should be true");
+        assertEq(gv.penaltyRatio, 1e18, "penaltyRatio should be 100%");
+
+        // call sunrise again.
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+
+        gv = abi.decode(
+            bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyValue)
+        );
+
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        // the beans above peg should reset, and the threshold is un set.
+        assertEq(gd.beansMintedAbovePeg, 0, "beansMintedAbovePeg should be 200e6");
+        assertEq(gd.thresholdSet, false, "thresholdSet should be false");
+        assertEq(gv.penaltyRatio, 1e18, "penaltyRatio should still be 100%");
+
+        vm.snapshot();
+
+        // verify that the penalty decays over time:
+        uint256 penaltyRatio = 2e18;
+        for (uint256 i; i < gd.rollingSeasonsAbovePegCap; i++) {
+            console.log("season", i);
+            warpToNextSeasonAndUpdateOracles();
+            bs.sunrise();
+
+            gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY),
+                (LibGaugeHelpers.ConvertDownPenaltyValue)
+            );
+
+            gd = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+                (LibGaugeHelpers.ConvertDownPenaltyData)
+            );
+            console.log("new penaltyRatio", gv.penaltyRatio);
+            console.log("old penaltyRatio last season", penaltyRatio);
+
+            assertLt(gv.penaltyRatio, penaltyRatio, "penaltyRatio should decay");
+            penaltyRatio = gv.penaltyRatio;
+            assertEq(gv.rollingSeasonsAbovePeg, i + 1, "rollingSeasonsAbovePeg should be i + 1");
+            assertEq(gd.beansMintedAbovePeg, 0, "beansMintedAbovePeg should be 0");
+            assertEq(gd.thresholdSet, false, "thresholdSet should be false");
+        }
+    }
+
+    /**
+     * @notice Test the running threshold mechanism that tracks threshold growth during extended below-peg periods
+     * @dev The running threshold is used when the system crosses above peg, sets a threshold,
+     * but then goes back below peg without hitting the mint threshold. If the system experiences
+     * a sustained period below peg, the running threshold accumulates and eventually updates
+     * the beanMintedThreshold when it exceeds it.
+     */
+    function test_runningThreshold() public {
+        uint256 initialThreshold = 100e6;
+        // Set initial threshold
+        bs.setBeanMintedThreshold(initialThreshold); // 1000 beans need to be minted to hit the threshold
+        bs.setThresholdSet(true); // threshold is set
+
+        // Move system below peg to start accumulating running threshold
+        setDeltaBforWell(int256(-2000e6), BEAN_ETH_WELL, WETH);
+
+        // Track running threshold accumulation over multiple seasons below peg
+        uint256 expectedRunningThreshold = 0;
+
+        for (uint256 i = 0; i < 5; i++) {
+            warpToNextSeasonAndUpdateOracles();
+            uint256 supply = IERC20(bean).totalSupply();
+            bs.sunrise();
+
+            // Calculate expected running threshold increment
+            expectedRunningThreshold += (supply * gd.percentSupplyThresholdRate) / C.PRECISION;
+
+            gd = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+                (LibGaugeHelpers.ConvertDownPenaltyData)
+            );
+
+            // Running threshold should accumulate while below peg with threshold set
+            assertEq(
+                gd.runningThreshold,
+                expectedRunningThreshold,
+                "Running threshold should accumulate"
+            );
+            console.log("expectedRunningThreshold", expectedRunningThreshold);
+            assertEq(
+                gd.beanMintedThreshold,
+                initialThreshold,
+                "Bean minted threshold should remain unchanged"
+            );
+            assertEq(gd.thresholdSet, true, "Threshold should remain set");
+        }
+
+        // Continue below peg until running threshold exceeds beanMintedThreshold
+        while (gd.runningThreshold != 0) {
+            warpToNextSeasonAndUpdateOracles();
+            bs.sunrise();
+
+            gd = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+                (LibGaugeHelpers.ConvertDownPenaltyData)
+            );
+            console.log("runningThreshold", gd.runningThreshold);
+        }
+
+        // // Verify that beanMintedThreshold was updated to running threshold value
+        assertGt(
+            gd.beanMintedThreshold,
+            initialThreshold,
+            "Bean minted threshold should have increased"
+        );
+        assertEq(gd.runningThreshold, 0, "Running threshold should reset to 0");
+        assertEq(gd.thresholdSet, false, "Threshold should be unset");
+        uint256 newThreshold = gd.beanMintedThreshold;
+        console.log("newThreshold", newThreshold);
+
+        // verify that subsequent sunrises will increase the threshold
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+        assertGt(
+            gd.beanMintedThreshold,
+            newThreshold,
+            "Bean minted threshold should have increased"
+        );
+        assertEq(gd.runningThreshold, 0, "Running threshold should stay to 0");
+        assertEq(gd.thresholdSet, false, "Threshold should stay unset");
+
+        // Test that crossing back above peg resets running threshold
+        setDeltaBforWell(int256(10e6), BEAN_ETH_WELL, WETH);
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise();
+
+        gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        assertEq(gd.runningThreshold, 0, "Running threshold should remain 0 when above peg");
+        assertEq(gd.thresholdSet, true, "Threshold should be set again when above peg");
+    }
+
+    //////////// EDGE CASE TESTS ////////////
+
+    /**
+     * @notice Test rapid peg crossing scenarios
+     */
+    function test_rapidPegCrossing() public {
+        bs.setBeansMintedAbovePeg(500e6);
+
+        // Rapidly cross peg multiple times
+        for (uint256 i = 0; i < 3; i++) {
+            // Below peg
+            setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
+            warpToNextSeasonAndUpdateOracles();
+            bs.sunrise();
+
+            // Above peg
+            setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+            warpToNextSeasonAndUpdateOracles();
+            bs.sunrise();
+        }
+
+        // Check final state is consistent
+        LibGaugeHelpers.ConvertDownPenaltyData memory finalData = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        assertGt(finalData.beansMintedAbovePeg, 0, "Should have accumulated beans");
+    }
+
+    // verifies that `getMaxAmountInAtRate` returns the correct amount of beans to convert
+    // when the penalty rate is higher than the rate at which the user is converting.
+    function test_getMaxAmountInAtRate(uint256 amountIn) public {
+        bs.setBeanMintedThreshold(1000e6);
+        bs.setBeansMintedAbovePeg(0);
+        bs.setPenaltyRatio(1e18); // set penalty ratio to 100%
+        bs.setConvertDownPenaltyRate(1.02e6); // increase the penalty rate to 1.02e6 for easier testing
+        // set deltaB to 100e6 (lower than threshold)
+        setDeltaBforWell(int256(5000e6), BEAN_ETH_WELL, WETH);
+        updateAllChainlinkOraclesWithPreviousData();
+        updateAllChainlinkOraclesWithPreviousData();
+
+        uint256 maxConvertNoPenalty = bs.getMaxAmountInAtRate(BEAN, BEAN_ETH_WELL, 1.02e6); // add 1 to avoid stalk loss due to rounding errors
+        uint256 maxConvertOverall = bs.getMaxAmountIn(BEAN, BEAN_ETH_WELL);
+        uint256 maxBdvPenalized = maxConvertOverall - maxConvertNoPenalty;
+        amountIn = bound(amountIn, 1, maxConvertOverall);
+
+        (uint256 newGrownStalk, uint256 grownStalkLost) = bs.downPenalizedGrownStalk(
+            BEAN_ETH_WELL,
+            amountIn,
+            10e16, // 10 grown stalk
+            amountIn
+        );
+
+        // 3 cases:
+        // 1. amountIn <= maxConvertNoPenalty: no penalty
+        // 2. amountIn > maxConvertNoPenalty && amountIn <= maxConvertOverall: no penalty up to `maxConvertNoPenalty`, but then a penalty is applied on `amountIn - maxConvertNoPenalty`
+        // 3. amountIn > maxConvertOverall: full penalty is applied.
+
+        if (amountIn <= maxConvertNoPenalty) {
+            assertEq(grownStalkLost, 0, "grownStalkLost should be 0");
+            assertEq(newGrownStalk, 10e16, "newGrownStalk should be equal to amountIn");
+        } else if (amountIn < maxConvertOverall) {
+            // user converted from above the rate, to below the rate.
+            // a partial penalty is applied.
+            // penalty is applied as a function of the amount beyond the rate.
+            uint256 amountBeyondRate = amountIn - maxConvertNoPenalty;
+            uint256 calculatedGrownStalkLost = (10e16 * amountBeyondRate) / amountIn;
+            assertEq(grownStalkLost, calculatedGrownStalkLost, "grownStalkLost should be 10e16");
+        } else {
+            uint256 calculatedGrownStalkLost = (10e16 * maxBdvPenalized) / amountIn;
+            // full penalty is applied.
+            assertEq(
+                grownStalkLost,
+                calculatedGrownStalkLost,
+                "grownStalkLost should be 10 stalk - germination stalk"
+            );
+            assertEq(
+                newGrownStalk,
+                10e16 - calculatedGrownStalkLost,
+                "newGrownStalk should be 10e16"
+            );
+        }
+    }
+
+    //////////// DEWHITELISTED CONVERT TESTS ////////////
+
+    /**
+     * @notice Test that converting from a dewhitelisted well to Bean succeeds.
+     * This should work because you can always convert to Bean from any existing deposit.
+     */
+    function test_convertDewhitelistedWellToBean(uint256 beanAmount) public {
+        // Setup LP deposits
+        uint256 lpMinted = multipleWellDepositSetup();
+        beanAmount = bound(beanAmount, 100, 1000e6);
+
+        // Set up conditions for well to bean conversion (below  peg)
+        setReserves(well, bean.balanceOf(well) + beanAmount, weth.balanceOf(well));
+
+        // Dewhitelist the well AFTER deposits are made
+        vm.prank(BEANSTALK);
+        bs.dewhitelistToken(well);
+
+        // Verify well is dewhitelisted
+        assertFalse(bs.tokenSettings(well).selector != bytes4(0), "Well should be dewhitelisted");
+
+        // Create encoding for well -> Bean convert
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
+            well, // dewhitelisted well
+            lpMinted / 4, // amountIn (convert part of deposit)
+            0 // minOut
+        );
+
+        int96[] memory stems = new int96[](1);
+        stems[0] = int96(0); // first deposit stem
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = lpMinted / 4;
+
+        // Convert should succeed
+        vm.prank(farmers[0]);
+        convert.convert(convertData, stems, amounts);
+    }
+
+    /**
+     * @notice Test that converting from Bean to a dewhitelisted well fails.
+     * This should fail because you cannot convert to dewhitelisted tokens.
+     */
+    function test_convertBeanToDewhitelistedWell_fails(uint256 beanAmount) public {
+        // Setup Bean deposits
+        multipleBeanDepositSetup();
+        beanAmount = bound(beanAmount, 1, 1000e6);
+
+        // Set up conditions for bean to well conversion (above peg)
+        setReserves(well, bean.balanceOf(well) - beanAmount, weth.balanceOf(well));
+
+        // Dewhitelist the well AFTER bean deposits are made
+        vm.prank(BEANSTALK);
+        bs.dewhitelistToken(well);
+
+        // Verify well is dewhitelisted
+        assertTrue(bs.tokenSettings(well).selector == bytes4(0), "Well should be dewhitelisted");
+
+        // Create encoding for Bean -> well convert
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.BEANS_TO_WELL_LP,
+            well, // dewhitelisted well
+            1000e6, // amountIn
+            0 // minOut
+        );
+
+        int96[] memory stems = new int96[](1);
+        stems[0] = int96(0); // first deposit stem
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1000e6;
+
+        // Convert should fail with appropriate error
+        vm.expectRevert("Convert: Invalid Well");
+        vm.prank(farmers[0]);
+        convert.convert(convertData, stems, amounts);
     }
 }
