@@ -10,11 +10,7 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/**
- * @title SiloPayback Test Suite
- * @notice Comprehensive test suite for the SiloPayback yield-bearing token contract
- * @dev Tests the Synthetix-style reward distribution mechanism and gaming prevention
- */
+
 contract SiloPaybackTest is TestHelper {
     SiloPayback public siloPayback;
     MockToken public pintoToken;
