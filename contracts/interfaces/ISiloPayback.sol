@@ -6,4 +6,7 @@ pragma solidity ^0.8.20;
 interface ISiloPayback {
     // The amount of Bean remaining to pay back silo.
     function siloRemaining() external view returns (uint256);
+
+    // Receive Pinto rewards from shipments
+    function siloPaybackReceive(uint256 amount) external;
 }

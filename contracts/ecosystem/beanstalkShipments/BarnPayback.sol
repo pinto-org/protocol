@@ -12,6 +12,7 @@ import {LibRedundantMath128} from "contracts/libraries/Math/LibRedundantMath128.
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 
 /**
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.
@@ -71,6 +72,13 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     mapping(uint256 => mapping(address => Balance)) internal _balances;
     SystemFertilizer internal fert;
     IERC20 public pinto;
+    IBeanstalk public pintoProtocol;
+
+    /// @dev modifier to ensure only the Pinto protocol can call the function
+    modifier onlyPintoProtocol() {
+        require(msg.sender == address(pintoProtocol), "BarnPayback: only pinto protocol");
+        _;
+    }
 
     //////////////////////////// Initialization ////////////////////////////
 
@@ -79,7 +87,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
      * @param _pinto The address of the Pinto ERC20 token.
      * @param systemFert The global fertilizer state data.
      */
-    function initialize(address _pinto, SystemFertilizer calldata systemFert) external initializer {
+    function initialize(address _pinto, address _pintoProtocol, SystemFertilizer calldata systemFert) external initializer {
         // Inheritance Inits
         __ERC1155_init("");
         __Ownable_init(msg.sender);
@@ -87,6 +95,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
 
         // State Inits
         pinto = IERC20(_pinto);
+        pintoProtocol = IBeanstalk(_pintoProtocol);
         setFertilizerState(systemFert);
         // Minting will happen after deployment due to potential gas limit issues
     }
@@ -146,6 +155,56 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         emit TransferSingle(operator, address(0), to, id, amount);
 
         __doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
+    }
+
+    /**
+     * @notice Receive Beans at the Barn. Amount of Sprouts become Rinsible.
+     * @dev Data param not used.
+     * @dev Rounding here can cause up to s.sys.fert.activeFertilizer / 1e6 Beans to be lost. Currently there are 17,217,105 activeFertilizer. So up to 17.217 Beans can be lost.
+     * @param shipmentAmount Amount of Beans to receive.
+     */
+    function barnPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
+        // todo: review storage and update this function to update local state
+        // AppStorage storage s = LibAppStorage.diamondStorage();
+        // uint256 amountToFertilize = shipmentAmount + s.sys.fert.leftoverBeans;
+        // // Get the new Beans per Fertilizer and the total new Beans per Fertilizer
+        // // Zeroness of activeFertilizer handled in Planner.
+        // uint256 remainingBpf = amountToFertilize / s.sys.fert.activeFertilizer;
+        // uint256 oldBpf = s.sys.fert.bpf;
+        // uint256 newBpf = oldBpf + remainingBpf;
+        // // Get the end BPF of the first Fertilizer to run out.
+        // uint256 firstBpf = s.sys.fert.fertFirst;
+        // uint256 deltaFertilized;
+        // // If the next fertilizer is going to run out, then step BPF according
+        // while (newBpf >= firstBpf) {
+        //     // Increment the cumulative change in Fertilized.
+        //     deltaFertilized += (firstBpf - oldBpf) * s.sys.fert.activeFertilizer; // fertilizer between init and next cliff
+        //     if (LibFertilizer.pop()) {
+        //         oldBpf = firstBpf;
+        //         firstBpf = s.sys.fert.fertFirst;
+        //         // Calculate BPF beyond the first Fertilizer edge.
+        //         remainingBpf = (amountToFertilize - deltaFertilized) / s.sys.fert.activeFertilizer;
+        //         newBpf = oldBpf + remainingBpf;
+        //     } else {
+        //         s.sys.fert.bpf = uint128(firstBpf); // SafeCast unnecessary here.
+        //         s.sys.fert.fertilizedIndex += deltaFertilized;
+        //         // Else, if there is no more fertilizer. Matches plan cap.
+        //         // s.sys.fert.fertilizedIndex == s.sys.fert.unfertilizedIndex
+        //         break;
+        //     }
+        // }
+        // // If there is Fertilizer remaining.
+        // if (s.sys.fert.fertilizedIndex != s.sys.fert.unfertilizedIndex) {
+        //     // Distribute the rest of the Fertilized Beans
+        //     s.sys.fert.bpf = uint128(newBpf); // SafeCast unnecessary here.
+        //     deltaFertilized += (remainingBpf * s.sys.fert.activeFertilizer);
+        //     s.sys.fert.fertilizedIndex += deltaFertilized;
+        // }
+        // // There will be up to activeFertilizer Beans leftover Beans that are not fertilized.
+        // // These leftovers will be applied on future Fertilizer receipts.
+        // s.sys.fert.leftoverBeans = amountToFertilize - deltaFertilized;
+        // // Confirm successful receipt.
+        // emit Receipt(ShipmentRecipient.BARN, shipmentAmount, abi.encode(""));
     }
 
     //////////////////////////// Transfer Functions ////////////////////////////

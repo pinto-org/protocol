@@ -28,7 +28,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
   // factory, args, proxy options
   const barnPaybackContract = await upgrades.deployProxy(
     barnPaybackFactory,
-    [PINTO, barnPaybackArgs],
+    [PINTO, L2_PINTO, barnPaybackArgs],
     {
       initializer: "initialize",
       kind: "transparent"

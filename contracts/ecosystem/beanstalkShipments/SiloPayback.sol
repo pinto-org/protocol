@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -47,6 +46,12 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
         _;
     }
 
+    /// @dev modifier to ensure only the Pinto protocol can call the function
+    modifier onlyPintoProtocol() {
+        require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -77,13 +82,11 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
     /**
      * @notice Receives Pinto rewards from shipments
-     * @dev Called by the protocol to distribute rewards and update state
+     * Updates the global reward accumulator and the total amount of Pinto received
+     * @dev Called by LibReceiving to update the state of the Silo Payback contract
      * @param amount The amount of Pinto rewards received
      */
-    function receiveRewards(uint256 amount) external {
-        require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
-        require(amount > 0, "SiloPayback: shipment amount must be greater than 0");
-
+    function siloPaybackReceive(uint256 amount) external onlyPintoProtocol {
         uint256 tokenTotalSupply = totalSupply();
         if (tokenTotalSupply > 0) {
             rewardPerTokenStored += (amount * 1e18) / tokenTotalSupply;

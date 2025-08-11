@@ -78,7 +78,7 @@ contract SiloPaybackTest is TestHelper {
         // try to update state from non protocol, expect revert
         vm.prank(farmer1);
         vm.expectRevert();
-        siloPayback.receiveRewards(100e6);
+        siloPayback.siloPaybackReceive(100e6);
 
         // Send rewards to contract and call receiveRewards
         uint256 rewardAmount = 100e6; // 10% of total supply
@@ -319,7 +319,7 @@ contract SiloPaybackTest is TestHelper {
 
         // Call receiveRewards to update the global state
         vm.prank(BEANSTALK);
-        siloPayback.receiveRewards(amount);
+        siloPayback.siloPaybackReceive(amount);
     }
 
     function logRewardState() internal {
