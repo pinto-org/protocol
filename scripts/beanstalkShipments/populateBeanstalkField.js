@@ -11,8 +11,7 @@ const { splitEntriesIntoChunksOptimized, updateProgress, retryOperation } = requ
  * @param {boolean} noChunking - Whether to pass all plots in one transaction (default: false)
  */
 async function populateBeanstalkField(diamondAddress, account, verbose = false, noChunking = true) {
-  console.log("-----------------------------------");
-  console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.\n");
+  console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
 
   // Read and parse the JSON file
   const plotsPath = "./scripts/beanstalkShipments/data/beanstalkPlots.json";

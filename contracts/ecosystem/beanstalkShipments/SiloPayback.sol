@@ -145,13 +145,12 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
     /// @dev pre transfer hook to update rewards for both sender and receiver
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal {
-        
         if (from != address(0)) {
             // capture any existing rewards for the sender, update their checkpoint to current global state
             rewards[from] = earned(from);
             userRewardPerTokenPaid[from] = rewardPerTokenStored;
         }
-        
+
         if (to != address(0)) {
             // capture any existing rewards for the receiver, update their checkpoint to current global state
             rewards[to] = earned(to);
@@ -160,7 +159,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
         // result: token balances change, but both parties have been
         // "checkpointed" to prevent any reward manipulation through transfers
-        // claims happen when the users decide to claim. 
+        // claims happen when the users decide to claim.
         // This way all claims can also happen in the internal balance.
     }
 

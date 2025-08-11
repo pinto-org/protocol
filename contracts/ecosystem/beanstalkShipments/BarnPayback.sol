@@ -78,13 +78,8 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
      * @notice Initializes the contract, sets global fertilizer state, and batch mints all fertilizers.
      * @param _pinto The address of the Pinto ERC20 token.
      * @param systemFert The global fertilizer state data.
-     * @param fertilizerIds Array of fertilizer account data to initialize.
      */
-    function init(
-        address _pinto,
-        SystemFertilizer calldata systemFert,
-        Fertilizers[] calldata fertilizerIds
-    ) external initializer {
+    function initialize(address _pinto, SystemFertilizer calldata systemFert) external initializer {
         // Inheritance Inits
         __ERC1155_init("");
         __Ownable_init(msg.sender);
@@ -140,7 +135,6 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
             }
         }
     }
-
 
     function _safeMint(address to, uint256 id, uint256 amount, bytes memory data) internal virtual {
         require(to != address(0), "ERC1155: mint to the zero address");
@@ -221,12 +215,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         __doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
     }
 
-    function _transfer(
-        address from,
-        address to,
-        uint256 id,
-        uint256 amount
-    ) internal virtual {
+    function _transfer(address from, address to, uint256 id, uint256 amount) internal virtual {
         uint128 _amount = uint128(amount);
         if (from != address(0)) {
             uint128 fromBalance = _balances[id][from].amount;

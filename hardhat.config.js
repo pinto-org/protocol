@@ -39,7 +39,7 @@ const { getFacetBytecode, compareBytecode } = require("./test/hardhat/utils/byte
 const {
   populateBeanstalkField
 } = require("./scripts/beanstalkShipments/populateBeanstalkField.js");
-const { deployAndSetupContracts } = require("./scripts/beanstalkShipments/deployContracts.js");
+const { deployAndSetupContracts } = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -2020,16 +2020,16 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
   });
 
 task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments")
-  .addOptionalParam("noFieldChunking", "Whether to process all plots in one transaction")
-  .addOptionalParam("deploy", "Whether to deploy the new contracts")
   .setAction(async (taskArgs) => {
     console.log("🌱 Starting Beanstalk shipments initialization...");
+    // params
     const verbose = true;
-    const noFieldChunking = taskArgs.noFieldChunking || true;
-    const deploy = taskArgs.deploy || false;
+    const noFieldChunking = true;
+    const deploy = true;
 
     // Use the diamond deployer as the account
     const mock = true;
+    let owner;
     if (mock) {
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
@@ -2037,10 +2037,13 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       owner = (await ethers.getSigners())[0];
     }
 
-    // Step 0: Deploy all new contracts here and perform any actions before handing over ownership
+    // Step 1: 
+    // - Deploy the silo and barn payback contracts
+    // - Distribute the unripe bdv tokens and fertilizer tokens
+    // - Transfer ownership of the silo and barn payback contracts to the PCM
+    console.log("\n-----------------------------------");
+    console.log("Step 1: Deploying and setting up payback contracts...");
     let contracts = {};
-    // note: it might be better to deploy the proxies in the shipments init script and hardcode the addresses
-    // if we do that we still need to distribute the unripe bdv tokens and hand over ownership to the PCM from here
     if (deploy) {
       contracts = await deployAndSetupContracts({
         PINTO,
@@ -2051,17 +2054,23 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       });
     }
 
-    // Step 1: Populate the beanstalk field
-    console.log("Populating beanstalk field...");
+    // Step 2: Creates and populates the beanstalk field
+    console.log("\n-----------------------------------");
+    //clear console
+    console.clear();
+    console.log("Step 2: Creating and populating beanstalk field...");
     await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
 
-    // Step 2: Update the shipment routes
+    // Step 3: Update the shipment routes
     // Read the routes from the json file
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));
 
     // Refresh the shipment routes with the new routes
-    console.log("Refreshing shipment routes...");
+    // Old routes need to be updates because of the new shipment planner contract address
+    console.clear();
+    console.log("\n-----------------------------------");
+    console.log("Step 3: Refreshing shipment routes...");
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: [],
