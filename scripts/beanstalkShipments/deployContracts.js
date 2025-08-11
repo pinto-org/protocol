@@ -1,5 +1,4 @@
 const fs = require("fs");
-const { upgrades } = require("hardhat");
 
 // Deploys SiloPayback, BarnPayback, and ShipmentPlanner contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose = true }) {
@@ -7,7 +6,9 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
     console.log("Deploying Beanstalk shipment contracts...");
   }
 
+  //////////////////////////// Silo Payback ////////////////////////////
   const siloPaybackFactory = await ethers.getContractFactory("SiloPayback");
+  // factory, args, proxy options
   const siloPaybackContract = await upgrades.deployProxy(siloPaybackFactory, [PINTO, L2_PINTO], {
     initializer: "initialize",
     kind: "transparent"
@@ -15,14 +16,20 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
   await siloPaybackContract.deployed();
   if (verbose) console.log("SiloPayback deployed to:", siloPaybackContract.address);
 
+  //////////////////////////// Barn Payback ////////////////////////////
   const barnPaybackFactory = await ethers.getContractFactory("BarnPayback");
-  const barnPaybackContract = await upgrades.deployProxy(barnPaybackFactory, [0], {
+  // get the initialization args from the json file
+  const barnPaybackArgsPath = "./scripts/beanstalkShipments/data/beanstalkGlobalFertilizer.json";
+  const barnPaybackArgs = JSON.parse(fs.readFileSync(barnPaybackArgsPath));
+  // factory, args, proxy options
+  const barnPaybackContract = await upgrades.deployProxy(barnPaybackFactory, barnPaybackArgs, {
     initializer: "initialize",
     kind: "transparent"
   });
   await barnPaybackContract.deployed();
   if (verbose) console.log("BarnPayback deployed to:", barnPaybackContract.address);
 
+  //////////////////////////// Shipment Planner ////////////////////////////
   const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner");
   const shipmentPlannerContract = await shipmentPlannerFactory.deploy(L2_PINTO, PINTO);
   await shipmentPlannerContract.deployed();
@@ -45,14 +52,9 @@ async function distributeUnripeBdvTokens({
   if (verbose) console.log("Distributing unripe BDV tokens...");
 
   try {
-    const unripeBdvTokens = JSON.parse(fs.readFileSync(dataPath));
+    const unripeAccountBdvTokens = JSON.parse(fs.readFileSync(dataPath));
 
-    const unripeReceipts = unripeBdvTokens.map(([recipient, bdv]) => ({
-      receipient: recipient,
-      bdv: bdv
-    }));
-
-    await siloPaybackContract.connect(owner).batchMint(unripeReceipts);
+    await siloPaybackContract.connect(owner).batchMint(unripeAccountBdvTokens);
 
     if (verbose) console.log("Unripe BDV tokens distributed to old Beanstalk participants");
   } catch (error) {
@@ -77,6 +79,30 @@ async function transferContractOwnership({
   if (verbose) console.log("BarnPayback ownership transferred to PCM");
 }
 
+// Distributes barn payback tokens from JSON file to contract recipients
+async function distributeBarnPaybackTokens({
+  barnPaybackContract,
+  owner,
+  dataPath = "./scripts/beanstalkShipments/data/beanstalkAccountFertilizer.json",
+  verbose = true
+}) {
+  if (verbose) console.log("Distributing barn payback tokens...");
+
+  try {
+    const accountFertilizers = JSON.parse(fs.readFileSync(dataPath));
+
+    // call the mintFertilizers function
+    await barnPaybackContract.connect(owner).mintFertilizers(accountFertilizers);
+
+    if (verbose) console.log("Barn payback tokens distributed to old Beanstalk participants");
+  } catch (error) {
+    console.error("Error distributing barn payback tokens:", error);
+    throw error;
+  }
+
+  if (verbose) console.log("Barn payback tokens distributed to old Beanstalk participants");
+}
+
 // Logs deployed contract addresses
 function logDeployedAddresses({
   siloPaybackContract,
@@ -97,6 +123,12 @@ async function deployAndSetupContracts(params) {
 
   await distributeUnripeBdvTokens({
     siloPaybackContract: contracts.siloPaybackContract,
+    owner: params.owner,
+    verbose
+  });
+
+  await distributeBarnPaybackTokens({
+    barnPaybackContract: contracts.barnPaybackContract,
     owner: params.owner,
     verbose
   });

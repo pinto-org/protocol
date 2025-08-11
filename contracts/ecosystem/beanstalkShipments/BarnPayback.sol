@@ -14,7 +14,6 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @author Publius
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.
  * We rewrite transfer and mint functions to allow the balance transfer function be overwritten as well.
  * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol
@@ -488,5 +487,10 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
             size := extcodesize(account)
         }
         return size > 0;
+    }
+
+    /// @dev called by the ShipmentPlanner contract to determine how many pinto to send to the barn payback contract
+    function barnRemaining() external view returns (uint256) {
+        return totalUnfertilizedBeans();
     }
 }
