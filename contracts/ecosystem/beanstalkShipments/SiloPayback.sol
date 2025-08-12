@@ -84,16 +84,16 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
      * @notice Receives Pinto rewards from shipments
      * Updates the global reward accumulator and the total amount of Pinto received
      * @dev Called by LibReceiving to update the state of the Silo Payback contract
-     * @param amount The amount of Pinto rewards received
+     * @param shipmentAmount The amount of Pinto rewards received
      */
-    function siloPaybackReceive(uint256 amount) external onlyPintoProtocol {
+    function siloPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
         uint256 tokenTotalSupply = totalSupply();
         if (tokenTotalSupply > 0) {
-            rewardPerTokenStored += (amount * 1e18) / tokenTotalSupply;
-            totalReceived += amount;
+            rewardPerTokenStored += (shipmentAmount * 1e18) / tokenTotalSupply;
+            totalReceived += shipmentAmount;
         }
 
-        emit RewardsReceived(amount, rewardPerTokenStored);
+        emit RewardsReceived(shipmentAmount, rewardPerTokenStored);
     }
 
     /**

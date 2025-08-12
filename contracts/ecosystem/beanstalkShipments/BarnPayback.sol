@@ -25,6 +25,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     using LibRedundantMath128 for uint128;
 
     event ClaimFertilizer(uint256[] ids, uint256 beans);
+    event FertilizerRewardsReceived(uint256 amount);
 
     struct Balance {
         uint128 amount;
@@ -51,19 +52,44 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @notice contains data related to the system's fertilizer (static system).
-     * @param fertilizerIds Array of fertilizer IDs in ascending order.
-     * @param fertilizerAmounts Array of fertilizer amounts corresponding to each ID.
-     * @param fertilizedIndex The total number of Fertilizer Beans that have been fertilized.
+     * @notice Fertilizer state.
+     * @param fertilizer A mapping from Fertilizer Id to the supply of Fertilizer for each Id.
+     * @param nextFid A linked list of Fertilizer Ids ordered by Id number.
+     * - Fertilizer Id is the Beans Per Fertilzer level at which the Fertilizer no longer receives Beans.
+     * - Sort in order by which Fertilizer Id expires next.
+     * @param activeFertilizer The number of active Fertilizer.
+     * @param fertilizedIndex The total number of Fertilizer Beans.
+     * @param unfertilizedIndex The total number of Unfertilized Beans ever.
      * @param fertilizedPaidIndex The total number of Fertilizer Beans that have been sent out to users.
+     * @param fertFirst The lowest active Fertilizer Id (start of linked list that is stored by nextFid).
+     * @param fertLast The highest active Fertilizer Id (end of linked list that is stored by nextFid).
      * @param bpf The cumulative Beans Per Fertilizer (bfp) minted over all Seasons.
      * @param leftoverBeans Amount of Beans that have shipped to Fert but not yet reflected in bpf.
      */
     struct SystemFertilizer {
+        mapping(uint128 => uint256) fertilizer;
+        mapping(uint128 => uint128) nextFid;
+        uint256 activeFertilizer;
+        uint256 fertilizedIndex;
+        uint256 unfertilizedIndex;
+        uint256 fertilizedPaidIndex;
+        uint128 fertFirst;
+        uint128 fertLast;
+        uint128 bpf;
+        uint256 leftoverBeans;
+    }
+
+    /// @dev data for initialization of the fertilizer state
+    /// uses arrays to initialize the mappings
+    struct InitSystemFertilizer {
         uint128[] fertilizerIds;
         uint256[] fertilizerAmounts;
+        uint256 activeFertilizer;
         uint256 fertilizedIndex;
+        uint256 unfertilizedIndex;
         uint256 fertilizedPaidIndex;
+        uint128 fertFirst;
+        uint128 fertLast;
         uint128 bpf;
         uint256 leftoverBeans;
     }
@@ -85,9 +111,13 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     /**
      * @notice Initializes the contract, sets global fertilizer state, and batch mints all fertilizers.
      * @param _pinto The address of the Pinto ERC20 token.
-     * @param systemFert The global fertilizer state data.
+     * @param initSystemFert The initialglobal fertilizer state data.
      */
-    function initialize(address _pinto, address _pintoProtocol, SystemFertilizer calldata systemFert) external initializer {
+    function initialize(
+        address _pinto,
+        address _pintoProtocol,
+        InitSystemFertilizer calldata initSystemFert
+    ) external initializer {
         // Inheritance Inits
         __ERC1155_init("");
         __Ownable_init(msg.sender);
@@ -96,7 +126,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         // State Inits
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
-        setFertilizerState(systemFert);
+        setFertilizerState(initSystemFert);
         // Minting will happen after deployment due to potential gas limit issues
     }
 
@@ -104,11 +134,19 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
      * @notice Sets the global fertilizer state.
      * @param systemFert The fertilizer state data.
      */
-    function setFertilizerState(SystemFertilizer calldata systemFert) internal {
-        fert.fertilizerIds = systemFert.fertilizerIds;
-        fert.fertilizerAmounts = systemFert.fertilizerAmounts;
+    function setFertilizerState(InitSystemFertilizer calldata systemFert) internal {
+        // init mappings
+        for (uint256 i; i < systemFert.fertilizerIds.length; i++) {
+            fert.fertilizer[systemFert.fertilizerIds[i]] = systemFert.fertilizerAmounts[i];
+            if (i != 0) fert.nextFid[systemFert.fertilizerIds[i - 1]] = systemFert.fertilizerIds[i];
+        }
+        // init state
+        fert.activeFertilizer = systemFert.activeFertilizer;
         fert.fertilizedIndex = systemFert.fertilizedIndex;
+        fert.unfertilizedIndex = systemFert.unfertilizedIndex;
         fert.fertilizedPaidIndex = systemFert.fertilizedPaidIndex;
+        fert.fertFirst = systemFert.fertFirst;
+        fert.fertLast = systemFert.fertLast;
         fert.bpf = systemFert.bpf;
         fert.leftoverBeans = systemFert.leftoverBeans;
     }
@@ -158,53 +196,86 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @notice Receive Beans at the Barn. Amount of Sprouts become Rinsible.
-     * @dev Data param not used.
-     * @dev Rounding here can cause up to s.sys.fert.activeFertilizer / 1e6 Beans to be lost. Currently there are 17,217,105 activeFertilizer. So up to 17.217 Beans can be lost.
+     * @notice Receive Beans at the Barn. Amount of Sprouts become Rinsible. Copied from LibReceiving.barnReceive on the beanstalk protocol.
+     * @dev Rounding here can cause up to fert.activeFertilizer / 1e6 Beans to be lost. Currently there are 17,217,105 activeFertilizer. So up to 17.217 Beans can be lost.
      * @param shipmentAmount Amount of Beans to receive.
      */
     function barnPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
-        // todo: review storage and update this function to update local state
-        // AppStorage storage s = LibAppStorage.diamondStorage();
-        // uint256 amountToFertilize = shipmentAmount + s.sys.fert.leftoverBeans;
-        // // Get the new Beans per Fertilizer and the total new Beans per Fertilizer
-        // // Zeroness of activeFertilizer handled in Planner.
-        // uint256 remainingBpf = amountToFertilize / s.sys.fert.activeFertilizer;
-        // uint256 oldBpf = s.sys.fert.bpf;
-        // uint256 newBpf = oldBpf + remainingBpf;
-        // // Get the end BPF of the first Fertilizer to run out.
-        // uint256 firstBpf = s.sys.fert.fertFirst;
-        // uint256 deltaFertilized;
-        // // If the next fertilizer is going to run out, then step BPF according
-        // while (newBpf >= firstBpf) {
-        //     // Increment the cumulative change in Fertilized.
-        //     deltaFertilized += (firstBpf - oldBpf) * s.sys.fert.activeFertilizer; // fertilizer between init and next cliff
-        //     if (LibFertilizer.pop()) {
-        //         oldBpf = firstBpf;
-        //         firstBpf = s.sys.fert.fertFirst;
-        //         // Calculate BPF beyond the first Fertilizer edge.
-        //         remainingBpf = (amountToFertilize - deltaFertilized) / s.sys.fert.activeFertilizer;
-        //         newBpf = oldBpf + remainingBpf;
-        //     } else {
-        //         s.sys.fert.bpf = uint128(firstBpf); // SafeCast unnecessary here.
-        //         s.sys.fert.fertilizedIndex += deltaFertilized;
-        //         // Else, if there is no more fertilizer. Matches plan cap.
-        //         // s.sys.fert.fertilizedIndex == s.sys.fert.unfertilizedIndex
-        //         break;
-        //     }
-        // }
-        // // If there is Fertilizer remaining.
-        // if (s.sys.fert.fertilizedIndex != s.sys.fert.unfertilizedIndex) {
-        //     // Distribute the rest of the Fertilized Beans
-        //     s.sys.fert.bpf = uint128(newBpf); // SafeCast unnecessary here.
-        //     deltaFertilized += (remainingBpf * s.sys.fert.activeFertilizer);
-        //     s.sys.fert.fertilizedIndex += deltaFertilized;
-        // }
-        // // There will be up to activeFertilizer Beans leftover Beans that are not fertilized.
-        // // These leftovers will be applied on future Fertilizer receipts.
-        // s.sys.fert.leftoverBeans = amountToFertilize - deltaFertilized;
-        // // Confirm successful receipt.
-        // emit Receipt(ShipmentRecipient.BARN, shipmentAmount, abi.encode(""));
+        uint256 amountToFertilize = shipmentAmount + fert.leftoverBeans;
+        // Get the new Beans per Fertilizer and the total new Beans per Fertilizer
+        // Zeroness of activeFertilizer handled in Planner.
+        uint256 remainingBpf = amountToFertilize / fert.activeFertilizer;
+        uint256 oldBpf = fert.bpf;
+        uint256 newBpf = oldBpf + remainingBpf;
+        // Get the end BPF of the first Fertilizer to run out.
+        uint256 firstBpf = fert.fertFirst;
+        uint256 deltaFertilized;
+        // If the next fertilizer is going to run out, then step BPF according
+        while (newBpf >= firstBpf) {
+            // Increment the cumulative change in Fertilized.
+            deltaFertilized += (firstBpf - oldBpf) * fert.activeFertilizer; // fertilizer between init and next cliff
+            if (fertilizerPop()) {
+                oldBpf = firstBpf;
+                firstBpf = fert.fertFirst;
+                // Calculate BPF beyond the first Fertilizer edge.
+                remainingBpf = (amountToFertilize - deltaFertilized) / fert.activeFertilizer;
+                newBpf = oldBpf + remainingBpf;
+            } else {
+                fert.bpf = uint128(firstBpf); // SafeCast unnecessary here.
+                fert.fertilizedIndex += deltaFertilized;
+                // Else, if there is no more fertilizer. Matches plan cap.
+                // fert.fertilizedIndex == fert.unfertilizedIndex
+                break;
+            }
+        }
+        // If there is Fertilizer remaining.
+        if (fert.fertilizedIndex != fert.unfertilizedIndex) {
+            // Distribute the rest of the Fertilized Beans
+            fert.bpf = uint128(newBpf); // SafeCast unnecessary here.
+            deltaFertilized += (remainingBpf * fert.activeFertilizer);
+            fert.fertilizedIndex += deltaFertilized;
+        }
+        // There will be up to activeFertilizer Beans leftover Beans that are not fertilized.
+        // These leftovers will be applied on future Fertilizer receipts.
+        fert.leftoverBeans = amountToFertilize - deltaFertilized;
+        emit FertilizerRewardsReceived(shipmentAmount);
+    }
+
+    /**
+     * @dev Removes the first fertilizer id in the queue.
+     * fFirst is the lowest active Fertilizer Id (see AppStorage)
+     * (start of linked list that is stored by nextFid).
+     * @return bool Whether the queue is empty.
+     */
+    function fertilizerPop() internal returns (bool) {
+        uint128 first = fert.fertFirst;
+        fert.activeFertilizer = fert.activeFertilizer.sub(getAmount(first));
+        uint128 next = getNext(first);
+        if (next == 0) {
+            // If all Unfertilized Beans have been fertilized, delete line.
+            require(fert.activeFertilizer == 0, "Still active fertilizer");
+            fert.fertFirst = 0;
+            fert.fertLast = 0;
+            return false;
+        }
+        fert.fertFirst = getNext(first);
+        return true;
+    }
+
+    /**
+     * @dev Returns the next fertilizer id in the linked list.
+     * @param id The id of the fertilizer.
+     */
+    function getNext(uint128 id) internal view returns (uint128) {
+        return fert.nextFid[id];
+    }
+
+    /**
+     * @dev Returns the amount (supply) of fertilizer for a given id.
+     * @param id The id of the fertilizer.
+     */
+    function getAmount(uint128 id) internal view returns (uint256) {
+        return fert.fertilizer[id];
     }
 
     //////////////////////////// Transfer Functions ////////////////////////////
@@ -452,36 +523,16 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         return fert.bpf;
     }
 
-    /**
-     @notice Returns fertilizer amount for a given id
-     */
-    function getFertilizer(uint128 id) external view returns (uint256) {
-        for (uint256 i = 0; i < fert.fertilizerIds.length; i++) {
-            if (fert.fertilizerIds[i] == id) {
-                return fert.fertilizerAmounts[i];
-            }
-        }
-        return 0;
-    }
-
     function totalFertilizedBeans() external view returns (uint256) {
         return fert.fertilizedIndex;
     }
 
-    function totalUnfertilizedBeans() public view returns (uint256) {
-        uint256 totalUnfertilized = 0;
-        for (uint256 i = 0; i < fert.fertilizerIds.length; i++) {
-            uint256 id = fert.fertilizerIds[i];
-            uint256 amount = fert.fertilizerAmounts[i];
-            if (id > fert.bpf) {
-                totalUnfertilized += (id - fert.bpf) * amount;
-            }
-        }
-        return totalUnfertilized;
+    function totalUnfertilizedBeans() public view returns (uint256 beans) {
+        return fert.unfertilizedIndex - fert.fertilizedIndex;
     }
 
-    function totalFertilizerBeans() external view returns (uint256) {
-        return fert.fertilizedIndex + totalUnfertilizedBeans();
+    function totalFertilizerBeans() external view returns (uint256 beans) {
+        return fert.unfertilizedIndex;
     }
 
     function rinsedSprouts() external view returns (uint256) {
