@@ -17,10 +17,10 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 /**
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.
  * We rewrite transfer and mint functions to allow the balance transfer function be overwritten as well.
- * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol
+ * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol from the beanstalk protocol.
  * All metadata-related functionality has been removed.
  */
-contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
 
@@ -33,22 +33,20 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @notice contains data per account for Fertilizer.
+     * @dev data for initialization of the fertilizer state
+     * note: the fertilizerIds and fertilizerAmounts should be the same length and in ascending order
      */
-    struct AccountFertilizerData {
-        address account;
-        uint128 amount;
-        uint128 lastBpf;
-    }
-
-    /**
-     * @notice Fertilizers contains the ids, accounts, amounts, and lastBpf of each Fertilizer.
-     * @dev fertilizerIds MUST be in ascending order.
-     * for each fert id --> all accounts --> amount, lastBpf
-     */
-    struct Fertilizers {
-        uint128 fertilizerId;
-        AccountFertilizerData[] accountData;
+    struct InitSystemFertilizer {
+        uint128[] fertilizerIds;
+        uint256[] fertilizerAmounts;
+        uint256 activeFertilizer;
+        uint256 fertilizedIndex;
+        uint256 unfertilizedIndex;
+        uint256 fertilizedPaidIndex;
+        uint128 fertFirst;
+        uint128 fertLast;
+        uint128 bpf;
+        uint256 leftoverBeans;
     }
 
     /**
@@ -79,34 +77,14 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         uint256 leftoverBeans;
     }
 
-    /// @dev data for initialization of the fertilizer state
-    /// uses arrays to initialize the mappings
-    struct InitSystemFertilizer {
-        uint128[] fertilizerIds;
-        uint256[] fertilizerAmounts;
-        uint256 activeFertilizer;
-        uint256 fertilizedIndex;
-        uint256 unfertilizedIndex;
-        uint256 fertilizedPaidIndex;
-        uint128 fertFirst;
-        uint128 fertLast;
-        uint128 bpf;
-        uint256 leftoverBeans;
-    }
-
     // Storage
     mapping(uint256 => mapping(address => Balance)) internal _balances;
     SystemFertilizer internal fert;
     IERC20 public pinto;
     IBeanstalk public pintoProtocol;
 
-    /// @dev modifier to ensure only the Pinto protocol can call the function
-    modifier onlyPintoProtocol() {
-        require(msg.sender == address(pintoProtocol), "BarnPayback: only pinto protocol");
-        _;
-    }
-
-    //////////////////////////// Initialization ////////////////////////////
+    /// @dev gap for future upgrades
+    uint256[50] private __gap;
 
     /**
      * @notice Initializes the contract, sets global fertilizer state, and batch mints all fertilizers.
@@ -117,7 +95,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         address _pinto,
         address _pintoProtocol,
         InitSystemFertilizer calldata initSystemFert
-    ) external initializer {
+    ) public virtual onlyInitializing {
         // Inheritance Inits
         __ERC1155_init("");
         __Ownable_init(msg.sender);
@@ -151,37 +129,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         fert.leftoverBeans = systemFert.leftoverBeans;
     }
 
-    /**
-     * @notice Batch mints fertilizers to all accounts and initializes balances.
-     * @param fertilizerIds Array of fertilizer data containing ids, accounts, amounts, and lastBpf.
-     */
-    function mintFertilizers(Fertilizers[] calldata fertilizerIds) external onlyOwner {
-        for (uint i; i < fertilizerIds.length; i++) {
-            Fertilizers memory f = fertilizerIds[i];
-            uint128 fid = f.fertilizerId;
-
-            // Mint fertilizer to each holder
-            for (uint j; j < f.accountData.length; j++) {
-                if (!isContract(f.accountData[j].account)) {
-                    _balances[fid][f.accountData[j].account].amount = f.accountData[j].amount;
-                    _balances[fid][f.accountData[j].account].lastBpf = f.accountData[j].lastBpf;
-
-                    // this used to call beanstalkMint but amounts and balances are set directly here
-                    // we also do not need to perform any checks since we are only minting once
-                    // after deployment, no more beanstalk fertilizers will be distributed
-                    _safeMint(f.accountData[j].account, fid, f.accountData[j].amount, "");
-
-                    emit TransferSingle(
-                        msg.sender,
-                        address(0),
-                        f.accountData[j].account,
-                        fid,
-                        f.accountData[j].amount
-                    );
-                }
-            }
-        }
-    }
+    //////////////////////////// ERC-1155 Functions ////////////////////////////
 
     function _safeMint(address to, uint256 id, uint256 amount, bytes memory data) internal virtual {
         require(to != address(0), "ERC1155: mint to the zero address");
@@ -195,91 +143,15 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         __doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
     }
 
-    /**
-     * @notice Receive Beans at the Barn. Amount of Sprouts become Rinsible. Copied from LibReceiving.barnReceive on the beanstalk protocol.
-     * @dev Rounding here can cause up to fert.activeFertilizer / 1e6 Beans to be lost. Currently there are 17,217,105 activeFertilizer. So up to 17.217 Beans can be lost.
-     * @param shipmentAmount Amount of Beans to receive.
-     */
-    function barnPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
-        uint256 amountToFertilize = shipmentAmount + fert.leftoverBeans;
-        // Get the new Beans per Fertilizer and the total new Beans per Fertilizer
-        // Zeroness of activeFertilizer handled in Planner.
-        uint256 remainingBpf = amountToFertilize / fert.activeFertilizer;
-        uint256 oldBpf = fert.bpf;
-        uint256 newBpf = oldBpf + remainingBpf;
-        // Get the end BPF of the first Fertilizer to run out.
-        uint256 firstBpf = fert.fertFirst;
-        uint256 deltaFertilized;
-        // If the next fertilizer is going to run out, then step BPF according
-        while (newBpf >= firstBpf) {
-            // Increment the cumulative change in Fertilized.
-            deltaFertilized += (firstBpf - oldBpf) * fert.activeFertilizer; // fertilizer between init and next cliff
-            if (fertilizerPop()) {
-                oldBpf = firstBpf;
-                firstBpf = fert.fertFirst;
-                // Calculate BPF beyond the first Fertilizer edge.
-                remainingBpf = (amountToFertilize - deltaFertilized) / fert.activeFertilizer;
-                newBpf = oldBpf + remainingBpf;
-            } else {
-                fert.bpf = uint128(firstBpf); // SafeCast unnecessary here.
-                fert.fertilizedIndex += deltaFertilized;
-                // Else, if there is no more fertilizer. Matches plan cap.
-                // fert.fertilizedIndex == fert.unfertilizedIndex
-                break;
-            }
-        }
-        // If there is Fertilizer remaining.
-        if (fert.fertilizedIndex != fert.unfertilizedIndex) {
-            // Distribute the rest of the Fertilized Beans
-            fert.bpf = uint128(newBpf); // SafeCast unnecessary here.
-            deltaFertilized += (remainingBpf * fert.activeFertilizer);
-            fert.fertilizedIndex += deltaFertilized;
-        }
-        // There will be up to activeFertilizer Beans leftover Beans that are not fertilized.
-        // These leftovers will be applied on future Fertilizer receipts.
-        fert.leftoverBeans = amountToFertilize - deltaFertilized;
-        emit FertilizerRewardsReceived(shipmentAmount);
-    }
-
-    /**
-     * @dev Removes the first fertilizer id in the queue.
-     * fFirst is the lowest active Fertilizer Id (see AppStorage)
-     * (start of linked list that is stored by nextFid).
-     * @return bool Whether the queue is empty.
-     */
-    function fertilizerPop() internal returns (bool) {
-        uint128 first = fert.fertFirst;
-        fert.activeFertilizer = fert.activeFertilizer.sub(getAmount(first));
-        uint128 next = getNext(first);
-        if (next == 0) {
-            // If all Unfertilized Beans have been fertilized, delete line.
-            require(fert.activeFertilizer == 0, "Still active fertilizer");
-            fert.fertFirst = 0;
-            fert.fertLast = 0;
-            return false;
-        }
-        fert.fertFirst = getNext(first);
-        return true;
-    }
-
-    /**
-     * @dev Returns the next fertilizer id in the linked list.
-     * @param id The id of the fertilizer.
-     */
-    function getNext(uint128 id) internal view returns (uint128) {
-        return fert.nextFid[id];
-    }
-
-    /**
-     * @dev Returns the amount (supply) of fertilizer for a given id.
-     * @param id The id of the fertilizer.
-     */
-    function getAmount(uint128 id) internal view returns (uint256) {
-        return fert.fertilizer[id];
-    }
-
     //////////////////////////// Transfer Functions ////////////////////////////
 
+    /**
+     * @notice Transfers a fertilizer id from one account to another
+     * @param from - the account to transfer from
+     * @param to - the account to transfer to
+     * @param id - the fertilizer id
+     * @param amount - the amount of fertilizer to transfer
+     */
     function safeTransferFrom(
         address from,
         address to,
@@ -311,13 +183,13 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         __doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);
     }
 
-    /// @dev copied from OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
-    function __asSingletonArray(uint256 element) private pure returns (uint256[] memory) {
-        uint256[] memory array = new uint256[](1);
-        array[0] = element;
-        return array;
-    }
-
+    /**
+     * @notice Transfers a batch of fertilizers from one account to another
+     * @param from - the account to transfer from
+     * @param to - the account to transfer to
+     * @param ids - the fertilizer ids
+     * @param amounts - the amounts of fertilizer to transfer
+     */
     function safeBatchTransferFrom(
         address from,
         address to,
@@ -345,6 +217,13 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         __doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
     }
 
+    /**
+     * @notice Transfers a fertilizer from one account to another by changing the internal balances mapping
+     * @param from - the account to transfer from
+     * @param to - the account to transfer to
+     * @param id - the fertilizer id
+     * @param amount - the amount of fertilizer to transfer
+     */
     function _transfer(address from, address to, uint256 id, uint256 amount) internal virtual {
         uint128 _amount = uint128(amount);
         if (from != address(0)) {
@@ -355,7 +234,10 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         _balances[id][to].amount = _balances[id][to].amount.add(_amount);
     }
 
-    /// @dev copied from OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
+    /**
+     * @notice Checks if a fertilizer transfer is accepted by the recipient in case of a contract
+     * @dev copied from OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
+     */
     function __doSafeTransferAcceptanceCheck(
         address operator,
         address from,
@@ -379,7 +261,10 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         }
     }
 
-    /// @dev copied from OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
+    /**
+     * @notice Checks if a batch of fertilizer transfers are accepted by the recipient in case of a contract
+     * @dev copied from OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
+     */
     function __doSafeBatchTransferAcceptanceCheck(
         address operator,
         address from,
@@ -404,7 +289,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @notice handles state updates before a fertilizer transfer
+     * @notice Handles state updates before a fertilizer transfer,
      * Following the 1155 design from OpenZeppelin Contracts < 5.x.
      * @param from - the account to transfer from
      * @param to - the account to transfer to
@@ -423,20 +308,7 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         _update(to, ids, bpf);
     }
 
-    //////////////////////////// Claiming Functions (Update) ////////////////////////////
-
-    /**
-     * @notice Allows users to claim their fertilized beans directly.
-     * @param ids - an array of fertilizer ids to claim
-     * @param mode - the balance to transfer Beans to; see {LibTransfer.To}
-     */
-    function claimFertilized(uint256[] memory ids, LibTransfer.To mode) external {
-        uint256 amount = __update(msg.sender, ids, uint256(fert.bpf));
-        if (amount > 0) {
-            fert.fertilizedPaidIndex += amount;
-            LibTransfer.sendToken(pinto, amount, msg.sender, mode);
-        }
-    }
+    //////////////////////////// Internal State Updates ////////////////////////////
 
     /**
      * @notice Calculates and transfers the rewarded beans
@@ -477,7 +349,54 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         emit ClaimFertilizer(ids, beans);
     }
 
+    /**
+     * @dev Removes the first fertilizer id in the queue.
+     * fFirst is the lowest active Fertilizer Id (see SystemFertilizer struct)
+     * (start of linked list that is stored by nextFid).
+     * @return bool Whether the queue is empty.
+     */
+    function fertilizerPop() internal returns (bool) {
+        uint128 first = fert.fertFirst;
+        fert.activeFertilizer = fert.activeFertilizer.sub(getAmount(first));
+        uint128 next = getNext(first);
+        if (next == 0) {
+            // If all Unfertilized Beans have been fertilized, delete line.
+            require(fert.activeFertilizer == 0, "Still active fertilizer");
+            fert.fertFirst = 0;
+            fert.fertLast = 0;
+            return false;
+        }
+        fert.fertFirst = getNext(first);
+        return true;
+    }
+
+    /**
+     * @notice Returns a singleton array with the given element
+     * @dev copied from OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
+     */
+    function __asSingletonArray(uint256 element) private pure returns (uint256[] memory) {
+        uint256[] memory array = new uint256[](1);
+        array[0] = element;
+        return array;
+    }
+
     //////////////////////////// Getters ////////////////////////////////
+
+    /**
+     * @dev Returns the next fertilizer id in the linked list.
+     * @param id The id of the fertilizer.
+     */
+    function getNext(uint128 id) internal view returns (uint128) {
+        return fert.nextFid[id];
+    }
+
+    /**
+     * @dev Returns the amount (supply) of fertilizer for a given id.
+     * @param id The id of the fertilizer.
+     */
+    function getAmount(uint128 id) internal view returns (uint256) {
+        return fert.fertilizer[id];
+    }
 
     /**
      * @notice Returns the balance of fertilized beans of a fertilizer owner given
@@ -517,54 +436,40 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /**
-     @notice Returns the current beans per fertilizer
+     * @notice Returns the total beans needed to repay the barn
      */
-    function beansPerFertilizer() external view returns (uint128) {
-        return fert.bpf;
-    }
-
-    function totalFertilizedBeans() external view returns (uint256) {
-        return fert.fertilizedIndex;
-    }
-
     function totalUnfertilizedBeans() public view returns (uint256 beans) {
         return fert.unfertilizedIndex - fert.fertilizedIndex;
     }
 
-    function totalFertilizerBeans() external view returns (uint256 beans) {
-        return fert.unfertilizedIndex;
-    }
-
-    function rinsedSprouts() external view returns (uint256) {
-        return fert.fertilizedPaidIndex;
-    }
-
-    function rinsableSprouts() external view returns (uint256) {
-        return fert.fertilizedIndex - fert.fertilizedPaidIndex;
-    }
-
-    function leftoverBeans() external view returns (uint256) {
-        return fert.leftoverBeans;
-    }
-
-    function name() external pure returns (string memory) {
-        return "Beanstalk Payback Fertilizer";
-    }
-
-    function symbol() external pure returns (string memory) {
-        return "bsFERT";
-    }
-
+    /**
+     * @notice Returns the balance of a fertilizer owner given a fertilizer id
+     * @param account - the fertilizer owner
+     * @param id - the fertilizer id
+     * @return balance - the balance of the fertilizer owner
+     */
     function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {
         require(account != address(0), "ERC1155: balance query for the zero address");
         return _balances[id][account].amount;
     }
 
+    /**
+     * @notice Returns the balance of a fertilizer owner given a set of fertilizer ids
+     * @param account - the fertilizer owner
+     * @param id - the fertilizer id
+     * @return balance - the balance of the fertilizer owner
+     */
     function lastBalanceOf(address account, uint256 id) public view returns (Balance memory) {
         require(account != address(0), "ERC1155: balance query for the zero address");
         return _balances[id][account];
     }
 
+    /**
+     * @notice Returns the balance of a fertilizer owner given a set of fertilizer ids
+     * @param accounts - the fertilizer owners
+     * @param ids - the fertilizer ids
+     * @return balances - the balances of the fertilizer owners
+     */
     function lastBalanceOfBatch(
         address[] memory accounts,
         uint256[] memory ids
@@ -575,21 +480,29 @@ contract BarnPayback is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardU
         }
     }
 
+    /**
+     * @dev the uri for the payback fertilizer, omitted here due to lack of metadata
+     */
     function uri(uint256) public view virtual override returns (string memory) {
         return "";
     }
 
-    /// @notice Checks if an account is a contract.
+    function name() external pure returns (string memory) {
+        return "Beanstalk Payback Fertilizer";
+    }
+
+    function symbol() external pure returns (string memory) {
+        return "bsFERT";
+    }
+
+    /**
+     * @notice Checks if an account is a contract.
+     */
     function isContract(address account) internal view returns (bool) {
         uint size;
         assembly {
             size := extcodesize(account)
         }
         return size > 0;
-    }
-
-    /// @dev called by the ShipmentPlanner contract to determine how many pinto to send to the barn payback contract
-    function barnRemaining() external view returns (uint256) {
-        return totalUnfertilizedBeans();
     }
 }

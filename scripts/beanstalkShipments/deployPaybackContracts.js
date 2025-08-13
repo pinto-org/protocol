@@ -19,7 +19,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
   if (verbose) console.log("SiloPayback owner:", await siloPaybackContract.owner());
 
   //////////////////////////// Barn Payback ////////////////////////////
-  console.log("--------------------------------")
+  console.log("--------------------------------");
   console.log("Deploying BarnPayback...");
   const barnPaybackFactory = await ethers.getContractFactory("BarnPayback", owner);
   // get the initialization args from the json file
@@ -39,13 +39,13 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
   if (verbose) console.log("BarnPayback owner:", await barnPaybackContract.owner());
 
   //////////////////////////// Shipment Planner ////////////////////////////
-  console.log("--------------------------------")
+  console.log("--------------------------------");
   console.log("Deploying ShipmentPlanner...");
   const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner", owner);
   const shipmentPlannerContract = await shipmentPlannerFactory.deploy(L2_PINTO, PINTO);
   await shipmentPlannerContract.deployed();
   if (verbose) console.log("ShipmentPlanner deployed to:", shipmentPlannerContract.address);
-  console.log("--------------------------------")
+  console.log("--------------------------------");
 
   return {
     siloPaybackContract,
@@ -55,12 +55,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
 }
 
 // Distributes unripe BDV tokens from JSON file to contract recipients
-async function distributeUnripeBdvTokens({
-  siloPaybackContract,
-  owner,
-  dataPath,
-  verbose = true
-}) {
+async function distributeUnripeBdvTokens({ siloPaybackContract, owner, dataPath, verbose = true }) {
   if (verbose) console.log("Distributing unripe BDV tokens...");
 
   try {
