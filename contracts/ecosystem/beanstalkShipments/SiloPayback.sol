@@ -9,6 +9,10 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
+
+    /// @dev precision used for reward calculations
+    uint256 public constant PRECISION = 1e18;
+
     /// @dev struct to store the unripe bdv token data for batch minting
     struct UnripeBdvTokenData {
         address receipient;
@@ -89,7 +93,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     function siloPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
         uint256 tokenTotalSupply = totalSupply();
         if (tokenTotalSupply > 0) {
-            rewardPerTokenStored += (shipmentAmount * 1e18) / tokenTotalSupply;
+            rewardPerTokenStored += (shipmentAmount * PRECISION) / tokenTotalSupply;
             totalReceived += shipmentAmount;
         }
 
@@ -105,6 +109,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
         uint256 rewardsToClaim = rewards[msg.sender];
         require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
 
+        // reset user rewards
         rewards[msg.sender] = 0;
 
         // Transfer the rewards to the recipient
@@ -136,7 +141,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     function earned(address account) public view returns (uint256) {
         return
             ((balanceOf(account) * (rewardPerTokenStored - userRewardPerTokenPaid[account])) /
-                1e18) + rewards[account];
+                PRECISION) + rewards[account];
     }
 
     /// @dev get the remaining amount of silo payback tokens to be distributed, called by the planner

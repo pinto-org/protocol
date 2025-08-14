@@ -10,7 +10,6 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
 contract SiloPaybackTest is TestHelper {
     SiloPayback public siloPayback;
     MockToken public pintoToken;
@@ -84,9 +83,7 @@ contract SiloPaybackTest is TestHelper {
         uint256 rewardAmount = 100e6; // 10% of total supply
         _sendRewardsToContract(rewardAmount);
         uint256 expectedRewardPerToken = (rewardAmount * PRECISION) / siloPayback.totalSupply();
-
-        console.log("rewardPerTokenStored", siloPayback.rewardPerTokenStored());
-        console.log("totalReceived", siloPayback.totalReceived());
+        console.log("expectedRewardPerToken: ", expectedRewardPerToken);
 
         // Check global reward state updated correctly
         assertEq(siloPayback.rewardPerTokenStored(), expectedRewardPerToken);
@@ -117,181 +114,192 @@ contract SiloPaybackTest is TestHelper {
 
     ////////////// Claim //////////////
 
-    // todo: add test to claim after 2 distributions have happened with 1 user claiming every season and one who doesnt
+    /**
+     * @dev test that two users can claim their rewards pro rata to their balance
+     * - farmer1 claims after each distribution
+     * - farmer2 waits until the end
+     */
+    function test_siloPayback2UsersLateClaim() public {
+        // Setup: farmer1 claims after each distribution, farmer2 waits until the end
+        _mintTokensToUser(farmer1, 400e6); // farmer1 has 40%
+        _mintTokensToUser(farmer2, 600e6); // farmer2 has 60%
 
-    function test_siloPaybackClaimMultipleUsers() public {
-        // Setup users with different balances
-        _mintTokensToUser(farmer1, 300e6);
-        _mintTokensToUser(farmer2, 700e6);
+        // First distribution: 100 BEAN rewards
+        _sendRewardsToContract(100e6);
 
-        // Send rewards
-        uint256 rewardAmount = 200e6;
-        _sendRewardsToContract(rewardAmount);
+        // Check initial earned amounts
+        uint256 farmer1Earned1 = siloPayback.earned(farmer1); // 40% of 100 = 40
+        uint256 farmer2Earned1 = siloPayback.earned(farmer2); // 60% of 100 = 60
+        assertEq(farmer1Earned1, 40e6);
+        assertEq(farmer2Earned1, 60e6);
 
-        uint256 farmer1Rewards = siloPayback.earned(farmer1); // 60 tokens
-        assertEq(farmer1Rewards, 60e6);
-        uint256 farmer2Rewards = siloPayback.earned(farmer2); // 140 tokens
-        assertEq(farmer2Rewards, 140e6);
-
-        // farmer1 claims first
+        // farmer1 claims immediately after first distribution (claiming every season)
+        uint256 farmer1BalanceBefore = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
         siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
 
-        assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1Rewards);
+        // Verify farmer1 received rewards and state is updated
+        assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBefore + farmer1Earned1);
+        assertEq(siloPayback.earned(farmer1), 0);
+        assertEq(siloPayback.rewards(farmer1), 0);
+        assertEq(siloPayback.userRewardPerTokenPaid(farmer1), siloPayback.rewardPerTokenStored());
+
+        // farmer2 does NOT claim, so their rewards should remain
+        assertEq(siloPayback.earned(farmer2), farmer2Earned1);
+
+        // Second distribution: 200 BEAN rewards
+        _sendRewardsToContract(200e6);
+
+        // After second distribution:
+        // farmer1 should earn 40% of new 200 = 80 BEAN (since they claimed and reset)
+        // farmer2 should have 60 (from first) + 60% of 200 = 60 + 120 = 180 BEAN total
+        uint256 farmer1Earned2 = siloPayback.earned(farmer1);
+        uint256 farmer2Earned2 = siloPayback.earned(farmer2);
+
+        assertEq(farmer1Earned2, 80e6, "farmer1 should earn 40% of second distribution");
+        assertEq(
+            farmer2Earned2,
+            180e6,
+            "farmer2 should have accumulated rewards from both distributions"
+        );
+
+        // Now farmer1 claims again (claiming every season)
+        uint256 farmer1BalanceBeforeClaim2 = IERC20(BEAN).balanceOf(farmer1);
+        vm.prank(farmer1);
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
+
+        // farmer1 should have received their second round rewards
+        assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBeforeClaim2 + farmer1Earned2);
         assertEq(siloPayback.earned(farmer1), 0);
 
-        // farmer2's earnings should be unaffected
-        assertEq(siloPayback.earned(farmer2), farmer2Rewards);
-
-        // farmer2 claims
+        // farmer2 finally claims all accumulated rewards
+        uint256 farmer2BalanceBefore = IERC20(BEAN).balanceOf(farmer2);
         vm.prank(farmer2);
         siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL);
 
-        assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2Rewards);
+        // farmer2 should receive all their accumulated rewards
+        assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2BalanceBefore + farmer2Earned2);
         assertEq(siloPayback.earned(farmer2), 0);
 
-        // assert no more underlying BEAN in the contract
-        assertEq(IERC20(BEAN).balanceOf(address(siloPayback)), 0);
+        // Final verification: Total rewards distributed should equal total claimed
+        uint256 totalRewardsDistributed = 100e6 + 200e6; // 300 BEAN total
+        uint256 totalClaimed = IERC20(BEAN).balanceOf(farmer1) + IERC20(BEAN).balanceOf(farmer2);
+        assertEq(
+            totalClaimed,
+            totalRewardsDistributed,
+            "Total claimed should equal total distributed"
+        );
+
+        // Contract should have no BEAN left
+        assertEq(
+            IERC20(BEAN).balanceOf(address(siloPayback)),
+            0,
+            "Contract should have no BEAN remaining"
+        );
+
+        // Verify proportional correctness:
+        // farmer1: 40 (first) + 80 (second) = 120 total
+        // farmer2: 60 (first) + 120 (second) = 180 total
+        assertEq(IERC20(BEAN).balanceOf(farmer1), 120e6, "farmer1 total should be 120");
+        assertEq(IERC20(BEAN).balanceOf(farmer2), 180e6, "farmer2 total should be 180");
     }
 
     ////////////// Double claim and transfer logic //////////////
 
-    function test_siloPaybackTransferUpdatesRewards() public {
-        // Setup: farmer1 and farmer2 have tokens, rewards are distributed
-        _mintTokensToUser(farmer1, 500e6); // 50% of total supply
-        _mintTokensToUser(farmer2, 500e6); // 50% of total supply
-
-        uint256 rewardAmount = 200e6;
-        _sendRewardsToContract(rewardAmount);
-
-        uint256 farmer1EarnedBefore = siloPayback.earned(farmer1);
-        assertEq(farmer1EarnedBefore, 100e6);
-        uint256 farmer2EarnedBefore = siloPayback.earned(farmer2);
-        assertEq(farmer2EarnedBefore, 100e6);
-
-        // farmer1 transfers tokens to farmer2
+    function test_siloPaybackDoubleClaimAndTransferNoClaiming() public {
+        // Step 1: Setup users with different token amounts
+        _mintTokensToUser(farmer1, 600e6); // 60% ownership
+        _mintTokensToUser(farmer2, 400e6); // 40% ownership
+        
+        // Step 2: First reward distribution - both users earn proportionally
+        _sendRewardsToContract(150e6);
+        
+        uint256 farmer1InitialEarned = siloPayback.earned(farmer1); // 90 BEAN (60%)
+        uint256 farmer2InitialEarned = siloPayback.earned(farmer2); // 60 BEAN (40%)
+        assertEq(farmer1InitialEarned, 90e6, "farmer1 should earn 60% of first distribution");
+        assertEq(farmer2InitialEarned, 60e6, "farmer2 should earn 40% of first distribution");
+        
+        // Step 3: Transfer updates rewards (prevents gaming through checkpoint sync)
+        uint256 farmer1PreTransferCheckpoint = siloPayback.userRewardPerTokenPaid(farmer1);
+        uint256 farmer2PreTransferCheckpoint = siloPayback.userRewardPerTokenPaid(farmer2);
+        
+        // farmer1 transfers 200 tokens to farmer2
         vm.prank(farmer1);
         siloPayback.transfer(farmer2, 200e6);
-
-        // Check that rewards were captured for both users
-        // aka no matter if you transfer, your reward index is still the same
-        assertEq(siloPayback.earned(farmer1), farmer1EarnedBefore);
-        assertEq(siloPayback.earned(farmer2), farmer2EarnedBefore);
-        // check that the userRewardPerTokenPaid is updated to the latest checkpoint
-        assertEq(siloPayback.userRewardPerTokenPaid(farmer1), siloPayback.rewardPerTokenStored());
-        assertEq(siloPayback.userRewardPerTokenPaid(farmer2), siloPayback.rewardPerTokenStored());
-
-        // Check balances updated
-        assertEq(siloPayback.balanceOf(farmer1), 300e6);
-        assertEq(siloPayback.balanceOf(farmer2), 700e6);
-    }
-
-    function test_siloPaybackTransferPreventsDoubleClaiming() public {
-        // Scenario: farmer1 tries to game by transferring tokens to get more rewards
-        _mintTokensToUser(farmer1, 1000e6);
-
-        // First round of rewards
-        _sendRewardsToContract(100e6);
-        uint256 firstRewards = siloPayback.earned(farmer1);
-
-        // check that farmer3 balance is 0 and no rewards
-        assertEq(siloPayback.earned(farmer3), 0);
-        assertEq(siloPayback.balanceOf(farmer3), 0);
-
-        // farmer1 transfers all tokens to another address he controls
+        
+        // Verify that transfer hook captured earned rewards and updated checkpoints
+        assertEq(siloPayback.rewards(farmer1), farmer1InitialEarned, "farmer1 rewards should be captured in storage");
+        assertEq(siloPayback.rewards(farmer2), farmer2InitialEarned, "farmer2 rewards should be captured in storage");
+        assertEq(siloPayback.userRewardPerTokenPaid(farmer1), siloPayback.rewardPerTokenStored(), "farmer1 checkpoint updated");
+        assertEq(siloPayback.userRewardPerTokenPaid(farmer2), siloPayback.rewardPerTokenStored(), "farmer2 checkpoint updated");
+        
+        // Verify that earned amounts remain the same after transfer (no double counting)
+        assertEq(siloPayback.earned(farmer1), farmer1InitialEarned, "farmer1 earned should remain same after transfer");
+        assertEq(siloPayback.earned(farmer2), farmer2InitialEarned, "farmer2 earned should remain same after transfer");
+        
+        // Verify that token balances updated correctly  
+        assertEq(siloPayback.balanceOf(farmer1), 400e6, "farmer1 balance after transfer");
+        assertEq(siloPayback.balanceOf(farmer2), 600e6, "farmer2 balance after transfer");
+        
+        // Step 4: Anti-gaming test - farmer1 tries to game by transferring to farmer3 (new user)
         vm.prank(farmer1);
-        siloPayback.transfer(farmer3, 1000e6);
-
-        // check that farmer3 balance is increased to 1000e6 but rewards are still 0
-        assertEq(siloPayback.earned(farmer3), 0);
-        assertEq(siloPayback.balanceOf(farmer3), 1000e6);
-
-        // Second round of rewards
-        _sendRewardsToContract(100e6);
-
-        // farmer1 should only have rewards from first round
-        // farmer3 should only have rewards from second round
-        assertEq(siloPayback.earned(farmer1), firstRewards);
-        assertEq(siloPayback.earned(farmer3), 100e6); // Only second round rewards
-
-        // Total rewards should be conserved
-        assertEq(siloPayback.earned(farmer1) + siloPayback.earned(farmer3), 200e6);
-    }
-
-    function test_siloPaybackTransferToNewUserStartsFreshRewards() public {
-        _mintTokensToUser(farmer1, 1000e6);
-
-        // farmer1 earns rewards
-        _sendRewardsToContract(100e6);
-
-        // Transfer to farmer3 (new user)
-        vm.prank(farmer1);
-        siloPayback.transfer(farmer3, 500e6);
-
-        // farmer3 should have checkpoint synced but no earned rewards yet
-        assertEq(siloPayback.earned(farmer3), 0);
-        assertEq(siloPayback.userRewardPerTokenPaid(farmer3), siloPayback.rewardPerTokenStored());
-
-        // New rewards distributed
-        _sendRewardsToContract(200e6);
-
-        // farmer3 should get rewards proportional to his balance
-        uint256 expectedfarmer3Rewards = (500e6 * 200e6) / 1000e6; // 50% of new rewards
-        assertEq(siloPayback.earned(farmer3), expectedfarmer3Rewards);
-    }
-
-    ////////////// COMPLEX SCENARIOS //////////////
-
-    function test_siloPaybackMultipleRewardDistributionsAndClaims() public {
-        _mintTokensToUser(farmer1, 400e6);
-        _mintTokensToUser(farmer2, 600e6);
-
-        // First reward distribution
-        _sendRewardsToContract(100e6);
-        uint256 farmer1Rewards1 = siloPayback.earned(farmer1); // 40
-        uint256 farmer2Rewards1 = siloPayback.earned(farmer2); // 60
-
-        // farmer1 claims
+        siloPayback.transfer(farmer3, 200e6);
+        
+        // Verify that farmer3 starts fresh with no previous rewards
+        assertEq(siloPayback.earned(farmer3), 0, "farmer3 should have no rewards from before they held tokens");
+        assertEq(siloPayback.userRewardPerTokenPaid(farmer3), siloPayback.rewardPerTokenStored(), "farmer3 synced to current state");
+        assertEq(siloPayback.balanceOf(farmer3), 200e6, "farmer3 received tokens");
+        
+        // farmer1 still has their original earned rewards
+        assertEq(siloPayback.earned(farmer1), farmer1InitialEarned, "farmer1 retains original rewards");
+        
+        // Step 5: Second reward distribution - new proportional split
+        _sendRewardsToContract(300e6);
+        
+        // Current balances: farmer1=200, farmer2=600, farmer3=200 (total=1000)
+        // New rewards: 300 BEAN should be split: 20%, 60%, 20%
+        
+        uint256 farmer1FinalEarned = siloPayback.earned(farmer1); // 90 (original) + 60 (20% of 300)
+        uint256 farmer2FinalEarned = siloPayback.earned(farmer2); // 60 (original) + 180 (60% of 300)  
+        uint256 farmer3FinalEarned = siloPayback.earned(farmer3); // 0 (original) + 60 (20% of 300)
+        
+        assertEq(farmer1FinalEarned, 150e6, "farmer1: 90 original + 60 new rewards");
+        assertEq(farmer2FinalEarned, 240e6, "farmer2: 60 original + 180 new rewards");
+        assertEq(farmer3FinalEarned, 60e6, "farmer3: 0 original + 60 new rewards");
+        
+        // Step 6: Verify total conservation - no rewards lost or duplicated
+        uint256 totalEarned = farmer1FinalEarned + farmer2FinalEarned + farmer3FinalEarned;
+        uint256 totalDistributed = 150e6 + 300e6; // 450 total
+        assertEq(totalEarned, totalDistributed, "Total earned must equal total distributed");
+        
+        // Step 7: All users claim and verify final balances
+        uint256 farmer1BalanceBefore = IERC20(BEAN).balanceOf(farmer1);
+        uint256 farmer2BalanceBefore = IERC20(BEAN).balanceOf(farmer2);
+        uint256 farmer3BalanceBefore = IERC20(BEAN).balanceOf(farmer3);
+        
+        // Claim for all users
         vm.prank(farmer1);
         siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
-
-        // Second reward distribution
-        _sendRewardsToContract(200e6);
-
-        // farmer1 should have new rewards, farmer2 should have accumulated
-        uint256 farmer1Rewards2 = siloPayback.earned(farmer1); // 80 (40% of 200)
-        uint256 farmer2Rewards2 = siloPayback.earned(farmer2); // 180 (60 + 120)
-
-        assertEq(farmer1Rewards2, 80e6);
-        assertEq(farmer2Rewards2, 180e6);
-
-        // Verify farmer1 received first claim
-        assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1Rewards1);
+        
+        vm.prank(farmer2);
+        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL);
+        
+        vm.prank(farmer3);
+        siloPayback.claim(farmer3, LibTransfer.To.EXTERNAL);
+        
+        // Verify all rewards were paid out correctly
+        assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBefore + farmer1FinalEarned, "farmer1 received correct payout");
+        assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2BalanceBefore + farmer2FinalEarned, "farmer2 received correct payout");
+        assertEq(IERC20(BEAN).balanceOf(farmer3), farmer3BalanceBefore + farmer3FinalEarned, "farmer3 received correct payout");
+        
+        // Contract should be empty after all claims
+        assertEq(IERC20(BEAN).balanceOf(address(siloPayback)), 0, "Contract should have no remaining BEAN");
+        
+        // All earned amounts should be reset to zero
+        assertEq(siloPayback.earned(farmer1), 0, "farmer1 earned reset after claim");
+        assertEq(siloPayback.earned(farmer2), 0, "farmer2 earned reset after claim");
+        assertEq(siloPayback.earned(farmer3), 0, "farmer3 earned reset after claim");
     }
-
-    function test_siloPaybackRewardsWithTransfersOverTime() public {
-        _mintTokensToUser(farmer1, 1000e6);
-
-        // Initial rewards
-        _sendRewardsToContract(100e6);
-
-        // Transfer half to farmer2
-        vm.prank(farmer1);
-        siloPayback.transfer(farmer2, 500e6);
-
-        // More rewards
-        _sendRewardsToContract(200e6);
-
-        // farmer1 should have: 100 (from first round) + 100 (50% of second round)
-        // farmer2 should have: 0 (wasn't holder for first round) + 100 (50% of second round)
-        assertEq(siloPayback.earned(farmer1), 200e6);
-        assertEq(siloPayback.earned(farmer2), 100e6);
-    }
-
-    ////////////// EDGE CASES AND ERROR CONDITIONS //////////////
-
-    // todo: pinto sent without total supply being 0
-    // todo: precision with small amounts
 
     ////////////// HELPER FUNCTIONS //////////////
 
@@ -315,7 +323,11 @@ contract SiloPaybackTest is TestHelper {
     }
 
     function _sendRewardsToContract(uint256 amount) internal {
-        deal(address(BEAN), address(siloPayback), amount, true);
+        deal(address(BEAN), address(owner), amount, true);
+        // owner transfers BEAN to siloPayback
+        // (we use an intermidiary because deal overwrites the balance of the owner)
+        vm.prank(owner);
+        IERC20(BEAN).transfer(address(siloPayback), amount);
 
         // Call receiveRewards to update the global state
         vm.prank(BEANSTALK);
