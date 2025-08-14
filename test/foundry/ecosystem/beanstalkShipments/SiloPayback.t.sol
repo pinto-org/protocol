@@ -355,10 +355,4 @@ contract SiloPaybackTest is TestHelper {
         vm.prank(BEANSTALK);
         siloPayback.siloPaybackReceive(amount);
     }
-
-    function logRewardState() internal {
-        console.log("rewardPerTokenStored: ", siloPayback.rewardPerTokenStored());
-        console.log("totalReceived: ", siloPayback.totalReceived());
-        console.log("totalSupply: ", siloPayback.totalSupply());
-    }
 }

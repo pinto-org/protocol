@@ -56,8 +56,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
      * - Fertilizer Id is the Beans Per Fertilzer level at which the Fertilizer no longer receives Beans.
      * - Sort in order by which Fertilizer Id expires next.
      * @param activeFertilizer The number of active Fertilizer.
-     * @param fertilizedIndex The total number of Fertilizer Beans.
-     * @param unfertilizedIndex The total number of Unfertilized Beans ever.
+     * @param fertilizedIndex The total number of Fertilizer Beans (paid out).
+     * @param unfertilizedIndex The total number of Unfertilized Beans ever (total debt).
      * @param fertilizedPaidIndex The total number of Fertilizer Beans that have been sent out to users.
      * @param fertFirst The lowest active Fertilizer Id (start of linked list that is stored by nextFid).
      * @param fertLast The highest active Fertilizer Id (end of linked list that is stored by nextFid).
@@ -65,8 +65,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
      * @param leftoverBeans Amount of Beans that have shipped to Fert but not yet reflected in bpf.
      */
     struct SystemFertilizer {
-        mapping(uint128 => uint256) fertilizer;
-        mapping(uint128 => uint128) nextFid;
+        mapping(uint128 id => uint256 amount) fertilizer;
+        mapping(uint128 id => uint128 nextId) nextFid;
         uint256 activeFertilizer;
         uint256 fertilizedIndex;
         uint256 unfertilizedIndex;

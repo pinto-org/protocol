@@ -10,11 +10,13 @@ contract BeanstalkShipmentsTest is TestHelper {
 
     // we need to:
     // - 1. recreate a mock beanstalk repayment field with a mock podline
-    // - 2. deploy the unripe distributor (make a mock that is non upgradable for ease of testing)
-    // - 3. make sure shipments are set correctly in the initialization in ShipmentDeployer.sol
-    // - 4. get to a supply where the beanstalk shipments kick in
-    // - 5. make the system print, check distribution in each contract
-    // - 6. for each component, make sure everything is set correctly
+    // - 2. deploy the silo payback proxy
+    // - 3. deploy the barn payback proxy
+    // - 4. create a function and make sure shipments are set correctly in the initialization in ShipmentDeployer.sol
+    // - 5. get to a supply where the beanstalk shipments kick in
+    // - 6. make the system print, check distribution in each contract
+    // - 6. for each component, make sure everything is set correctly, 
+    // all tokens are distributed correctly and users can claim their rewards
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 

@@ -116,7 +116,7 @@ contract BarnPayback is BeanstalkFertilizer {
                 remainingBpf = (amountToFertilize - deltaFertilized) / fert.activeFertilizer;
                 newBpf = oldBpf + remainingBpf;
             } else {
-                fert.bpf = uint128(firstBpf); // SafeCast unnecessary here.
+                fert.bpf = uint128(firstBpf);
                 fert.fertilizedIndex += deltaFertilized;
                 // Else, if there is no more fertilizer. Matches plan cap.
                 // fert.fertilizedIndex == fert.unfertilizedIndex
@@ -147,7 +147,7 @@ contract BarnPayback is BeanstalkFertilizer {
         uint256 amount = __update(msg.sender, ids, uint256(fert.bpf));
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
-            // Transfer the rewards to the recipient
+            // Transfer the rewards to the recipient, pintos are streamed to the contract's external balance
             pintoProtocol.transferToken(pinto, msg.sender, amount, LibTransfer.From.EXTERNAL, mode);
         }
     }
