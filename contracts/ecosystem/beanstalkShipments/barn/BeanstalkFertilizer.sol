@@ -25,7 +25,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     using LibRedundantMath128 for uint128;
 
     event ClaimFertilizer(uint256[] ids, uint256 beans);
-    event FertilizerRewardsReceived(uint256 amount);
+    event BarnPaybackRewardsReceived(uint256 amount);
 
     struct Balance {
         uint128 amount;
@@ -33,7 +33,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     }
 
     /**
-     * @dev data for initialization of the fertilizer state
+     * @dev Data for initialization of the fertilizer state
      * note: the fertilizerIds and fertilizerAmounts should be the same length and in ascending order
      */
     struct InitSystemFertilizer {
@@ -79,7 +79,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
 
     // Storage
     mapping(uint256 => mapping(address => Balance)) internal _balances;
-    SystemFertilizer internal fert;
+    SystemFertilizer public fert;
     IERC20 public pinto;
     IBeanstalk public pintoProtocol;
 
@@ -105,6 +105,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
         setFertilizerState(initSystemFert);
+        // approve the pinto protocol to spend the incoming pinto tokens for claims
+        pinto.approve(address(pintoProtocol), type(uint256).max);
         // Minting will happen after deployment due to potential gas limit issues
     }
 

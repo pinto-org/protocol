@@ -38,7 +38,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /// @dev event emitted when user claims rewards
     event Claimed(address indexed user, uint256 amount, uint256 rewards);
     /// @dev event emitted when rewards are received from shipments
-    event RewardsReceived(uint256 amount, uint256 newIndex);
+    event SiloPaybackRewardsReceived(uint256 amount, uint256 newIndex);
 
     /// @notice Modifier to update rewards for an account before a claim
     modifier updateReward(address account) {
@@ -96,7 +96,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             totalReceived += shipmentAmount;
         }
 
-        emit RewardsReceived(shipmentAmount, rewardPerTokenStored);
+        emit SiloPaybackRewardsReceived(shipmentAmount, rewardPerTokenStored);
     }
 
     /**

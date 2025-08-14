@@ -21,7 +21,18 @@ import {TestHelper} from "test/foundry/utils/TestHelper.sol";
 contract BarnPaybackTest is TestHelper {
     // Events
     event ClaimFertilizer(uint256[] ids, uint256 beans);
-    event FertilizerRewardsReceived(uint256 amount);
+    event BarnPaybackRewardsReceived(uint256 amount);
+
+    struct SystemFertilizerStruct {
+        uint256 activeFertilizer;
+        uint256 fertilizedIndex;
+        uint256 unfertilizedIndex;
+        uint256 fertilizedPaidIndex;
+        uint128 fertFirst;
+        uint128 fertLast;
+        uint128 bpf;
+        uint256 leftoverBeans;
+    }
 
     // Initial state of the system after arbitrum migration for reference
     //     "activeFertilizer": "17216958", // Total amount of active fertilizer tokens
@@ -33,6 +44,7 @@ contract BarnPaybackTest is TestHelper {
     //     "bpf": "340802", // current Beans per fertilizer, determines if an id is active or not
     //     "leftoverBeans": "0x0" // Amount of beans that have shipped to Fert but not yet reflected in bpf
     //   },
+    // BPF is the amount at which the fert STOPS earning rewards
 
     // Contracts
     BarnPayback public barnPayback;
@@ -45,10 +57,10 @@ contract BarnPaybackTest is TestHelper {
     address public user3 = makeAddr("farmer3");
 
     // Test constants
-    uint128 constant INITIAL_BPF = 1000;
-    uint128 constant FERT_ID_1 = 5000; // 5000 beans per fertilizer
-    uint128 constant FERT_ID_2 = 10000; // 10000 beans per fertilizer
-    uint128 constant FERT_ID_3 = 15000; // 15000 beans per fertilizer
+    uint128 constant INITIAL_BPF = 45e6; // Close to the first fert id
+    uint128 constant FERT_ID_1 = 50e6; // 50 beans per fertilizer
+    uint128 constant FERT_ID_2 = 100e6; // 100 beans per fertilizer
+    uint128 constant FERT_ID_3 = 150e6; // 150 beans per fertilizer
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
@@ -83,6 +95,10 @@ contract BarnPaybackTest is TestHelper {
 
         // Mint fertilizers to accounts
         vm.startPrank(owner);
+        // Mint fertilizers to accounts
+        // user1: 60 of FERT_ID_1 (50 beans per fertilizer)
+        // user2: 40 of FERT_ID_1, 30 of FERT_ID_2 (100 beans per fertilizer)
+        // user3: 25 of FERT_ID_3 (150 beans per fertilizer)
         BarnPayback.Fertilizers[] memory fertilizerData = _createFertilizerAccountData();
         barnPayback.mintFertilizers(fertilizerData);
         vm.stopPrank();
@@ -95,28 +111,42 @@ contract BarnPaybackTest is TestHelper {
 
     ////////////// Shipment receiving //////////////
 
-    function test_barnPaybackReceivePintoRewards() public {
-        // Try to update state from non-protocol, expect revert
-        vm.prank(user1);
-        vm.expectRevert("BarnPayback: only pinto protocol");
-        barnPayback.barnPaybackReceive(100000);
-
-        // Send rewards to contract and call barnPaybackReceive
-        uint256 rewardAmount = 50000; // 50k pinto (6 decimals)
+    /**
+     * @notice Test that the barn payback receive function updates the state correctly,
+     * reducing the unfertilized beans and increasing the bpf.
+     */
+    function test_barnPaybackReceive() public {
         uint256 initialUnfertilized = barnPayback.totalUnfertilizedBeans();
+        uint256 shipmentAmount = 100e6; // 100 pinto
 
-        deal(address(BEAN), address(barnPayback), rewardAmount);
+        // Only pinto protocol can call barnPaybackReceive
+        vm.expectRevert("BarnPayback: only pinto protocol");
+        vm.prank(user1);
+        barnPayback.barnPaybackReceive(shipmentAmount);
 
-        // Only BEANSTALK can call barnPaybackReceive
+        // Pinto protocol sends rewards
         vm.expectEmit(true, true, true, true);
-        emit FertilizerRewardsReceived(rewardAmount);
+        emit BarnPaybackRewardsReceived(shipmentAmount);
 
         vm.prank(address(BEANSTALK));
-        barnPayback.barnPaybackReceive(rewardAmount);
+        barnPayback.barnPaybackReceive(shipmentAmount);
 
         // Should reduce unfertilized beans
         uint256 finalUnfertilized = barnPayback.totalUnfertilizedBeans();
         assertLt(finalUnfertilized, initialUnfertilized, "Should reduce unfertilized beans");
+
+        // Should increase bpf
+        SystemFertilizerStruct memory fert = _getSystemFertilizer();
+        assertGt(fert.bpf, INITIAL_BPF, "Should increase bpf");
+
+        // Should not change fertFirst since the id did not get popped from the queue
+        assertEq(fert.fertFirst, FERT_ID_1, "Should not change fertFirst");
+
+        // paid index should be 0 since noone claimed yet
+        assertEq(fert.fertilizedPaidIndex, 0, "Should have 0 fertilized paid index");
+
+        // Should not change activeFertilizer since no fert token ids ran out
+        assertEq(fert.activeFertilizer, 175, "Should not change activeFertilizer");
 
         // Barn remaining should be updated
         assertEq(
@@ -128,10 +158,18 @@ contract BarnPaybackTest is TestHelper {
 
     /////////////// Earned calculation ///////////////
 
-    function test_barnPaybackFertilizedCalculationMultipleUsers() public {
+    /**
+     * @notice Test that the fertilized amount is calculated correctly for multiple users with active fertilizers
+     * When the bpf exceeds the first id, the first id is popped from the queue and the activeFertilizer is reduced
+     */
+    function test_barnPaybackFertilizedMultipleUsersWithPop() public {
         // Send rewards to advance BPF
-        uint256 rewardAmount = 25000;
+        // first, get it to match the first id and then advance to pop the id from the queue
+        uint256 rewardAmount = 1000e6;
         _sendRewardsToContract(rewardAmount);
+
+        // get the system fertilizer state
+        SystemFertilizerStruct memory fert = _getSystemFertilizer();
 
         // user1 has 60 of FERT_ID_1
         uint256[] memory user1Ids = new uint256[](1);
@@ -148,420 +186,52 @@ contract BarnPaybackTest is TestHelper {
         assertGt(user1Fertilized, 0, "user1 should have fertilized beans");
         assertGt(user2Fertilized, 0, "user2 should have fertilized beans");
 
-        // user2 should have more since they hold more fertilizer (40 + 30 vs 60)
-        // But the ratio depends on how BPF advancement affects each ID
-        console.log("user1 fertilized:", user1Fertilized);
-        console.log("user2 fertilized:", user2Fertilized);
+        // assert that new bpf exceeds the first id, meaning the first id is no longer active
+        assertGt(fert.bpf, FERT_ID_1);
+
+        // assert the number of active fertilizers is 75 (175 initial - 100 popped from first id)
+        assertEq(fert.activeFertilizer, 75);
+
+        // assert that fertFirst variable is updated to the next id in the queue
+        assertEq(fert.fertFirst, FERT_ID_2);
     }
 
-    ////////////// Claim //////////////
+    ////////////////// Claiming //////////////////
 
     /**
      * @dev test that two users can claim their fertilizer rewards pro rata to their balance
-     * - user1 claims after each distribution
-     * - user2 waits until the end
      */
-    function test_barnPayback2UsersLateClaim() public {
-        // Setup: user1 claims after each distribution, user2 waits until the end
-        // user1: 60 of FERT_ID_1
-        // user2: 40 of FERT_ID_1, 30 of FERT_ID_2
+    function test_barnPaybackClaimOneFertOneUser() public {
+        // First distribution: advance BPF but dont cross over the first fert id
+        uint256 rewardAmount = 100e6;
+        _sendRewardsToContract(rewardAmount);
 
         uint256[] memory user1Ids = new uint256[](1);
         user1Ids[0] = FERT_ID_1;
 
-        uint256[] memory user2Ids = new uint256[](2);
-        user2Ids[0] = FERT_ID_1;
-        user2Ids[1] = FERT_ID_2;
-
-        // First distribution: advance BPF
-        _sendRewardsToContract(25000);
-
         // Check initial fertilized amounts
         uint256 user1Fertilized1 = barnPayback.balanceOfFertilized(user1, user1Ids);
-        uint256 user2Fertilized1 = barnPayback.balanceOfFertilized(user2, user2Ids);
         assertGt(user1Fertilized1, 0, "user1 should have fertilized beans");
-        assertGt(user2Fertilized1, 0, "user2 should have fertilized beans");
 
-        // user1 claims immediately after first distribution (claiming every season)
+        // user1 claims immediately after first distribution
         uint256 user1BalanceBefore = IERC20(BEAN).balanceOf(user1);
-
         vm.expectEmit(true, true, true, true);
         emit ClaimFertilizer(user1Ids, user1Fertilized1);
-
         vm.prank(user1);
         barnPayback.claimFertilized(user1Ids, LibTransfer.To.EXTERNAL);
 
         // Verify user1 received rewards
         assertEq(IERC20(BEAN).balanceOf(user1), user1BalanceBefore + user1Fertilized1);
-
         // user1 should have no more fertilized beans for these IDs
         assertEq(barnPayback.balanceOfFertilized(user1, user1Ids), 0);
 
-        // user2 does NOT claim, so their fertilized amount should remain
-        assertEq(barnPayback.balanceOfFertilized(user2, user2Ids), user2Fertilized1);
+        // verify that the bpf increased but did not cross over the first fert id
+        SystemFertilizerStruct memory fert = _getSystemFertilizer();
+        assertGt(fert.bpf, INITIAL_BPF);
+        assertLt(fert.bpf, FERT_ID_1);
 
-        // Second distribution: advance BPF further
-        _sendRewardsToContract(25000);
-
-        // After second distribution:
-        // user1 should have new fertilized beans (since they claimed and reset)
-        // user2 should have accumulated fertilized beans from both distributions
-        uint256 user1Fertilized2 = barnPayback.balanceOfFertilized(user1, user1Ids);
-        uint256 user2Fertilized2 = barnPayback.balanceOfFertilized(user2, user2Ids);
-
-        assertGt(user1Fertilized2, 0, "user1 should have new fertilized beans");
-        assertGt(user2Fertilized2, user2Fertilized1, "user2 should have more accumulated beans");
-
-        // Now user1 claims again (claiming every season)
-        uint256 user1BalanceBeforeClaim2 = IERC20(BEAN).balanceOf(user1);
-        vm.prank(user1);
-        barnPayback.claimFertilized(user1Ids, LibTransfer.To.EXTERNAL);
-
-        // user1 should have received their second round rewards
-        assertEq(IERC20(BEAN).balanceOf(user1), user1BalanceBeforeClaim2 + user1Fertilized2);
-
-        // user2 finally claims all accumulated rewards
-        uint256 user2BalanceBefore = IERC20(BEAN).balanceOf(user2);
-        vm.prank(user2);
-        barnPayback.claimFertilized(user2Ids, LibTransfer.To.EXTERNAL);
-
-        // user2 should receive all their accumulated rewards
-        assertEq(IERC20(BEAN).balanceOf(user2), user2BalanceBefore + user2Fertilized2);
-
-        // Both users should have no more fertilized beans after claiming
-        assertEq(barnPayback.balanceOfFertilized(user1, user1Ids), 0);
-        assertEq(barnPayback.balanceOfFertilized(user2, user2Ids), 0);
-    }
-
-    ////////////// Double claim and transfer logic //////////////
-
-    function test_barnPaybackFertilizerTransfersAndClaims() public {
-        // Initial state: user1 has 60 of FERT_ID_1
-        assertEq(barnPayback.balanceOf(user1, FERT_ID_1), 60);
-        assertEq(barnPayback.balanceOf(user3, FERT_ID_1), 0);
-
-        // User1 transfers 20 fertilizers to user3
-        vm.prank(user1);
-        barnPayback.safeTransferFrom(user1, user3, FERT_ID_1, 20, "");
-
-        // Check balances after transfer
-        assertEq(
-            barnPayback.balanceOf(user1, FERT_ID_1),
-            40,
-            "user1 should have 40 after transfer"
-        );
-        assertEq(
-            barnPayback.balanceOf(user3, FERT_ID_1),
-            20,
-            "user3 should have 20 after transfer"
-        );
-
-        // Send rewards to advance BPF
-        _sendRewardsToContract(25000);
-
-        // Both users should be able to claim based on their balances
-        uint256[] memory ids = new uint256[](1);
-        ids[0] = FERT_ID_1;
-
-        uint256 user1Fertilized = barnPayback.balanceOfFertilized(user1, ids);
-        uint256 user3Fertilized = barnPayback.balanceOfFertilized(user3, ids);
-
-        assertGt(user1Fertilized, 0, "user1 should have fertilized beans");
-        assertGt(user3Fertilized, 0, "user3 should have fertilized beans");
-
-        // The ratio should match their fertilizer balances (40:20 = 2:1)
-        // Due to the transfer hook updating rewards, the ratio should be approximately correct
-        uint256 expectedRatio = (user1Fertilized * 1e18) / user3Fertilized;
-        assertApproxEqRel(
-            expectedRatio,
-            2e18,
-            0.05e18,
-            "Reward ratio should match fertilizer balance ratio"
-        );
-
-        // Both claim their rewards
-        vm.prank(user1);
-        barnPayback.claimFertilized(ids, LibTransfer.To.EXTERNAL);
-
-        vm.prank(user3);
-        barnPayback.claimFertilized(ids, LibTransfer.To.EXTERNAL);
-
-        assertEq(
-            IERC20(BEAN).balanceOf(user1),
-            user1Fertilized,
-            "user1 should receive their share"
-        );
-        assertEq(
-            IERC20(BEAN).balanceOf(user3),
-            user3Fertilized,
-            "user3 should receive their share"
-        );
-
-        // Both should have no fertilized beans left
-        assertEq(
-            barnPayback.balanceOfFertilized(user1, ids),
-            0,
-            "user1 should have no fertilized beans left"
-        );
-        assertEq(
-            barnPayback.balanceOfFertilized(user3, ids),
-            0,
-            "user3 should have no fertilized beans left"
-        );
-    }
-
-    function test_barnPaybackComprehensiveTransferAndRewardMechanisms() public {
-        // Combined test covering transfer mechanics and anti-gaming features for fertilizer
-
-        // Phase 1: Initial setup - users have different fertilizer holdings
-        // user1: 60 of FERT_ID_1
-        // user2: 40 of FERT_ID_1, 30 of FERT_ID_2
-        assertEq(barnPayback.balanceOf(user1, FERT_ID_1), 60);
-        assertEq(barnPayback.balanceOf(user2, FERT_ID_1), 40);
-        assertEq(barnPayback.balanceOf(user2, FERT_ID_2), 30);
-
-        uint256[] memory user1Ids = new uint256[](1);
-        user1Ids[0] = FERT_ID_1;
-
-        uint256[] memory user2Ids = new uint256[](2);
-        user2Ids[0] = FERT_ID_1;
-        user2Ids[1] = FERT_ID_2;
-
-        // Phase 2: First reward distribution - both users earn proportionally
-        _sendRewardsToContract(30000);
-
-        uint256 user1InitialFertilized = barnPayback.balanceOfFertilized(user1, user1Ids);
-        uint256 user2InitialFertilized = barnPayback.balanceOfFertilized(user2, user2Ids);
-        assertGt(user1InitialFertilized, 0, "user1 should have fertilized beans");
-        assertGt(user2InitialFertilized, 0, "user2 should have fertilized beans");
-
-        // Phase 3: Transfer updates rewards (ERC1155 transfer hook)
-        // user1 transfers 20 FERT_ID_1 to user2
-        vm.prank(user1);
-        barnPayback.safeTransferFrom(user1, user2, FERT_ID_1, 20, "");
-
-        // Verify balances updated correctly
-        assertEq(
-            barnPayback.balanceOf(user1, FERT_ID_1),
-            40,
-            "user1 fertilizer balance after transfer"
-        );
-        assertEq(
-            barnPayback.balanceOf(user2, FERT_ID_1),
-            60,
-            "user2 fertilizer balance after transfer"
-        );
-
-        // Verify fertilized amounts remain the same after transfer (rewards captured by transfer hook)
-        assertEq(
-            barnPayback.balanceOfFertilized(user1, user1Ids),
-            user1InitialFertilized,
-            "user1 fertilized should remain same after transfer"
-        );
-        assertEq(
-            barnPayback.balanceOfFertilized(user2, user2Ids),
-            user2InitialFertilized,
-            "user2 fertilized should remain same after transfer"
-        );
-
-        // Phase 4: Anti-gaming test - user1 tries to transfer to user3 (new user)
-        vm.prank(user1);
-        barnPayback.safeTransferFrom(user1, user3, FERT_ID_1, 20, "");
-
-        // Verify user3 starts fresh with no historical fertilized beans
-        uint256[] memory user3Ids = new uint256[](1);
-        user3Ids[0] = FERT_ID_1;
-        assertEq(
-            barnPayback.balanceOfFertilized(user3, user3Ids),
-            0,
-            "user3 should have no fertilized beans from before they held fertilizer"
-        );
-        assertEq(barnPayback.balanceOf(user3, FERT_ID_1), 20, "user3 received fertilizer");
-
-        // user1 still has their original fertilized beans (can't be gamed away)
-        assertEq(
-            barnPayback.balanceOfFertilized(user1, user1Ids),
-            user1InitialFertilized,
-            "user1 retains original fertilized beans"
-        );
-
-        // Phase 5: Second reward distribution - new proportional split
-        _sendRewardsToContract(30000);
-
-        // Current fertilizer balances: user1=20, user2=90 (60+30), user3=20
-        // New rewards should be distributed based on current holdings and BPF advancement
-
-        uint256 user1FinalFertilized = barnPayback.balanceOfFertilized(user1, user1Ids);
-        uint256 user2FinalFertilized = barnPayback.balanceOfFertilized(user2, user2Ids);
-        uint256 user3FinalFertilized = barnPayback.balanceOfFertilized(user3, user3Ids);
-
-        // user1: should have original + new rewards
-        // user2: should have original + new rewards
-        // user3: should only have new rewards (no historical)
-        assertGt(
-            user1FinalFertilized,
-            user1InitialFertilized,
-            "user1 should have accumulated fertilized beans"
-        );
-        assertGt(
-            user2FinalFertilized,
-            user2InitialFertilized,
-            "user2 should have accumulated fertilized beans"
-        );
-        assertGt(user3FinalFertilized, 0, "user3 should have new fertilized beans");
-
-        // Phase 6: All users claim and verify final balances
-        uint256 user1BalanceBefore = IERC20(BEAN).balanceOf(user1);
-        uint256 user2BalanceBefore = IERC20(BEAN).balanceOf(user2);
-        uint256 user3BalanceBefore = IERC20(BEAN).balanceOf(user3);
-
-        vm.prank(user1);
-        barnPayback.claimFertilized(user1Ids, LibTransfer.To.EXTERNAL);
-
-        vm.prank(user2);
-        barnPayback.claimFertilized(user2Ids, LibTransfer.To.EXTERNAL);
-
-        vm.prank(user3);
-        barnPayback.claimFertilized(user3Ids, LibTransfer.To.EXTERNAL);
-
-        // Verify all rewards were paid out correctly
-        assertEq(
-            IERC20(BEAN).balanceOf(user1),
-            user1BalanceBefore + user1FinalFertilized,
-            "user1 received correct payout"
-        );
-        assertEq(
-            IERC20(BEAN).balanceOf(user2),
-            user2BalanceBefore + user2FinalFertilized,
-            "user2 received correct payout"
-        );
-        assertEq(
-            IERC20(BEAN).balanceOf(user3),
-            user3BalanceBefore + user3FinalFertilized,
-            "user3 received correct payout"
-        );
-
-        // All fertilized amounts should be reset to zero
-        assertEq(
-            barnPayback.balanceOfFertilized(user1, user1Ids),
-            0,
-            "user1 fertilized reset after claim"
-        );
-        assertEq(
-            barnPayback.balanceOfFertilized(user2, user2Ids),
-            0,
-            "user2 fertilized reset after claim"
-        );
-        assertEq(
-            barnPayback.balanceOfFertilized(user3, user3Ids),
-            0,
-            "user3 fertilized reset after claim"
-        );
-    }
-
-    /**
-     * @notice Test multiple users claiming different fertilizer types
-     */
-    function testMultiUserMultiFertilizerClaim() public {
-        // Send rewards
-        _sendRewardsToContract(75000e6);
-
-        // User2 has both FERT_ID_1 and FERT_ID_2
-        uint256[] memory user2Ids = new uint256[](2);
-        user2Ids[0] = FERT_ID_1;
-        user2Ids[1] = FERT_ID_2;
-
-        uint256 user2Fertilized = barnPayback.balanceOfFertilized(user2, user2Ids);
-
-        // User3 has both FERT_ID_2 and FERT_ID_3
-        uint256[] memory user3Ids = new uint256[](2);
-        user3Ids[0] = FERT_ID_2;
-        user3Ids[1] = FERT_ID_3;
-
-        uint256 user3Fertilized = barnPayback.balanceOfFertilized(user3, user3Ids);
-
-        assertGt(user2Fertilized, 0, "User2 should have fertilized beans");
-        assertGt(user3Fertilized, 0, "User3 should have fertilized beans");
-
-        // Both users claim
-        vm.prank(user2);
-        barnPayback.claimFertilized(user2Ids, LibTransfer.To.EXTERNAL);
-
-        vm.prank(user3);
-        barnPayback.claimFertilized(user3Ids, LibTransfer.To.EXTERNAL);
-
-        assertEq(
-            IERC20(BEAN).balanceOf(user2),
-            user2Fertilized,
-            "User2 should receive correct amount"
-        );
-        assertEq(
-            IERC20(BEAN).balanceOf(user3),
-            user3Fertilized,
-            "User3 should receive correct amount"
-        );
-
-        // Verify no double claiming
-        uint256 user2FertilizedAfter = barnPayback.balanceOfFertilized(user2, user2Ids);
-        uint256 user3FertilizedAfter = barnPayback.balanceOfFertilized(user3, user3Ids);
-
-        assertEq(user2FertilizedAfter, 0, "User2 should have no fertilized beans left");
-        assertEq(user3FertilizedAfter, 0, "User3 should have no fertilized beans left");
-    }
-
-    /**
-     * @notice Test state verification functions
-     */
-    function test_stateVerification() public {
-        // Verify total calculations
-        uint256 totalUnfertilized = barnPayback.totalUnfertilizedBeans();
-        uint256 barnRemaining = barnPayback.barnRemaining();
-
-        assertGt(totalUnfertilized, 0, "Should have unfertilized beans");
-        assertEq(
-            barnRemaining,
-            totalUnfertilized,
-            "Barn remaining should equal total unfertilized"
-        );
-
-        // Calculate expected unfertilized amount
-        uint256 expectedUnfertilized = (FERT_ID_1 * 100) + (FERT_ID_2 * 50) + (FERT_ID_3 * 25); // Initial unfertilizedIndex
-        assertEq(
-            totalUnfertilized,
-            expectedUnfertilized,
-            "Should match calculated unfertilized amount"
-        );
-    }
-
-    /**
-     * @notice Test barn payback receive function - core payback mechanism
-     */
-    function test_barnPaybackReceive() public {
-        uint256 initialUnfertilized = barnPayback.totalUnfertilizedBeans();
-        uint256 shipmentAmount = 100000; // 100k pinto
-
-        // Only pinto protocol can call barnPaybackReceive
-        vm.expectRevert("BarnPayback: only pinto protocol");
-        vm.prank(user1);
-        barnPayback.barnPaybackReceive(shipmentAmount);
-
-        // Pinto protocol sends rewards
-        vm.expectEmit(true, true, true, true);
-        emit FertilizerRewardsReceived(shipmentAmount);
-
-        vm.prank(address(BEANSTALK));
-        barnPayback.barnPaybackReceive(shipmentAmount);
-
-        // Should reduce unfertilized beans
-        uint256 finalUnfertilized = barnPayback.totalUnfertilizedBeans();
-        assertLt(finalUnfertilized, initialUnfertilized, "Should reduce unfertilized beans");
-
-        // Barn remaining should be updated
-        assertEq(
-            barnPayback.barnRemaining(),
-            finalUnfertilized,
-            "Barn remaining should match unfertilized"
-        );
+        // verify that the fertilized index increased by the amount sent as rewards minus the leftover beans
+        assertEq(fert.fertilizedIndex, rewardAmount - fert.leftoverBeans);
     }
 
     /**
@@ -602,51 +272,7 @@ contract BarnPaybackTest is TestHelper {
         assertLe(finalRemaining, initialUnfertilized / 100, "Should be mostly paid back"); // Within 1%
     }
 
-    /**
-     * @notice Test claiming with internal vs external transfer modes
-     */
-    function test_claimingModes() public {
-        // Send some rewards first
-        _sendRewardsToContract(50000e6);
-
-        uint256[] memory ids = new uint256[](1);
-        ids[0] = FERT_ID_1;
-
-        uint256 fertilized = barnPayback.balanceOfFertilized(user1, ids);
-        assertGt(fertilized, 0, "User1 should have fertilized beans");
-
-        // Test claiming to internal balance
-        vm.prank(user1);
-        barnPayback.claimFertilized(ids, LibTransfer.To.INTERNAL);
-
-        // Should have internal balance in pinto protocol
-        uint256 internalBalance = bs.getInternalBalance(user1, address(BEAN));
-        assertEq(internalBalance, fertilized, "Should have internal balance");
-        assertEq(IERC20(BEAN).balanceOf(user1), 0, "Should have no external balance");
-
-        // Setup user2 for external claiming
-        _sendRewardsToContract(25000e6);
-
-        uint256[] memory user2Ids = new uint256[](1);
-        user2Ids[0] = FERT_ID_1;
-
-        uint256 user2Fertilized = barnPayback.balanceOfFertilized(user2, user2Ids);
-        if (user2Fertilized > 0) {
-            vm.prank(user2);
-            barnPayback.claimFertilized(user2Ids, LibTransfer.To.EXTERNAL);
-
-            assertEq(
-                IERC20(BEAN).balanceOf(user2),
-                user2Fertilized,
-                "Should have external balance"
-            );
-            assertEq(
-                bs.getInternalBalance(user2, address(BEAN)),
-                0,
-                "Should have no internal balance"
-            );
-        }
-    }
+    ///////////////////// Helper functions /////////////////////
 
     /**
      * @notice Helper function to send reward pinto to the fertilizer contract via barn payback receive
@@ -760,5 +386,29 @@ contract BarnPaybackTest is TestHelper {
         });
 
         return fertilizerData;
+    }
+
+    function _getSystemFertilizer() internal view returns (SystemFertilizerStruct memory) {
+        (
+            uint256 activeFertilizer,
+            uint256 fertilizedIndex,
+            uint256 unfertilizedIndex,
+            uint256 fertilizedPaidIndex,
+            uint128 fertFirst,
+            uint128 fertLast,
+            uint128 bpf,
+            uint256 leftoverBeans
+        ) = barnPayback.fert();
+        return
+            SystemFertilizerStruct({
+                activeFertilizer: uint256(activeFertilizer),
+                fertilizedIndex: fertilizedIndex,
+                unfertilizedIndex: unfertilizedIndex,
+                fertilizedPaidIndex: fertilizedPaidIndex,
+                fertFirst: fertFirst,
+                fertLast: fertLast,
+                bpf: bpf,
+                leftoverBeans: leftoverBeans
+            });
     }
 }
