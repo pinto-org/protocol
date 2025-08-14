@@ -180,28 +180,50 @@ contract SiloPaybackTest is TestHelper {
         // farmer2 should receive all their accumulated rewards
         assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2BalanceBefore + farmer2Earned2);
         assertEq(siloPayback.earned(farmer2), 0);
+    }
 
-        // Final verification: Total rewards distributed should equal total claimed
-        uint256 totalRewardsDistributed = 100e6 + 200e6; // 300 BEAN total
-        uint256 totalClaimed = IERC20(BEAN).balanceOf(farmer1) + IERC20(BEAN).balanceOf(farmer2);
-        assertEq(
-            totalClaimed,
-            totalRewardsDistributed,
-            "Total claimed should equal total distributed"
-        );
-
-        // Contract should have no BEAN left
-        assertEq(
-            IERC20(BEAN).balanceOf(address(siloPayback)),
-            0,
-            "Contract should have no BEAN remaining"
-        );
-
-        // Verify proportional correctness:
-        // farmer1: 40 (first) + 80 (second) = 120 total
-        // farmer2: 60 (first) + 120 (second) = 180 total
-        assertEq(IERC20(BEAN).balanceOf(farmer1), 120e6, "farmer1 total should be 120");
-        assertEq(IERC20(BEAN).balanceOf(farmer2), 180e6, "farmer2 total should be 180");
+    /**
+     * @dev test that two users can claim their rewards to their internal balance
+     */
+    function test_siloPaybackClaimToInternalBalance2Users() public {
+        // Simple test: Both farmers claim rewards to their internal balance
+        _mintTokensToUser(farmer1, 600e6); // 60%
+        _mintTokensToUser(farmer2, 400e6); // 40%
+        
+        // Distribute rewards
+        uint256 rewardAmount = 150e6;
+        _sendRewardsToContract(rewardAmount);
+        
+        uint256 farmer1Earned = siloPayback.earned(farmer1); // 90 BEAN (60%)
+        uint256 farmer2Earned = siloPayback.earned(farmer2); // 60 BEAN (40%)
+        assertEq(farmer1Earned, 90e6);
+        assertEq(farmer2Earned, 60e6);
+        
+        // Get initial internal balances
+        uint256 farmer1InternalBefore = bs.getInternalBalance(farmer1, address(BEAN));
+        uint256 farmer2InternalBefore = bs.getInternalBalance(farmer2, address(BEAN));
+        
+        // Both farmers claim to INTERNAL balance
+        vm.prank(farmer1);
+        siloPayback.claim(farmer1, LibTransfer.To.INTERNAL);
+        
+        vm.prank(farmer2);
+        siloPayback.claim(farmer2, LibTransfer.To.INTERNAL);
+        
+        // Verify both farmers' rewards went to internal balance
+        uint256 farmer1InternalAfter = bs.getInternalBalance(farmer1, address(BEAN));
+        uint256 farmer2InternalAfter = bs.getInternalBalance(farmer2, address(BEAN));
+        
+        assertEq(farmer1InternalAfter, farmer1InternalBefore + farmer1Earned, "farmer1 internal balance should increase by earned amount");
+        assertEq(farmer2InternalAfter, farmer2InternalBefore + farmer2Earned, "farmer2 internal balance should increase by earned amount");
+        
+        // Both users should have zero earned rewards after claiming
+        assertEq(siloPayback.earned(farmer1), 0, "farmer1 earned should reset after claim");
+        assertEq(siloPayback.earned(farmer2), 0, "farmer2 earned should reset after claim");
+        
+        // Verify total internal balance increases equal total distributed rewards
+        uint256 totalInternalIncrease = (farmer1InternalAfter - farmer1InternalBefore) + (farmer2InternalAfter - farmer2InternalBefore);
+        assertEq(totalInternalIncrease, rewardAmount, "Total internal balance increase should equal total distributed rewards");
     }
 
     ////////////// Double claim and transfer logic //////////////

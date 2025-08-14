@@ -19,9 +19,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
         uint256 bdv;
     }
 
-    /// @dev the Pinto Diamond contract
+    /// @dev External contracts for interactions with the Pinto protocol
     IBeanstalk public pintoProtocol;
-    /// @dev the Pinto token
     IERC20 public pinto;
 
     /// @dev Tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
@@ -151,7 +150,16 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
     /////////////////// Transfer Hook and ERC20 overrides ///////////////////
 
-    /// @dev pre transfer hook to update rewards for both sender and receiver
+    /**
+     * @notice pre transfer hook to update rewards for both sender and receiver
+     * The result is that token balances change, but both parties have been
+     * "checkpointed" to prevent any reward manipulation through transfers.
+     * Claims happen only when the user decides to claim.
+     * This way all claims can also happen in the internal balance.
+     * @param from The address of the sender
+     * @param to The address of the receiver
+     * @param amount The amount of tokens being transferred
+     */
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal {
         if (from != address(0)) {
             // capture any existing rewards for the sender, update their checkpoint to current global state
@@ -164,11 +172,6 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             rewards[to] = earned(to);
             userRewardPerTokenPaid[to] = rewardPerTokenStored;
         }
-
-        // result: token balances change, but both parties have been
-        // "checkpointed" to prevent any reward manipulation through transfers
-        // claims happen when the users decide to claim.
-        // This way all claims can also happen in the internal balance.
     }
 
     /// @dev override the standard transfer function to update rewards
