@@ -488,8 +488,8 @@ enum ShipmentRecipient {
     FIELD,
     INTERNAL_BALANCE,
     EXTERNAL_BALANCE,
-    BARN_PAYBACK,
-    SILO_PAYBACK
+    SILO_PAYBACK,
+    BARN_PAYBACK
 }
 
 /**
