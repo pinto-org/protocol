@@ -21,6 +21,7 @@ const {
   PINTO,
   L2_PINTO,
   PINTO_DIAMOND_DEPLOYER,
+  BEANSTALK_SHIPMENTS_DEPLOYER,
   L2_PCM,
   BASE_BLOCK_TIME,
   PINTO_WETH_WELL_BASE,
@@ -2027,7 +2028,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     const noFieldChunking = true;
     const deploy = true;
 
-    // Use the diamond deployer as the account
+    // Use the diamond deployer for dimond cuts
     const mock = true;
     let owner;
     if (mock) {
@@ -2035,6 +2036,15 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       await mintEth(owner.address);
     } else {
       owner = (await ethers.getSigners())[0];
+    }
+
+    // Use the diamond deployer for dimond cuts
+    let deployer;
+    if (mock) {
+      deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+      await mintEth(deployer.address);
+    } else {
+      deployer = (await ethers.getSigners())[1];
     }
 
     // Step 1: 
@@ -2049,7 +2059,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
         PINTO,
         L2_PINTO,
         L2_PCM,
-        owner,
+        account: deployer,
         verbose
       });
     }
@@ -2057,7 +2067,6 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     // Step 2: Creates and populates the beanstalk field
     console.log("\n-----------------------------------");
     //clear console
-    console.clear();
     console.log("Step 2: Creating and populating beanstalk field...");
     await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
 
@@ -2068,7 +2077,6 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
 
     // Refresh the shipment routes with the new routes
     // Old routes need to be updates because of the new shipment planner contract address
-    console.clear();
     console.log("\n-----------------------------------");
     console.log("Step 3: Refreshing shipment routes...");
     await upgradeWithNewFacets({

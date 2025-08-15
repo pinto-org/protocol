@@ -6,6 +6,13 @@ import {TestHelper} from "test/foundry/utils/TestHelper.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+/**
+ * @notice Tests that the whole shipments initialization and logic works correctly.
+ * This tests should be ran against a local node after the deployment and initialization task is complete.
+ * 1. Create a local anvil node
+ * 2. Run the hardhat task: `npx hardhat compile && npx hardhat beanstalkShipments --network localhost`
+ * 3. Run the test: `forge test --match-test test_shipments --fork-url http://localhost:8545`
+ */
 contract BeanstalkShipmentsTest is TestHelper {
 
     // we need to:
@@ -18,14 +25,6 @@ contract BeanstalkShipmentsTest is TestHelper {
     // - 6. for each component, make sure everything is set correctly, 
     // all tokens are distributed correctly and users can claim their rewards
     function setUp() public {
-        initializeBeanstalkTestState(true, false);
-
-        // add new field, init some plots (see sun.t.sol)
-
-        // deploy unripe distributor
-        // siloPayback = new SiloPayback(PINTO, BEANSTALK);
-
-        // upddate routes here
-        setRoutes_all();
+        
     }
 }

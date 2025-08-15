@@ -1,14 +1,14 @@
 const fs = require("fs");
 
 // Deploys SiloPayback, BarnPayback, and ShipmentPlanner contracts
-async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose = true }) {
+async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbose = true }) {
   if (verbose) {
     console.log("Deploying Beanstalk shipment contracts...");
   }
 
   //////////////////////////// Silo Payback ////////////////////////////
   console.log("\nDeploying SiloPayback...");
-  const siloPaybackFactory = await ethers.getContractFactory("SiloPayback", owner);
+  const siloPaybackFactory = await ethers.getContractFactory("SiloPayback", account);
   // factory, args, proxy options
   const siloPaybackContract = await upgrades.deployProxy(siloPaybackFactory, [PINTO, L2_PINTO], {
     initializer: "initialize",
@@ -21,7 +21,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
   //////////////////////////// Barn Payback ////////////////////////////
   console.log("--------------------------------");
   console.log("Deploying BarnPayback...");
-  const barnPaybackFactory = await ethers.getContractFactory("BarnPayback", owner);
+  const barnPaybackFactory = await ethers.getContractFactory("BarnPayback", account);
   // get the initialization args from the json file
   const barnPaybackArgsPath = "./scripts/beanstalkShipments/data/beanstalkGlobalFertilizer.json";
   const barnPaybackArgs = JSON.parse(fs.readFileSync(barnPaybackArgsPath));
@@ -41,7 +41,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
   //////////////////////////// Shipment Planner ////////////////////////////
   console.log("--------------------------------");
   console.log("Deploying ShipmentPlanner...");
-  const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner", owner);
+  const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner", account);
   const shipmentPlannerContract = await shipmentPlannerFactory.deploy(L2_PINTO, PINTO);
   await shipmentPlannerContract.deployed();
   if (verbose) console.log("ShipmentPlanner deployed to:", shipmentPlannerContract.address);
@@ -55,13 +55,18 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, owner, verbose
 }
 
 // Distributes unripe BDV tokens from JSON file to contract recipients
-async function distributeUnripeBdvTokens({ siloPaybackContract, owner, dataPath, verbose = true }) {
+async function distributeUnripeBdvTokens({
+  siloPaybackContract,
+  account,
+  dataPath,
+  verbose = true
+}) {
   if (verbose) console.log("Distributing unripe BDV tokens...");
 
   try {
     const unripeAccountBdvTokens = JSON.parse(fs.readFileSync(dataPath));
     // mint all in one transaction
-    await siloPaybackContract.connect(owner).batchMint(unripeAccountBdvTokens);
+    await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
 
     if (verbose) console.log("Unripe BDV tokens distributed to old Beanstalk participants");
   } catch (error) {
@@ -73,7 +78,7 @@ async function distributeUnripeBdvTokens({ siloPaybackContract, owner, dataPath,
 // Distributes barn payback tokens from JSON file to contract recipients
 async function distributeBarnPaybackTokens({
   barnPaybackContract,
-  owner,
+  account,
   dataPath,
   verbose = true
 }) {
@@ -82,7 +87,7 @@ async function distributeBarnPaybackTokens({
   try {
     const accountFertilizers = JSON.parse(fs.readFileSync(dataPath));
     // mint all in one transaction
-    await barnPaybackContract.connect(owner).mintFertilizers(accountFertilizers);
+    await barnPaybackContract.connect(account).mintFertilizers(accountFertilizers);
   } catch (error) {
     console.error("Error distributing barn payback tokens:", error);
     throw error;
@@ -106,35 +111,22 @@ async function transferContractOwnership({
   if (verbose) console.log("BarnPayback ownership transferred to PCM");
 }
 
-// Logs deployed contract addresses
-function logDeployedAddresses({
-  siloPaybackContract,
-  barnPaybackContract,
-  shipmentPlannerContract
-}) {
-  console.log("\nDeployed Contract Addresses:");
-  console.log("- SiloPayback:", siloPaybackContract.address);
-  console.log("- BarnPayback:", barnPaybackContract.address);
-  console.log("- ShipmentPlanner:", shipmentPlannerContract.address);
-}
-
 // Main function that orchestrates all deployment steps
 async function deployAndSetupContracts(params) {
   const { verbose = true } = params;
-  // console.log("owner from params", params.owner);
 
   const contracts = await deployShipmentContracts(params);
 
   await distributeUnripeBdvTokens({
     siloPaybackContract: contracts.siloPaybackContract,
-    owner: params.owner,
+    account: params.account,
     dataPath: "./scripts/beanstalkShipments/data/unripeBdvTokens.json",
     verbose
   });
 
   await distributeBarnPaybackTokens({
     barnPaybackContract: contracts.barnPaybackContract,
-    owner: params.owner,
+    account: params.account,
     dataPath: "./scripts/beanstalkShipments/data/beanstalkAccountFertilizer.json",
     verbose
   });
@@ -146,10 +138,6 @@ async function deployAndSetupContracts(params) {
     verbose
   });
 
-  if (verbose) {
-    logDeployedAddresses(contracts);
-  }
-
   return contracts;
 }
 
@@ -157,6 +145,5 @@ module.exports = {
   deployShipmentContracts,
   distributeUnripeBdvTokens,
   transferContractOwnership,
-  logDeployedAddresses,
   deployAndSetupContracts
 };
