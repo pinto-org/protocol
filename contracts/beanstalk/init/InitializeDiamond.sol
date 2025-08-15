@@ -21,8 +21,8 @@ import {C} from "contracts/C.sol";
 import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 
 /**
- * @title InitializesDiamond
- * @notice InitializesDiamond provides helper functions to Initializes beanstalk.
+ * @title InitializeDiamond
+ * @notice InitializeDiamond provides helper functions to initalize beanstalk.
  **/
 
 contract InitializeDiamond {
@@ -90,12 +90,15 @@ contract InitializeDiamond {
     uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.05e6; // 5%
     uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
 
+    // Convert Down Penalty Rate (1.005 with 6 decimals)
+    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6;
+
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
      * @notice Initializes the diamond with base conditions.
-     * @dev the base initialization Initializes various parameters,
+     * @dev the base initialization initializes various parameters,
      * as well as whitelists the bean and bean:TKN pools.
      */
     function initializeDiamond(address bean, address beanTokenWell) internal {
@@ -213,7 +216,7 @@ contract InitializeDiamond {
             ? (block.timestamp / s.sys.season.period) * s.sys.season.period
             : block.timestamp;
 
-        // Initializes the cases that beanstalk uses
+        // initializes the cases that beanstalk uses
         // to change certain parameters of itself.
         setCases();
 

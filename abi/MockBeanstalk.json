@@ -6893,6 +6893,11 @@
         "internalType": "uint256",
         "name": "grownStalkToConvert",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountConverted",
+        "type": "uint256"
       }
     ],
     "name": "downPenalizedGrownStalk",
@@ -7003,6 +7008,35 @@
       }
     ],
     "name": "getMaxAmountIn",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "amountIn",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenIn",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenOut",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rate",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMaxAmountInAtRate",
     "outputs": [
       {
         "internalType": "uint256",
@@ -8354,6 +8388,44 @@
       }
     ],
     "name": "TemperatureChange",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "UpdatedGaugeData",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "UpdatedGaugeValue",
     "type": "event"
   },
   {
@@ -10943,6 +11015,84 @@
       }
     ],
     "name": "mockUpdateStalkPerBdvBonus",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "beanMintedThreshold",
+        "type": "uint256"
+      }
+    ],
+    "name": "setBeanMintedThreshold",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "beansMintedAbovePeg",
+        "type": "uint256"
+      }
+    ],
+    "name": "setBeansMintedAbovePeg",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "rate",
+        "type": "uint256"
+      }
+    ],
+    "name": "setConvertDownPenaltyRate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "penaltyRatio",
+        "type": "uint256"
+      }
+    ],
+    "name": "setPenaltyRatio",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "runningThreshold",
+        "type": "uint256"
+      }
+    ],
+    "name": "setRunningThreshold",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "thresholdSet",
+        "type": "bool"
+      }
+    ],
+    "name": "setThresholdSet",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
