@@ -40,15 +40,6 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /// @dev event emitted when rewards are received from shipments
     event SiloPaybackRewardsReceived(uint256 amount, uint256 newIndex);
 
-    /// @notice Modifier to update rewards for an account before a claim
-    modifier updateReward(address account) {
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
-        }
-        _;
-    }
-
     /// @dev modifier to ensure only the Pinto protocol can call the function
     modifier onlyPintoProtocol() {
         require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
@@ -99,17 +90,27 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
         emit SiloPaybackRewardsReceived(shipmentAmount, rewardPerTokenStored);
     }
 
+    /////////////////// Claiming rewards ///////////////////
+
     /**
      * @notice Claims accumulated rewards for the caller
+     * If no active tractor execution, the caller is msg.sender.
+     * Otherwise it is the active blueprint publisher
      * @param recipient the address to send the rewards to
      * @param toMode the mode to send the rewards in
      */
-    function claim(address recipient, LibTransfer.To toMode) external updateReward(msg.sender) {
-        uint256 rewardsToClaim = rewards[msg.sender];
+    function claim(address recipient, LibTransfer.To toMode) external {
+        // get the current tractor user or msg.sender if no active tractor execution
+        address returnedAccount = pintoProtocol.tractorUser();
+        // because msg.sender in the diamond is this contract, we need to adjust msg.sender
+        address account = returnedAccount == address(this) ? msg.sender : returnedAccount;
+        // update the reward state for the account
+        updateReward(account);
+        uint256 rewardsToClaim = rewards[account];
         require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
 
         // reset user rewards
-        rewards[msg.sender] = 0;
+        rewards[account] = 0;
 
         // Transfer the rewards to the recipient
         pintoProtocol.transferToken(
@@ -120,7 +121,18 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             toMode
         );
 
-        emit Claimed(msg.sender, rewardsToClaim, rewardsToClaim);
+        emit Claimed(account, rewardsToClaim, rewardsToClaim);
+    }
+
+    /**
+     * @notice Updates the reward state for an account before a claim
+     * @param account The account to update the reward state for
+     */
+    function updateReward(address account) internal {
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
     }
 
     /**
@@ -190,4 +202,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     function decimals() public view override returns (uint8) {
         return 6;
     }
+
+    // todo: add a function for a user to claim but the contract looks at their INTERNAL balance
+    // TODO: Check if the user can do a PARTIAL claim using this function aka when you transfer 25 out of 100
+    // can you claim for 25% of the rewards?
 }
