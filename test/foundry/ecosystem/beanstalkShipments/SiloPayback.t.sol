@@ -136,7 +136,7 @@ contract SiloPaybackTest is TestHelper {
         // farmer1 claims immediately after first distribution (claiming every season)
         uint256 farmer1BalanceBefore = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
+        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // Verify farmer1 received rewards and state is updated
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBefore + farmer1Earned1);
@@ -166,7 +166,7 @@ contract SiloPaybackTest is TestHelper {
         // Now farmer1 claims again (claiming every season)
         uint256 farmer1BalanceBeforeClaim2 = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
+        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // farmer1 should have received their second round rewards
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBeforeClaim2 + farmer1Earned2);
@@ -175,7 +175,7 @@ contract SiloPaybackTest is TestHelper {
         // farmer2 finally claims all accumulated rewards
         uint256 farmer2BalanceBefore = IERC20(BEAN).balanceOf(farmer2);
         vm.prank(farmer2);
-        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL);
+        siloPayback.claim(0, farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // farmer2 should receive all their accumulated rewards
         assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2BalanceBefore + farmer2Earned2);
@@ -205,10 +205,10 @@ contract SiloPaybackTest is TestHelper {
         
         // Both farmers claim to INTERNAL balance
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.INTERNAL);
+        siloPayback.claim(0, farmer1, LibTransfer.To.INTERNAL); // 0 means claim all
         
         vm.prank(farmer2);
-        siloPayback.claim(farmer2, LibTransfer.To.INTERNAL);
+        siloPayback.claim(0, farmer2, LibTransfer.To.INTERNAL); // 0 means claim all
         
         // Verify both farmers' rewards went to internal balance
         uint256 farmer1InternalAfter = bs.getInternalBalance(farmer1, address(BEAN));
@@ -301,13 +301,13 @@ contract SiloPaybackTest is TestHelper {
         
         // Claim for all users
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
+        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
         
         vm.prank(farmer2);
-        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL);
+        siloPayback.claim(0, farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
         
         vm.prank(farmer3);
-        siloPayback.claim(farmer3, LibTransfer.To.EXTERNAL);
+        siloPayback.claim(0, farmer3, LibTransfer.To.EXTERNAL); // 0 means claim all
         
         // Verify all rewards were paid out correctly
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBefore + farmer1FinalEarned, "farmer1 received correct payout");
@@ -322,6 +322,27 @@ contract SiloPaybackTest is TestHelper {
         assertEq(siloPayback.earned(farmer2), 0, "farmer2 earned reset after claim");
         assertEq(siloPayback.earned(farmer3), 0, "farmer3 earned reset after claim");
     }
+
+
+    // test case for sure
+    // user puts the tokens in their internal balance, we claim from the ui via a farm call.
+    // rewardPertoken paid for user is updated. 
+
+    // rewards keep accumulating as pinto distribution happens
+
+    // user transfers the tokens to another address via internal balance
+    // no state variables get updated BUT
+    // earned now updates to reflect the new internal balance
+
+    // Scenario:
+    //   - User has 100 external + 50 internal tokens (150
+    //   total)
+    //   - Earns rewards for 150 tokens
+    //   - Internal balance changes to 25 via direct Pinto
+    //   protocol calls
+    //   - User still has checkpoint for 150 tokens but only 125
+    //    total balance
+    //   - Could claim excess rewards or have calculation errors
 
     ////////////// HELPER FUNCTIONS //////////////
 
