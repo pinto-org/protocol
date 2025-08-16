@@ -30,6 +30,7 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title LibConvert
@@ -494,8 +495,11 @@ library LibConvert {
             cp.toToken,
             cp.account,
             toBdv,
-            grownStalk
+            grownStalk,
+            cp.fromAmount
         );
+        console.log("oldGrownStalk", grownStalk);
+        console.log("newGrownStalk", newGrownStalk);
 
         // check for stalk slippage
         checkGrownStalkSlippage(newGrownStalk, initialGrownStalk, grownStalkSlippage);
@@ -658,6 +662,7 @@ library LibConvert {
      * @param outputToken The token being converted to.
      * @param toBdv The bdv of the deposit to convert.
      * @param grownStalk The grown stalk of the deposit to convert.
+     * @param fromAmount The amount of the input token being converted (for BEAN -> WELL converts)
      * @return newGrownStalk The new grown stalk to assign the deposit, after applying the penalty/bonus.
      */
     function applyStalkModifiers(
@@ -665,16 +670,19 @@ library LibConvert {
         address outputToken,
         address account,
         uint256 toBdv,
-        uint256 grownStalk
+        uint256 grownStalk,
+        uint256 fromAmount
     ) internal returns (uint256 newGrownStalk) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // penalty down for BEAN -> WELL
         if (inputToken == s.sys.bean && LibWell.isWell(outputToken)) {
+            console.log("here");
             uint256 grownStalkLost;
             (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
                 outputToken,
                 toBdv,
-                grownStalk
+                grownStalk,
+                fromAmount
             );
             if (grownStalkLost > 0) {
                 emit ConvertDownPenalty(account, grownStalkLost, newGrownStalk);
@@ -714,6 +722,7 @@ library LibConvert {
         uint256 fromAmount
     ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
         AppStorage storage s = LibAppStorage.diamondStorage();
+        console.log("here11");
 
         require(bdv > 0 && fromAmount > 0, "Convert: bdv or fromAmount is 0");
 
@@ -722,23 +731,28 @@ library LibConvert {
         if (grownStalk < minGrownStalk) {
             return (grownStalk, 0);
         }
+        console.log("here22");
 
         // Get convertDownPenaltyRate from gauge data.
         LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].data,
             (LibGaugeHelpers.ConvertDownPenaltyData)
         );
+        console.log("here33");
 
         (bool greaterThanRate, uint256 penalizedAmount) = pGreaterThanRate(
             well,
             gd.convertDownPenaltyRate,
             fromAmount
         );
+        console.log("here");
 
         // If the price of the well is greater than the penalty rate after the convert, there is no penalty.
         if (greaterThanRate) {
+            console.log("greaterThanRate");
             return (grownStalk, 0);
         }
+        console.log("here");
 
         // price is lower than the penalty rate.
 
@@ -747,6 +761,7 @@ library LibConvert {
             s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].value,
             (uint256, uint256)
         );
+        console.log("penaltyRatio", penaltyRatio);
 
         // enforce penalty ratio is not greater than 100%.
         require(penaltyRatio <= C.PRECISION, "Convert: penaltyRatio is greater than 100%");
@@ -777,6 +792,8 @@ library LibConvert {
             newGrownStalk = grownStalk;
             grownStalkLost = 0;
         }
+        console.log("newGrownStalk", newGrownStalk);
+        console.log("grownStalkLost", grownStalkLost);
     }
 
     /**

@@ -9,7 +9,7 @@ import "forge-std/console.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {InitPI11} from "contracts/beanstalk/init/InitPI11.sol";
+import {InitPI12} from "contracts/beanstalk/init/InitPI12.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 
@@ -29,8 +29,8 @@ contract Pi12ForkTest is TestHelper {
             forkBlock,
             vm.envString("BASE_RPC"),
             PINTO,
-            "InitPI11",
-            abi.encodeWithSelector(InitPI11.init.selector, 1e9) // initialize bonus stalk per bdv
+            "InitPI12",
+            abi.encodeWithSelector(InitPI12.init.selector, 1e9) // initialize bonus stalk per bdv
         );
         bs = IMockFBeanstalk(PINTO);
     }

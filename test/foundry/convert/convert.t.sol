@@ -339,8 +339,12 @@ contract ConvertTest is TestHelper {
             );
 
             vm.prank(farmers[0]);
-            (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
-            console.log("done?");
+            (int96 toStem, , , , ) = convert.convertWithStalkSlippage(
+                convertData,
+                stems,
+                amounts,
+                MAX_GROWN_STALK_SLIPPAGE
+            );
 
             assertGt(toStem, int96(0), "toStem should be larger than initial");
             uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
@@ -672,6 +676,7 @@ contract ConvertTest is TestHelper {
      * @notice general convert test and verify down convert penalty, checking slippage.
      */
     function test_convertBeanToWellWithPenaltySlippageRevert() public {
+        bs.setConvertDownPenaltyRate(2e6);
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);

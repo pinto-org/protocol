@@ -90,9 +90,6 @@ contract InitializeDiamond {
     uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.05e6; // 5%
     uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
 
-    // Convert Down Penalty Rate (1.005 with 6 decimals)
-    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6;
-
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
