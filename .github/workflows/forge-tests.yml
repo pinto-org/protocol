@@ -82,7 +82,7 @@ jobs:
         run: |
           forge --version
           forge clean
-          forge build
+          forge build --force
 
       - name: Run Forge tests
         run: forge test
