@@ -9,7 +9,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
-
     /// @dev precision used for reward calculations
     uint256 public constant PRECISION = 1e18;
 
@@ -93,24 +92,46 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /////////////////// Claiming rewards ///////////////////
 
     /**
-     * @notice Claims accumulated rewards for the caller
+     * @notice Claims accumulated rewards for the caller, optionally for a specific token amount
      * If no active tractor execution, the caller is msg.sender.
      * Otherwise it is the active blueprint publisher
-     * @param recipient the address to send the rewards to
-     * @param toMode the mode to send the rewards in
+     * @param tokenAmount The amount of tokens to claim rewards for (0 to claim for the entire balance)
+     * @param recipient The address to send the rewards to
+     * @param fromMode The mode where the user's tokens are stored (EXTERNAL or INTERNAL)
+     * @param toMode The mode to send the rewards in
      */
-    function claim(address recipient, LibTransfer.To toMode) external {
-        // get the current tractor user or msg.sender if no active tractor execution
-        address returnedAccount = pintoProtocol.tractorUser();
-        // because msg.sender in the diamond is this contract, we need to adjust msg.sender
-        address account = returnedAccount == address(this) ? msg.sender : returnedAccount;
-        // update the reward state for the account
-        updateReward(account);
-        uint256 rewardsToClaim = rewards[account];
-        require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
+    function claim(
+        uint256 tokenAmount,
+        address recipient,
+        LibTransfer.From fromMode,
+        LibTransfer.To toMode
+    ) external {
+        address account = _getActiveAccount();
+        uint256 userModeBalance = getBalanceInMode(account, fromMode);
 
-        // reset user rewards
-        rewards[account] = 0;
+        // If tokenAmount is 0, claim for all tokens
+        if (tokenAmount == 0) tokenAmount = userModeBalance;
+
+        // Validate tokenAmount and balance
+        require(tokenAmount > 0, "SiloPayback: tokenAmount to claim for must be greater than 0");
+        require(userModeBalance > 0, "SiloPayback: token balance in mode must be greater than 0");
+        require(tokenAmount <= userModeBalance, "SiloPayback: tokenAmount to claim for exceeds balance");
+
+        // update the reward state for the account
+        _updateReward(account);
+        uint256 totalEarned = rewards[account];
+        require(totalEarned > 0, "SiloPayback: no rewards to claim");
+
+        uint256 rewardsToClaim;
+        if (tokenAmount == userModeBalance) {
+            // full balance claim
+            rewardsToClaim = totalEarned;
+            rewards[account] = 0;
+        } else {
+            // partial claim - rewards are proportional to the token amount specified
+            rewardsToClaim = (totalEarned * tokenAmount) / userModeBalance;
+            rewards[account] = totalEarned - rewardsToClaim;
+        }
 
         // Transfer the rewards to the recipient
         pintoProtocol.transferToken(
@@ -121,18 +142,54 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             toMode
         );
 
-        emit Claimed(account, rewardsToClaim, rewardsToClaim);
+        emit Claimed(account, tokenAmount, rewardsToClaim);
     }
 
     /**
      * @notice Updates the reward state for an account before a claim
      * @param account The account to update the reward state for
      */
-    function updateReward(address account) internal {
+    function _updateReward(address account) internal {
         if (account != address(0)) {
             rewards[account] = earned(account);
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
+    }
+
+    /**
+     * @notice Gets the active account from the diamond tractor storage
+     * The account returned is either msg.sender or an active publisher
+     * Since msg.sender for the external call is this contract, we need to adjust
+     * it to the actual function caller
+     */
+    function _getActiveAccount() internal view returns (address) {
+        address tractorAccount = pintoProtocol.tractorUser();
+        return tractorAccount == address(this) ? msg.sender : tractorAccount;
+    }
+
+    /**
+     * @notice Gets the balance of an account
+     * @param account The account to get the balance of UnripeBDV tokens for
+     * @param mode The mode where the user's tokens are stored (EXTERNAL or INTERNAL)
+     */
+    function getBalanceInMode(
+        address account,
+        LibTransfer.From mode
+    ) public view returns (uint256) {
+        return
+            mode == LibTransfer.From.EXTERNAL
+                ? balanceOf(account)
+                : pintoProtocol.getInternalBalance(account, address(this));
+    }
+
+    /**
+     * @notice Gets the combined balance of an account from both EXTERNAL and INTERNAL modes
+     * Used to calculate the total balance of the account for claiming rewards
+     */
+    function getBalanceCombined(address account) public view returns (uint256) {
+        return
+            getBalanceInMode(account, LibTransfer.From.EXTERNAL) +
+            getBalanceInMode(account, LibTransfer.From.INTERNAL);
     }
 
     /**
@@ -151,8 +208,9 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
      */
     function earned(address account) public view returns (uint256) {
         return
-            ((balanceOf(account) * (rewardPerTokenStored - userRewardPerTokenPaid[account])) /
-                PRECISION) + rewards[account];
+            ((getBalanceCombined(account) *
+                (rewardPerTokenStored - userRewardPerTokenPaid[account])) / PRECISION) +
+            rewards[account];
     }
 
     /// @dev get the remaining amount of silo payback tokens to be distributed, called by the planner
@@ -170,9 +228,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
      * This way all claims can also happen in the internal balance.
      * @param from The address of the sender
      * @param to The address of the receiver
-     * @param amount The amount of tokens being transferred
      */
-    function _beforeTokenTransfer(address from, address to, uint256 amount) internal {
+    function _beforeTokenTransfer(address from, address to) internal {
         if (from != address(0)) {
             // capture any existing rewards for the sender, update their checkpoint to current global state
             rewards[from] = earned(from);
@@ -188,13 +245,13 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
     /// @dev override the standard transfer function to update rewards
     function transfer(address to, uint256 amount) public override returns (bool) {
-        _beforeTokenTransfer(msg.sender, to, amount);
+        _beforeTokenTransfer(msg.sender, to);
         return super.transfer(to, amount);
     }
 
     /// @dev override the standard transferFrom function to update rewards
     function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        _beforeTokenTransfer(from, to, amount);
+        _beforeTokenTransfer(from, to);
         return super.transferFrom(from, to, amount);
     }
 
@@ -202,8 +259,4 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     function decimals() public view override returns (uint8) {
         return 6;
     }
-
-    // todo: add a function for a user to claim but the contract looks at their INTERNAL balance
-    // TODO: Check if the user can do a PARTIAL claim using this function aka when you transfer 25 out of 100
-    // can you claim for 25% of the rewards?
 }

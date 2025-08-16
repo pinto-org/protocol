@@ -6,7 +6,9 @@ import {TestHelper} from "test/foundry/utils/TestHelper.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {console} from "forge-std/console.sol";
-
+import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
+import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
+import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 
 /**
  * @notice Tests that the whole shipments initialization and logic works correctly.
@@ -24,7 +26,6 @@ contract BeanstalkShipmentsTest is TestHelper {
 
     // Owners
     address constant PCM = address(0x2cf82605402912C6a79078a9BBfcCf061CbfD507);
-    address constant PINTO = address(0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f);
 
     // Users
     address farmer1 = makeAddr("farmer1");
@@ -34,7 +35,7 @@ contract BeanstalkShipmentsTest is TestHelper {
     // Contracts
     ISiloPayback siloPayback = ISiloPayback(SILO_PAYBACK);
     IBarnPayback barnPayback = IBarnPayback(BARN_PAYBACK);
-    IMockFBeanstalk bs = IMockFBeanstalk(PINTO);
+    IMockFBeanstalk pinto = IMockFBeanstalk(L2_PINTO);
 
     // we need to:
     // - Verify that all state matches the one in the json files for shipments, silo and barn payback

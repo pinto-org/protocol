@@ -125,6 +125,8 @@ interface IBeanstalk {
         address[] calldata tokens
     ) external view returns (MowStatus[] memory mowStatuses);
 
+    function getInternalBalance(address account, address token) external view returns (uint256);
+
     function getNonBeanTokenAndIndexFromWell(address well) external view returns (address, uint256);
 
     function getTokenDepositIdsForAccount(
