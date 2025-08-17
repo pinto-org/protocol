@@ -8395,18 +8395,24 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
+        "internalType": "uint256",
+        "name": "grownStalkLost",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
+        "type": "uint256"
       }
     ],
-    "name": "UpdatedGaugeData",
+    "name": "ConvertDownPenalty",
     "type": "event"
   },
   {
@@ -8414,18 +8420,36 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
+        "internalType": "uint256",
+        "name": "grownStalkGained",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newGrownStalk",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvCapacityUsed",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvConverted",
+        "type": "uint256"
       }
     ],
-    "name": "UpdatedGaugeValue",
+    "name": "ConvertUpBonus",
     "type": "event"
   },
   {

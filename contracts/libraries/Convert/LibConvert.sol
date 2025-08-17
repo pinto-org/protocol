@@ -60,6 +60,7 @@ library LibConvert {
     event ConvertUpBonus(
         address account,
         uint256 grownStalkGained,
+        uint256 newGrownStalk,
         uint256 bdvCapacityUsed,
         uint256 bdvConverted
     );
@@ -698,7 +699,13 @@ library LibConvert {
                 if (grownStalkGained > 0) {
                     // update the grown stalk by the amount of grown stalk gained
                     newGrownStalk += grownStalk + grownStalkGained;
-                    emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed, toBdv);
+                    emit ConvertUpBonus(
+                        account,
+                        grownStalkGained,
+                        newGrownStalk,
+                        bdvCapacityUsed,
+                        toBdv
+                    );
                     return newGrownStalk;
                 }
             }

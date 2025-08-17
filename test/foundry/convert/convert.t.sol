@@ -45,6 +45,7 @@ contract ConvertTest is TestHelper {
     event ConvertUpBonus(
         address account,
         uint256 grownStalk,
+        uint256 newGrownStalk,
         uint256 grownStalkGained,
         uint256 bdvConverted
     );
@@ -1144,7 +1145,14 @@ contract ConvertTest is TestHelper {
         uint256 expectedStalkBonus = 329000684615378400;
 
         vm.expectEmit(true, true, true, false);
-        emit ConvertUpBonus(farmers[0], expectedStalkBonus, expectedBdvBonus, expectedBdvBonus);
+        uint256 newGrownStalk = 0;
+        emit ConvertUpBonus(
+            farmers[0],
+            expectedStalkBonus,
+            newGrownStalk,
+            expectedBdvBonus,
+            expectedBdvBonus
+        );
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
@@ -1183,9 +1191,11 @@ contract ConvertTest is TestHelper {
 
         vm.prank(farmers[0]);
         vm.expectEmit(true, true, true, false);
+        uint256 newGrownStalk = 0;
         emit ConvertUpBonus(
             farmers[0],
             gv.bonusStalkPerBdv * expectedBdvBonus,
+            newGrownStalk,
             expectedBdvBonus,
             expectedBdvBonus
         );
