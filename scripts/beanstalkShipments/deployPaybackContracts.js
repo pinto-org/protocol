@@ -3,11 +3,11 @@ const fs = require("fs");
 // Deploys SiloPayback, BarnPayback, and ShipmentPlanner contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbose = true }) {
   if (verbose) {
-    console.log("Deploying Beanstalk shipment contracts...");
+    console.log("🚀 Deploying Beanstalk shipment contracts...");
   }
 
   //////////////////////////// Silo Payback ////////////////////////////
-  console.log("\nDeploying SiloPayback...");
+  console.log("\n📦 Deploying SiloPayback...");
   const siloPaybackFactory = await ethers.getContractFactory("SiloPayback", account);
   // factory, args, proxy options
   const siloPaybackContract = await upgrades.deployProxy(siloPaybackFactory, [PINTO, L2_PINTO], {
@@ -15,12 +15,11 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbo
     kind: "transparent"
   });
   await siloPaybackContract.deployed();
-  if (verbose) console.log("SiloPayback deployed to:", siloPaybackContract.address);
-  if (verbose) console.log("SiloPayback owner:", await siloPaybackContract.owner());
+  if (verbose) console.log("✅ SiloPayback deployed to:", siloPaybackContract.address);
+  if (verbose) console.log("👤 SiloPayback owner:", await siloPaybackContract.owner());
 
   //////////////////////////// Barn Payback ////////////////////////////
-  console.log("--------------------------------");
-  console.log("Deploying BarnPayback...");
+  console.log("\n📦 Deploying BarnPayback...");
   const barnPaybackFactory = await ethers.getContractFactory("BarnPayback", account);
   // get the initialization args from the json file
   const barnPaybackArgsPath = "./scripts/beanstalkShipments/data/beanstalkGlobalFertilizer.json";
@@ -35,17 +34,15 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbo
     }
   );
   await barnPaybackContract.deployed();
-  if (verbose) console.log("BarnPayback deployed to:", barnPaybackContract.address);
-  if (verbose) console.log("BarnPayback owner:", await barnPaybackContract.owner());
+  if (verbose) console.log("✅ BarnPayback deployed to:", barnPaybackContract.address);
+  if (verbose) console.log("👤 BarnPayback owner:", await barnPaybackContract.owner());
 
   //////////////////////////// Shipment Planner ////////////////////////////
-  console.log("--------------------------------");
-  console.log("Deploying ShipmentPlanner...");
+  console.log("\n📦 Deploying ShipmentPlanner...");
   const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner", account);
   const shipmentPlannerContract = await shipmentPlannerFactory.deploy(L2_PINTO, PINTO);
   await shipmentPlannerContract.deployed();
-  if (verbose) console.log("ShipmentPlanner deployed to:", shipmentPlannerContract.address);
-  console.log("--------------------------------");
+  if (verbose) console.log("✅ ShipmentPlanner deployed to:", shipmentPlannerContract.address);
 
   return {
     siloPaybackContract,
@@ -61,14 +58,16 @@ async function distributeUnripeBdvTokens({
   dataPath,
   verbose = true
 }) {
-  if (verbose) console.log("Distributing unripe BDV tokens...");
+  if (verbose) console.log("🌱 Distributing unripe BDV tokens...");
 
   try {
     const unripeAccountBdvTokens = JSON.parse(fs.readFileSync(dataPath));
+    // log the length of the array
+    console.log("📊 Unripe BDV Accounts to be distributed:", unripeAccountBdvTokens.length);
     // mint all in one transaction
     await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
 
-    if (verbose) console.log("Unripe BDV tokens distributed to old Beanstalk participants");
+    if (verbose) console.log("✅ Unripe BDV tokens distributed to old Beanstalk participants");
   } catch (error) {
     console.error("Error distributing unripe BDV tokens:", error);
     throw error;
@@ -82,17 +81,19 @@ async function distributeBarnPaybackTokens({
   dataPath,
   verbose = true
 }) {
-  if (verbose) console.log("Distributing barn payback tokens...");
+  if (verbose) console.log("🌱 Distributing barn payback tokens...");
 
   try {
     const accountFertilizers = JSON.parse(fs.readFileSync(dataPath));
+    // log the length of the array
+    console.log("📊 Fertilizer Ids to be distributed:", accountFertilizers.length);
     // mint all in one transaction
     await barnPaybackContract.connect(account).mintFertilizers(accountFertilizers);
   } catch (error) {
     console.error("Error distributing barn payback tokens:", error);
     throw error;
   }
-  if (verbose) console.log("Barn payback tokens distributed to old Beanstalk participants");
+  if (verbose) console.log("✅ Barn payback tokens distributed to old Beanstalk participants");
 }
 
 // Transfers ownership of both payback contracts to PCM
@@ -102,13 +103,13 @@ async function transferContractOwnership({
   L2_PCM,
   verbose = true
 }) {
-  if (verbose) console.log("Transferring ownership to PCM...");
+  if (verbose) console.log("🔄 Transferring ownership to PCM...");
 
   await siloPaybackContract.transferOwnership(L2_PCM);
-  if (verbose) console.log("SiloPayback ownership transferred to PCM");
+  if (verbose) console.log("✅ SiloPayback ownership transferred to PCM");
 
   await barnPaybackContract.transferOwnership(L2_PCM);
-  if (verbose) console.log("BarnPayback ownership transferred to PCM");
+  if (verbose) console.log("✅ BarnPayback ownership transferred to PCM");
 }
 
 // Main function that orchestrates all deployment steps

@@ -438,7 +438,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     }
 
     /**
-     * @notice Returns the total beans needed to repay the barn
+     * @notice Returns the total pinto needed to repay the barn
      */
     function totalUnfertilizedBeans() public view returns (uint256 beans) {
         return fert.unfertilizedIndex - fert.fertilizedIndex;

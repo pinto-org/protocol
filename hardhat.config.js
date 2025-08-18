@@ -41,6 +41,7 @@ const {
   populateBeanstalkField
 } = require("./scripts/beanstalkShipments/populateBeanstalkField.js");
 const { deployAndSetupContracts } = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
+const { parseAllExportData } = require("./scripts/beanstalkShipments/parsers");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -2022,11 +2023,26 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
 
 task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments")
   .setAction(async (taskArgs) => {
-    console.log("🌱 Starting Beanstalk shipments initialization...");
+    console.log("=".repeat(80));
+    console.log("🌱 BEANSTALK SHIPMENTS INITIALIZATION");
+    console.log("=".repeat(80));
+    
     // params
-    const verbose = true;
+    const verbose = false; // Reduced verbosity for cleaner output
     const noFieldChunking = true;
     const deploy = true;
+    const parseContracts = true;
+
+    // Step 0: Parse export data into required format
+    console.log("\n📊 STEP 0: PARSING EXPORT DATA");
+    console.log("-".repeat(50));
+    try {
+      parseAllExportData(parseContracts);
+      console.log("✅ Export data parsing completed\n");
+    } catch (error) {
+      console.error("❌ Failed to parse export data:", error);
+      throw error;
+    }
 
     // Use the diamond deployer for dimond cuts
     const mock = true;
@@ -2047,12 +2063,9 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       deployer = (await ethers.getSigners())[1];
     }
 
-    // Step 1: 
-    // - Deploy the silo and barn payback contracts
-    // - Distribute the unripe bdv tokens and fertilizer tokens
-    // - Transfer ownership of the silo and barn payback contracts to the PCM
-    console.log("\n-----------------------------------");
-    console.log("Step 1: Deploying and setting up payback contracts...");
+    // Step 1: Deploy and setup payback contracts
+    console.log("🚀 STEP 1: DEPLOYING PAYBACK CONTRACTS");
+    console.log("-".repeat(50));
     let contracts = {};
     if (deploy) {
       contracts = await deployAndSetupContracts({
@@ -2062,23 +2075,21 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
         account: deployer,
         verbose
       });
+      console.log("✅ Payback contracts deployed and configured\n");
     }
 
-    // Step 2: Creates and populates the beanstalk field
-    console.log("\n-----------------------------------");
-    //clear console
-    console.log("Step 2: Creating and populating beanstalk field...");
-    await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
+    // Step 2: Create and populate beanstalk field
+    console.log("📈 STEP 2: CREATING BEANSTALK FIELD");
+    console.log("-".repeat(50));
+    console.log("⏭️  Field population skipped for this run\n");
+    // await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
 
-    // Step 3: Update the shipment routes
-    // Read the routes from the json file
+    // Step 3: Update shipment routes
+    console.log("🛤️  STEP 3: UPDATING SHIPMENT ROUTES");
+    console.log("-".repeat(50));
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));
 
-    // Refresh the shipment routes with the new routes
-    // Old routes need to be updates because of the new shipment planner contract address
-    console.log("\n-----------------------------------");
-    console.log("Step 3: Refreshing shipment routes...");
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: [],
@@ -2087,8 +2098,11 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       verbose: verbose,
       account: owner
     });
+    console.log("✅ Shipment routes updated\n");
 
-    console.log("✅ Beanstalk shipments initialization completed successfully!");
+    console.log("=".repeat(80));
+    console.log("🎉 BEANSTALK SHIPMENTS INITIALIZATION COMPLETED");
+    console.log("=".repeat(80));
   });
 
 //////////////////////// CONFIGURATION ////////////////////////
