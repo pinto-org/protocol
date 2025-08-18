@@ -123,11 +123,11 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
 
         uint256 rewardsToClaim;
         if (tokenAmount == userCombinedBalance) {
-            // full balance claim - reset rewards to 0
+            // full balance claim, reset rewards to 0
             rewardsToClaim = totalEarned;
             rewards[account] = 0;
         } else {
-            // partial claim - rewards are proportional to the token amount specified
+            // partial claim, rewards are proportional to the token amount specified
             rewardsToClaim = (totalEarned * tokenAmount) / userCombinedBalance;
             // update rewards to reflect the portion claimed
             // maintains consistency since the user's checkpoint remains valid

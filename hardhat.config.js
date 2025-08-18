@@ -2029,8 +2029,8 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     
     // params
     const verbose = false; // Reduced verbosity for cleaner output
-    const noFieldChunking = true;
-    const deploy = true;
+    const noFieldChunking = false;
+    const deploy = false;
     const parseContracts = true;
 
     // Step 0: Parse export data into required format
@@ -2073,7 +2073,8 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
         L2_PINTO,
         L2_PCM,
         account: deployer,
-        verbose
+        verbose,
+        useChunking: true,
       });
       console.log("✅ Payback contracts deployed and configured\n");
     }
@@ -2081,8 +2082,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     // Step 2: Create and populate beanstalk field
     console.log("📈 STEP 2: CREATING BEANSTALK FIELD");
     console.log("-".repeat(50));
-    console.log("⏭️  Field population skipped for this run\n");
-    // await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
+    await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
 
     // Step 3: Update shipment routes
     console.log("🛤️  STEP 3: UPDATING SHIPMENT ROUTES");
@@ -2095,7 +2095,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       facetNames: [],
       initFacetName: "InitBeanstalkShipments",
       initArgs: [routes],
-      verbose: verbose,
+      verbose: true,
       account: owner
     });
     console.log("✅ Shipment routes updated\n");

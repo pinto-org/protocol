@@ -4,7 +4,6 @@
 
 pragma solidity ^0.8.20;
 import "contracts/libraries/LibAppStorage.sol";
-import "forge-std/console.sol";
 
 /**
  * @title InitReplaymentField
@@ -28,7 +27,6 @@ contract InitReplaymentField {
     function init(ReplaymentPlotData[] calldata accountPlots) external {
         // create new field
         initReplaymentField();
-        console.log("new field created");
         // populate the field to recreate the beanstalk podline
         initReplaymentPlots(accountPlots);
     }

@@ -1,7 +1,8 @@
 const fs = require("fs");
+const { splitEntriesIntoChunks, updateProgress, retryOperation } = require("../../utils/read.js");
 
 // Deploys SiloPayback, BarnPayback, and ShipmentPlanner contracts
-async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbose = true }) {
+async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
   if (verbose) {
     console.log("🚀 Deploying Beanstalk shipment contracts...");
   }
@@ -15,8 +16,8 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbo
     kind: "transparent"
   });
   await siloPaybackContract.deployed();
-  if (verbose) console.log("✅ SiloPayback deployed to:", siloPaybackContract.address);
-  if (verbose) console.log("👤 SiloPayback owner:", await siloPaybackContract.owner());
+  console.log("✅ SiloPayback deployed to:", siloPaybackContract.address);
+  console.log("👤 SiloPayback owner:", await siloPaybackContract.owner());
 
   //////////////////////////// Barn Payback ////////////////////////////
   console.log("\n📦 Deploying BarnPayback...");
@@ -34,15 +35,15 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, L2_PCM, account, verbo
     }
   );
   await barnPaybackContract.deployed();
-  if (verbose) console.log("✅ BarnPayback deployed to:", barnPaybackContract.address);
-  if (verbose) console.log("👤 BarnPayback owner:", await barnPaybackContract.owner());
+  console.log("✅ BarnPayback deployed to:", barnPaybackContract.address);
+  console.log("👤 BarnPayback owner:", await barnPaybackContract.owner());
 
   //////////////////////////// Shipment Planner ////////////////////////////
   console.log("\n📦 Deploying ShipmentPlanner...");
   const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner", account);
   const shipmentPlannerContract = await shipmentPlannerFactory.deploy(L2_PINTO, PINTO);
   await shipmentPlannerContract.deployed();
-  if (verbose) console.log("✅ ShipmentPlanner deployed to:", shipmentPlannerContract.address);
+  console.log("✅ ShipmentPlanner deployed to:", shipmentPlannerContract.address);
 
   return {
     siloPaybackContract,
@@ -56,16 +57,57 @@ async function distributeUnripeBdvTokens({
   siloPaybackContract,
   account,
   dataPath,
-  verbose = true
+  verbose = true,
+  useChunking = true,
+  targetEntriesPerChunk = 300
 }) {
   if (verbose) console.log("🌱 Distributing unripe BDV tokens...");
 
   try {
     const unripeAccountBdvTokens = JSON.parse(fs.readFileSync(dataPath));
-    // log the length of the array
     console.log("📊 Unripe BDV Accounts to be distributed:", unripeAccountBdvTokens.length);
-    // mint all in one transaction
-    await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
+
+    if (!useChunking) {
+      // Process all tokens in a single transaction
+      console.log("Processing all tokens in a single transaction...");
+
+      // log the address of the payback contract
+      console.log("SiloPayback address:", siloPaybackContract.address);
+
+      const tx = await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
+      const receipt = await tx.wait();
+
+      if (verbose) console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+    } else {
+      // Split into chunks for processing
+      const chunks = splitEntriesIntoChunks(unripeAccountBdvTokens, targetEntriesPerChunk);
+      console.log(`Starting to process ${chunks.length} chunks...`);
+
+      let totalGasUsed = ethers.BigNumber.from(0);
+
+      for (let i = 0; i < chunks.length; i++) {
+        if (verbose) {
+          console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
+          console.log(`Chunk contains ${chunks[i].length} accounts`);
+          console.log("-----------------------------------");
+        }
+
+        await retryOperation(async () => {
+          // mint tokens to users in chunks
+          const tx = await siloPaybackContract.connect(account).batchMint(chunks[i]);
+          const receipt = await tx.wait();
+          totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+          if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+        });
+        
+        await updateProgress(i + 1, chunks.length);
+      }
+
+      if (verbose) {
+        console.log("\n📊 Total Gas Summary:");
+        console.log(`⛽ Total gas used: ${totalGasUsed.toString()}`);
+      }
+    }
 
     if (verbose) console.log("✅ Unripe BDV tokens distributed to old Beanstalk participants");
   } catch (error) {
@@ -79,21 +121,65 @@ async function distributeBarnPaybackTokens({
   barnPaybackContract,
   account,
   dataPath,
-  verbose = true
+  verbose = true,
+  useChunking = true,
+  targetEntriesPerChunk = 300
 }) {
   if (verbose) console.log("🌱 Distributing barn payback tokens...");
 
   try {
     const accountFertilizers = JSON.parse(fs.readFileSync(dataPath));
-    // log the length of the array
     console.log("📊 Fertilizer Ids to be distributed:", accountFertilizers.length);
-    // mint all in one transaction
-    await barnPaybackContract.connect(account).mintFertilizers(accountFertilizers);
+
+    if (!useChunking) {
+      // Process all fertilizers in a single transaction
+      console.log("Processing all fertilizers in a single transaction...");
+
+      // log the address of the payback contract
+      console.log("BarnPayback address:", barnPaybackContract.address);
+
+      const tx = await barnPaybackContract.connect(account).mintFertilizers(accountFertilizers);
+      const receipt = await tx.wait();
+
+      if (verbose) console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+
+    } else {
+      // Split into chunks for processing
+      const chunks = splitEntriesIntoChunks(accountFertilizers, targetEntriesPerChunk);
+      console.log(`Starting to process ${chunks.length} chunks...`);
+
+      let totalGasUsed = ethers.BigNumber.from(0);
+
+      for (let i = 0; i < chunks.length; i++) {
+        if (verbose) {
+          console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
+          console.log(`Chunk contains ${chunks[i].length} fertilizers`);
+          console.log("-----------------------------------");
+        }
+
+        await retryOperation(async () => {
+          const tx = await barnPaybackContract.connect(account).mintFertilizers(chunks[i]);
+          const receipt = await tx.wait();
+
+          totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+
+          if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+        });
+        
+        await updateProgress(i + 1, chunks.length);
+      }
+
+      if (verbose) {
+        console.log("\n📊 Total Gas Summary:");
+        console.log(`⛽ Total gas used: ${totalGasUsed.toString()}`);
+      }
+    }
+
+    if (verbose) console.log("✅ Barn payback tokens distributed to old Beanstalk participants");
   } catch (error) {
     console.error("Error distributing barn payback tokens:", error);
     throw error;
   }
-  if (verbose) console.log("✅ Barn payback tokens distributed to old Beanstalk participants");
 }
 
 // Transfers ownership of both payback contracts to PCM
@@ -114,29 +200,29 @@ async function transferContractOwnership({
 
 // Main function that orchestrates all deployment steps
 async function deployAndSetupContracts(params) {
-  const { verbose = true } = params;
-
   const contracts = await deployShipmentContracts(params);
 
   await distributeUnripeBdvTokens({
     siloPaybackContract: contracts.siloPaybackContract,
     account: params.account,
     dataPath: "./scripts/beanstalkShipments/data/unripeBdvTokens.json",
-    verbose
+    verbose: true,
+    useChunking: params.useChunking,
   });
 
   await distributeBarnPaybackTokens({
     barnPaybackContract: contracts.barnPaybackContract,
     account: params.account,
     dataPath: "./scripts/beanstalkShipments/data/beanstalkAccountFertilizer.json",
-    verbose
+    verbose: true,
+    useChunking: params.useChunking,
   });
 
   await transferContractOwnership({
     siloPaybackContract: contracts.siloPaybackContract,
     barnPaybackContract: contracts.barnPaybackContract,
     L2_PCM: params.L2_PCM,
-    verbose
+    verbose: true,
   });
 
   return contracts;
