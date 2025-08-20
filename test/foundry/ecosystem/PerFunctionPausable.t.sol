@@ -99,10 +99,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         siloHelpers.pauseFunction(withdrawSelector);
         vm.stopPrank();
 
-        assertTrue(
-            sowBlueprint.functionPaused(sowSelector),
-            "sowBlueprint should be paused"
-        );
+        assertTrue(sowBlueprint.functionPaused(sowSelector), "sowBlueprint should be paused");
         assertTrue(
             siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should be paused"
@@ -183,10 +180,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         siloHelpers.unpauseFunction(withdrawSelector);
         vm.stopPrank();
 
-        assertFalse(
-            sowBlueprint.functionPaused(sowSelector),
-            "sowBlueprint should be unpaused"
-        );
+        assertFalse(sowBlueprint.functionPaused(sowSelector), "sowBlueprint should be unpaused");
         assertFalse(
             siloHelpers.functionPaused(withdrawSelector),
             "withdrawBeansFromSources should be unpaused"

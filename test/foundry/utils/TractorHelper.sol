@@ -161,10 +161,7 @@ contract TractorHelper is TestHelper {
         uint256 runBlocksAfterSunrise
     )
         public
-        returns (
-            IMockFBeanstalk.Requisition memory,
-            SowBlueprint.SowBlueprintStruct memory params
-        )
+        returns (IMockFBeanstalk.Requisition memory, SowBlueprint.SowBlueprintStruct memory params)
     {
         // Create the SowBlueprintStruct using the helper function
         params = createSowBlueprintStruct(
