@@ -1065,7 +1065,6 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             abi.encodeWithSelector(
                 PriceManipulation.isValidSlippage.selector,
                 IWell(state.wellToken), // well
-                IERC20(WETH), // non-bean token in the well
                 0.01e18 // slippage ratio
             ),
             abi.encode(false) // Return false to indicate price manipulation
@@ -1081,7 +1080,6 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             abi.encodeWithSelector(
                 PriceManipulation.isValidSlippage.selector,
                 IWell(state.wellToken), // well
-                IERC20(WETH), // non-bean token in the well
                 0.01e18 // slippage ratio
             ),
             abi.encode(true) // Return true to indicate valid slippage
