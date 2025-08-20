@@ -1,4 +1,3 @@
-const { upgradeWithNewFacets } = require("../diamond.js");
 const fs = require("fs");
 const {
   splitEntriesIntoChunksOptimized,
@@ -8,12 +7,14 @@ const {
 
 /**
  * Populates the beanstalk field by reading data from beanstalkPlots.json
- * and calling diamond upgrade with InitReplaymentField init script
- * @param {string} diamondAddress - The address of the diamond contract
- * @param {Object} account - The account to use for the transaction
- * @param {boolean} verbose - Whether to log verbose output
+ * and calling initializeReplaymentPlots directly on the L2_PINTO contract
+ * @param {Object} params - The parameters object
+ * @param {string} params.diamondAddress - The address of the diamond contract
+ * @param {Object} params.account - The account to use for the transaction
+ * @param {boolean} params.verbose - Whether to log verbose output
+ * @param {boolean} params.mockData - Whether to use mock data
  */
-async function populateBeanstalkField(diamondAddress, account, verbose = false, mockData = false) {
+async function populateBeanstalkField({ diamondAddress, account, verbose, mockData }) {
   console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
 
   // Read and parse the JSON file
@@ -23,36 +24,32 @@ async function populateBeanstalkField(diamondAddress, account, verbose = false, 
   const rawPlotData = JSON.parse(fs.readFileSync(plotsPath));
 
   // Split into chunks for processing
-  const targetEntriesPerChunk = 800;
+  const targetEntriesPerChunk = 500;
   const plotChunks = splitEntriesIntoChunksOptimized(rawPlotData, targetEntriesPerChunk);
   console.log(`Starting to process ${plotChunks.length} chunks...`);
 
-  // Deploy the standalone InitReplaymentField contract using ethers
-  const initReplaymentFieldFactory = await ethers.getContractFactory("InitReplaymentField", account);
-  const initReplaymentField = await initReplaymentFieldFactory.deploy();
-  await initReplaymentField.deployed();
-  console.log("✅ InitReplaymentField deployed to:", initReplaymentField.address);
+  // Get contract instance for TempRepaymentFieldFacet
+  const pintoDiamond = await ethers.getContractAt(
+    "TempRepaymentFieldFacet",
+    diamondAddress,
+    account
+  );
 
   for (let i = 0; i < plotChunks.length; i++) {
     await updateProgress(i + 1, plotChunks.length);
     if (verbose) {
-      console.log(`Processing chunk ${i + 1}/${plotChunks.length}`);
+      console.log(`\n🔄 Processing chunk ${i + 1}/${plotChunks.length}`);
       console.log(`Chunk contains ${plotChunks[i].length} accounts`);
       console.log("-----------------------------------");
     }
-
     await retryOperation(async () => {
-      await upgradeWithNewFacets({
-        diamondAddress: diamondAddress,
-        facetNames: [], // No new facets to deploy
-        initFacetName: "InitReplaymentField",
-        initFacetAddress: initReplaymentField.address, // Re-use the same contract for all chunks
-        initArgs: [plotChunks[i]], // Pass the chunk as ReplaymentPlotData[]
-        verbose: verbose,
-        account: account
-      });
+      const tx = await pintoDiamond.initializeReplaymentPlots(plotChunks[i]);
+      const receipt = await tx.wait();
+      if (verbose) {
+        console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+        console.log(`📋 Transaction hash: ${receipt.transactionHash}`);
+      }
     });
-
     if (verbose) {
       console.log(`Completed chunk ${i + 1}/${plotChunks.length}`);
     }

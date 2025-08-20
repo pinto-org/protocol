@@ -24,12 +24,32 @@ function parseSiloData(includeContracts = false) {
     console.log(`📋 Processing ${Object.keys(ethContracts).length} ethContracts`);
   }
   
-  // Combine data sources based on flag
-  // Note: ethContracts are excluded as they are handled by ContractPaybackDistributor
+  // Load constants for distributor address
+  const constants = require('../../../test/hardhat/utils/constants.js');
+  const DISTRIBUTOR_ADDRESS = constants.BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR;
+  
+  // Combine data sources and reassign ethContracts to distributor
   const allAccounts = { ...arbEOAs };
   if (includeContracts) {
     Object.assign(allAccounts, arbContracts);
-    // ethContracts intentionally excluded - handled by ContractPaybackDistributor
+  }
+  
+  // Reassign all ethContracts assets to the distributor contract
+  for (const [ethContractAddress, ethContractData] of Object.entries(ethContracts)) {
+    if (ethContractData && ethContractData.bdvAtRecapitalization) {
+      // If distributor already has data, add to it, otherwise create new entry
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        const distributorBdv = parseInt(allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total || '0');
+        const ethContractBdv = parseInt(ethContractData.bdvAtRecapitalization.total || '0');
+        allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total = (distributorBdv + ethContractBdv).toString();
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = {
+          bdvAtRecapitalization: {
+            total: ethContractData.bdvAtRecapitalization.total
+          }
+        };
+      }
+    }
   }
   
   // Build unripe BDV data structure

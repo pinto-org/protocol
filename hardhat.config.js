@@ -22,6 +22,7 @@ const {
   L2_PINTO,
   PINTO_DIAMOND_DEPLOYER,
   BEANSTALK_SHIPMENTS_DEPLOYER,
+  BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
   L2_PCM,
   BASE_BLOCK_TIME,
   PINTO_WETH_WELL_BASE,
@@ -2067,8 +2068,19 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       deployer = (await ethers.getSigners())[1];
     }
 
+    // Use the repayment field populator for the beanstalk field initialization
+    let repaymentFieldPopulator;
+    if (mock) {
+      repaymentFieldPopulator = await impersonateSigner(
+        BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR
+      );
+      await mintEth(repaymentFieldPopulator.address);
+    } else {
+      repaymentFieldPopulator = (await ethers.getSigners())[2];
+    }
+
     // Step 1: Deploy and setup payback contracts
-    console.log("🚀 STEP 1: DEPLOYING PAYBACK CONTRACTS");
+    console.log("🚀 STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
     console.log("-".repeat(50));
     let contracts = {};
     if (deploy) {
@@ -2084,26 +2096,19 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       console.log("✅ Payback contracts deployed and configured\n");
     }
 
-    // Step 2: Create and populate beanstalk field
-    console.log("📈 STEP 2: CREATING BEANSTALK FIELD");
-    console.log("-".repeat(50));
-    if (populateField) {
-      await populateBeanstalkField(L2_PINTO, owner, verbose, mockFieldData);
-    }
-
-    // Step 3: Update shipment routes
+    // Step 2: Update shipment routes, create new field and create the new TempRepaymentFieldFacet
     // The season facet will also need to be updated to support the new receipients in the
     // ShipmentRecipient enum in System.sol since the facet inherits from Distribution.sol
     // That contains the function getShipmentRoutes() which reads the shipment routes from storage
     // and imports the ShipmentRoute struct.
-    console.log("🛤️  STEP 3: UPDATING SHIPMENT ROUTES");
+    console.log("🛤️  STEP 2: UPDATING SHIPMENT ROUTES AND CREATING NEW FIELD");
     console.log("-".repeat(50));
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["SeasonFacet"],
+      facetNames: ["SeasonFacet", "TempRepaymentFieldFacet"],
       libraryNames: [
         "LibEvaluate",
         "LibGauge",
@@ -2131,7 +2136,19 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       verbose: true,
       account: owner
     });
-    console.log("✅ Shipment routes updated\n");
+    console.log("✅ Shipment routes updated and new field created\n");
+
+    // Step 2: Create and populate beanstalk field
+    console.log("📈 STEP 3: POPULATING THE BEANSTALK FIELD WITH DATA");
+    console.log("-".repeat(50));
+    if (populateField) {
+      await populateBeanstalkField({
+        diamondAddress: L2_PINTO,
+        account: repaymentFieldPopulator,
+        verbose: verbose,
+        mockData: mockFieldData
+      });
+    }
 
     console.log("=".repeat(80));
     console.log("🎉 BEANSTALK SHIPMENTS INITIALIZATION COMPLETED");

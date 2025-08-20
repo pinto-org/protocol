@@ -124,6 +124,7 @@ contract ContractPaybackDistributor is ReentrancyGuard {
 
     /**
      * @notice Transfers all assets for a whitelisted contract account to a receiver
+     * @dev note: if the receiver is a contract it must implement the IERC1155Receiver interface
      * @param account The address of the account to claim from
      * @param receiver The address to transfer the assets to
      */
@@ -147,7 +148,6 @@ contract ContractPaybackDistributor is ReentrancyGuard {
         }
 
         // transfer fertilizer erc115s to the contract account
-        // note: if the receiver is a contract it must implement the IERC1155Receiver interface
         if (fertilizerIds.length > 0) {
             barnPayback.safeBatchTransferFrom(
                 address(this),

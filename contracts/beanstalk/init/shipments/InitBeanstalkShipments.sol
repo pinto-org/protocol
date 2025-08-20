@@ -14,11 +14,18 @@ import {ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
  **/
 contract InitBeanstalkShipments {
 
+    uint256 constant REPAYMENT_FIELD_ID = 1;
+    /// @dev total length of the podline. The largest index in beanstalk_field.json incremented by the amount.
+    uint256 constant REPAYMENT_FIELD_PODS = 919768387056514;
+
     event ShipmentRoutesSet(ShipmentRoute[] newRoutes);
+    event FieldAdded(uint256 fieldId);
 
     function init(ShipmentRoute[] calldata newRoutes) external {
         // set the shipment routes, replaces the entire set of routes
         _setShipmentRoutes(newRoutes);
+        // create the repayment field
+        _initReplaymentField();
     }
 
     /**
@@ -32,5 +39,21 @@ contract InitBeanstalkShipments {
             s.sys.shipmentRoutes.push(newRoutes[i]);
         }
         emit ShipmentRoutesSet(newRoutes);
+    }
+
+    /**
+     * @notice Create new field, mimics the addField function in FieldFacet.sol
+     * @dev Harvesting is handled in LibReceiving.sol
+     */
+    function _initReplaymentField() internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        if (s.sys.fieldCount == 2) return;
+        // require(s.sys.fieldCount == 1, "Repayment field already exists");
+        uint256 fieldId = s.sys.fieldCount;
+        s.sys.fieldCount++;
+        // init global state for new field, 
+        // harvestable and harvested vars are 0
+        s.sys.fields[REPAYMENT_FIELD_ID].pods = REPAYMENT_FIELD_PODS;
+        emit FieldAdded(fieldId);
     }
 }

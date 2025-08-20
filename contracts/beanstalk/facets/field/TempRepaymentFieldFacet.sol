@@ -1,54 +1,45 @@
-/*
- SPDX-License-Identifier: MIT
-*/
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.20;
-import "contracts/libraries/LibAppStorage.sol";
+
+import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
+import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
+import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
+import {FieldFacet} from "contracts/beanstalk/facets/field/FieldFacet.sol";
 
 /**
- * @title InitReplaymentField
- * @dev Initializes the beanstalk repayment field
- **/
-contract InitReplaymentField {
-    uint256 constant REPAYMENT_FIELD_ID = 1;
+ * @title TempRepaymentFieldFacet
+ * @notice Temporary facet to re-initialize the repayment field with data from the Beanstalk Podline.
+ * Upon deployment of the beanstalkShipments, a new field will be created in 
+ */
+contract TempRepaymentFieldFacet is ReentrancyGuard {
 
-    event FieldAdded(uint256 fieldId);
+    address public constant REPAYMENT_FIELD_POPULATOR = 0xc4c66c8b199443a8deA5939ce175C3592e349791;
+    uint256 public constant REPAYMENT_FIELD_ID = 1;
+
     event ReplaymentPlotAdded(address indexed account, uint256 indexed plotIndex, uint256 pods);
 
     struct Plot {
         uint256 podIndex;
         uint256 podAmounts;
     }
+
     struct ReplaymentPlotData {
         address account;
         Plot[] plots;
     }
 
-    function init(ReplaymentPlotData[] calldata accountPlots) external {
-        // create new field
-        initReplaymentField();
-        // populate the field to recreate the beanstalk podline
-        initReplaymentPlots(accountPlots);
-    }
-
     /**
-     * @notice Create new field, mimics the addField function in FieldFacet.sol
-     * @dev Harvesting is handled in LibReceiving.sol
+     * @notice Re-initializes the repayment field using data from the Beanstalk Podline.
+     * @dev This function is only callable by the repayment field populator.
+     * @param accountPlots the plot for each account
      */
-    function initReplaymentField() internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        // make sure this is only called once to create the beanstalk field
-        if (s.sys.fieldCount == 2) return;
-        uint256 fieldId = s.sys.fieldCount;
-        s.sys.fieldCount++;
-        emit FieldAdded(fieldId);
-    }
-
-    /**
-     * @notice Re-initializes the repayment field with a reconstructed Beanstalk Podline.
-     * @param accountPlots the plots for each account
-     */
-    function initReplaymentPlots(ReplaymentPlotData[] calldata accountPlots) internal {
+    function initializeReplaymentPlots(ReplaymentPlotData[] calldata accountPlots) external nonReentrant {
+        require(
+            msg.sender == REPAYMENT_FIELD_POPULATOR,
+            "Only the repayment field populator can call this function"
+        );
+        require(s.sys.fieldCount == 2, "Repayment field should be initialized");
         AppStorage storage s = LibAppStorage.diamondStorage();
         for (uint i; i < accountPlots.length; i++) {
             for (uint j; j < accountPlots[i].plots.length; j++) {

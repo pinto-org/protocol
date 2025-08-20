@@ -24,12 +24,36 @@ function parseFieldData(includeContracts = false) {
     console.log(`📋 Processing ${Object.keys(ethContracts).length} ethContracts`);
   }
   
-  // Combine data sources based on flag
-  // Note: ethContracts are excluded as they are handled by ContractPaybackDistributor
+  // Load constants for distributor address
+  const constants = require('../../../test/hardhat/utils/constants.js');
+  const DISTRIBUTOR_ADDRESS = constants.BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR;
+  
+  // Combine data sources and reassign ethContracts to distributor
   const allAccounts = { ...arbEOAs };
   if (includeContracts) {
     Object.assign(allAccounts, arbContracts);
-    // ethContracts intentionally excluded - handled by ContractPaybackDistributor
+  }
+  
+  // Reassign all ethContracts plot assets to the distributor contract
+  for (const [ethContractAddress, plotsMap] of Object.entries(ethContracts)) {
+    if (plotsMap && typeof plotsMap === 'object') {
+      // If distributor already has data, merge plot data
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        // Merge plot data
+        for (const [plotIndex, pods] of Object.entries(plotsMap)) {
+          // If same plot index exists, add the pod amounts
+          if (allAccounts[DISTRIBUTOR_ADDRESS][plotIndex]) {
+            const existingPods = parseInt(allAccounts[DISTRIBUTOR_ADDRESS][plotIndex]);
+            const newPods = parseInt(pods);
+            allAccounts[DISTRIBUTOR_ADDRESS][plotIndex] = (existingPods + newPods).toString();
+          } else {
+            allAccounts[DISTRIBUTOR_ADDRESS][plotIndex] = pods;
+          }
+        }
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = { ...plotsMap };
+      }
+    }
   }
   
   // Build plots data structure

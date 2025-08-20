@@ -45,12 +45,36 @@ function parseBarnData(includeContracts = false) {
     console.log(`📋 Processing ${Object.keys(ethContracts).length} ethContracts`);
   }
   
-  // Combine data sources based on flag
-  // Note: ethContracts are excluded as they are handled by ContractPaybackDistributor
+  // Load constants for distributor address
+  const constants = require('../../../test/hardhat/utils/constants.js');
+  const DISTRIBUTOR_ADDRESS = constants.BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR;
+  
+  // Combine data sources and reassign ethContracts to distributor
   const allAccounts = { ...arbEOAs };
   if (includeContracts) {
     Object.assign(allAccounts, arbContracts);
-    // ethContracts intentionally excluded - handled by ContractPaybackDistributor
+  }
+  
+  // Reassign all ethContracts fertilizer assets to the distributor contract
+  for (const [ethContractAddress, ethContractData] of Object.entries(ethContracts)) {
+    if (ethContractData && ethContractData.beanFert) {
+      // If distributor already has data, merge fertilizer data
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        if (!allAccounts[DISTRIBUTOR_ADDRESS].beanFert) {
+          allAccounts[DISTRIBUTOR_ADDRESS].beanFert = {};
+        }
+        // Merge fertilizer amounts for same IDs
+        for (const [fertId, amount] of Object.entries(ethContractData.beanFert)) {
+          const existingAmount = parseInt(allAccounts[DISTRIBUTOR_ADDRESS].beanFert[fertId] || '0');
+          const newAmount = parseInt(amount);
+          allAccounts[DISTRIBUTOR_ADDRESS].beanFert[fertId] = (existingAmount + newAmount).toString();
+        }
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = {
+          beanFert: { ...ethContractData.beanFert }
+        };
+      }
+    }
   }
   
   // Use storage fertilizer data directly for global fertilizer
