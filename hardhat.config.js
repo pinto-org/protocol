@@ -40,7 +40,9 @@ const { getFacetBytecode, compareBytecode } = require("./test/hardhat/utils/byte
 const {
   populateBeanstalkField
 } = require("./scripts/beanstalkShipments/populateBeanstalkField.js");
-const { deployAndSetupContracts } = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
+const {
+  deployAndSetupContracts
+} = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
 const { parseAllExportData } = require("./scripts/beanstalkShipments/parsers");
 
 //////////////////////// TASKS ////////////////////////
@@ -2021,16 +2023,17 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     console.log("-----------------------------------");
   });
 
-task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments")
-  .setAction(async (taskArgs) => {
+task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments").setAction(
+  async (taskArgs) => {
     console.log("=".repeat(80));
     console.log("🌱 BEANSTALK SHIPMENTS INITIALIZATION");
     console.log("=".repeat(80));
-    
+
     // params
-    const verbose = false; // Reduced verbosity for cleaner output
-    const noFieldChunking = false;
-    const deploy = false;
+    const verbose = true;
+    const deploy = true;
+    const populateData = false;
+    const populateField = true;
     const parseContracts = true;
 
     // Step 0: Parse export data into required format
@@ -2074,7 +2077,8 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
         L2_PCM,
         account: deployer,
         verbose,
-        useChunking: true,
+        populateData: populateData,
+        useChunking: true
       });
       console.log("✅ Payback contracts deployed and configured\n");
     }
@@ -2082,9 +2086,15 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     // Step 2: Create and populate beanstalk field
     console.log("📈 STEP 2: CREATING BEANSTALK FIELD");
     console.log("-".repeat(50));
-    await populateBeanstalkField(L2_PINTO, owner, verbose, noFieldChunking);
+    if (populateField) {
+      await populateBeanstalkField(L2_PINTO, owner, verbose);
+    }
 
     // Step 3: Update shipment routes
+    // The season facet will also need to be updated to support the new receipients in the
+    // ShipmentRecipient enum in System.sol since the facet inherits from Distribution.sol
+    // That contains the function getShipmentRoutes() which reads the shipment routes from storage
+    // and imports the ShipmentRoute struct.
     console.log("🛤️  STEP 3: UPDATING SHIPMENT ROUTES");
     console.log("-".repeat(50));
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
@@ -2092,8 +2102,29 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: [],
-      initFacetName: "InitBeanstalkShipments",
+      facetNames: ["SeasonFacet"],
+      libraryNames: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate",
+        "LibWeather"
+      ],
+      facetLibraries: {
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate",
+          "LibWeather"
+        ]
+      },
       initArgs: [routes],
       verbose: true,
       account: owner
@@ -2103,7 +2134,8 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     console.log("=".repeat(80));
     console.log("🎉 BEANSTALK SHIPMENTS INITIALIZATION COMPLETED");
     console.log("=".repeat(80));
-  });
+  }
+);
 
 //////////////////////// CONFIGURATION ////////////////////////
 

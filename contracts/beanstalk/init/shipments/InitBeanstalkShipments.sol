@@ -17,8 +17,6 @@ contract InitBeanstalkShipments {
     event ShipmentRoutesSet(ShipmentRoute[] newRoutes);
 
     function init(ShipmentRoute[] calldata newRoutes) external {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-
         // set the shipment routes, replaces the entire set of routes
         _setShipmentRoutes(newRoutes);
     }

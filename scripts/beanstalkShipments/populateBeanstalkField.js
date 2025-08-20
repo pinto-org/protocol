@@ -15,9 +15,12 @@ const {
  */
 async function populateBeanstalkField(diamondAddress, account, verbose = false) {
   console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
+  const mockData = true;
 
   // Read and parse the JSON file
-  const plotsPath = "./scripts/beanstalkShipments/data/beanstalkPlots.json";
+  const plotsPath = mockData
+    ? "./scripts/beanstalkShipments/data/mocks/mockBeanstalkPlots.json"
+    : "./scripts/beanstalkShipments/data/beanstalkPlots.json";
   const rawPlotData = JSON.parse(fs.readFileSync(plotsPath));
 
   // Split into chunks for processing

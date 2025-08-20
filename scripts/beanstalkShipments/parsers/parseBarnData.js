@@ -72,7 +72,10 @@ function parseBarnData(includeContracts = false) {
           totalAmount: 0
         });
       }
-      
+
+      // note: beanBpf here is the lastBpf and it is the same across all accounts
+      // since we claimed on behalf of them during the l2 migration and there were no
+      // beans distributed to fertilizer during this period
       const fertData = fertilizerMap.get(fertId);
       fertData.accounts.push([accountAddress, amount, beanBpf]);
       fertData.totalAmount += parseInt(amount);
