@@ -131,7 +131,7 @@ contract ShipmentPlanner {
             points = PAYBACK_FIELD_POINTS + PAYBACK_SILO_POINTS + PAYBACK_BARN_POINTS;
             cap = min(cap, (beanstalk.time().standardMintedBeans * 3) / 100); // 3%
         } else if (barnRemaining == 0) {
-            // if silo remaining is 0 then 1.5% of all mints goes to fert and 1.5% goes to the field
+            // if barn remaining is 0 then 1.5% of all mints goes to silo and 1.5% goes to the field
             points = PAYBACK_FIELD_POINTS + ((PAYBACK_SILO_POINTS + PAYBACK_BARN_POINTS) * 1) / 4;
             cap = min(cap, (beanstalk.time().standardMintedBeans * 15) / 1000); // 1.5%
         } else {

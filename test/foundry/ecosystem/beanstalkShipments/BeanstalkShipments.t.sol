@@ -150,7 +150,11 @@ contract BeanstalkShipmentsTest is TestHelper {
             uint8(ShipmentRecipient.FIELD),
             "Payback field recipient mismatch"
         );
-        assertEq(routes[3].data, abi.encode(ACTIVE_FIELD_ID), "Payback field data mismatch");
+        assertEq(
+            routes[3].data,
+            abi.encode(PAYBACK_FIELD_ID, SILO_PAYBACK, BARN_PAYBACK),
+            "Payback field data mismatch"
+        );
         // payback silo (0x05)
         assertEq(
             routes[4].planSelector,
@@ -162,7 +166,11 @@ contract BeanstalkShipmentsTest is TestHelper {
             uint8(ShipmentRecipient.SILO_PAYBACK),
             "Payback silo recipient mismatch"
         );
-        assertEq(routes[4].data, abi.encode(SILO_PAYBACK), "Payback silo data mismatch");
+        assertEq(
+            routes[4].data,
+            abi.encode(SILO_PAYBACK, BARN_PAYBACK),
+            "Payback silo data mismatch"
+        );
         // payback barn (0x06)
         assertEq(
             routes[5].planSelector,
@@ -174,7 +182,11 @@ contract BeanstalkShipmentsTest is TestHelper {
             uint8(ShipmentRecipient.BARN_PAYBACK),
             "Payback barn recipient mismatch"
         );
-        assertEq(routes[5].data, abi.encode(BARN_PAYBACK), "Payback barn data mismatch");
+        assertEq(
+            routes[5].data,
+            abi.encode(SILO_PAYBACK, BARN_PAYBACK),
+            "Payback barn data mismatch"
+        );
     }
 
     //////////////////// Field State Verification ////////////////////

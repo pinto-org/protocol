@@ -46,10 +46,11 @@ function parseBarnData(includeContracts = false) {
   }
   
   // Combine data sources based on flag
+  // Note: ethContracts are excluded as they are handled by ContractPaybackDistributor
   const allAccounts = { ...arbEOAs };
   if (includeContracts) {
     Object.assign(allAccounts, arbContracts);
-    Object.assign(allAccounts, ethContracts);
+    // ethContracts intentionally excluded - handled by ContractPaybackDistributor
   }
   
   // Use storage fertilizer data directly for global fertilizer

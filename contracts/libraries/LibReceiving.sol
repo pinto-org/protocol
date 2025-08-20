@@ -88,6 +88,8 @@ library LibReceiving {
     /**
      * @notice Receive Bean at the Field. The next `shipmentAmount` Pods become harvestable.
      * @dev Amount should never exceed the number of Pods that are not yet Harvestable.
+     * @dev In the case of a payback field, even though it cointains additional data,
+     * the fieldId is always the first parameter.
      * @param shipmentAmount Amount of Bean to receive.
      * @param data Encoded uint256 containing the index of the Field to receive the Bean.
      */
@@ -150,7 +152,8 @@ library LibReceiving {
      */
     function barnPaybackReceive(uint256 shipmentAmount, bytes memory data) private {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        address barnPaybackContract = abi.decode(data, (address));
+        // barn payback is the second parameter in the data
+        (, address barnPaybackContract) = abi.decode(data, (address, address));
 
         // transfer the shipment amount to the barn payback contract
         LibTransfer.sendToken(
@@ -178,7 +181,8 @@ library LibReceiving {
      */
     function siloPaybackReceive(uint256 shipmentAmount, bytes memory data) private {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        address siloPaybackContract = abi.decode(data, (address));
+        // silo payback is the first parameter in the data
+        (address siloPaybackContract, ) = abi.decode(data, (address, address));
 
         // transfer the shipment amount to the silo payback contract
         LibTransfer.sendToken(
