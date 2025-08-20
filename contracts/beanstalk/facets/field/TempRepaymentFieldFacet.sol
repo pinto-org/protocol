@@ -10,10 +10,9 @@ import {FieldFacet} from "contracts/beanstalk/facets/field/FieldFacet.sol";
 /**
  * @title TempRepaymentFieldFacet
  * @notice Temporary facet to re-initialize the repayment field with data from the Beanstalk Podline.
- * Upon deployment of the beanstalkShipments, a new field will be created in 
+ * Upon deployment of the beanstalkShipments, a new field will be created in
  */
 contract TempRepaymentFieldFacet is ReentrancyGuard {
-
     address public constant REPAYMENT_FIELD_POPULATOR = 0xc4c66c8b199443a8deA5939ce175C3592e349791;
     uint256 public constant REPAYMENT_FIELD_ID = 1;
 
@@ -34,12 +33,13 @@ contract TempRepaymentFieldFacet is ReentrancyGuard {
      * @dev This function is only callable by the repayment field populator.
      * @param accountPlots the plot for each account
      */
-    function initializeReplaymentPlots(ReplaymentPlotData[] calldata accountPlots) external nonReentrant {
+    function initializeReplaymentPlots(
+        ReplaymentPlotData[] calldata accountPlots
+    ) external nonReentrant {
         require(
             msg.sender == REPAYMENT_FIELD_POPULATOR,
             "Only the repayment field populator can call this function"
         );
-        require(s.sys.fieldCount == 2, "Repayment field should be initialized");
         AppStorage storage s = LibAppStorage.diamondStorage();
         for (uint i; i < accountPlots.length; i++) {
             for (uint j; j < accountPlots[i].plots.length; j++) {

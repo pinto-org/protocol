@@ -38,6 +38,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     event Claimed(address indexed user, uint256 amount, uint256 rewards);
     /// @dev event emitted when rewards are received from shipments
     event SiloPaybackRewardsReceived(uint256 amount, uint256 newIndex);
+    /// @dev event emitted when unripe bdv tokens are minted
+    event UnripeBdvTokenMinted(address indexed user, uint256 amount);
 
     /// @dev modifier to ensure only the Pinto protocol can call the function
     modifier onlyPintoProtocol() {
@@ -70,6 +72,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
         for (uint256 i = 0; i < unripeReceipts.length; i++) {
             _mint(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
             totalDistributed += unripeReceipts[i].bdv;
+            emit UnripeBdvTokenMinted(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
         }
     }
 

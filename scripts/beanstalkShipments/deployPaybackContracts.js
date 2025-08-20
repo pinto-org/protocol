@@ -1,7 +1,7 @@
 const fs = require("fs");
 const { splitEntriesIntoChunks, updateProgress, retryOperation } = require("../../utils/read.js");
 
-// Deploys SiloPayback, BarnPayback, and ShipmentPlanner contracts
+// Deploys SiloPayback, BarnPayback, ShipmentPlanner, and ContractPaybackDistributor contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
   if (verbose) {
     console.log("🚀 Deploying Beanstalk shipment contracts...");

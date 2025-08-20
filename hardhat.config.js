@@ -2079,7 +2079,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       repaymentFieldPopulator = (await ethers.getSigners())[2];
     }
 
-    // Step 1: Deploy and setup payback contracts
+    // Step 1: Deploy and setup payback contracts, distribute assets to users and distributor contract
     console.log("🚀 STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
     console.log("-".repeat(50));
     let contracts = {};
@@ -2096,19 +2096,42 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       console.log("✅ Payback contracts deployed and configured\n");
     }
 
-    // Step 2: Update shipment routes, create new field and create the new TempRepaymentFieldFacet
+    // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
+    console.log("🛤️  STEP 2: ADDING NEW TEMPREPAYMENTFIELD FACET TO THE PINTO DIAMOND");
+    console.log("-".repeat(50));
+
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["TempRepaymentFieldFacet"],
+      initArgs: [],
+      verbose: true,
+      account: owner
+    });
+
+    // Step 3: Populate the repayment field with data
+    console.log("📈 STEP 3: POPULATING THE BEANSTALK FIELD WITH DATA");
+    console.log("-".repeat(50));
+    if (populateField) {
+      await populateBeanstalkField({
+        diamondAddress: L2_PINTO,
+        account: repaymentFieldPopulator,
+        verbose: verbose,
+        mockData: mockFieldData
+      });
+    }
+
+    // Step 4: Update shipment routes and create new field
     // The season facet will also need to be updated to support the new receipients in the
     // ShipmentRecipient enum in System.sol since the facet inherits from Distribution.sol
     // That contains the function getShipmentRoutes() which reads the shipment routes from storage
     // and imports the ShipmentRoute struct.
-    console.log("🛤️  STEP 2: UPDATING SHIPMENT ROUTES AND CREATING NEW FIELD");
-    console.log("-".repeat(50));
+    console.log("\n🛤️  STEP 4: UPDATING SHIPMENT ROUTES AND CREATING NEW FIELD");
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["SeasonFacet", "TempRepaymentFieldFacet"],
+      facetNames: ["SeasonFacet"],
       libraryNames: [
         "LibEvaluate",
         "LibGauge",
@@ -2138,23 +2161,38 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     });
     console.log("✅ Shipment routes updated and new field created\n");
 
-    // Step 2: Create and populate beanstalk field
-    console.log("📈 STEP 3: POPULATING THE BEANSTALK FIELD WITH DATA");
-    console.log("-".repeat(50));
-    if (populateField) {
-      await populateBeanstalkField({
-        diamondAddress: L2_PINTO,
-        account: repaymentFieldPopulator,
-        verbose: verbose,
-        mockData: mockFieldData
-      });
-    }
-
     console.log("=".repeat(80));
     console.log("🎉 BEANSTALK SHIPMENTS INITIALIZATION COMPLETED");
     console.log("=".repeat(80));
   }
 );
+
+// After the initialization of the repayment field is done and the shipments have been deployed
+// The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
+task(
+  "removeTempRepaymentFieldFacet",
+  "removes the TempRepaymentFieldFacet from the diamond"
+).setAction(async (taskArgs) => {
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+
+  // 0x31f2cd56: REPAYMENT_FIELD_ID()
+  // 0x49e40d6c: REPAYMENT_FIELD_POPULATOR()
+  // 0x0b678c09: initializeReplaymentPlots()
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [],
+    selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x0b678c09"],
+    verbose: true,
+    account: owner
+  });
+});
 
 //////////////////////// CONFIGURATION ////////////////////////
 
