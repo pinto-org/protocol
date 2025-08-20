@@ -441,8 +441,7 @@ library LibDibbler {
      * @param initialSoil The initial soil at the start of the season.
      * @return soilSoldOutThreshold The threshold at which soil is considered sold out.
      */
-    function getSoilSoldOutThreshold(uint256 initialSoil) internal view returns (uint256) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
+    function getSoilSoldOutThreshold(uint256 initialSoil) internal pure returns (uint256) {
         return
             Math.min(
                 MAXIMUM_SOIL_SOLD_OUT_THRESHOLD,
@@ -460,7 +459,7 @@ library LibDibbler {
     function getSoilMostlySoldOutThreshold(
         uint256 initialSoil,
         uint256 soilSoldOutThreshold
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         return
             ((initialSoil - getSoilSoldOutThreshold(initialSoil)) *
                 ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /

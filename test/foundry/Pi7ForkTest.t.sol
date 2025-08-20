@@ -147,7 +147,7 @@ contract Legacy_Pi7ForkTest is TestHelper {
         }
     }
 
-    function logFarmerPintoDeposits(address farmer) public {
+    function logFarmerPintoDeposits(address farmer) public view {
         // get stems of farmer deposits
         IMockFBeanstalk.TokenDepositId memory deposits = bs.getTokenDepositsForAccount(
             farmer,

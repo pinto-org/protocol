@@ -21,6 +21,7 @@ import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title GaugeFacet
@@ -327,100 +328,32 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // initialize convert demand to decreasing.
-        LibConvert.ConvertDemand cd = LibConvert.ConvertDemand.DECREASING;
-        LibGaugeHelpers.ConvertBonusCapacityUtilization cbu = LibGaugeHelpers
-            .ConvertBonusCapacityUtilization
-            .NOT_FILLED;
-
-        // if there is a non-zero convert capacity, calculate the demand for a bonus and update the capacity factor.
-        if (gv.maxConvertCapacity > 0) {
-            // determined if capacity is filled or mostly filled.
-            cbu = LibGaugeHelpers.getConvertBonusCapacityUtilization(
-                gd.bdvConvertedThisSeason,
-                gv.maxConvertCapacity
-            );
-
-            cd = LibConvert.calculateConvertDemand(
-                gd.bdvConvertedThisSeason,
-                gd.bdvConvertedLastSeason
-            );
-            // if the capacity is filled or mostly filled, and the demand for convert is not decreasing,
-            // set the last convert bonus taken to the current bonus stalk per bdv.
-            if (
-                cbu != LibGaugeHelpers.ConvertBonusCapacityUtilization.NOT_FILLED &&
-                cd != LibConvert.ConvertDemand.DECREASING
-            ) {
-                gd.lastConvertBonusTaken = gv.bonusStalkPerBdv;
-            }
-
-            // determine amount change as a function of twaL2SR.
-            // amount change has 6 decimal precision.
-            uint256 amountChange = LibGaugeHelpers.linearInterpolation(
-                bs.lpToSupplyRatio.value,
-                true,
-                s.sys.evaluationParameters.lpToSupplyRatioLowerBound,
-                s.sys.evaluationParameters.lpToSupplyRatioUpperBound,
-                gd.minDeltaCapacity,
-                gd.maxDeltaCapacity
-            );
-
-            // update the convert capacity based on
-            // 1) Capacity utilization
-            // 2) Demand for converts (steady/increasing, or decreasing)
-            // 3) the last convert bonus taken.
-            if (cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED) {
-                // capacity filled: increase convert capacity factor
-                gv.convertCapacityFactor = LibGaugeHelpers.linear256(
-                    gv.convertCapacityFactor,
-                    true,
-                    amountChange,
-                    LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR,
-                    LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
-                );
-            } else if (
-                cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.NOT_FILLED &&
-                (cd != LibConvert.ConvertDemand.DECREASING ||
-                    gv.bonusStalkPerBdv >= gd.lastConvertBonusTaken)
-            ) {
-                // this if block is executed when:
-                // 1) capacity not filled
-                // AND either:
-                // 2a) demand is not decreasing (steady/increasing), OR
-                // 2b) demand is decreasing AND current bonus < last bonus taken
-                //
-                // decrease convert capacity factor:
-                amountChange = 1e12 / amountChange;
-                gv.convertCapacityFactor = LibGaugeHelpers.linear256(
-                    gv.convertCapacityFactor,
-                    false,
-                    amountChange,
-                    LibGaugeHelpers.MIN_CONVERT_CAPACITY_FACTOR,
-                    LibGaugeHelpers.MAX_CONVERT_CAPACITY_FACTOR
-                );
-            }
-            // Note: convertCapacityFactor remains unchanged when:
-            // - capacity is mostly filled (optimal utilization), OR
-            // - capacity not filled AND demand is decreasing AND current bonus < last bonus taken (poor conditions)
-        }
-
-        // update the bonus stalk per bdv.
-        gv.bonusStalkPerBdv = LibConvert.updateBonusStalkPerBdv(
-            gv.bonusStalkPerBdv,
-            cbu,
-            cd,
-            bs.twaDeltaB
-        );
-
-        // reset maxTwaDeltaB if there is no bonus.
-        if (gv.bonusStalkPerBdv == 0) {
-            gd.maxTwaDeltaB = 0;
-        }
-
-        if (bs.twaDeltaB >= 0) {
-            // If twaDeltaB is positive, set capacity to 0 (no convert up bonus)
+        if (bs.twaDeltaB > 0) {
+            // If twaDeltaB is positive, reset capacity, bonus, capacity factor, and maxTwaDeltaB (no convert up bonus)
             gv.maxConvertCapacity = 0;
-        } else if (gv.bonusStalkPerBdv > 0) {
+            gv.bonusStalkPerBdv = 0;
+            gv.convertCapacityFactor = 0;
+
+            // reset twaDeltaP.
+            gd.maxTwaDeltaB = 0;
+        } else {
+            // Update maxTwaDeltaB if current -twaDeltaB is larger.
+            if (uint256(-bs.twaDeltaB) > gd.maxTwaDeltaB) {
+                gd.maxTwaDeltaB = uint256(-bs.twaDeltaB);
+            }
+
+            (
+                LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
+                LibGaugeHelpers.ConvertDemand cd
+            ) = LibGaugeHelpers.getCapacityUltilizationAndConvertDemand(
+                    gd.bdvConvertedThisSeason,
+                    gd.bdvConvertedLastSeason,
+                    gv.maxConvertCapacity
+                );
+
+            (gv.convertCapacityFactor, gd.lastConvertBonusTaken) = LibGaugeHelpers
+                .updateConvertCapacityFactor(gv, gd, cbu, cd, bs.lpToSupplyRatio.value);
+
             // Calculate target seasons based on podRate.
             uint256 targetSeasons = LibGaugeHelpers.linearInterpolation(
                 bs.podRate.value,
@@ -431,12 +364,6 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 gd.maxSeasonTarget
             );
 
-            // Update maxTwaDeltaB if current -twaDeltaB is larger.
-            uint256 currentTwaDeltaB = uint256(-bs.twaDeltaB);
-            if (currentTwaDeltaB > gd.maxTwaDeltaB) {
-                gd.maxTwaDeltaB = currentTwaDeltaB;
-            }
-
             // Calculate convert capacity
             // `twaDeltaB` and `targetSeasons` have 6 decimal precision.
             // `convertCapacityFactor` has 8 decimal precision.
@@ -445,6 +372,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 (gd.maxTwaDeltaB * gv.convertCapacityFactor) /
                 targetSeasons /
                 100;
+
+            // update the bonus stalk per bdv.
+            gv.bonusStalkPerBdv = LibGaugeHelpers.updateBonusStalkPerBdv(
+                gv.bonusStalkPerBdv,
+                cbu,
+                cd,
+                bs.twaDeltaB
+            );
         }
 
         // always reset bdv converted tracking for next season

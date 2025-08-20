@@ -602,7 +602,7 @@ contract ExternalOracleTester {
         uint256 tokenDecimals,
         uint256 lookback,
         bytes memory data
-    ) external view returns (uint256) {
+    ) external pure returns (uint256) {
         uint256 timeout;
         bool isMillion = false;
 

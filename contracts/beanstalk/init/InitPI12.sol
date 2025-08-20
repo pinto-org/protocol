@@ -25,7 +25,7 @@ contract InitPI12 {
     function init(uint256 bonusStalkPerBdv) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // initialize the gauge point update.
-        initMaxGaugePoints(MAX_TOTAL_GAUGE_POINTS);
+        initMaxGaugePoints();
 
         // add the convert up bonus gauge
         LibInitGauges.initConvertUpBonusGauge(TWA_DELTA_B);
@@ -48,9 +48,9 @@ contract InitPI12 {
     /**
      * @notice Initializes the max total gauge points.
      * @dev this function takes the current gauge points of the whitelisted LP tokens, and normalizes them to the max total gauge points.
-     * @param maxGaugePoints The max total gauge points.
+     
      */
-    function initMaxGaugePoints(uint256 maxGaugePoints) internal {
+    function initMaxGaugePoints() internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Set the max total gauge points to MAX_TOTAL_GAUGE_POINTS

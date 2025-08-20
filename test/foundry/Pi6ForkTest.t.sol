@@ -194,7 +194,7 @@ contract Legacy_Pi6ForkTest is TestHelper {
         assertEq(soilAfterUpgrade, 50e6);
     }
 
-    function test_forkBase_new_eval_params() public {
+    function test_forkBase_new_eval_params() public view {
         // new extra evaluation parameters
         IMockFBeanstalk.ExtEvaluationParameters memory extEvaluationParameters = bs
             .getExtEvaluationParameters();
@@ -208,7 +208,7 @@ contract Legacy_Pi6ForkTest is TestHelper {
         assertEq(extEvaluationParameters.minSoilIssuance, 50e6, "minSoilIssuance should be 50e6");
     }
 
-    function test_forkBase_cultivation_factor_gauge() public {
+    function test_forkBase_cultivation_factor_gauge() public view {
         // Check that the cultivation factor gauge exists
         bytes memory gaugeValue = bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR);
         uint256 cultivationFactor = abi.decode(gaugeValue, (uint256));
@@ -413,7 +413,7 @@ contract Legacy_Pi6ForkTest is TestHelper {
     function getAndLogLpTokenSeeds(
         address[] memory lpTokens,
         uint256[] memory previousSeeds
-    ) internal returns (uint256[] memory) {
+    ) internal view returns (uint256[] memory) {
         // Get seeds for all LP tokens
         uint256[] memory seeds = bs.stalkEarnedPerSeason(lpTokens);
 

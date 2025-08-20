@@ -20,7 +20,8 @@ auto_detect_solc = true
 solc_version = '0.8.25'
 
 # 2462: Visibility for constructor is ignored
-ignored_error_codes = [2462]
+# 5574, 3860: contract size limits.
+ignored_error_codes = [2462, 5574, 3860]
 # set optimizer to true when deploying to mainnet
 optimizer = false
 optimizer_runs = 100
@@ -65,3 +66,10 @@ mainnet = "${FORKING_RPC}"
 runs = 4
 depth = 2048
 fail_on_revert = true
+
+[lint]
+exclude_lints = ["asm-keccak256", "pascal-case-struct", "mixed-case-function", "mixed-case-variable", "unused-import", "unaliased-plain-import", "screaming-snake-case-const", "screaming-snake-case-immutable", "erc20-unchecked-transfer", "divide-before-multiply"]
+ignore = [
+  "contracts/mocks/*",
+  "test/foundry/*"
+]

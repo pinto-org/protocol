@@ -500,6 +500,7 @@ contract Pi12ForkTest is TestHelper {
         uint256 remainingCapacity
     )
         internal
+        pure
         returns (int96 stem, uint256 amount, uint256 newRemainingCapacity, uint256 newTotalAmount)
     {
         uint256 bdvOfDeposit = d.tokenDeposits[i].bdv;

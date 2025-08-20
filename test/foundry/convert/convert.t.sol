@@ -861,18 +861,19 @@ contract ConvertTest is TestHelper {
                 bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
                 (LibGaugeHelpers.ConvertBonusGaugeValue)
             );
-            if (i > 0) {
-                assertEq(
-                    gv.bonusStalkPerBdv,
-                    bonusStalkPerBdvBefore,
-                    "bonusStalkPerBdv should be the same"
-                );
-            } else {
+            if (i == 0) {
                 // for first iteration, bonusStalkPerBdv should be increasing. (because 90% * constantBdvConverted > 100% prev max capacity)
                 assertGt(
                     gv.bonusStalkPerBdv,
                     bonusStalkPerBdvBefore,
                     "bonusStalkPerBdv should be increasing"
+                );
+            } else {
+                // else, at a constant demand, the bonus should stay the same
+                assertEq(
+                    gv.bonusStalkPerBdv,
+                    bonusStalkPerBdvBefore,
+                    "bonusStalkPerBdv should be the same"
                 );
             }
 
@@ -885,8 +886,9 @@ contract ConvertTest is TestHelper {
             bonusStalkPerBdvBefore = gv.bonusStalkPerBdv;
         }
 
-        // scenario 2: constant demand for converting, but below the current capacity.
+        // scenario 3: constant demand for converting, but below the current capacity.
         // when demand is constant, bonus should stay the same. Example: a user places a maximum amount to convert to DCA into it.
+        // capacity factor should decrease over time to match the demand.
         constantBdvConverted =
             (abi
                 .decode(

@@ -124,7 +124,7 @@ contract LEGACY_Pi5ForkTest is TestHelper {
         assertEq(soilAfterUpgrade, expectedSoil);
     }*/
 
-    function test_forkBase_new_eval_params() public {
+    function test_forkBase_new_eval_params() public view {
         // new extra evaluation parameters
         IMockFBeanstalk.ExtEvaluationParameters memory extEvaluationParameters = bs
             .getExtEvaluationParameters();

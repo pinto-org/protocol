@@ -1687,7 +1687,7 @@ contract SunTest is TestHelper {
         assertEq(bs.totalSoil(), soilIssued);
     }
 
-    function test_scaleSoilAbovePegSimpleLogic() public {
+    function test_scaleSoilAbovePegSimpleLogic() public view {
         // pod rate above upper bound will result in minimum pod rate scalar of 0.25e18
         uint256 podRate = 0.50e18;
 
@@ -1710,7 +1710,7 @@ contract SunTest is TestHelper {
     function calcBeansToFieldAndSilo(
         uint256 beansIssued,
         uint256 podsInField
-    ) internal returns (uint256 beansToField, uint256 beansToSilo) {
+    ) internal pure returns (uint256 beansToField, uint256 beansToSilo) {
         beansToField = beansIssued / 2 > podsInField ? podsInField : beansIssued / 2;
         beansToSilo = beansIssued - beansToField;
     }
@@ -1722,7 +1722,7 @@ contract SunTest is TestHelper {
     function getSoilIssuedAbovePeg(
         uint256 podsRipened,
         uint256 podRate
-    ) internal returns (uint256 soilIssuedAfterMorningAuction, uint256 soilIssuedRightNow) {
+    ) internal view returns (uint256 soilIssuedAfterMorningAuction, uint256 soilIssuedRightNow) {
         uint256 TEMPERATURE_PRECISION = 1e6;
         uint256 ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
@@ -1750,7 +1750,7 @@ contract SunTest is TestHelper {
         int256 instDeltaB,
         uint256 cultivationFactor,
         uint256 podRate
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         uint256 soilIssued;
         if (instDeltaB > 0) {
             uint256 scaledSoil = (uint256(-twaDeltaB) * 0.01e6) / 1e6;
@@ -1777,7 +1777,7 @@ contract SunTest is TestHelper {
      * @notice scales soil issued above peg according to pod rate and cultivation factor.
      * @dev see {Sun.sol}.
      */
-    function scaleSoilAbovePeg(uint256 soilAmount, uint256 podRate) public returns (uint256) {
+    function scaleSoilAbovePeg(uint256 soilAmount, uint256 podRate) public view returns (uint256) {
         // Apply cultivationFactor scaling (cultivationFactor is a percentage with 6 decimal places, where 100e6 = 100%)
         uint256 cultivationFactor = abi.decode(
             bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
