@@ -54,9 +54,7 @@ contract TractorHelpersTest is TractorTestHelper {
         // Deploy TractorHelpers with PriceManipulation address
         tractorHelpers = new TractorHelpers(
             address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(priceManipulation)
+            address(beanstalkPrice)
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
@@ -64,8 +62,7 @@ contract TractorHelpersTest is TractorTestHelper {
         siloHelpers = new SiloHelpers(
             address(bs),
             address(tractorHelpers),
-            address(priceManipulation),
-            address(this)
+            address(priceManipulation)
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
@@ -229,9 +226,7 @@ contract TractorHelpersTest is TractorTestHelper {
         // Deploy TractorHelpers with PriceManipulation address
         tractorHelpers = new TractorHelpers(
             PINTO_DIAMOND,
-            BEANSTALK_PRICE,
-            address(this),
-            address(priceManipulation)
+            BEANSTALK_PRICE
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
@@ -239,8 +234,7 @@ contract TractorHelpersTest is TractorTestHelper {
         siloHelpers = new SiloHelpers(
             PINTO_DIAMOND,
             address(tractorHelpers),
-            address(priceManipulation),
-            address(this)
+            address(priceManipulation)
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
@@ -1902,8 +1896,7 @@ contract TractorHelpersTest is TractorTestHelper {
         SiloHelpers forkSiloHelpers = new SiloHelpers(
             PINTO_DIAMOND,
             address(tractorHelpers),
-            address(priceManipulation),
-            address(this)
+            address(priceManipulation)
         );
         vm.label(address(forkSiloHelpers), "ForkSiloHelpers");
 

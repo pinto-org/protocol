@@ -2,27 +2,26 @@
 pragma solidity ^0.8.20;
 
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
-import {PriceManipulation} from "./PriceManipulation.sol";
+import {IPriceManipulation} from "contracts/interfaces/IPriceManipulation.sol";
 
 /**
  * @title SiloHelpers
  * @author FordPinto, Frijo
  * @notice Helper contract for Silo operations related to sorting deposits and managing their order
  */
-contract SiloHelpers is PerFunctionPausable {
+contract SiloHelpers {
     // Special token index values for withdrawal strategies
     uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
     uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
 
     IBeanstalk immutable beanstalk;
     TractorHelpers immutable tractorHelpers;
-    PriceManipulation immutable priceManipulation;
+    IPriceManipulation immutable priceManipulation;
 
     struct WithdrawLocalVars {
         address[] whitelistedTokens;
@@ -70,15 +69,10 @@ contract SiloHelpers is PerFunctionPausable {
         uint256 lowStalkCount;
     }
 
-    constructor(
-        address _beanstalk,
-        address _tractorHelpers,
-        address _priceManipulation,
-        address _owner
-    ) PerFunctionPausable(_owner) {
+    constructor(address _beanstalk, address _tractorHelpers, address _priceManipulation) {
         beanstalk = IBeanstalk(_beanstalk);
         tractorHelpers = TractorHelpers(_tractorHelpers);
-        priceManipulation = PriceManipulation(_priceManipulation);
+        priceManipulation = IPriceManipulation(_priceManipulation);
     }
 
     /**
@@ -86,9 +80,7 @@ contract SiloHelpers is PerFunctionPausable {
      * @param account The address of the account that owns the deposits
      * @return updatedTokens Array of tokens that had their sorted deposit lists updated
      */
-    function sortDeposits(
-        address account
-    ) external whenFunctionNotPaused returns (address[] memory updatedTokens) {
+    function sortDeposits(address account) external returns (address[] memory updatedTokens) {
         // Get all tokens the user has deposited
         address[] memory depositedTokens = getUserDepositedTokens(account);
         if (depositedTokens.length == 0) return new address[](0);
@@ -369,7 +361,7 @@ contract SiloHelpers is PerFunctionPausable {
         uint256 slippageRatio,
         LibTransfer.To mode,
         LibSiloHelpers.WithdrawalPlan memory plan
-    ) external payable whenFunctionNotPaused returns (uint256) {
+    ) external payable returns (uint256) {
         WithdrawBeansLocalVars memory vars;
 
         // If passed in plan is empty, get one
@@ -391,11 +383,7 @@ contract SiloHelpers is PerFunctionPausable {
                     vars.sourceToken
                 );
                 require(
-                    priceManipulation.isValidSlippage(
-                        IWell(vars.sourceToken),
-                        IERC20(vars.nonBeanToken),
-                        slippageRatio
-                    ),
+                    priceManipulation.isValidSlippage(IWell(vars.sourceToken), slippageRatio),
                     "Price manipulation detected"
                 );
             }
@@ -766,5 +754,13 @@ contract SiloHelpers is PerFunctionPausable {
             addresses[i] = whitelistStatuses[i].token;
         }
         return addresses;
+    }
+
+    /**
+     * @notice Wrapper function to call PriceManipulation.isValidSlippage.
+     * @dev See {PriceManipulation.isValidSlippage} for more details.
+     */
+    function isValidSlippage(address token, uint256 slippageRatio) external returns (bool) {
+        return priceManipulation.isValidSlippage(IWell(token), slippageRatio);
     }
 }

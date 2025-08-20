@@ -49,9 +49,7 @@ contract SowBlueprintTest is TractorTestHelper {
         // Deploy TractorHelpers with PriceManipulation address
         tractorHelpers = new TractorHelpers(
             address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(priceManipulation)
+            address(beanstalkPrice)
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
@@ -59,8 +57,7 @@ contract SowBlueprintTest is TractorTestHelper {
         siloHelpers = new SiloHelpers(
             address(bs),
             address(tractorHelpers),
-            address(priceManipulation),
-            address(this)
+            address(priceManipulation)
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 

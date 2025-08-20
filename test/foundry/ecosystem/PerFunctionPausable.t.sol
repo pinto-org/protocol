@@ -36,9 +36,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         // Deploy TractorHelpers with PriceManipulation address
         tractorHelpers = new TractorHelpers(
             address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(priceManipulation)
+            address(beanstalkPrice)
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
@@ -46,8 +44,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         siloHelpers = new SiloHelpers(
             address(bs),
             address(tractorHelpers),
-            address(priceManipulation),
-            address(this)
+            address(priceManipulation)
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
@@ -68,16 +65,11 @@ contract PerFunctionPausableTest is TractorTestHelper {
     function test_pause() public {
         // Get function selectors for the functions we want to test
         bytes4 sowSelector = SowBlueprint.sowBlueprint.selector;
-        bytes4 withdrawSelector = SiloHelpers.withdrawBeansFromSources.selector;
 
         // Test initial state
         assertFalse(
             sowBlueprint.functionPaused(sowSelector),
             "sowBlueprint should not be paused initially"
-        );
-        assertFalse(
-            siloHelpers.functionPaused(withdrawSelector),
-            "withdrawBeansFromSources should not be paused initially"
         );
 
         // Test non-owner access control
@@ -87,25 +79,14 @@ contract PerFunctionPausableTest is TractorTestHelper {
         );
         sowBlueprint.pauseFunction(sowSelector);
 
-        vm.prank(farmers[1]);
-        vm.expectRevert(
-            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
-        );
-        siloHelpers.pauseFunction(withdrawSelector);
-
         // Test pausing individual functions
         vm.startPrank(address(this));
         sowBlueprint.pauseFunction(sowSelector);
-        siloHelpers.pauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertTrue(
             sowBlueprint.functionPaused(sowSelector),
             "sowBlueprint should be paused"
-        );
-        assertTrue(
-            siloHelpers.functionPaused(withdrawSelector),
-            "withdrawBeansFromSources should be paused"
         );
 
         // Setup test state
@@ -142,28 +123,6 @@ contract PerFunctionPausableTest is TractorTestHelper {
             ""
         );
 
-        // Test withdraw function when paused
-        uint8[] memory sourceTokenIndices = new uint8[](1);
-        sourceTokenIndices[0] = 0; // Bean token index
-
-        req = setupWithdrawBeansBlueprint(
-            farmers[0],
-            100e6,
-            sourceTokenIndices,
-            MAX_GROWN_STALK_PER_BDV,
-            LibTransfer.To.INTERNAL
-        );
-
-        vm.prank(farmers[0]);
-        bs.publishRequisition(req);
-
-        vm.expectRevert("Function is paused");
-        vm.prank(farmers[0]);
-        bs.tractor(
-            IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature),
-            ""
-        );
-
         // Test non-owner cannot unpause
         vm.prank(farmers[1]);
         vm.expectRevert(
@@ -171,25 +130,14 @@ contract PerFunctionPausableTest is TractorTestHelper {
         );
         sowBlueprint.unpauseFunction(sowSelector);
 
-        vm.prank(farmers[1]);
-        vm.expectRevert(
-            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
-        );
-        siloHelpers.unpauseFunction(withdrawSelector);
-
         // Test unpausing functions
         vm.startPrank(address(this));
         sowBlueprint.unpauseFunction(sowSelector);
-        siloHelpers.unpauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertFalse(
             sowBlueprint.functionPaused(sowSelector),
             "sowBlueprint should be unpaused"
-        );
-        assertFalse(
-            siloHelpers.functionPaused(withdrawSelector),
-            "withdrawBeansFromSources should be unpaused"
         );
 
         (req, ) = setupSowBlueprintv0Blueprint(
@@ -209,23 +157,6 @@ contract PerFunctionPausableTest is TractorTestHelper {
 
         // Verify sow succeeded
         assertEq(bs.totalSoil(), 100000e6 - 1000e6, "Soil should be reduced after successful sow");
-
-        // Test withdraw works after unpausing
-        req = setupWithdrawBeansBlueprint(
-            farmers[0],
-            100e6,
-            sourceTokenIndices,
-            MAX_GROWN_STALK_PER_BDV,
-            LibTransfer.To.INTERNAL
-        );
-
-        vm.prank(farmers[0]);
-        bs.publishRequisition(req);
-        vm.prank(farmers[0]);
-        bs.tractor(
-            IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature),
-            ""
-        );
     }
 
     // Helper function from SowBlueprintv0Test

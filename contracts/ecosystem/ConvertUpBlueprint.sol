@@ -350,20 +350,10 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             if (tokenAmountToConvert == 0) continue;
 
             // Validate slippage to detect price manipulation
-            {
-                IERC20[] memory wellTokens = IWell(token).tokens();
-                address nonBeanToken = address(wellTokens[0]) == beanToken
-                    ? address(wellTokens[1])
-                    : address(wellTokens[0]);
-                require(
-                    tractorHelpers.priceManipulation().isValidSlippage(
-                        IWell(token),
-                        IERC20(nonBeanToken),
-                        slippageRatio
-                    ),
-                    "Price manipulation detected"
-                );
-            }
+            require(
+                siloHelpers.isValidSlippage(token, slippageRatio),
+                "Price manipulation detected"
+            );
 
             // Calculate minimum output amount based on slippage
             uint256 expectedOutput = IWell(token).getRemoveLiquidityOneTokenOut(

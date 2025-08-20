@@ -8,8 +8,6 @@ import {BeanstalkPrice, P} from "./price/BeanstalkPrice.sol";
 import {ReservesType} from "./price/WellPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {Junction} from "./junction/Junction.sol";
-import {PriceManipulation} from "./PriceManipulation.sol";
-import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
@@ -18,10 +16,9 @@ import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
  * @author FordPinto
  * @notice Helper contract for Silo operations. For use with Tractor.
  */
-contract TractorHelpers is Junction, PerFunctionPausable {
+contract TractorHelpers is Junction {
     IBeanstalk immutable beanstalk;
     BeanstalkPrice immutable beanstalkPrice;
-    PriceManipulation public immutable priceManipulation;
 
     enum RewardType {
         ERC20,
@@ -36,15 +33,9 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         int256 amount
     );
 
-    constructor(
-        address _beanstalk,
-        address _beanstalkPrice,
-        address _owner,
-        address _priceManipulation
-    ) PerFunctionPausable(_owner) {
+    constructor(address _beanstalk, address _beanstalkPrice) {
         beanstalk = IBeanstalk(_beanstalk);
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
-        priceManipulation = PriceManipulation(_priceManipulation);
     }
 
     /**
