@@ -52,10 +52,7 @@ contract TractorHelpersTest is TractorTestHelper {
         vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy TractorHelpers with PriceManipulation address
-        tractorHelpers = new TractorHelpers(
-            address(bs),
-            address(beanstalkPrice)
-        );
+        tractorHelpers = new TractorHelpers(address(bs), address(beanstalkPrice));
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers
@@ -224,10 +221,7 @@ contract TractorHelpersTest is TractorTestHelper {
         vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy TractorHelpers with PriceManipulation address
-        tractorHelpers = new TractorHelpers(
-            PINTO_DIAMOND,
-            BEANSTALK_PRICE
-        );
+        tractorHelpers = new TractorHelpers(PINTO_DIAMOND, BEANSTALK_PRICE);
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers first

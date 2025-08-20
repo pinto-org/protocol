@@ -34,10 +34,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy TractorHelpers with PriceManipulation address
-        tractorHelpers = new TractorHelpers(
-            address(bs),
-            address(beanstalkPrice)
-        );
+        tractorHelpers = new TractorHelpers(address(bs), address(beanstalkPrice));
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers first
@@ -84,10 +81,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         sowBlueprint.pauseFunction(sowSelector);
         vm.stopPrank();
 
-        assertTrue(
-            sowBlueprint.functionPaused(sowSelector),
-            "sowBlueprint should be paused"
-        );
+        assertTrue(sowBlueprint.functionPaused(sowSelector), "sowBlueprint should be paused");
 
         // Setup test state
         bs.setSoilE(100_000e6);
@@ -135,10 +129,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         sowBlueprint.unpauseFunction(sowSelector);
         vm.stopPrank();
 
-        assertFalse(
-            sowBlueprint.functionPaused(sowSelector),
-            "sowBlueprint should be unpaused"
-        );
+        assertFalse(sowBlueprint.functionPaused(sowSelector), "sowBlueprint should be unpaused");
 
         (req, ) = setupSowBlueprintv0Blueprint(
             farmers[0],

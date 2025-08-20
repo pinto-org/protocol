@@ -47,10 +47,7 @@ contract SowBlueprintTest is TractorTestHelper {
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
         // Deploy TractorHelpers with PriceManipulation address
-        tractorHelpers = new TractorHelpers(
-            address(bs),
-            address(beanstalkPrice)
-        );
+        tractorHelpers = new TractorHelpers(address(bs), address(beanstalkPrice));
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers first
