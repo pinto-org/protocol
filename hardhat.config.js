@@ -681,66 +681,6 @@ task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setActi
       owner = (await ethers.getSigners())[0];
     }
 
-    //////////////// External Contracts ////////////////
-
-    // Deploy contracts in correct order
-
-    // Updated Price contract
-    const beanstalkPrice = await ethers.getContractFactory("BeanstalkPrice");
-    const beanstalkPriceContract = await beanstalkPrice.deploy(L2_PINTO);
-    await beanstalkPriceContract.deployed();
-    console.log("\nBeanstalkPrice deployed to:", beanstalkPriceContract.address);
-
-    // Price Manipulation
-    const priceManipulation = await ethers.getContractFactory("PriceManipulation");
-    const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
-    await priceManipulationContract.deployed();
-    console.log("\nPriceManipulation deployed to:", priceManipulationContract.address);
-
-    // Deploy OperatorWhitelist
-    const operatorWhitelist = await ethers.getContractFactory("OperatorWhitelist");
-    const operatorWhitelistContract = await operatorWhitelist.deploy(L2_PCM);
-    await operatorWhitelistContract.deployed();
-    console.log("\nOperatorWhitelist deployed to:", operatorWhitelistContract.address);
-
-    // Deploy LibTractorHelpers first
-    const LibTractorHelpers = await ethers.getContractFactory("LibTractorHelpers");
-    const libTractorHelpers = await LibTractorHelpers.deploy();
-    await libTractorHelpers.deployed();
-    console.log("\nLibTractorHelpers deployed to:", libTractorHelpers.address);
-
-    // Deploy TractorHelpers with library linking
-    const TractorHelpers = await ethers.getContractFactory("TractorHelpers", {
-      libraries: {
-        LibTractorHelpers: libTractorHelpers.address
-      }
-    });
-    const tractorHelpersContract = await TractorHelpers.deploy(
-      L2_PINTO, // diamond address
-      beanstalkPriceContract.address, // price contract
-      L2_PCM, // owner address
-      priceManipulationContract.address // price manipulation contract address
-    );
-    await tractorHelpersContract.deployed();
-    console.log("\nTractorHelpers deployed to:", tractorHelpersContract.address);
-
-    // Deploy SowBlueprint and connect it to the existing TractorHelpers
-    const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
-    const sowBlueprintContract = await sowBlueprint.deploy(
-      L2_PINTO, // diamond address
-      L2_PCM, // owner address
-      tractorHelpersContract.address // tractorHelpers contract address
-    );
-
-    await sowBlueprintContract.deployed();
-    console.log("\nSowBlueprintv0 deployed to:", sowBlueprintContract.address);
-
-    console.log("\nExternal contracts deployed!");
-
-    console.log("\nStarting diamond upgrade...");
-
-    /////////////////////// Diamond Upgrade ///////////////////////
-
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: [
@@ -1122,11 +1062,17 @@ task("deploySowBlueprint", "Deploys SowBlueprint and other auxiliary contracts")
       owner = (await ethers.getSigners())[0];
     }
 
-    // Deploy contracts in correct order
+    // Deploy TractorHelpers first
+    const tractorHelpers = await ethers.getContractFactory("TractorHelpers");
+    const tractorHelpersContract = await tractorHelpers.deploy();
+    await tractorHelpersContract.waitForDeployment();
+    console.log("TractorHelpers deployed to:", await tractorHelpersContract.getAddress());
+
+    // Deploy PriceManipulation
     const priceManipulation = await ethers.getContractFactory("PriceManipulation");
     const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
-    await priceManipulationContract.deployed();
-    console.log("PriceManipulation deployed to:", priceManipulationContract.address);
+    await priceManipulationContract.waitForDeployment();
+    console.log("PriceManipulation deployed to:", await priceManipulationContract.getAddress());
 
     // Deploy SiloHelpers
     const siloHelpers = await ethers.getContractFactory("SiloHelpers");
@@ -1134,21 +1080,21 @@ task("deploySowBlueprint", "Deploys SowBlueprint and other auxiliary contracts")
       L2_PINTO,
       "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
       await owner.getAddress(), // owner address
-      priceManipulationContract.address // price manipulation contract address
+      await priceManipulationContract.getAddress() // price manipulation contract address
     );
-    await siloHelpersContract.deployed();
-    console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+    await siloHelpersContract.waitForDeployment();
+    console.log("SiloHelpers deployed to:", await siloHelpersContract.getAddress());
 
-    // Deploy SowBlueprint and connect it to the existing SiloHelpers
+    // Deploy SowBlueprint with correct constructor parameters
     const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
     const sowBlueprintContract = await sowBlueprint.deploy(
-      L2_PINTO,
-      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
-      await owner.getAddress(), // owner address
-      siloHelpersContract.address // siloHelpers contract address
+      L2_PINTO, // _beanstalk
+      await owner.getAddress(), // _owner
+      await tractorHelpersContract.getAddress(), // _tractorHelpers
+      await siloHelpersContract.getAddress() // _siloHelpers
     );
-    await sowBlueprintContract.deployed();
-    console.log("SowBlueprint deployed to:", sowBlueprintContract.address);
+    await sowBlueprintContract.waitForDeployment();
+    console.log("SowBlueprint deployed to:", await sowBlueprintContract.getAddress());
   }
 );
 
@@ -1165,11 +1111,17 @@ task(
     owner = (await ethers.getSigners())[0];
   }
 
-  // Deploy contracts in correct order
+  // Deploy TractorHelpers first
+  const tractorHelpers = await ethers.getContractFactory("TractorHelpers");
+  const tractorHelpersContract = await tractorHelpers.deploy();
+  await tractorHelpersContract.waitForDeployment();
+  console.log("TractorHelpers deployed to:", await tractorHelpersContract.getAddress());
+
+  // Deploy PriceManipulation
   const priceManipulation = await ethers.getContractFactory("PriceManipulation");
   const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
-  await priceManipulationContract.deployed();
-  console.log("PriceManipulation deployed to:", priceManipulationContract.address);
+  await priceManipulationContract.waitForDeployment();
+  console.log("PriceManipulation deployed to:", await priceManipulationContract.getAddress());
 
   // Deploy SiloHelpers
   const siloHelpers = await ethers.getContractFactory("SiloHelpers");
@@ -1177,21 +1129,22 @@ task(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
     await owner.getAddress(), // owner address
-    priceManipulationContract.address // price manipulation contract address
+    await priceManipulationContract.getAddress() // price manipulation contract address
   );
-  await siloHelpersContract.deployed();
-  console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+  await siloHelpersContract.waitForDeployment();
+  console.log("SiloHelpers deployed to:", await siloHelpersContract.getAddress());
 
-  // Deploy SowBlueprint and connect it to the existing SiloHelpers
-  const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
-  const sowBlueprintContract = await sowBlueprint.deploy(
-    L2_PINTO,
-    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
-    await owner.getAddress(), // owner address
-    siloHelpersContract.address // siloHelpers contract address
+  // Deploy ConvertUpBlueprint (not SowBlueprint!) with correct constructor parameters
+  const convertUpBlueprint = await ethers.getContractFactory("ConvertUpBlueprint");
+  const convertUpBlueprintContract = await convertUpBlueprint.deploy(
+    L2_PINTO, // _beanstalk
+    await owner.getAddress(), // _owner
+    await tractorHelpersContract.getAddress(), // _tractorHelpers
+    await siloHelpersContract.getAddress(), // _siloHelpers
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E" // _beanstalkPrice
   );
-  await sowBlueprintContract.deployed();
-  console.log("SowBlueprint deployed to:", sowBlueprintContract.address);
+  await convertUpBlueprintContract.waitForDeployment();
+  console.log("ConvertUpBlueprint deployed to:", await convertUpBlueprintContract.getAddress());
 });
 
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
