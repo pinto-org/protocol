@@ -340,7 +340,6 @@ library LibGaugeHelpers {
             gd.maxDeltaCapacity
         );
 
-
         // update the convert capacity based on
         // 1) Capacity utilization
         // 2) Demand for converts (steady/increasing, or decreasing)
