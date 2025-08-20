@@ -25,3 +25,6 @@ out/
 
 # forge libraries.
 lib/
+
+# claude commands
+.claude/commands/

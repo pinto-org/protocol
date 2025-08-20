@@ -37,7 +37,7 @@ contract TractorHelper is TestHelper {
         address account,
         bytes memory pipeCallData,
         address beanstalkAddress
-    ) internal returns (IMockFBeanstalk.Requisition memory) {
+    ) internal view returns (IMockFBeanstalk.Requisition memory) {
         // Create the blueprint
         IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
             publisher: account,
@@ -77,7 +77,7 @@ contract TractorHelper is TestHelper {
     }
 
     // Helper function to sign blueprints
-    function signBlueprint(bytes32 hash, uint256 pk) internal returns (bytes memory) {
+    function signBlueprint(bytes32 hash, uint256 pk) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, hash);
         return abi.encodePacked(r, s, v);
     }

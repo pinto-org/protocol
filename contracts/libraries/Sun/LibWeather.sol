@@ -4,11 +4,7 @@ pragma solidity ^0.8.20;
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
-import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
-import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibRedundantMath128} from "contracts/libraries/Math/LibRedundantMath128.sol";
-import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
-import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
@@ -19,8 +15,6 @@ import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
  * @dev Weather controls the Temperature and Grown Stalk to LP on the Farm.
  */
 library LibWeather {
-    using LibRedundantMath256 for uint256;
-    using LibRedundantMathSigned256 for int256;
     using LibRedundantMath128 for uint128;
 
     uint128 internal constant MAX_BEAN_LP_GP_PER_BDV_RATIO = 100e18;

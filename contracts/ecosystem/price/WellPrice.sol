@@ -102,15 +102,15 @@ contract WellPrice {
                 .getSwapOut(wellTokens[beanIndex], wellTokens[tknIndex], 1e6)
                 .mul(PRICE_PRECISION * PRICE_PRECISION)
                 .div(assetPrice);
+            pool.nonBeanLiquidity = WELL_DECIMALS.mul(pool.balances[tknIndex]).div(assetPrice).div(
+                PRICE_PRECISION
+            );
         }
 
         // liquidity is calculated by getting the usd value of the bean portion of the pool,
         // and the usd value of the non-bean portion of the pool.
 
         pool.beanLiquidity = pool.balances[beanIndex].mul(pool.price).div(PRICE_PRECISION);
-        pool.nonBeanLiquidity = WELL_DECIMALS.mul(pool.balances[tknIndex]).div(assetPrice).div(
-            PRICE_PRECISION
-        );
 
         pool.liquidity = pool.beanLiquidity.add(pool.nonBeanLiquidity);
 

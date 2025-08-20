@@ -215,7 +215,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         );
     }
 
-    function test_assetSettings() public {
+    function test_assetSettings() public view {
         uint32 defaultStalkEarnedPerSeason = 1;
         uint48 defaultStalkIssuedPerBdv = 1e10;
         uint32 defaultMilestoneSeason = 1;
@@ -287,7 +287,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         }
     }
 
-    function test_tokenImplementations() public {
+    function test_tokenImplementations() public view {
         IMockFBeanstalk.Implementation memory defaultGaugePointImpl = IMockFBeanstalk
             .Implementation({
                 target: address(0),
@@ -354,7 +354,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         }
     }
 
-    function test_nonbeantokenOracleImpl() public {
+    function test_nonbeantokenOracleImpl() public view {
         for (uint256 i = 0; i < pintoAndNonBeanTokens.length; i++) {
             //////////////////// Oracle ////////////////////
             IMockFBeanstalk.Implementation memory oralceImplementation = pinto
@@ -438,7 +438,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         }
     }
 
-    function test_whiteListedTokens() public {
+    function test_whiteListedTokens() public view {
         // all whitelisted tokens
         address[] memory tokens = pinto.getWhitelistedTokens();
         console.log("-------------------------------");
@@ -470,7 +470,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         console.log("-------------------------------");
     }
 
-    function test_shipmentRoutes() public {
+    function test_shipmentRoutes() public view {
         address shipmentPlanner = address(0x73924B07D9E087b5Cb331c305A65882101bC2fa2);
         // get shipment routes
         IMockFBeanstalk.ShipmentRoute[] memory routes = pinto.getShipmentRoutes();
@@ -540,7 +540,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         console.log("-------------------------------");
     }
 
-    function test_ownership() public {
+    function test_ownership() public view {
         console.log("-------------------------------");
         console.log("Ownership");
         console.log("-------------------------------");
@@ -553,7 +553,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         assertEq(ownerCandidate, PCM);
     }
 
-    function test_initialDeposit() public {
+    function test_initialDeposit() public view {
         // test that deposit went to dev budget //pinto/weth
         address depositedToken = address(0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3);
         IMockFBeanstalk.TokenDepositId[] memory deposits = pinto.getDepositsForAccount(

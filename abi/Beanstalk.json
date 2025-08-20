@@ -6961,6 +6961,11 @@
         "internalType": "uint256",
         "name": "grownStalkToConvert",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountConverted",
+        "type": "uint256"
       }
     ],
     "name": "downPenalizedGrownStalk",
@@ -7071,6 +7076,35 @@
       }
     ],
     "name": "getMaxAmountIn",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "amountIn",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenIn",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenOut",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rate",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMaxAmountInAtRate",
     "outputs": [
       {
         "internalType": "uint256",
@@ -8441,6 +8475,68 @@
       }
     ],
     "name": "TemperatureChange",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkLost",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
+        "type": "uint256"
+      }
+    ],
+    "name": "ConvertDownPenalty",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkGained",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newGrownStalk",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvCapacityUsed",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvConverted",
+        "type": "uint256"
+      }
+    ],
+    "name": "ConvertUpBonus",
     "type": "event"
   },
   {

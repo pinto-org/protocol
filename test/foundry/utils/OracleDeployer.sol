@@ -83,7 +83,7 @@ contract OracleDeployer is Utils {
 
     /**
      * @notice initializes chainlink oracles.
-     * @dev oracles are mocked, and thus require initalization/updates.
+     * @dev oracles are mocked, and thus require initialization/updates.
      */
     function initChainlink(bool verbose) internal {
         // optional labels to assist in testing.

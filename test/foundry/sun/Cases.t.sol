@@ -605,7 +605,7 @@ contract CasesTest is TestHelper {
         uint256 caseId
     )
         public
-        view
+        pure
         returns (
             uint256 podRateCase,
             uint256 priceCase,
@@ -632,7 +632,7 @@ contract CasesTest is TestHelper {
 
     function calcMinSoilDemandThreshold(
         uint256 initialSoil
-    ) internal view returns (uint256 minDemandThreshold) {
+    ) internal pure returns (uint256 minDemandThreshold) {
         uint256 minBeanSown = 50e6;
         // if initial soil is less than the minimum amount of beans to measure demand,
         // set the threshold to the initial soil (all soil must be sown to measure demand)

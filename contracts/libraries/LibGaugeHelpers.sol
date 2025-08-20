@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 import {Gauge, GaugeId} from "../beanstalk/storage/System.sol";
 import {LibAppStorage} from "./LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {C} from "contracts/C.sol";
 
 /**
@@ -10,11 +11,49 @@ import {C} from "contracts/C.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
+    // Gauge structs
+
+    // Convert Down Penalty Gauge structs
+
+    /**
+     * @notice The value of the Convert Down Penalty Gauge.
+     * @param penaltyRatio The % of grown stalk lost on a down convert (1e18 = 100% penalty).
+     * @param rollingSeasonsAbovePeg The rolling count of seasons above peg.
+     */
+    struct ConvertDownPenaltyValue {
+        uint256 penaltyRatio;
+        uint256 rollingSeasonsAbovePeg;
+    }
+
+    /**
+     * @notice The data of the Convert Down Penalty Gauge.
+     * @param rollingSeasonsAbovePegRate The rate at which the rolling count of seasons above peg increases.
+     * @param rollingSeasonsAbovePegCap The cap on the rolling count of seasons above peg.
+     * @param beansMintedAbovePeg The amount of beans minted above peg after the system crosses value target.
+     * @param beanMintedThreshold The absolute Bean amount that needs to be minted above the threshold before penalty reduction.
+     * @param runningThreshold a threshold used to track subsequent threshold, after the initial threshold is set.
+     * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases (used to calculate beanMintedThreshold during below-peg seasons).
+     * @param convertDownPenaltyRate The rate at which any exchange rate below this value is penalized.
+     * @param thresholdSet Flag indicating if the `beanMintedThreshold` is set. `set` in this instance means that the threshold is "locked" until enough beans are minted.
+     */
+    struct ConvertDownPenaltyData {
+        uint256 rollingSeasonsAbovePegRate;
+        uint256 rollingSeasonsAbovePegCap;
+        uint256 beansMintedAbovePeg;
+        uint256 beanMintedThreshold;
+        uint256 runningThreshold;
+        uint256 percentSupplyThresholdRate;
+        uint256 convertDownPenaltyRate;
+        bool thresholdSet;
+    }
+
     // Convert Bonus Gauge Constants
     uint256 internal constant MIN_CONVERT_CAPACITY_FACTOR = 1e6;
     uint256 internal constant MAX_CONVERT_CAPACITY_FACTOR = 100e6;
     uint256 internal constant CONVERT_CAPACITY_FILLED = 0.95e6;
     uint256 internal constant CONVERT_CAPACITY_MOSTLY_FILLED = 0.80e6;
+    uint256 constant CONVERT_DEMAND_UPPER_BOUND = 1.05e6; // 5% above 1
+    uint256 constant CONVERT_DEMAND_LOWER_BOUND = 0.95e6; // 5% below 1
 
     // Gauge structs
 
@@ -59,6 +98,12 @@ library LibGaugeHelpers {
         NOT_FILLED,
         MOSTLY_FILLED,
         FILLED
+    }
+
+    enum ConvertDemand {
+        DECREASING,
+        STEADY,
+        INCREASING
     }
 
     // Gauge events
@@ -260,6 +305,163 @@ library LibGaugeHelpers {
     }
 
     /**
+     * @notice Updates the convert capacity factor based on the convert demand and capacity utilization.
+     * @param gv The value of the Convert Bonus Gauge.
+     * @param gd The data of the Convert Bonus Gauge.
+     * @param cbu how much capacity was ultilized last season.
+     * @param cd the demand for converting over the past 2 seasons.
+     * @param lpToSupplyRatio the twa lpToSupplyRatio from sunrise.
+     * @return convertCapacityFactor The updated convert capacity factor.
+     * @return lastConvertBonusTaken The last convert bonus taken.
+     */
+    function updateConvertCapacityFactor(
+        ConvertBonusGaugeValue memory gv,
+        ConvertBonusGaugeData memory gd,
+        ConvertBonusCapacityUtilization cbu,
+        ConvertDemand cd,
+        uint256 lpToSupplyRatio
+    ) internal view returns (uint256 convertCapacityFactor, uint256 lastConvertBonusTaken) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // if the capacity is filled or mostly filled, and the demand for convert is not decreasing,
+        // set the last convert bonus taken to the current bonus stalk per bdv.
+        if (cbu != ConvertBonusCapacityUtilization.NOT_FILLED && cd != ConvertDemand.DECREASING) {
+            gd.lastConvertBonusTaken = gv.bonusStalkPerBdv;
+        }
+        lastConvertBonusTaken = gd.lastConvertBonusTaken;
+
+        // determine amount change as a function of twaL2SR.
+        // amount change has 6 decimal precision.
+        uint256 amountChange = LibGaugeHelpers.linearInterpolation(
+            lpToSupplyRatio,
+            true,
+            s.sys.evaluationParameters.lpToSupplyRatioLowerBound,
+            s.sys.evaluationParameters.lpToSupplyRatioUpperBound,
+            gd.minDeltaCapacity,
+            gd.maxDeltaCapacity
+        );
+
+
+        // update the convert capacity based on
+        // 1) Capacity utilization
+        // 2) Demand for converts (steady/increasing, or decreasing)
+        // 3) the last convert bonus taken.
+        if (cbu == ConvertBonusCapacityUtilization.FILLED) {
+            // capacity filled: increase convert capacity factor
+            convertCapacityFactor = LibGaugeHelpers.linear256(
+                gv.convertCapacityFactor,
+                true,
+                amountChange,
+                MIN_CONVERT_CAPACITY_FACTOR,
+                MAX_CONVERT_CAPACITY_FACTOR
+            );
+        } else if (
+            cbu == ConvertBonusCapacityUtilization.NOT_FILLED &&
+            (cd != ConvertDemand.DECREASING || gv.bonusStalkPerBdv >= gd.lastConvertBonusTaken)
+        ) {
+            // this if block is executed when:
+            // 1) capacity not filled
+            // AND either:
+            // 2a) demand is not decreasing (steady/increasing), OR
+            // 2b) demand is decreasing AND current bonus < last bonus taken
+            //
+            // decrease convert capacity factor:
+            amountChange = 1e12 / amountChange;
+            convertCapacityFactor = LibGaugeHelpers.linear256(
+                gv.convertCapacityFactor,
+                false,
+                amountChange,
+                MIN_CONVERT_CAPACITY_FACTOR,
+                MAX_CONVERT_CAPACITY_FACTOR
+            );
+        } else {
+            // if capacity is mostly filled, keep the capacity factor the same.
+            convertCapacityFactor = gv.convertCapacityFactor;
+        }
+        // Note: convertCapacityFactor remains unchanged when:
+        // - capacity is mostly filled (optimal utilization), OR
+        // - capacity not filled AND demand is decreasing AND current bonus < last bonus taken (poor conditions)
+    }
+
+    /**
+     * @notice Gets the bonus stalk per bdv for the current season.
+     * @dev the bonus stalk per Bdv is updated based on the convert demand and the difference between the bean seeds and the max lp seeds.
+     * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
+     * @param cbu The convert bonus capacity utilization.
+     * @param cd The convert demand state (INCREASING, STEADY, or DECREASING).
+     * @param twaDeltaB The twaDeltaB of the current season.
+     * @return The updated bonus stalk per bdv.
+     */
+    function updateBonusStalkPerBdv(
+        uint256 bonusStalkPerBdv,
+        ConvertBonusCapacityUtilization cbu,
+        ConvertDemand cd,
+        int256 twaDeltaB
+    ) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // get stem tips for all whitelisted lp tokens and get the min
+        address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+        uint256 beanSeeds = s.sys.silo.assetSettings[s.sys.bean].stalkEarnedPerSeason;
+        uint256 maxLpSeeds;
+        for (uint256 i = 0; i < lpTokens.length; i++) {
+            uint256 lpSeeds = s.sys.silo.assetSettings[lpTokens[i]].stalkEarnedPerSeason;
+            if (lpSeeds > maxLpSeeds) maxLpSeeds = lpSeeds;
+        }
+
+        // if the bean seeds are greater than or equal to the max lp seeds,
+        // the bonus is updated based on the convert demand.
+
+        // 9 states:
+        // 1. demand increasing, capacity filled: bonus decreases
+        // 2. demand increasing, capacity mostly filled: bonus increases
+
+        if (beanSeeds >= maxLpSeeds) {
+            uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
+
+            // adjust bonus based on convert demand
+
+            if (
+                cd == ConvertDemand.INCREASING ||
+                cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED
+            ) {
+                if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
+                    return 0;
+                } else {
+                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
+                }
+            } else if (cd == ConvertDemand.DECREASING) {
+                return bonusStalkPerBdv + bonusStalkPerBdvChange;
+            } else {
+                return bonusStalkPerBdv;
+            }
+        } else if (twaDeltaB >= 0) {
+            // if the bean seeds are less than the max lp seeds (implying the crop ratio < 100%),
+            // and twaDeltaB is positive, the bonus is reset.
+            return 0;
+        } else {
+            // if the bean seeds are less than the max lp seeds, and twaDeltaB is negative,
+            // the bonus remains unchanged.
+            return bonusStalkPerBdv;
+        }
+    }
+
+    /**
+     * @notice returns the ConvertBonusCapacityUtilization and ConvertDemand.
+     * @dev helper function to return both Structs.
+     */
+    function getCapacityUltilizationAndConvertDemand(
+        uint256 bdvConvertedThisSeason,
+        uint256 bdvConvertedLastSeason,
+        uint256 maxConvertCapacityThisSeason
+    ) internal pure returns (ConvertBonusCapacityUtilization cbu, ConvertDemand cd) {
+        cbu = getConvertBonusCapacityUtilization(
+            bdvConvertedThisSeason,
+            maxConvertCapacityThisSeason
+        );
+        cd = calculateConvertDemand(bdvConvertedThisSeason, bdvConvertedLastSeason);
+        return (cbu, cd);
+    }
+
+    /**
      * @notice Returns an enum indicating how much of the convert capacity has been filled. Used in the Convert Bonus Gauge.
      * @param bdvConvertedThisSeason The amount of bdv converted this season.
      * @param maxConvertCapacity The maximum amount of bdv that can be converted in a season and get a bonus.
@@ -269,17 +471,58 @@ library LibGaugeHelpers {
         uint256 bdvConvertedThisSeason,
         uint256 maxConvertCapacity
     ) internal pure returns (ConvertBonusCapacityUtilization) {
-        if (
-            bdvConvertedThisSeason >= (maxConvertCapacity * CONVERT_CAPACITY_FILLED) / C.PRECISION_6
-        ) {
-            return ConvertBonusCapacityUtilization.FILLED;
-        } else if (
-            bdvConvertedThisSeason >=
-            (maxConvertCapacity * CONVERT_CAPACITY_MOSTLY_FILLED) / C.PRECISION_6
-        ) {
-            return ConvertBonusCapacityUtilization.MOSTLY_FILLED;
+        if (maxConvertCapacity > 0) {
+            if (
+                bdvConvertedThisSeason >=
+                (maxConvertCapacity * CONVERT_CAPACITY_FILLED) / C.PRECISION_6
+            ) {
+                return ConvertBonusCapacityUtilization.FILLED;
+            } else if (
+                bdvConvertedThisSeason >=
+                (maxConvertCapacity * CONVERT_CAPACITY_MOSTLY_FILLED) / C.PRECISION_6
+            ) {
+                return ConvertBonusCapacityUtilization.MOSTLY_FILLED;
+            } else {
+                return ConvertBonusCapacityUtilization.NOT_FILLED;
+            }
         } else {
+            // if there is no convert capacity, the capacity is not filled by default.
+            // note: normal behavior should never hit this block and is placed here as
+            // a failsafe.
             return ConvertBonusCapacityUtilization.NOT_FILLED;
+        }
+    }
+
+    /**
+     * @notice Calculates the demand for converts based on current and previous season BDV converted.
+     * @param bdvConvertedThisSeason The BDV converted in the current season.
+     * @param bdvConvertedLastSeason The BDV converted in the previous season.
+     * @return The convert demand state (INCREASING, STEADY, or DECREASING).
+     */
+    function calculateConvertDemand(
+        uint256 bdvConvertedThisSeason,
+        uint256 bdvConvertedLastSeason
+    ) internal pure returns (ConvertDemand) {
+        // if nothing was converted last season, and something was converted this season,
+        // the demand is increasing.
+        if (bdvConvertedLastSeason == 0) {
+            if (bdvConvertedThisSeason > 0) {
+                return ConvertDemand.INCREASING;
+            } else {
+                // if nothing was converted in this season and last season, demand is decreasing.
+                return ConvertDemand.DECREASING;
+            }
+        } else {
+            // calculate the convert demand in order to determine if the demand is increasing or decreasing.
+            uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /
+                bdvConvertedLastSeason;
+            if (convertDemand > CONVERT_DEMAND_UPPER_BOUND) {
+                return ConvertDemand.INCREASING;
+            } else if (convertDemand < CONVERT_DEMAND_LOWER_BOUND) {
+                return ConvertDemand.DECREASING;
+            } else {
+                return ConvertDemand.STEADY;
+            }
         }
     }
 

@@ -12,7 +12,6 @@ import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
@@ -157,9 +156,27 @@ contract ConvertGettersFacet {
     function downPenalizedGrownStalk(
         address well,
         uint256 bdvToConvert,
-        uint256 grownStalkToConvert
+        uint256 grownStalkToConvert,
+        uint256 amountConverted
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
-        return LibConvert.downPenalizedGrownStalk(well, bdvToConvert, grownStalkToConvert);
+        return
+            LibConvert.downPenalizedGrownStalk(
+                well,
+                bdvToConvert,
+                grownStalkToConvert,
+                amountConverted
+            );
+    }
+
+    /**
+     * @notice Returns the maximum amount that can be converted of `tokenIn` to `tokenOut` such that the price after the convert is equal to the rate.
+     */
+    function getMaxAmountInAtRate(
+        address tokenIn,
+        address tokenOut,
+        uint256 rate
+    ) external view returns (uint256 amountIn) {
+        return LibConvert.getMaxAmountInAtRate(tokenIn, tokenOut, rate);
     }
 
     /**

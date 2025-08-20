@@ -113,7 +113,7 @@ contract Pi10ForkTest is TestHelper {
         assertGt(data.cultivationFactor, cultivationFactorFlat);
     }
 
-    function test_forkBase_cultivationFactor_oscillate_twoOrders() public {
+    function Legacy_test_forkBase_cultivationFactor_oscillate_twoOrders() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
         forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");

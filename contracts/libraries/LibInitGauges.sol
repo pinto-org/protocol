@@ -28,6 +28,11 @@ library LibInitGauges {
     // Gauge data
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12; // Max magnitude for rolling seasons above peg count.
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1; // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
+    uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0; // the initial beans minted above peg
+    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 10_000_000e6; // the initial bean amount above threshold
+    uint256 internal constant INIT_RUNNING_THRESHOLD = 0; // initialize running threshold to 0
+    uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18
+    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6; // $1.005 convert price.
 
     //////////// Convert Up Bonus Gauge ////////////
     // Gauge values
@@ -62,12 +67,29 @@ library LibInitGauges {
     //////////// Convert Down Penalty Gauge ////////////
 
     function initConvertDownPenalty() internal {
+        LibGaugeHelpers.ConvertDownPenaltyValue memory gv = LibGaugeHelpers
+            .ConvertDownPenaltyValue({
+                penaltyRatio: INIT_CONVERT_DOWN_PENALTY_RATIO,
+                rollingSeasonsAbovePeg: INIT_ROLLING_SEASONS_ABOVE_PEG
+            });
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = LibGaugeHelpers.ConvertDownPenaltyData({
+            rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
+            rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
+            beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
+            beanMintedThreshold: INIT_BEAN_AMOUNT_ABOVE_THRESHOLD,
+            runningThreshold: INIT_RUNNING_THRESHOLD,
+            percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE,
+            convertDownPenaltyRate: CONVERT_DOWN_PENALTY_RATE,
+            thresholdSet: true
+        });
+
         Gauge memory convertDownPenaltyGauge = Gauge(
-            abi.encode(INIT_CONVERT_DOWN_PENALTY_RATIO, INIT_ROLLING_SEASONS_ABOVE_PEG),
+            abi.encode(gv),
             address(this),
             IGaugeFacet.convertDownPenaltyGauge.selector,
-            abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
+            abi.encode(gd)
         );
+
         LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
     }
 

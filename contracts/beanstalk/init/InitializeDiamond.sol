@@ -21,8 +21,8 @@ import {C} from "contracts/C.sol";
 import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 
 /**
- * @title InitializesDiamond
- * @notice InitializesDiamond provides helper functions to Initializes beanstalk.
+ * @title InitializeDiamond
+ * @notice InitializeDiamond provides helper functions to initalize beanstalk.
  **/
 
 contract InitializeDiamond {
@@ -95,7 +95,7 @@ contract InitializeDiamond {
 
     /**
      * @notice Initializes the diamond with base conditions.
-     * @dev the base initialization Initializes various parameters,
+     * @dev the base initialization initializes various parameters,
      * as well as whitelists the bean and bean:TKN pools.
      */
     function initializeDiamond(address bean, address beanTokenWell) internal {
@@ -213,7 +213,7 @@ contract InitializeDiamond {
             ? (block.timestamp / s.sys.season.period) * s.sys.season.period
             : block.timestamp;
 
-        // Initializes the cases that beanstalk uses
+        // initializes the cases that beanstalk uses
         // to change certain parameters of itself.
         setCases();
 
@@ -227,7 +227,7 @@ contract InitializeDiamond {
         LibCases.setCasesV2();
     }
 
-    function InitializeSeedGauge(
+    function initializeSeedGauge(
         uint128 beanToMaxLpGpRatio,
         uint128 averageGrownStalkPerBdvPerSeason,
         uint128 maxTotalGaugePoints
@@ -322,7 +322,7 @@ contract InitializeDiamond {
     }
 
     function initializeGauges() internal {
-        InitializeSeedGauge(
+        initializeSeedGauge(
             INIT_BEAN_TO_MAX_LP_GP_RATIO,
             INIT_AVG_GSPBDV,
             INIT_MAX_TOTAL_GAUGE_POINTS

@@ -133,7 +133,7 @@ contract GaugeTest is TestHelper {
     /**
      * @notice verifies getters with no supply.
      */
-    function test_L2SRNoSupply() public {
+    function test_L2SRNoSupply() public view {
         assertEq(bs.getLiquidityToSupplyRatio(), 0, "invalid liq to supply ratio");
         assertEq(bs.getTotalUsdLiquidity(), 0, "invalid total liq");
         assertEq(bs.getTotalWeightedUsdLiquidity(), 0, "invalid total weighted liq");
@@ -462,7 +462,7 @@ contract GaugeTest is TestHelper {
         uint256 gaugePoints,
         uint256 optimalPercentDepositedBdv,
         uint256 percentOfDepositedBdv
-    ) public {
+    ) public view {
         gaugePoints = bound(gaugePoints, 1e18, 1000e18);
         optimalPercentDepositedBdv = bound(optimalPercentDepositedBdv, 0.01e6, 100e6);
         percentOfDepositedBdv = bound(percentOfDepositedBdv, 0.01e6, 100e6);

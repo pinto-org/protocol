@@ -21,7 +21,7 @@ contract FieldTest is TestHelper {
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
-        // initalizes farmers from farmers (farmer0 == diamond deployer)
+        // initializes farmers from farmers (farmer0 == diamond deployer)
         farmers.push(users[1]);
         farmers.push(users[2]);
 
@@ -617,9 +617,6 @@ contract FieldTest is TestHelper {
             } else {
                 assertLe(temperature, maxTemperature, "temperature > max temperature");
             }
-            if (verbose) {
-                console.log("temp", temperature, "seconds since sunrise", i);
-            }
             vm.warp(block.timestamp + 1);
         }
     }
@@ -635,5 +632,43 @@ contract FieldTest is TestHelper {
         MockFieldFacet.Plot[] memory plots = field.getPlotsFromAccount(farmer, fieldId);
         assertEq(plotIndexes.length, plots.length, "plotIndexes length != plots length");
         assertEq(plotIndexes.length, expectedLength, "plotIndexes length unexpected");
+    }
+
+    function test_transferPlotUnauthorized(uint256 sowAmount, uint256 transferAmount) public {
+        uint256 activeField = field.activeField();
+        sowAmount = bound(sowAmount, 1, type(uint32).max);
+        transferAmount = bound(transferAmount, 1, sowAmount);
+
+        // Farmer 0 sows some plots
+        sowAmountForFarmer(farmers[0], sowAmount);
+        uint256 pods = _minPods(sowAmount);
+
+        // Farmer 1 tries to transfer farmer 0's plot without permission
+        vm.prank(farmers[1]);
+        vm.expectRevert("Field: Insufficient approval.");
+        bs.transferPlot(farmers[0], farmers[1], activeField, 0, 0, transferAmount);
+    }
+
+    function test_transferPlotsUnauthorized(uint256 sowAmount, uint256 transferAmount) public {
+        uint256 activeField = field.activeField();
+        sowAmount = bound(sowAmount, 1, type(uint32).max);
+        transferAmount = bound(transferAmount, 1, sowAmount);
+
+        // Farmer 0 sows some plots
+        sowAmountForFarmer(farmers[0], sowAmount);
+        uint256 pods = _minPods(sowAmount);
+
+        // Set up arrays for transferPlots
+        uint256[] memory indexes = new uint256[](1);
+        indexes[0] = 0;
+        uint256[] memory starts = new uint256[](1);
+        starts[0] = 0;
+        uint256[] memory ends = new uint256[](1);
+        ends[0] = transferAmount;
+
+        // Farmer 1 tries to transfer farmer 0's plot without permission
+        vm.prank(farmers[1]);
+        vm.expectRevert("Field: Insufficient approval.");
+        bs.transferPlots(farmers[0], farmers[1], activeField, indexes, starts, ends);
     }
 }

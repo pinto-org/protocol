@@ -399,7 +399,7 @@ contract SiloTest is TestHelper {
         assertEq(deposit.token, token);
     }
 
-    function stalkEarnedPerSeason(address token) internal returns (uint40) {
+    function stalkEarnedPerSeason(address token) internal view returns (uint40) {
         return (bs.tokenSettings(token)).stalkEarnedPerSeason;
     }
 }

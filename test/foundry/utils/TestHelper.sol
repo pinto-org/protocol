@@ -537,7 +537,7 @@ contract TestHelper is
             );
     }
 
-    function rand(uint256 lowerBound, uint256 upperBound) internal returns (uint256) {
+    function rand(uint256 lowerBound, uint256 upperBound) internal view returns (uint256) {
         return bound(uint256(keccak256(abi.encode(vm.unixTime()))), lowerBound, upperBound);
     }
 
@@ -549,7 +549,7 @@ contract TestHelper is
         uint256 lowerBound,
         uint256 upperBound,
         bytes memory salt
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         return bound(uint256(keccak256(abi.encode(vm.unixTime(), salt))), lowerBound, upperBound);
     }
 

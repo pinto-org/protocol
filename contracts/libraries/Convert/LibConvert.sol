@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibLambdaConvert} from "./LibLambdaConvert.sol";
 import {LibConvertData} from "./LibConvertData.sol";
-import {LibWellConvert} from "./LibWellConvert.sol";
+import {LibWellConvert, LibWhitelistedTokens} from "./LibWellConvert.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
@@ -14,9 +14,11 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
+import {ConvertCapacity, GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GerminationSide, GaugeId, ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
@@ -44,19 +46,12 @@ library LibConvert {
 
     // convert bonus gauge
     uint256 internal constant CAPACITY_RATE = 0.50e18; // hits 100% total capacity 50% into the season
-    uint256 constant CONVERT_DEMAND_UPPER_BOUND = 1.05e6; // 5% above 1
-    uint256 constant CONVERT_DEMAND_LOWER_BOUND = 0.95e6; // 5% below 1
-
-    enum ConvertDemand {
-        DECREASING,
-        STEADY,
-        INCREASING
-    }
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost, uint256 grownStalkKept);
     event ConvertUpBonus(
         address account,
         uint256 grownStalkGained,
+        uint256 newGrownStalk,
         uint256 bdvCapacityUsed,
         uint256 bdvConverted
     );
@@ -149,7 +144,29 @@ library LibConvert {
         if (fromToken == s.sys.bean && toToken.isWell()) return LibWellConvert.beansToPeg(toToken);
 
         // Well LP Token -> Bean
-        if (fromToken.isWell() && toToken == s.sys.bean) return LibWellConvert.lpToPeg(fromToken);
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(fromToken) && toToken == s.sys.bean)
+            return LibWellConvert.lpToPeg(fromToken);
+
+        revert("Convert: Tokens not supported");
+    }
+
+    /**
+     * @notice Returns the maximum amount that can be converted of `fromToken` to `toToken` such that the price after the convert is equal to the rate.
+     * @dev At time of writing, this is only supported for Bean -> Well LP Token (as it is the only case where applicable).
+     * This function may return a value such that the price after the convert is slightly lower than the rate, due to rounding errors.
+     * Developers should be cautious and provide an appropriate buffer to account for this.
+     */
+    function getMaxAmountInAtRate(
+        address fromToken,
+        address toToken,
+        uint256 rate
+    ) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // Bean -> Well LP Token
+        if (fromToken == s.sys.bean && toToken.isWell()) {
+            (uint256 beans, ) = LibWellConvert._beansToPegAtRate(toToken, rate);
+            return beans;
+        }
 
         revert("Convert: Tokens not supported");
     }
@@ -171,7 +188,7 @@ library LibConvert {
         }
 
         // Well LP Token -> Bean
-        if (fromToken.isWell() && toToken == s.sys.bean) {
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(fromToken) && toToken == s.sys.bean) {
             return LibWellConvert.getBeanAmountOut(fromToken, fromAmount);
         }
 
@@ -470,7 +487,8 @@ library LibConvert {
             cp.toToken,
             cp.account,
             toBdv,
-            grownStalk
+            grownStalk,
+            cp.fromAmount
         );
 
         // check for stalk slippage
@@ -634,6 +652,7 @@ library LibConvert {
      * @param outputToken The token being converted to.
      * @param toBdv The bdv of the deposit to convert.
      * @param grownStalk The grown stalk of the deposit to convert.
+     * @param fromAmount The amount of the input token being converted (for BEAN -> WELL converts)
      * @return newGrownStalk The new grown stalk to assign the deposit, after applying the penalty/bonus.
      */
     function applyStalkModifiers(
@@ -641,7 +660,8 @@ library LibConvert {
         address outputToken,
         address account,
         uint256 toBdv,
-        uint256 grownStalk
+        uint256 grownStalk,
+        uint256 fromAmount
     ) internal returns (uint256 newGrownStalk) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // penalty down for BEAN -> WELL
@@ -650,7 +670,8 @@ library LibConvert {
             (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
                 outputToken,
                 toBdv,
-                grownStalk
+                grownStalk,
+                fromAmount
             );
             if (grownStalkLost > 0) {
                 emit ConvertDownPenalty(account, grownStalkLost, newGrownStalk);
@@ -666,7 +687,13 @@ library LibConvert {
                 if (grownStalkGained > 0) {
                     // update the grown stalk by the amount of grown stalk gained
                     newGrownStalk += grownStalk + grownStalkGained;
-                    emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed, toBdv);
+                    emit ConvertUpBonus(
+                        account,
+                        grownStalkGained,
+                        newGrownStalk,
+                        bdvCapacityUsed,
+                        toBdv
+                    );
                     return newGrownStalk;
                 }
             }
@@ -679,15 +706,19 @@ library LibConvert {
      * @notice Computes new grown stalk after downward convert penalty.
      * No penalty if P > Q or grown stalk below germination threshold.
      * @dev Inbound must not be germinating, will return germinating amount of grown stalk.
+     * this function only supports grown stalk penalties for BEAN -> WELL converts.
      * @return newGrownStalk Amount of grown stalk to assign the deposit.
      * @return grownStalkLost Amount of grown stalk lost to penalty.
      */
     function downPenalizedGrownStalk(
         address well,
         uint256 bdv,
-        uint256 grownStalk
+        uint256 grownStalk,
+        uint256 fromAmount
     ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
         AppStorage storage s = LibAppStorage.diamondStorage();
+
+        require(bdv > 0 && fromAmount > 0, "Convert: bdv or fromAmount is 0");
 
         // No penalty if output deposit germinating.
         uint256 minGrownStalk = LibTokenSilo.calculateGrownStalkAtNonGerminatingStem(well, bdv);
@@ -695,63 +726,114 @@ library LibConvert {
             return (grownStalk, 0);
         }
 
-        // No penalty if P > Q.
-        if (pGreaterThanQ(well)) {
+        // Get convertDownPenaltyRate from gauge data.
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].data,
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        (bool greaterThanRate, uint256 penalizedAmount) = pGreaterThanRate(
+            well,
+            gd.convertDownPenaltyRate,
+            fromAmount
+        );
+
+        // If the price of the well is greater than the penalty rate after the convert, there is no penalty.
+        if (greaterThanRate) {
             return (grownStalk, 0);
         }
+
+        // price is lower than the penalty rate.
 
         // Get penalty ratio from gauge.
         (uint256 penaltyRatio, ) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].value,
             (uint256, uint256)
         );
-        newGrownStalk = max(
-            grownStalk -
-                LibPRBMathRoundable.mulDiv(
-                    grownStalk,
-                    penaltyRatio,
-                    C.PRECISION,
-                    LibPRBMathRoundable.Rounding.Up
-                ),
-            minGrownStalk
-        );
-        grownStalkLost = grownStalk - newGrownStalk;
+
+        // enforce penalty ratio is not greater than 100%.
+        require(penaltyRatio <= C.PRECISION, "Convert: penaltyRatio is greater than 100%");
+
+        if (penaltyRatio > 0) {
+            // calculate the penalized bdv.
+            // note: if greaterThanRate is false, penalizedAmount could be non-zero.
+            require(
+                penalizedAmount <= fromAmount,
+                "Convert: penalizedAmount is greater than fromAmount"
+            );
+            uint256 penalizedBdv = (bdv * penalizedAmount) / fromAmount;
+
+            // calculate the grown stalk that may be lost due to the penalty.
+            uint256 penalizedGrownStalk = (grownStalk * penalizedBdv) / bdv;
+
+            // apply the penalty to the grown stalk via the penalty ratio,
+            // and calculate the new grown stalk of the deposit.
+            newGrownStalk = max(
+                grownStalk - (penalizedGrownStalk * penaltyRatio) / C.PRECISION,
+                minGrownStalk
+            );
+
+            // calculate the amount of grown stalk lost due to the penalty.
+            grownStalkLost = grownStalk - newGrownStalk;
+        } else {
+            // no penalty was applied.
+            newGrownStalk = grownStalk;
+            grownStalkLost = 0;
+        }
     }
 
     /**
-     * @notice Checks if the price of the well is greater than Q.
-     * Q is a threshold above the price target at which the protocol deems the price excessive.
-     * @param well The address of the well to check.
-     * @return true if the price is greater than Q, false otherwise.
+     *
+     * @notice verifies that the exchange rate of the well is above a rate,
+     * after an bean -> lp convert has occured with `amount`.
+     * @return greaterThanRate true if the price after the convert is greater than the rate, false otherwise
+     * @return beansOverRate the amount of beans that exceed the rate. 0 if `greaterThanRate` is true.
      */
-    function pGreaterThanQ(address well) internal view returns (bool) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-
-        // No penalty if P > Q.
-        (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell.getRatiosAndBeanIndex(
-            IWell(well).tokens(),
-            0
-        );
+    function pGreaterThanRate(
+        address well,
+        uint256 rate,
+        uint256 amount
+    ) internal view returns (bool greaterThanRate, uint256 beansOverRate) {
+        // No penalty if P > rate.
+        (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell
+            .getRatiosAndBeanIndexAtRate(IWell(well).tokens(), 0, rate);
         require(success, "Convert: USD Oracle failed");
 
-        // Scale ratio by Q.
-        ratios[beanIndex] =
-            (ratios[beanIndex] * 1e6) /
-            s.sys.evaluationParameters.excessivePriceThreshold;
-
         uint256[] memory instantReserves = LibDeltaB.instantReserves(well);
+
         Call memory wellFunction = IWell(well).wellFunction();
-        uint256 beansAtQ = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
-            instantReserves,
-            beanIndex,
-            ratios,
-            wellFunction.data
-        );
-        // Fewer Beans indicates a higher Bean price.
-        if (instantReserves[beanIndex] < beansAtQ) {
-            return true;
+
+        // increment the amount of beans in reserves by the amount of beans that would be added to liquidity.
+        uint256[] memory reservesAfterAmount = new uint256[](instantReserves.length);
+        uint256 tokenIndex = beanIndex == 0 ? 1 : 0;
+
+        reservesAfterAmount[beanIndex] = instantReserves[beanIndex] + amount;
+        reservesAfterAmount[tokenIndex] = instantReserves[tokenIndex];
+
+        // used to check if the price prior to the convert is higher/lower than the target price.
+        uint256 beansAtRate = IBeanstalkWellFunction(wellFunction.target)
+            .calcReserveAtRatioLiquidity(instantReserves, beanIndex, ratios, wellFunction.data);
+
+        // if the reserves `before` the convert is higher than the beans reserves at `rate`,
+        // it means the price `before` the convert is lower than `rate`.
+        // independent of the amount converted, the price will always be lower than `rate`.
+        if (instantReserves[beanIndex] > beansAtRate) {
+            return (false, amount);
+        } else {
+            // reserves `before` the convert is lower than the beans reserves at `rate`.
+            // the price `before` the convert is higher than `rate`.
+
+            if (reservesAfterAmount[beanIndex] < beansAtRate) {
+                // if the reserves `after` the convert is lower than the beans reserves at `rate`,
+                // it means the price `after` the convert is higher than `rate`.
+                return (true, 0);
+            } else {
+                // if the reserves `after` the convert is higher than the beans reserves at `rate`,
+                // it means the price `after` the convert is lower than `rate`.
+                // then the amount of beans over the rate is the difference between the beans reserves at `rate` and the reserves after the convert.
+                return (false, reservesAfterAmount[beanIndex] - beansAtRate);
+            }
         }
-        return false;
     }
 
     /**
@@ -813,39 +895,6 @@ library LibConvert {
     }
 
     /**
-     * @notice Calculates the demand for converts based on current and previous season BDV converted.
-     * @param bdvConvertedThisSeason The BDV converted in the current season.
-     * @param bdvConvertedLastSeason The BDV converted in the previous season.
-     * @return The convert demand state (INCREASING, STEADY, or DECREASING).
-     */
-    function calculateConvertDemand(
-        uint256 bdvConvertedThisSeason,
-        uint256 bdvConvertedLastSeason
-    ) internal pure returns (ConvertDemand) {
-        // if nothing was converted last season, and something was converted this season,
-        // the demand is increasing.
-        if (bdvConvertedLastSeason == 0) {
-            if (bdvConvertedThisSeason > 0) {
-                return ConvertDemand.INCREASING;
-            } else {
-                // if nothing was converted in this season and last season, demand is decreasing.
-                return ConvertDemand.DECREASING;
-            }
-        } else {
-            // calculate the convert demand in order to determine if the demand is increasing or decreasing.
-            uint256 convertDemand = (bdvConvertedThisSeason * C.PRECISION_6) /
-                bdvConvertedLastSeason;
-            if (convertDemand > CONVERT_DEMAND_UPPER_BOUND) {
-                return ConvertDemand.INCREASING;
-            } else if (convertDemand < CONVERT_DEMAND_LOWER_BOUND) {
-                return ConvertDemand.DECREASING;
-            } else {
-                return ConvertDemand.STEADY;
-            }
-        }
-    }
-
-    /**
      * @notice Gets the time weighted convert capacity for the current season
      * @dev the amount of bdv that can be converted with a bonus ramps up linearly over the course of the season,
      * allowing converts to be more efficient and incur less slippage.
@@ -861,67 +910,6 @@ library LibConvert {
             return maxConvertCapacity;
         } else {
             return (maxConvertCapacity * timeElapsed) / convertRampPeriod;
-        }
-    }
-    /**
-     * @notice Gets the bonus stalk per bdv for the current season.
-     * @dev the bonus stalk per Bdv is updated based on the convert demand and the difference between the bean seeds and the max lp seeds.
-     * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
-     * @param cbu The convert bonus capacity utilization.
-     * @param convertDemand The convert demand state (INCREASING, STEADY, or DECREASING).
-     * @param twaDeltaB The twaDeltaB of the current season.
-     * @return The updated bonus stalk per bdv.
-     */
-    function updateBonusStalkPerBdv(
-        uint256 bonusStalkPerBdv,
-        LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
-        ConvertDemand convertDemand,
-        int256 twaDeltaB
-    ) internal view returns (uint256) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        // get stem tips for all whitelisted lp tokens and get the min
-        address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-        uint256 beanSeeds = s.sys.silo.assetSettings[s.sys.bean].stalkEarnedPerSeason;
-        uint256 maxLpSeeds;
-        for (uint256 i = 0; i < lpTokens.length; i++) {
-            uint256 lpSeeds = s.sys.silo.assetSettings[lpTokens[i]].stalkEarnedPerSeason;
-            if (lpSeeds > maxLpSeeds) maxLpSeeds = lpSeeds;
-        }
-
-        // if the bean seeds are greater than or equal to the max lp seeds,
-        // the bonus is updated based on the convert demand.
-
-        // 9 states:
-        // 1. demand increasing, capacity filled: bonus decreases
-        // 2. demand increasing, capacity mostly filled: bonus increases
-
-        if (beanSeeds >= maxLpSeeds) {
-            uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
-
-            // adjust bonus based on convert demand
-
-            if (
-                convertDemand == ConvertDemand.INCREASING ||
-                cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED
-            ) {
-                if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
-                    return 0;
-                } else {
-                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
-                }
-            } else if (convertDemand == ConvertDemand.DECREASING) {
-                return bonusStalkPerBdv + bonusStalkPerBdvChange;
-            } else {
-                return bonusStalkPerBdv;
-            }
-        } else if (twaDeltaB >= 0) {
-            // if the bean seeds are less than the max lp seeds (implying the crop ratio < 100%),
-            // and twaDeltaB is positive, the bonus is reset.
-            return 0;
-        } else {
-            // if the bean seeds are less than the max lp seeds, and twaDeltaB is negative,
-            // the bonus remains unchanged.
-            return bonusStalkPerBdv;
         }
     }
 

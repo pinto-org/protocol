@@ -39,15 +39,10 @@ contract PriceManipulation is IMorphoOracle {
      * This price is susceptible to manipulation and this is why an additional check to
      * see if the wells instantaneous and current deltaPs are within a 1% margin is implemented.
      * @param well The well to check the prices of.
-     * @param token The token to check the prices of. Must be the token paired with Pinto in the well.
      * @param slippageRatio The % slippage of the instant price. 18 decimal precision.
      * @return valid Whether the price is valid and within slippage bounds.
      */
-    function isValidSlippage(
-        IWell well,
-        IERC20 token,
-        uint256 slippageRatio
-    ) external returns (bool) {
+    function isValidSlippage(IWell well, uint256 slippageRatio) external returns (bool) {
         Call memory pump = well.pumps()[0];
         Call memory wellFunction = IWell(well).wellFunction();
 

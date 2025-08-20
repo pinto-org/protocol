@@ -101,7 +101,7 @@ contract InitProtocol {
     }
 
     /**
-     * @notice Initalizes season parameters.
+     * @notice Initializes season parameters.
      */
     function initalizeSeason(EvaluationParameters calldata evalParams) internal {
         // set current season to 1.
@@ -128,7 +128,7 @@ contract InitProtocol {
     }
 
     /**
-     * @notice Initalizes field parameters.
+     * @notice Initializes field parameters.
      */
     function initalizeField() internal {
         s.sys.activeField = 0;
@@ -154,7 +154,7 @@ contract InitProtocol {
     }
 
     /**
-     * @notice Initalizes misc parameters.
+     * @notice Initializes misc parameters.
      */
     function initalizeMisc() internal {
         s.sys.reentrantStatus = 1;

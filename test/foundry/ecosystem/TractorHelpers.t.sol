@@ -695,7 +695,7 @@ contract TractorHelpersTest is TractorTestHelper {
         }
     }
 
-    function test_getSortedWhitelistedTokensBySeeds() public {
+    function test_getSortedWhitelistedTokensBySeeds() public view {
         // Get sorted tokens and seeds
         (address[] memory tokens, uint256[] memory seeds) = tractorHelpers
             .getSortedWhitelistedTokensBySeeds();
@@ -716,7 +716,7 @@ contract TractorHelpersTest is TractorTestHelper {
         }
     }
 
-    function test_getHighestSeedToken() public {
+    function test_getHighestSeedToken() public view {
         // Get highest seed token
         (address highestSeedToken, uint256 seedAmount) = tractorHelpers.getHighestSeedToken();
 
@@ -740,7 +740,7 @@ contract TractorHelpersTest is TractorTestHelper {
         );
     }
 
-    function test_getLowestSeedToken() public {
+    function test_getLowestSeedToken() public view {
         // Get lowest seed token
         (address lowestSeedToken, uint256 seedAmount) = tractorHelpers.getLowestSeedToken();
 
@@ -791,7 +791,7 @@ contract TractorHelpersTest is TractorTestHelper {
         assertTrue(foundLP, "LP deposit not found");
     }
 
-    function test_getTokensAscendingSeeds() public {
+    function test_getTokensAscendingSeeds() public view {
         // Get sorted tokens
         (uint8[] memory tokenIndices, uint256[] memory seeds) = tractorHelpers
             .getTokensAscendingSeeds();
@@ -819,7 +819,7 @@ contract TractorHelpersTest is TractorTestHelper {
         }
     }
 
-    function test_getTokensAscendingPrice() public {
+    function test_getTokensAscendingPrice() public view {
         // Call Price on beanstalkprice contract and verify it's not 0
         BeanstalkPrice.Prices memory price = beanstalkPrice.price();
         assertGt(price.price, 0, "Price should be non-zero");
