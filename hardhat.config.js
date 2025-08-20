@@ -724,8 +724,8 @@ task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setActi
     await tractorHelpersContract.deployed();
     console.log("\nTractorHelpers deployed to:", tractorHelpersContract.address);
 
-    // Deploy SowBlueprintv0 and connect it to the existing TractorHelpers
-    const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+    // Deploy SowBlueprint and connect it to the existing TractorHelpers
+    const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
     const sowBlueprintContract = await sowBlueprint.deploy(
       L2_PINTO, // diamond address
       L2_PCM, // owner address
@@ -984,7 +984,7 @@ task(
     object: !mock,
     verbose: true,
     account: owner,
-    initArgs: [],
+    initArgs: [10000000000],
     initFacetName: "InitPI11"
   });
 });
@@ -1111,7 +1111,51 @@ task(
   });
 });
 
-task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
+task("deploySowBlueprint", "Deploys SowBlueprint and other auxiliary contracts").setAction(
+  async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+
+    // Deploy contracts in correct order
+    const priceManipulation = await ethers.getContractFactory("PriceManipulation");
+    const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
+    await priceManipulationContract.deployed();
+    console.log("PriceManipulation deployed to:", priceManipulationContract.address);
+
+    // Deploy SiloHelpers
+    const siloHelpers = await ethers.getContractFactory("SiloHelpers");
+    const siloHelpersContract = await siloHelpers.deploy(
+      L2_PINTO,
+      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+      await owner.getAddress(), // owner address
+      priceManipulationContract.address // price manipulation contract address
+    );
+    await siloHelpersContract.deployed();
+    console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+
+    // Deploy SowBlueprint and connect it to the existing SiloHelpers
+    const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
+    const sowBlueprintContract = await sowBlueprint.deploy(
+      L2_PINTO,
+      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+      await owner.getAddress(), // owner address
+      siloHelpersContract.address // siloHelpers contract address
+    );
+    await sowBlueprintContract.deployed();
+    console.log("SowBlueprint deployed to:", sowBlueprintContract.address);
+  }
+);
+
+task(
+  "deployConvertUpBlueprint",
+  "Deploys ConvertUpBlueprint and other auxiliary contracts"
+).setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -1138,8 +1182,8 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   await siloHelpersContract.deployed();
   console.log("SiloHelpers deployed to:", siloHelpersContract.address);
 
-  // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
-  const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+  // Deploy SowBlueprint and connect it to the existing SiloHelpers
+  const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
   const sowBlueprintContract = await sowBlueprint.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
@@ -1147,57 +1191,7 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
     siloHelpersContract.address // siloHelpers contract address
   );
   await sowBlueprintContract.deployed();
-  console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
-
-  // Rest of the facet upgrades...
-  await upgradeWithNewFacets({
-    diamondAddress: L2_PINTO,
-    facetNames: [
-      "TokenFacet",
-      "TractorFacet",
-      "FieldFacet",
-      "SiloFacet",
-      "SiloGettersFacet",
-      "TokenSupportFacet",
-      "MarketplaceFacet",
-      "ApprovalFacet",
-      "ClaimFacet",
-      "ConvertFacet",
-      "PipelineConvertFacet",
-      "SeasonFacet"
-    ],
-    libraryNames: [
-      "LibSilo",
-      "LibTokenSilo",
-      "LibConvert",
-      "LibPipelineConvert",
-      "LibEvaluate",
-      "LibGauge",
-      "LibIncentive",
-      "LibShipping",
-      "LibWellMinting",
-      "LibFlood",
-      "LibGerminate"
-    ],
-    facetLibraries: {
-      SiloFacet: ["LibSilo", "LibTokenSilo"],
-      ClaimFacet: ["LibSilo", "LibTokenSilo"],
-      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-      SeasonFacet: [
-        "LibEvaluate",
-        "LibGauge",
-        "LibIncentive",
-        "LibShipping",
-        "LibWellMinting",
-        "LibFlood",
-        "LibGerminate"
-      ]
-    },
-    object: !mock,
-    verbose: true,
-    account: owner
-  });
+  console.log("SowBlueprint deployed to:", sowBlueprintContract.address);
 });
 
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
@@ -2040,6 +2034,12 @@ task("updateOracleTimeouts", "Updates oracle timeouts for all whitelisted LP tok
   }
 );
 
+task("deployTractorHelpers", "Deploys TractorHelpers contract").setAction(async () => {
+  const tractorHelpers = await ethers.getContractFactory("TractorHelpers");
+  const tractorHelpersInstance = await tractorHelpers.deploy();
+  console.log("TractorHelpers deployed to:", tractorHelpersInstance.address);
+});
+
 task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
   try {
     console.log("Compiling contracts to get updated artifacts...");
@@ -2067,11 +2067,18 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
       JSON.stringify(siloHelpersArtifact.abi, null, 2)
     );
 
-    // Generate SowBlueprintv0 ABI
-    const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0");
+    // Generate SowBlueprint ABI
+    const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprint");
     fs.writeFileSync(
-      `${outputDir}/SowBlueprintv0.json`,
+      `${outputDir}/SowBlueprint.json`,
       JSON.stringify(sowBlueprintArtifact.abi, null, 2)
+    );
+
+    // Generate ConvertUpBlueprint ABI
+    const convertUpBlueprintArtifact = await hre.artifacts.readArtifact("ConvertUpBlueprint");
+    fs.writeFileSync(
+      `${outputDir}/ConvertUpBlueprint.json`,
+      JSON.stringify(convertUpBlueprintArtifact.abi, null, 2)
     );
 
     // Generate BeanstalkPrice ABI
