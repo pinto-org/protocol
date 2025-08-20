@@ -72,6 +72,7 @@ contract BeanstalkShipmentsTest is TestHelper {
     }
 
     // Constants
+    uint256 constant ACTIVE_FIELD_ID = 0;
     uint256 constant PAYBACK_FIELD_ID = 1;
     uint256 constant SUPPLY_THRESHOLD = 1_000_000_000e6;
 
@@ -116,30 +117,34 @@ contract BeanstalkShipmentsTest is TestHelper {
     function test_beanstalkShipmentRoutes() public {
         // get shipment routes
         IMockFBeanstalk.ShipmentRoute[] memory routes = pinto.getShipmentRoutes();
+
+        // assert length is 6
+        assertEq(routes.length, 6, "Shipment routes length mismatch");
+
         // silo (0x01)
-        assertEq(routes[0].planSelector, ShipmentPlanner.getSiloPlan.selector);
-        assertEq(uint8(routes[0].recipient), uint8(ShipmentRecipient.SILO));
-        assertEq(routes[0].data, new bytes(32));
+        assertEq(routes[0].planSelector, ShipmentPlanner.getSiloPlan.selector, "Silo plan selector mismatch");
+        assertEq(uint8(routes[0].recipient), uint8(ShipmentRecipient.SILO), "Silo recipient mismatch");
+        assertEq(routes[0].data, new bytes(32), "Silo data mismatch");
         // field (0x02)
-        assertEq(routes[1].planSelector, ShipmentPlanner.getFieldPlan.selector);
-        assertEq(uint8(routes[1].recipient), uint8(ShipmentRecipient.FIELD));
-        assertEq(routes[1].data, abi.encodePacked(uint256(0)));
+        assertEq(routes[1].planSelector, ShipmentPlanner.getFieldPlan.selector, "Field plan selector mismatch");
+        assertEq(uint8(routes[1].recipient), uint8(ShipmentRecipient.FIELD), "Field recipient mismatch");
+        assertEq(routes[1].data, abi.encodePacked(uint256(0)), "Field data mismatch");
         // budget (0x03)
-        assertEq(routes[2].planSelector, ShipmentPlanner.getBudgetPlan.selector);
-        assertEq(uint8(routes[2].recipient), uint8(ShipmentRecipient.INTERNAL_BALANCE));
-        assertEq(routes[2].data, abi.encode(DEV_BUDGET));
+        assertEq(routes[2].planSelector, ShipmentPlanner.getBudgetPlan.selector, "Budget plan selector mismatch");
+        assertEq(uint8(routes[2].recipient), uint8(ShipmentRecipient.INTERNAL_BALANCE), "Budget recipient mismatch");
+        assertEq(routes[2].data, abi.encode(DEV_BUDGET), "Budget data mismatch");
         // payback field (0x02)
-        assertEq(routes[3].planSelector, ShipmentPlanner.getPaybackFieldPlan.selector);
-        assertEq(uint8(routes[3].recipient), uint8(ShipmentRecipient.FIELD));
-        assertEq(routes[3].data, abi.encode(PAYBACK_FIELD_ID, PCM));
+        assertEq(routes[3].planSelector, ShipmentPlanner.getPaybackFieldPlan.selector, "Payback field plan selector mismatch");
+        assertEq(uint8(routes[3].recipient), uint8(ShipmentRecipient.FIELD), "Payback field recipient mismatch");
+        assertEq(routes[3].data, abi.encode(ACTIVE_FIELD_ID), "Payback field data mismatch");
         // payback silo (0x05)
-        assertEq(routes[4].planSelector, ShipmentPlanner.getPaybackSiloPlan.selector);
-        assertEq(uint8(routes[4].recipient), uint8(ShipmentRecipient.SILO_PAYBACK));
-        assertEq(routes[4].data, abi.encode(SILO_PAYBACK));
+        assertEq(routes[4].planSelector, ShipmentPlanner.getPaybackSiloPlan.selector, "Payback silo plan selector mismatch");
+        assertEq(uint8(routes[4].recipient), uint8(ShipmentRecipient.SILO_PAYBACK), "Payback silo recipient mismatch");
+        assertEq(routes[4].data, abi.encode(SILO_PAYBACK), "Payback silo data mismatch");
         // payback barn (0x06)
-        assertEq(routes[5].planSelector, ShipmentPlanner.getPaybackBarnPlan.selector);
-        assertEq(uint8(routes[5].recipient), uint8(ShipmentRecipient.BARN_PAYBACK));
-        assertEq(routes[5].data, abi.encode(BARN_PAYBACK));
+        assertEq(routes[5].planSelector, ShipmentPlanner.getPaybackBarnPlan.selector, "Payback barn plan selector mismatch");
+        assertEq(uint8(routes[5].recipient), uint8(ShipmentRecipient.BARN_PAYBACK), "Payback barn recipient mismatch");
+        assertEq(routes[5].data, abi.encode(BARN_PAYBACK), "Payback barn data mismatch");
     }
 
     //////////////////// Field State Verification ////////////////////

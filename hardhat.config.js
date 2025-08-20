@@ -2125,6 +2125,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
           "LibWeather"
         ]
       },
+      initFacetName: "InitBeanstalkShipments",
       initArgs: [routes],
       verbose: true,
       account: owner
