@@ -6,7 +6,7 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {SowBlueprintv0_1} from "contracts/ecosystem/SowBlueprintv0_1.sol";
+import {SowBlueprint} from "contracts/ecosystem/SowBlueprint.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -51,29 +51,29 @@ contract PerFunctionPausableTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy SowBlueprintv0_1 with TractorHelpers and SiloHelpers addresses
-        sowBlueprintv0_1 = new SowBlueprintv0_1(
+        // Deploy SowBlueprint with TractorHelpers and SiloHelpers addresses
+        sowBlueprint = new SowBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
             address(siloHelpers)
         );
-        vm.label(address(sowBlueprintv0_1), "SowBlueprintv0_1");
+        vm.label(address(sowBlueprint), "SowBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0_1));
+        setSowBlueprintv0(address(sowBlueprint));
         setSiloHelpers(address(siloHelpers));
     }
 
     function test_pause() public {
         // Get function selectors for the functions we want to test
-        bytes4 sowSelector = SowBlueprintv0_1.sowBlueprintv0_1.selector;
+        bytes4 sowSelector = SowBlueprint.sowBlueprint.selector;
         bytes4 withdrawSelector = SiloHelpers.withdrawBeansFromSources.selector;
 
         // Test initial state
         assertFalse(
-            sowBlueprintv0_1.functionPaused(sowSelector),
-            "sowBlueprintv0_1 should not be paused initially"
+            sowBlueprint.functionPaused(sowSelector),
+            "sowBlueprint should not be paused initially"
         );
         assertFalse(
             siloHelpers.functionPaused(withdrawSelector),
@@ -85,7 +85,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        sowBlueprintv0_1.pauseFunction(sowSelector);
+        sowBlueprint.pauseFunction(sowSelector);
 
         vm.prank(farmers[1]);
         vm.expectRevert(
@@ -95,13 +95,13 @@ contract PerFunctionPausableTest is TractorTestHelper {
 
         // Test pausing individual functions
         vm.startPrank(address(this));
-        sowBlueprintv0_1.pauseFunction(sowSelector);
+        sowBlueprint.pauseFunction(sowSelector);
         siloHelpers.pauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertTrue(
-            sowBlueprintv0_1.functionPaused(sowSelector),
-            "sowBlueprintv0_1 should be paused"
+            sowBlueprint.functionPaused(sowSelector),
+            "sowBlueprint should be paused"
         );
         assertTrue(
             siloHelpers.functionPaused(withdrawSelector),
@@ -169,7 +169,7 @@ contract PerFunctionPausableTest is TractorTestHelper {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, farmers[1])
         );
-        sowBlueprintv0_1.unpauseFunction(sowSelector);
+        sowBlueprint.unpauseFunction(sowSelector);
 
         vm.prank(farmers[1]);
         vm.expectRevert(
@@ -179,13 +179,13 @@ contract PerFunctionPausableTest is TractorTestHelper {
 
         // Test unpausing functions
         vm.startPrank(address(this));
-        sowBlueprintv0_1.unpauseFunction(sowSelector);
+        sowBlueprint.unpauseFunction(sowSelector);
         siloHelpers.unpauseFunction(withdrawSelector);
         vm.stopPrank();
 
         assertFalse(
-            sowBlueprintv0_1.functionPaused(sowSelector),
-            "sowBlueprintv0_1 should be unpaused"
+            sowBlueprint.functionPaused(sowSelector),
+            "sowBlueprint should be unpaused"
         );
         assertFalse(
             siloHelpers.functionPaused(withdrawSelector),
@@ -233,9 +233,9 @@ contract PerFunctionPausableTest is TractorTestHelper {
         uint256 amountToSow,
         uint256 minAmountToSow,
         uint256 maxAmountToSowPerSeason
-    ) internal pure returns (SowBlueprintv0_1.SowAmounts memory) {
+    ) internal pure returns (SowBlueprint.SowAmounts memory) {
         return
-            SowBlueprintv0_1.SowAmounts({
+            SowBlueprint.SowAmounts({
                 totalAmountToSow: amountToSow,
                 minAmountToSowPerSeason: minAmountToSow,
                 maxAmountToSowPerSeason: maxAmountToSowPerSeason

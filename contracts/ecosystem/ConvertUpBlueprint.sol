@@ -13,12 +13,12 @@ import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
 
 /**
- * @title ConvertUpBlueprintv0
+ * @title ConvertUpBlueprint
  * @author FordPinto, Frijo
  * @notice Contract for converting up with Tractor, with a number of conditions
  * @dev This contract always converts up to Bean token, which is obtained from beanstalk.getBeanToken()
  */
-contract ConvertUpBlueprintv0 is PerFunctionPausable {
+contract ConvertUpBlueprint is PerFunctionPausable {
     /**
      * @notice Event emitted when a convert up order is complete
      * @param blueprintHash The hash of the blueprint
@@ -153,7 +153,7 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
      * @notice Converts tokens up to Bean using specified parameters
      * @param params The ConvertUpBlueprintStruct containing all parameters for the convert up operation
      */
-    function convertUpBlueprintv0(
+    function convertUpBlueprint(
         ConvertUpBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
@@ -491,5 +491,9 @@ contract ConvertUpBlueprintv0 is PerFunctionPausable {
 
         // Otherwise, use maxConvertBdvPerExecution
         return maxConvertBdvPerExecution;
+    }
+
+    function version() public pure returns (string memory) {
+        return "1.0";
     }
 }

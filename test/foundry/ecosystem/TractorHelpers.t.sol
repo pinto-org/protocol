@@ -22,7 +22,7 @@ import {P} from "contracts/ecosystem/price/P.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
-import {SowBlueprintv0_1} from "contracts/ecosystem/SowBlueprintv0_1.sol";
+import {SowBlueprint} from "contracts/ecosystem/SowBlueprint.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {console} from "forge-std/console.sol";
@@ -69,17 +69,17 @@ contract TractorHelpersTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy SowBlueprintv0_1 with TractorHelpers and SiloHelpers addresses
-        sowBlueprintv0_1 = new SowBlueprintv0_1(
+        // Deploy SowBlueprint with TractorHelpers and SiloHelpers addresses
+        sowBlueprint = new SowBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
             address(siloHelpers)
         );
-        vm.label(address(sowBlueprintv0_1), "SowBlueprintv0_1");
+        vm.label(address(sowBlueprint), "SowBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0_1));
+        setSowBlueprintv0(address(sowBlueprint));
         setSiloHelpers(address(siloHelpers));
 
         addLiquidityToWell(
@@ -244,17 +244,17 @@ contract TractorHelpersTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy SowBlueprintv0_1 with TractorHelpers and SiloHelpers addresses
-        sowBlueprintv0_1 = new SowBlueprintv0_1(
+        // Deploy SowBlueprint with TractorHelpers and SiloHelpers addresses
+        sowBlueprint = new SowBlueprint(
             PINTO_DIAMOND,
             address(this),
             address(tractorHelpers),
             address(siloHelpers)
         );
-        vm.label(address(sowBlueprintv0_1), "SowBlueprintv0_1");
+        vm.label(address(sowBlueprint), "SowBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0_1));
+        setSowBlueprintv0(address(sowBlueprint));
         setSiloHelpers(address(siloHelpers));
 
         return (testWallet, PINTO_DIAMOND, PINTO);

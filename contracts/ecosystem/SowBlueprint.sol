@@ -9,11 +9,11 @@ import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
 
 /**
- * @title SowBlueprintv0_1
+ * @title SowBlueprint
  * @author FordPinto, Frijo
  * @notice Contract for sowing with Tractor, with a number of conditions
  */
-contract SowBlueprintv0_1 is PerFunctionPausable {
+contract SowBlueprint is PerFunctionPausable {
     /**
      * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
@@ -147,7 +147,7 @@ contract SowBlueprintv0_1 is PerFunctionPausable {
      * @notice Sows beans using specified source tokens in order of preference
      * @param params The SowBlueprintStruct containing all parameters for the sow operation
      */
-    function sowBlueprintv0_1(
+    function sowBlueprint(
         SowBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
@@ -513,5 +513,9 @@ contract SowBlueprintv0_1 is PerFunctionPausable {
         assembly {
             mstore(validOrderHashes, validCount)
         }
+    }
+
+    function version() public pure returns (string memory) {
+        return "1.1";
     }
 }

@@ -213,7 +213,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan[]",
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan[]",
         "name": "plans",
         "type": "tuple[]"
       }
@@ -248,7 +248,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
         "name": "",
         "type": "tuple"
       }
@@ -348,30 +348,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      }
-    ],
-    "name": "getBeanAmountAvailable",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "beanAmountAvailable",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "getBeanstalkPrice",
     "outputs": [
@@ -379,126 +355,6 @@
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "int96",
-        "name": "minStem",
-        "type": "int96"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
-        "name": "excludingPlan",
-        "type": "tuple"
-      }
-    ],
-    "name": "getDepositStemsAndAmountsToWithdraw",
-    "outputs": [
-      {
-        "internalType": "int96[]",
-        "name": "stems",
-        "type": "int96[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "availableAmount",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "int96",
-        "name": "minStem",
-        "type": "int96"
-      }
-    ],
-    "name": "getDepositStemsAndAmountsToWithdraw",
-    "outputs": [
-      {
-        "internalType": "int96[]",
-        "name": "stems",
-        "type": "int96[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "availableAmount",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -631,6 +487,30 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "excludeBean",
+        "type": "bool"
+      }
+    ],
+    "name": "getTokensAscendingPrice",
+    "outputs": [
+      {
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "prices",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "getTokensAscendingPrice",
     "outputs": [
@@ -642,6 +522,30 @@
       {
         "internalType": "uint256[]",
         "name": "prices",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "excludeBean",
+        "type": "bool"
+      }
+    ],
+    "name": "getTokensAscendingSeeds",
+    "outputs": [
+      {
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "seeds",
         "type": "uint256[]"
       }
     ],
@@ -667,25 +571,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "getUserDepositedTokens",
-    "outputs": [
-      {
-        "internalType": "address[]",
-        "name": "depositedTokens",
-        "type": "address[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "getWhitelistStatusAddresses",
     "outputs": [
@@ -693,160 +578,6 @@
         "internalType": "address[]",
         "name": "",
         "type": "address[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "uint8[]",
-        "name": "tokenIndices",
-        "type": "uint8[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "targetAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxGrownStalkPerBdv",
-        "type": "uint256"
-      }
-    ],
-    "name": "getWithdrawalPlan",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
-        "name": "plan",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "uint8[]",
-        "name": "tokenIndices",
-        "type": "uint8[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "targetAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxGrownStalkPerBdv",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
-        "name": "excludingPlan",
-        "type": "tuple"
-      }
-    ],
-    "name": "getWithdrawalPlanExcludingPlan",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
-        "name": "plan",
-        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -1096,6 +827,19 @@
   },
   {
     "inputs": [],
+    "name": "priceManipulation",
+    "outputs": [
+      {
+        "internalType": "contract PriceManipulation",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "renounceOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -1187,82 +931,6 @@
     "name": "unpauseFunction",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "uint8[]",
-        "name": "tokenIndices",
-        "type": "uint8[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "targetAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxGrownStalkPerBdv",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "slippageRatio",
-        "type": "uint256"
-      },
-      {
-        "internalType": "enum LibTransfer.To",
-        "name": "mode",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
-        "name": "plan",
-        "type": "tuple"
-      }
-    ],
-    "name": "withdrawBeansFromSources",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
     "type": "function"
   }
 ]

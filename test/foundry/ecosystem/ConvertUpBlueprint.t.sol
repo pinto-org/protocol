@@ -6,7 +6,7 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {ConvertUpBlueprintv0} from "contracts/ecosystem/ConvertUpBlueprintv0.sol";
+import {ConvertUpBlueprint} from "contracts/ecosystem/ConvertUpBlueprint.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -19,11 +19,11 @@ import {IWell} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/console.sol";
 import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
-contract ConvertUpBlueprintv0Test is TractorTestHelper {
+contract ConvertUpBlueprintTest is TractorTestHelper {
     address[] farmers;
     PriceManipulation priceManipulation;
     BeanstalkPrice beanstalkPrice;
-    ConvertUpBlueprintv0 convertUpBlueprintv0;
+    ConvertUpBlueprint convertUpBlueprint;
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
@@ -90,15 +90,15 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy ConvertUpBlueprintv0 with TractorHelpers, SiloHelpers and BeanstalkPrice address
-        convertUpBlueprintv0 = new ConvertUpBlueprintv0(
+        // Deploy ConvertUpBlueprint with TractorHelpers, SiloHelpers and BeanstalkPrice address
+        convertUpBlueprint = new ConvertUpBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
             address(siloHelpers),
             address(beanstalkPrice)
         );
-        vm.label(address(convertUpBlueprintv0), "ConvertUpBlueprintv0");
+        vm.label(address(convertUpBlueprint), "ConvertUpBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
         setSiloHelpers(address(siloHelpers));
@@ -120,7 +120,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     }
 
     // Break out the setup into a separate function
-    function setupConvertUpBlueprintv0Test(bool germinate) internal returns (TestState memory) {
+    function setupConvertUpBlueprintTest(bool germinate) internal returns (TestState memory) {
         TestState memory state;
         state.user = farmers[0];
         state.operator = address(this);
@@ -170,13 +170,13 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     }
 
     // Helper for when we need to pass germination
-    function setupConvertUpBlueprintv0Test() internal returns (TestState memory) {
-        TestState memory state = setupConvertUpBlueprintv0Test(true);
+    function setupConvertUpBlueprintTest() internal returns (TestState memory) {
+        TestState memory state = setupConvertUpBlueprintTest(true);
         return state;
     }
 
-    function test_convertUpBlueprintv0_BasicTest() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprint_BasicTest() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
@@ -272,7 +272,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         }
     }
 
-    function test_convertUpBlueprintv0_LowestPriceStrategy() public {
+    function test_ConvertUpBlueprint_LowestPriceStrategy() public {
         deployExtraWells(true, true);
 
         addLiquidityToWell(
@@ -287,7 +287,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         bs.siloSunrise(0);
         bs.siloSunrise(0);
 
-        TestState memory state = setupConvertUpBlueprintv0Test();
+        TestState memory state = setupConvertUpBlueprintTest();
 
         // Mint and deposit 500e6 USDC
         mintAndDepositBeanUSDC(state.user, 500e6);
@@ -532,8 +532,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         console.log("--------------------------------");
     }
 
-    function test_convertUpBlueprintv0_PriceOutOfRange() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprint_PriceOutOfRange() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
@@ -566,8 +566,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
     }
 
-    function test_convertUpBlueprintv0_TimeConstraints() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprint_TimeConstraints() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
@@ -613,8 +613,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
     }
 
-    function test_convertUpBlueprintv0Counter() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprintCounter() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         // Set a smaller amount to convert so we can test multiple conversions
         uint256 totalConvertBdv = 40e6; // 40 BEAN worth of BDV total
@@ -656,7 +656,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
-        counter = convertUpBlueprintv0.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
         console.log("Counter after first conversion: %s", counter);
         assertEq(
             counter,
@@ -666,7 +666,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
 
         // Verify the last executed timestamp was recorded properly
         assertTrue(
-            convertUpBlueprintv0.getLastExecutedTimestamp(orderHash) > 0,
+            convertUpBlueprint.getLastExecutedTimestamp(orderHash) > 0,
             "Last executed timestamp should be set"
         );
 
@@ -685,7 +685,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
-        counter = convertUpBlueprintv0.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
         console.log("Counter after second conversion: %s", counter);
         assertEq(
             counter,
@@ -702,7 +702,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
-        counter = convertUpBlueprintv0.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
         console.log("Counter after third conversion: %s", counter);
         assertEq(
             counter,
@@ -717,7 +717,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter is set to max
-        counter = convertUpBlueprintv0.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
         console.log("Counter after fourth conversion: %s", counter);
         assertEq(counter, type(uint256).max, "Counter should be max uint256 after completion");
 
@@ -730,7 +730,7 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
     }
 
     function test_operatorWhitelisting() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
@@ -789,11 +789,11 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         internal
         returns (
             IMockFBeanstalk.Requisition memory req,
-            ConvertUpBlueprintv0.ConvertUpBlueprintStruct memory paramStruct
+            ConvertUpBlueprint.ConvertUpBlueprintStruct memory paramStruct
         )
     {
         // Create the ConvertUpParams struct
-        ConvertUpBlueprintv0.ConvertUpParams memory convertUpParams = ConvertUpBlueprintv0
+        ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint
             .ConvertUpParams({
                 sourceTokenIndices: params.sourceTokenIndices,
                 totalConvertBdv: params.totalConvertBdv,
@@ -815,20 +815,20 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         whitelistedOperators[0] = address(this); // Add the current contract as a whitelisted operator
 
         // Create the OperatorParams struct
-        ConvertUpBlueprintv0.OperatorParams memory opParams = ConvertUpBlueprintv0.OperatorParams({
+        ConvertUpBlueprint.OperatorParams memory opParams = ConvertUpBlueprint.OperatorParams({
             whitelistedOperators: whitelistedOperators,
             tipAddress: params.tipAddress,
             operatorTipAmount: params.tipAmount
         });
 
         // Create the complete ConvertUpBlueprintStruct
-        paramStruct = ConvertUpBlueprintv0.ConvertUpBlueprintStruct({
+        paramStruct = ConvertUpBlueprint.ConvertUpBlueprintStruct({
             convertUpParams: convertUpParams,
             opParams: opParams
         });
 
         // Create the pipe call data
-        bytes memory pipeCallData = createConvertUpBlueprintv0CallData(paramStruct);
+        bytes memory pipeCallData = createConvertUpBlueprintCallData(paramStruct);
 
         // Create the requisition using the pipe call data
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
@@ -844,17 +844,17 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         return (req, paramStruct);
     }
 
-    // Helper to create the calldata for convertUpBlueprintv0
-    function createConvertUpBlueprintv0CallData(
-        ConvertUpBlueprintv0.ConvertUpBlueprintStruct memory params
+    // Helper to create the calldata for ConvertUpBlueprint
+    function createConvertUpBlueprintCallData(
+        ConvertUpBlueprint.ConvertUpBlueprintStruct memory params
     ) internal view returns (bytes memory) {
-        // Create the convertUpBlueprintv0 pipe call
+        // Create the ConvertUpBlueprint pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
 
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(convertUpBlueprintv0),
+            target: address(convertUpBlueprint),
             callData: abi.encodeWithSelector(
-                ConvertUpBlueprintv0.convertUpBlueprintv0.selector,
+                ConvertUpBlueprint.convertUpBlueprint.selector,
                 params
             ),
             clipboard: hex"0000"
@@ -928,8 +928,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         console.log("===========================================");
     }
 
-    function test_convertUpBlueprintv0_BonusCapacityCheck() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprint_BonusCapacityCheck() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
@@ -1035,8 +1035,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
     }
 
-    function test_convertUpBlueprintv0_PriceManipulationDetection() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprint_PriceManipulationDetection() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
@@ -1110,8 +1110,8 @@ contract ConvertUpBlueprintv0Test is TractorTestHelper {
         );
     }
 
-    function test_convertUpBlueprintv0_DefaultSlippageRatio() public {
-        TestState memory state = setupConvertUpBlueprintv0Test();
+    function test_ConvertUpBlueprint_DefaultSlippageRatio() public {
+        TestState memory state = setupConvertUpBlueprintTest();
 
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
