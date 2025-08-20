@@ -42,20 +42,18 @@ contract TempRepaymentFieldFacet is ReentrancyGuard {
         );
         AppStorage storage s = LibAppStorage.diamondStorage();
         for (uint i; i < accountPlots.length; i++) {
+            // cache the account
+            address account = accountPlots[i].account;
             for (uint j; j < accountPlots[i].plots.length; j++) {
                 uint256 podIndex = accountPlots[i].plots[j].podIndex;
                 uint256 podAmount = accountPlots[i].plots[j].podAmounts;
-                s.accts[accountPlots[i].account].fields[REPAYMENT_FIELD_ID].plots[
-                    podIndex
-                ] = podAmount;
-                s.accts[accountPlots[i].account].fields[REPAYMENT_FIELD_ID].plotIndexes.push(
-                    podIndex
-                );
+                s.accts[account].fields[REPAYMENT_FIELD_ID].plots[podIndex] = podAmount;
+                s.accts[account].fields[REPAYMENT_FIELD_ID].plotIndexes.push(podIndex);
                 // Set the plot index after the push to ensure length is > 0.
-                s.accts[accountPlots[i].account].fields[REPAYMENT_FIELD_ID].piIndex[podIndex] =
-                    s.accts[accountPlots[i].account].fields[REPAYMENT_FIELD_ID].plotIndexes.length -
+                s.accts[account].fields[REPAYMENT_FIELD_ID].piIndex[podIndex] =
+                    s.accts[account].fields[REPAYMENT_FIELD_ID].plotIndexes.length -
                     1;
-                emit ReplaymentPlotAdded(accountPlots[i].account, podIndex, podAmount);
+                emit ReplaymentPlotAdded(account, podIndex, podAmount);
             }
         }
     }
