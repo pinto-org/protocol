@@ -922,8 +922,7 @@ contract SowBlueprintTest is TractorTestHelper {
 
         // Array to hold requisitions
         IMockFBeanstalk.Requisition[] memory requisitions = new IMockFBeanstalk.Requisition[](8);
-        SowBlueprint.SowBlueprintStruct[]
-            memory params = new SowBlueprint.SowBlueprintStruct[](8);
+        SowBlueprint.SowBlueprintStruct[] memory params = new SowBlueprint.SowBlueprintStruct[](8);
         address[] memory blueprintPublishers = new address[](8);
         bytes32[] memory orderHashes = new bytes32[](8);
 
@@ -984,8 +983,11 @@ contract SowBlueprintTest is TractorTestHelper {
         vm.warp(block.timestamp + tenMinutesInSeconds); // Advance time by 10 minutes
         vm.roll(block.number + (10 * 60)); // Advance blocks (assuming ~1 block per second)
 
-        bytes32[] memory validOrderHashes = sowBlueprint
-            .validateParamsAndReturnBeanstalkStateArray(params, orderHashes, blueprintPublishers);
+        bytes32[] memory validOrderHashes = sowBlueprint.validateParamsAndReturnBeanstalkStateArray(
+            params,
+            orderHashes,
+            blueprintPublishers
+        );
 
         assertEq(validOrderHashes.length, 4, "Expected 4 valid order hashes");
         for (uint256 i = 0; i < 4; i++) {
