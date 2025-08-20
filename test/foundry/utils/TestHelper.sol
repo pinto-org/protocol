@@ -32,7 +32,6 @@ import {Pipeline} from "contracts/pipeline/Pipeline.sol";
 
 // OTHER INTERFACES //
 import {IUSDC} from "contracts/interfaces/IUSDC.sol";
-
 /**
  * @title TestHelper
  * @notice Test helper contract for Beanstalk tests.
@@ -408,10 +407,11 @@ contract TestHelper is
     function updateForkedChainlinkOracle(address chainlinkOracle, address tokenInWell) internal {
         // save latest answer
         (, int256 answer, , , ) = MockChainlinkAggregator(chainlinkOracle).latestRoundData();
+        uint8 decimals = MockChainlinkAggregator(chainlinkOracle).decimals();
 
         // overwrite chainlinkOracle with a MockChainlinkAggregator, add mock rounds
         deployCodeTo("MockChainlinkAggregator.sol", new bytes(0), chainlinkOracle);
-        MockChainlinkAggregator(chainlinkOracle).setDecimals(6);
+        MockChainlinkAggregator(chainlinkOracle).setDecimals(decimals);
         mockAddRound(chainlinkOracle, answer, 4500);
         mockAddRound(chainlinkOracle, answer, 900);
     }
@@ -486,7 +486,7 @@ contract TestHelper is
             );
     }
 
-    function rand(uint256 lowerBound, uint256 upperBound) internal returns (uint256) {
+    function rand(uint256 lowerBound, uint256 upperBound) internal view returns (uint256) {
         return bound(uint256(keccak256(abi.encode(vm.unixTime()))), lowerBound, upperBound);
     }
 
@@ -498,7 +498,7 @@ contract TestHelper is
         uint256 lowerBound,
         uint256 upperBound,
         bytes memory salt
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         return bound(uint256(keccak256(abi.encode(vm.unixTime(), salt))), lowerBound, upperBound);
     }
 
@@ -676,10 +676,6 @@ contract TestHelper is
         uint256 lpToSupplyRatio,
         uint256 cultivationFactor
     ) internal view returns (uint256 expectedSoil) {
-        console.log("calculateExpectedSoil: twaDeltaB =", twaDeltaB);
-        console.log("calculateExpectedSoil: lpToSupplyRatio =", lpToSupplyRatio);
-        console.log("calculateExpectedSoil: cultivationFactor =", cultivationFactor);
-
         // If twaDeltaB is 0, return 0 directly
         if (twaDeltaB == 0) return 0;
 

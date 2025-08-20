@@ -291,15 +291,8 @@ contract TractorHelpers is Junction, PerFunctionPausable {
             // Skip Bean token for price manipulation check since it's not a Well
             if (sourceToken != beanToken) {
                 // Check for price manipulation in the Well
-                (address nonBeanToken, ) = IBeanstalk(beanstalk).getNonBeanTokenAndIndexFromWell(
-                    sourceToken
-                );
                 require(
-                    priceManipulation.isValidSlippage(
-                        IWell(sourceToken),
-                        IERC20(nonBeanToken),
-                        slippageRatio
-                    ),
+                    priceManipulation.isValidSlippage(IWell(sourceToken), slippageRatio),
                     "Price manipulation detected"
                 );
             }

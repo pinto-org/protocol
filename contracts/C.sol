@@ -18,6 +18,7 @@ library C {
     //////////////////// Globals ////////////////////
 
     uint256 internal constant PRECISION = 1e18;
+    uint256 internal constant PRECISION_6 = 1e6;
     /// @dev The absolute maximum amount of Beans or Soil that can be issued from the system.
     uint256 internal constant GLOBAL_ABSOLUTE_MAX = 800_000e6;
     /// @dev The maximum percentage of Beans or Soil that can be issued from the system.

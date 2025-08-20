@@ -19,7 +19,7 @@ import "forge-std/console.sol";
 
 contract MockWellToken {
     address constant WETH = LibWeth.WETH;
-    function tokens() public returns (IERC20[] memory) {
+    function tokens() public pure returns (IERC20[] memory) {
         IERC20[] memory _tokens = new IERC20[](2);
         _tokens[0] = IERC20(WETH);
         _tokens[1] = IERC20(WETH);

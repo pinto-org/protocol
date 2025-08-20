@@ -128,7 +128,7 @@ contract Pi11ForkTest is TestHelper {
         console.log("\n=== VERIFICATION COMPLETE ===");
     }
 
-    function _logWhitelistedTokens(string memory stage) internal {
+    function _logWhitelistedTokens(string memory stage) internal view {
         address[] memory whitelistedTokens = bs.getWhitelistedTokens();
         console.log("Whitelisted tokens count (%s):", stage, whitelistedTokens.length);
 

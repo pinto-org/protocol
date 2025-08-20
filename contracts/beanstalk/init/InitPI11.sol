@@ -48,8 +48,6 @@ contract InitPI11 {
     }
 
     function init() external {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-
         // Update the convertDownPenaltyGauge with new data structure
         Gauge memory convertDownPenaltyGauge = Gauge(
             abi.encode(
@@ -141,7 +139,7 @@ contract InitPI11 {
     }
 
     // Helper function to validate total allocations don't exceed 100%
-    function _validateTotalAllocations(TokenAllocation[] memory newAllocations) internal view {
+    function _validateTotalAllocations(TokenAllocation[] memory newAllocations) internal pure {
         uint256 totalPercent = 0;
         for (uint256 i = 0; i < newAllocations.length; i++) {
             totalPercent += newAllocations[i].optimalPercentDepositedBdv;
