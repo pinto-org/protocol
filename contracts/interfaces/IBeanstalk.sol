@@ -197,6 +197,26 @@ interface IBeanstalk {
         LibTransfer.To toMode
     ) external payable;
 
+
+    function transferPlot(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 end
+    ) external payable;
+
+
+    function transferPlots(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256[] calldata ids,
+        uint256[] calldata starts,
+        uint256[] calldata ends
+    ) external payable;
+
     function update(address account) external payable;
 
     function updateSortedDepositIds(

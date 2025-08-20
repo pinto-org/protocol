@@ -86,7 +86,7 @@ contract ShipmentPlanner {
      */
     function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan) {
         uint256 budgetRatio = budgetMintRatio();
-        require(budgetRatio > 0);
+        require(budgetRatio > 0, "ShipmentPlanner: Supply above flipping point, no budget allocation");
         uint256 points = (BUDGET_POINTS * budgetRatio) / PRECISION;
         uint256 cap = (beanstalk.time().standardMintedBeans * 3) / 100;
         return ShipmentPlan({points: points, cap: cap});
@@ -100,7 +100,7 @@ contract ShipmentPlanner {
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
         uint256 paybackRatio = PRECISION - budgetMintRatio();
-        require(paybackRatio > 0);
+        require(paybackRatio > 0, "ShipmentPlanner: Supply above flipping point, no payback allocation");
 
         (uint256 fieldId, address siloPaybackContract, address barnPaybackContract) = abi.decode(
             data,
@@ -151,7 +151,7 @@ contract ShipmentPlanner {
     ) external view returns (ShipmentPlan memory shipmentPlan) {
         // get the payback ratio to scale the points if needed
         uint256 paybackRatio = PRECISION - budgetMintRatio();
-        require(paybackRatio > 0);
+        require(paybackRatio > 0, "ShipmentPlanner: Supply above flipping point, no payback allocation");
         // perform a static call to the silo payback contract to get the remaining silo debt
         (address siloPaybackContract, address barnPaybackContract) = abi.decode(
             data,
@@ -193,7 +193,7 @@ contract ShipmentPlanner {
     ) external view returns (ShipmentPlan memory shipmentPlan) {
         // get the payback ratio to scale the points if needed
         uint256 paybackRatio = PRECISION - budgetMintRatio();
-        require(paybackRatio > 0);
+        require(paybackRatio > 0, "ShipmentPlanner: Supply above flipping point, no payback allocation");
 
         // perform a static call to the fert payback contract to get the remaining fert debt
         (address siloPaybackContract, address barnPaybackContract) = abi.decode(

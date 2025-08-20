@@ -2032,9 +2032,10 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     // params
     const verbose = true;
     const deploy = true;
-    const populateData = false;
+    const populateData = true;
     const populateField = true;
     const parseContracts = true;
+    const mockFieldData = false;
 
     // Step 0: Parse export data into required format
     console.log("\n📊 STEP 0: PARSING EXPORT DATA");
@@ -2087,7 +2088,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     console.log("📈 STEP 2: CREATING BEANSTALK FIELD");
     console.log("-".repeat(50));
     if (populateField) {
-      await populateBeanstalkField(L2_PINTO, owner, verbose);
+      await populateBeanstalkField(L2_PINTO, owner, verbose, mockFieldData);
     }
 
     // Step 3: Update shipment routes
@@ -2156,7 +2157,7 @@ module.exports = {
     localhost: {
       chainId: 1337,
       url: "http://127.0.0.1:8545/",
-      timeout: 1000000000,
+      timeout: 100000000000000000,
       accounts: "remote"
     },
     mainnet: {

@@ -92,25 +92,7 @@ contract BeanstalkShipmentsTest is TestHelper {
     // - make the system print, check distribution in each contract
     // - for each component, make sure everything is distributed correctly
     // - make sure that at any point all users can claim their rewards pro rata
-    function setUp() public {
-        // add liquidity to the well to make deltaB>0
-
-        // addLiquidityToPintoWell(
-        //     farmer1,
-        //     PINTO_CBETH_WELL,
-        //     10e6, // 10 Beans
-        //     10 ether // 10 WETH of wstETH
-        // );
-
-        // addLiquidityToPintoWell(
-        //     farmer1,
-        //     PINTO_CBBTC_WELL,
-        //     10e6, // 10 Beans
-        //     2e8 // 2 btc
-        // );
-
-        console.log("Total delta B", pinto.totalDeltaB());
-    }
+    function setUp() public {}
 
     //////////////////////// STATE VERIFICATION ////////////////////////
 
@@ -122,28 +104,76 @@ contract BeanstalkShipmentsTest is TestHelper {
         assertEq(routes.length, 6, "Shipment routes length mismatch");
 
         // silo (0x01)
-        assertEq(routes[0].planSelector, ShipmentPlanner.getSiloPlan.selector, "Silo plan selector mismatch");
-        assertEq(uint8(routes[0].recipient), uint8(ShipmentRecipient.SILO), "Silo recipient mismatch");
+        assertEq(
+            routes[0].planSelector,
+            ShipmentPlanner.getSiloPlan.selector,
+            "Silo plan selector mismatch"
+        );
+        assertEq(
+            uint8(routes[0].recipient),
+            uint8(ShipmentRecipient.SILO),
+            "Silo recipient mismatch"
+        );
         assertEq(routes[0].data, new bytes(32), "Silo data mismatch");
         // field (0x02)
-        assertEq(routes[1].planSelector, ShipmentPlanner.getFieldPlan.selector, "Field plan selector mismatch");
-        assertEq(uint8(routes[1].recipient), uint8(ShipmentRecipient.FIELD), "Field recipient mismatch");
+        assertEq(
+            routes[1].planSelector,
+            ShipmentPlanner.getFieldPlan.selector,
+            "Field plan selector mismatch"
+        );
+        assertEq(
+            uint8(routes[1].recipient),
+            uint8(ShipmentRecipient.FIELD),
+            "Field recipient mismatch"
+        );
         assertEq(routes[1].data, abi.encodePacked(uint256(0)), "Field data mismatch");
         // budget (0x03)
-        assertEq(routes[2].planSelector, ShipmentPlanner.getBudgetPlan.selector, "Budget plan selector mismatch");
-        assertEq(uint8(routes[2].recipient), uint8(ShipmentRecipient.INTERNAL_BALANCE), "Budget recipient mismatch");
+        assertEq(
+            routes[2].planSelector,
+            ShipmentPlanner.getBudgetPlan.selector,
+            "Budget plan selector mismatch"
+        );
+        assertEq(
+            uint8(routes[2].recipient),
+            uint8(ShipmentRecipient.INTERNAL_BALANCE),
+            "Budget recipient mismatch"
+        );
         assertEq(routes[2].data, abi.encode(DEV_BUDGET), "Budget data mismatch");
         // payback field (0x02)
-        assertEq(routes[3].planSelector, ShipmentPlanner.getPaybackFieldPlan.selector, "Payback field plan selector mismatch");
-        assertEq(uint8(routes[3].recipient), uint8(ShipmentRecipient.FIELD), "Payback field recipient mismatch");
+        assertEq(
+            routes[3].planSelector,
+            ShipmentPlanner.getPaybackFieldPlan.selector,
+            "Payback field plan selector mismatch"
+        );
+        assertEq(
+            uint8(routes[3].recipient),
+            uint8(ShipmentRecipient.FIELD),
+            "Payback field recipient mismatch"
+        );
         assertEq(routes[3].data, abi.encode(ACTIVE_FIELD_ID), "Payback field data mismatch");
         // payback silo (0x05)
-        assertEq(routes[4].planSelector, ShipmentPlanner.getPaybackSiloPlan.selector, "Payback silo plan selector mismatch");
-        assertEq(uint8(routes[4].recipient), uint8(ShipmentRecipient.SILO_PAYBACK), "Payback silo recipient mismatch");
+        assertEq(
+            routes[4].planSelector,
+            ShipmentPlanner.getPaybackSiloPlan.selector,
+            "Payback silo plan selector mismatch"
+        );
+        assertEq(
+            uint8(routes[4].recipient),
+            uint8(ShipmentRecipient.SILO_PAYBACK),
+            "Payback silo recipient mismatch"
+        );
         assertEq(routes[4].data, abi.encode(SILO_PAYBACK), "Payback silo data mismatch");
         // payback barn (0x06)
-        assertEq(routes[5].planSelector, ShipmentPlanner.getPaybackBarnPlan.selector, "Payback barn plan selector mismatch");
-        assertEq(uint8(routes[5].recipient), uint8(ShipmentRecipient.BARN_PAYBACK), "Payback barn recipient mismatch");
+        assertEq(
+            routes[5].planSelector,
+            ShipmentPlanner.getPaybackBarnPlan.selector,
+            "Payback barn plan selector mismatch"
+        );
+        assertEq(
+            uint8(routes[5].recipient),
+            uint8(ShipmentRecipient.BARN_PAYBACK),
+            "Payback barn recipient mismatch"
+        );
         assertEq(routes[5].data, abi.encode(BARN_PAYBACK), "Payback barn data mismatch");
     }
 
@@ -330,27 +360,17 @@ contract BeanstalkShipmentsTest is TestHelper {
 
     // note: test distribution normal case, well above 1billion supply
     function test_shipmentDistributionKicksInAtCorrectSupply() public {
-        // get the total supply before minting
-        uint256 totalSupplyBefore = IERC20(L2_PINTO).totalSupply();
-        console.log("Total supply before minting", totalSupplyBefore);
-        assertLt(totalSupplyBefore, SUPPLY_THRESHOLD, "Total supply is not below the threshold");
+        // supply is 1,010bil, sunrise is called and new pintos are distributed
+        increaseSupplyAndDistribute();
 
-        // mint 1bil supply to get well above the threshold
-        deal(L2_PINTO, address(this), SUPPLY_THRESHOLD, true);
+        // assert that: 1 % of mints went to the payback field so harvestable index must have increased
+        assertGt(pinto.harvestableIndex(PAYBACK_FIELD_ID), 0, "Harvestable index must have increased");
 
-        // get the total supply of pinto
-        uint256 totalSupplyAfter = IERC20(L2_PINTO).totalSupply();
-        console.log("Total supply after minting", totalSupplyAfter);
-        // assert the total supply is above the threshold
-        assertGt(totalSupplyAfter, SUPPLY_THRESHOLD, "Total supply is not above the threshold");
+        // assert that: 1 % of mints went to the silo so silo payback balance of pinto must have increased
+        assertGt(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), 0, "Silo payback balance must have increased");
 
-        // get the totalDeltaB
-        int256 totalDeltaB = pinto.totalDeltaB();
-        console.log("Total delta B", totalDeltaB);
-        assertGt(totalDeltaB, 0, "System should be above the value target");
-
-        // skip 2 blocks and call sunrise
-        _skipAndCallSunrise();
+        // assert that: 1 % of mints went to the barn so barn payback balance of pinto must have increased
+        assertGt(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), 0, "Barn payback balance must have increased");
     }
 
     // note: test distribution at the edge, ~1bil supply, asserts the scaling is correct
@@ -436,5 +456,23 @@ contract BeanstalkShipmentsTest is TestHelper {
         vm.roll(block.number + 2);
         vm.warp(block.timestamp + 30 seconds);
         pinto.sunrise();
+    }
+
+    function increaseSupplyAndDistribute() internal {
+        // get the total supply before minting
+        uint256 totalSupplyBefore = IERC20(L2_PINTO).totalSupply();
+        assertLt(totalSupplyBefore, SUPPLY_THRESHOLD, "Total supply is not below the threshold");
+
+        // mint 1bil supply to get well above the threshold
+        deal(L2_PINTO, address(this), SUPPLY_THRESHOLD, true);
+
+        // get the total supply of pinto
+        uint256 totalSupplyAfter = IERC20(L2_PINTO).totalSupply();
+        console.log("Total supply after minting", totalSupplyAfter);
+        // assert the total supply is above the threshold
+        assertGt(totalSupplyAfter, SUPPLY_THRESHOLD, "Total supply is not above the threshold");
+        assertGt(pinto.totalDeltaB(), 0, "System should be above the value target");
+        // skip 2 blocks and call sunrise
+        _skipAndCallSunrise();
     }
 }

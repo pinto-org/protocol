@@ -13,9 +13,8 @@ const {
  * @param {Object} account - The account to use for the transaction
  * @param {boolean} verbose - Whether to log verbose output
  */
-async function populateBeanstalkField(diamondAddress, account, verbose = false) {
+async function populateBeanstalkField(diamondAddress, account, verbose = false, mockData = false) {
   console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
-  const mockData = true;
 
   // Read and parse the JSON file
   const plotsPath = mockData
