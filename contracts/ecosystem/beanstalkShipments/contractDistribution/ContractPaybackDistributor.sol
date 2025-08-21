@@ -9,6 +9,7 @@ import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
 import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
 
 /**
  * @title ContractPaybackDistributor
@@ -21,6 +22,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *    - For safe multisigs with version >1.3.0 , deploy their safe from the official UI
  *        (https://help.safe.global/en/articles/222612-deploying-a-multi-chain-safe)
  *    - For regular contracts, deploy using the same deployer nonce as on L1 to replicate their address on Base
+ *         (https://github.com/pinto-org/beanstalkContractRedeployer)
  *    - For amibre wallets just perform a transaction on Base to activate their account
  *   Once their address is replicated they can just call claimDirect() and receive their assets.
  *
@@ -31,95 +33,113 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract ContractPaybackDistributor is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    struct AccountFertilizerClaimData {
-        address contractAccount;
+    // Repayment field id
+    uint256 public constant REPAYMENT_FIELD_ID = 1;
+
+    // L2 messenger on the Superchain
+    ICrossDomainMessenger public constant MESSENGER =
+        ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
+
+    // L1 sender: the contract address that sent the claim message from the L1
+    address public constant L1_SENDER = 0x0000000000000000000000000000000000000000;
+
+    struct AccountData {
+        bool whitelisted;
+        bool claimed;
+        uint256 siloPaybackTokensOwed;
         uint256[] fertilizerIds;
         uint256[] fertilizerAmounts;
+        uint256[] plotIds;
+        uint256[] plotStarts;
+        uint256[] plotEnds;
     }
 
-    struct AccountPlotClaimData {
-        address contractAccount;
-        uint256 fieldId;
-        uint256[] ids;
-        uint256[] starts;
-        uint256[] ends;
+    /// @dev contains all the data for all the contract accounts
+    mapping(address => AccountData) public accounts;
+
+    // Beanstalk protocol
+    IBeanstalk immutable PINTO_PROTOCOL;
+    // Silo payback token
+    IERC20 immutable SILO_PAYBACK;
+    // Barn payback token
+    IBarnPayback immutable BARN_PAYBACK;
+
+    modifier onlyWhitelistedCaller(address caller) {
+        require(
+            accounts[caller].whitelisted,
+            "ContractPaybackDistributor: Caller not whitelisted for claim"
+        );
+        _;
     }
 
-    /// @dev whitelisted contract accounts
-    mapping(address contractAccount => bool whitelisted) public isWhitelisted;
-    /// @dev keep track of which contracts have claimed
-    mapping(address contractAccount => bool hasClaimed) public claimed;
-    /// @dev keep track of how many silo payback tokens are owed to each whitelisted contract
-    mapping(address contractAccount => uint256 siloPaybackTokensOwed) public siloPaybackTokensOwed;
-    /// @dev keep track of which fertilizer tokens are owed to each whitelisted contract
-    mapping(address contractAccount => AccountFertilizerClaimData) public accountFertilizer;
-    /// @dev keep track of which plots are owed to each whitelisted contract
-    mapping(address contractAccount => AccountPlotClaimData) public accountPlots;
+    modifier onlyL1Messenger() {
+        require(
+            msg.sender == address(MESSENGER),
+            "ContractPaybackDistributor: Caller not L1 messenger"
+        );
+        require(
+            MESSENGER.xDomainMessageSender() == L1_SENDER,
+            "ContractPaybackDistributor: Bad origin"
+        );
+        _;
+    }
 
-    IBeanstalk immutable pintoProtocol;
-    IERC20 immutable siloPayback;
-    IBarnPayback immutable barnPayback;
+    modifier isValidReceiver(address receiver) {
+        require(receiver != address(0), "ContractPaybackDistributor: Invalid receiver address");
+        _;
+    }
 
     /**
-     * @param _contractAccounts The contract accounts that are allowed to claim
-     * @param _siloPaybackTokensOwed The amount of silo payback tokens owed to each contract
-     * @param _fertilizerClaims The fertilizer claims for each contract
-     * @param _plotClaims The plot claims for each contract
+     * @param _accountsData Array of account data for whitelisted contracts
      * @param _pintoProtocol The pinto protocol address
      * @param _siloPayback The silo payback contract address
      * @param _barnPayback The barn payback contract address
      */
     constructor(
+        AccountData[] memory _accountsData,
         address[] memory _contractAccounts,
-        uint256[] memory _siloPaybackTokensOwed,
-        AccountFertilizerClaimData[] memory _fertilizerClaims,
-        AccountPlotClaimData[] memory _plotClaims,
         address _pintoProtocol,
         address _siloPayback,
         address _barnPayback
     ) {
-        // whitelist the contract accounts and set their claims
+        require(_accountsData.length == _contractAccounts.length, "Init Array length mismatch");
         for (uint256 i = 0; i < _contractAccounts.length; i++) {
-            isWhitelisted[_contractAccounts[i]] = true;
-            siloPaybackTokensOwed[_contractAccounts[i]] = _siloPaybackTokensOwed[i];
-            accountFertilizer[_contractAccounts[i]] = _fertilizerClaims[i];
-            accountPlots[_contractAccounts[i]] = _plotClaims[i];
+            require(_contractAccounts[i] != address(0), "Invalid contract account address");
+            accounts[_contractAccounts[i]] = _accountsData[i];
         }
-        pintoProtocol = IBeanstalk(_pintoProtocol);
-        siloPayback = IERC20(_siloPayback);
-        barnPayback = IBarnPayback(_barnPayback);
+
+        PINTO_PROTOCOL = IBeanstalk(_pintoProtocol);
+        SILO_PAYBACK = IERC20(_siloPayback);
+        BARN_PAYBACK = IBarnPayback(_barnPayback);
     }
 
     /**
-     * @notice Allows a contract account to claim their beanstalk repayment assets directly.
+     * @notice Allows a contract account to claim their beanstalk repayment assets directly to a receiver.
      * @param receiver The address to transfer the assets to
      */
-    function claimDirect(address receiver) external nonReentrant {
-        require(
-            isWhitelisted[msg.sender],
-            "ContractPaybackDistributor: Caller not whitelisted for claim"
-        );
-        require(!claimed[msg.sender], "ContractPaybackDistributor: Caller already claimed");
+    function claimDirect(
+        address receiver
+    ) external nonReentrant onlyWhitelistedCaller(msg.sender) isValidReceiver(receiver) {
+        AccountData storage account = accounts[msg.sender];
+        require(!account.claimed, "ContractPaybackDistributor: Caller already claimed");
 
-        // mark the caller as claimed
-        claimed[msg.sender] = true;
-
+        account.claimed = true;
         _transferAllAssetsForAccount(msg.sender, receiver);
     }
 
-    // receives a message from the l1 and distrubutes all assets.
-    function claimFromMessage(bytes memory message) public nonReentrant {
-        // todo: decode message, verify and send assets.
-
-        require(
-            isWhitelisted[msg.sender],
-            "ContractPaybackDistributor: Caller not whitelisted for claim"
-        );
-        require(!claimed[msg.sender], "ContractPaybackDistributor: Caller already claimed");
-        claimed[msg.sender] = true;
-
-        address receiver = abi.decode(message, (address));
-        // _transferAllAssetsForAccount(msg.sender, receiver);
+    /**
+     * @notice Receives a message from the l1 messenger and distrubutes all assets to a receiver.
+     * @param caller The address of the caller on the l1. (The encoded msg.sender in the message)
+     * @param receiver The address to transfer all the assets to.
+     */
+    function claimFromL1Message(
+        address caller,
+        address receiver
+    ) public nonReentrant onlyL1Messenger onlyWhitelistedCaller(caller) isValidReceiver(receiver) {
+        AccountData storage account = accounts[caller];
+        require(!account.claimed, "ContractPaybackDistributor: Caller already claimed");
+        account.claimed = true;
+        _transferAllAssetsForAccount(caller, receiver);
     }
 
     /**
@@ -129,31 +149,20 @@ contract ContractPaybackDistributor is ReentrancyGuard {
      * @param receiver The address to transfer the assets to
      */
     function _transferAllAssetsForAccount(address account, address receiver) internal {
-        // get the amount of silo payback tokens owed to the contract account
-        uint256 claimableSiloPaybackTokens = siloPaybackTokensOwed[account];
+        AccountData storage accountData = accounts[account];
 
-        // get the amount of fertilizer tokens owed to the contract account
-        uint256[] memory fertilizerIds = accountFertilizer[account].fertilizerIds;
-        uint256[] memory fertilizerAmounts = accountFertilizer[account].fertilizerAmounts;
-
-        // get the amount of plots owed to the contract account
-        uint256 fieldId = accountPlots[account].fieldId;
-        uint256[] memory plotIds = accountPlots[account].ids;
-        uint256[] memory starts = accountPlots[account].starts;
-        uint256[] memory ends = accountPlots[account].ends;
-
-        // transfer silo payback tokens to the contract account
-        if (claimableSiloPaybackTokens > 0) {
-            siloPayback.safeTransfer(receiver, claimableSiloPaybackTokens);
+        // transfer silo payback tokens to the receiver
+        if (accountData.siloPaybackTokensOwed > 0) {
+            SILO_PAYBACK.safeTransfer(receiver, accountData.siloPaybackTokensOwed);
         }
 
-        // transfer fertilizer erc115s to the contract account
-        if (fertilizerIds.length > 0) {
-            barnPayback.safeBatchTransferFrom(
+        // transfer fertilizer ERC1155s to the receiver
+        if (accountData.fertilizerIds.length > 0) {
+            BARN_PAYBACK.safeBatchTransferFrom(
                 address(this),
                 receiver,
-                fertilizerIds,
-                fertilizerAmounts,
+                accountData.fertilizerIds,
+                accountData.fertilizerAmounts,
                 ""
             );
         }
@@ -162,8 +171,16 @@ contract ContractPaybackDistributor is ReentrancyGuard {
         // todo: very unlikely but need to test with
         // 0xBc7c5f21C632c5C7CA1Bfde7CBFf96254847d997 that has a ton of plots
         // to make sure gas is not an issue
-        if (plotIds.length > 0) {
-            pintoProtocol.transferPlots(address(this), receiver, fieldId, plotIds, starts, ends);
+        // todo: may require an allowance to be set on the plots of this contract
+        if (accountData.plotIds.length > 0) {
+            PINTO_PROTOCOL.transferPlots(
+                address(this),
+                receiver,
+                REPAYMENT_FIELD_ID,
+                accountData.plotIds,
+                accountData.plotStarts,
+                accountData.plotEnds
+            );
         }
     }
 }
