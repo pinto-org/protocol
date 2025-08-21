@@ -10,6 +10,7 @@ import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 
 /**
  * @title ContractPaybackDistributor
@@ -30,7 +31,7 @@ import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.
  *    received, calls claimFromMessage and receive their assets in an address of their choice
  *
  */
-contract ContractPaybackDistributor is ReentrancyGuard {
+contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
     using SafeERC20 for IERC20;
 
     // Repayment field id
@@ -91,9 +92,10 @@ contract ContractPaybackDistributor is ReentrancyGuard {
 
     /**
      * @param _accountsData Array of account data for whitelisted contracts
+     * @param _contractAccounts Array of contract account addresses to whitelist
      * @param _pintoProtocol The pinto protocol address
-     * @param _siloPayback The silo payback contract address
-     * @param _barnPayback The barn payback contract address
+     * @param _siloPayback The silo payback token address
+     * @param _barnPayback The barn payback token address
      */
     constructor(
         AccountData[] memory _accountsData,
@@ -182,5 +184,43 @@ contract ContractPaybackDistributor is ReentrancyGuard {
                 accountData.plotEnds
             );
         }
+    }
+
+    //////////////////////////// ERC1155Receiver ////////////////////////////
+
+    /**
+     * @dev For this contract to receive minted fertilizers from the barn payback contract,
+     * it must implement the IERC1155Receiver interface.
+     */
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) external returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    /**
+     * @dev For this contract to receive minted fertilizers from the barn payback contract,
+     * it must implement the IERC1155Receiver interface.
+     */
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    /**
+     * @dev For this contract to receive minted fertilizers from the barn payback contract,
+     * it must implement the IERC1155Receiver interface.
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId;
     }
 }

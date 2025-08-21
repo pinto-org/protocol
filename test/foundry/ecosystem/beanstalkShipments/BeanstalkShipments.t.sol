@@ -94,6 +94,67 @@ contract BeanstalkShipmentsTest is TestHelper {
     // - make sure that at any point all users can claim their rewards pro rata
     function setUp() public {}
 
+    //////////////////////// SHIPMENT DISTRIBUTION ////////////////////////
+
+    // note: test distribution normal case, well above 1billion supply
+    function test_shipmentDistributionKicksInAtCorrectSupply() public {
+        // get the total delta b before sunrise aka the expected pinto mints
+        int256 totalDeltaBBefore = pinto.totalDeltaB();
+        // 1% of the total delta b shiped to each payback contract, totalDeltaBBefore here is positive
+        uint256 expectedPintoMints = uint256(totalDeltaBBefore) * 0.01e18 / 1e18;
+
+        // supply is 1,010bil, sunrise is called and new pintos are distributed
+        increaseSupplyAndDistribute();
+
+        /////////// PAYBACK FIELD ///////////
+
+        // assert that: 1 % of mints went to the payback field so harvestable index must have increased
+        assertGt(
+            pinto.harvestableIndex(PAYBACK_FIELD_ID),
+            0,
+            "Harvestable index must have increased"
+        );
+        // assert the harvestable index is within 0.1% of the expected pinto mints shiped to the payback field
+        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.001e18);
+
+        /////////// SILO PAYBACK ///////////
+
+        // assert that: 1 % of mints went to the silo so silo payback balance of pinto must have increased
+        assertGt(
+            IERC20(L2_PINTO).balanceOf(SILO_PAYBACK),
+            0,
+            "Silo payback balance must have increased"
+        );
+        // assert the silo payback balance is within 0.1% of the expected pinto mints shipped to the silo
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.001e18);
+
+        /////////// BARN PAYBACK ///////////
+
+        // assert that: 1 % of mints went to the barn so barn payback balance of pinto must have increased
+        assertGt(
+            IERC20(L2_PINTO).balanceOf(BARN_PAYBACK),
+            0,
+            "Barn payback balance must have increased"
+        );
+        // assert the barn payback balance is within 0.1% of the expected pinto mints shipped to the barn
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), expectedPintoMints, 0.001e18);
+    }
+
+    // note: test distribution at the edge, ~1bil supply, asserts the scaling is correct
+    function test_shipmentDistributionScaledAtSupplyEdge() public {}
+
+    // note: test when a payback is done,
+    // replace the payback contracts with mock contracts via etch to return 0 on silo and barn payback remaining calls
+    // or use vm.mockCall to return 0 on silo and barn payback remaining calls
+    function test_shipmentDistributionFinishesWhenNoRemainingPayback() public {}
+
+    // note: test that all users can claim their rewards at any point
+    // iterate through the accounts array of silo and fert payback and claim the rewards for each
+    // silo
+    function test_siloPaybackClaimShipmentDistribution() public {}
+    // barn
+    function test_barnPaybackClaimShipmentDistribution() public {}
+
     //////////////////////// STATE VERIFICATION ////////////////////////
 
     function test_beanstalkShipmentRoutes() public {
@@ -367,38 +428,6 @@ contract BeanstalkShipmentsTest is TestHelper {
             }
         }
     }
-
-    //////////////////////// SHIPMENT DISTRIBUTION ////////////////////////
-
-    // note: test distribution normal case, well above 1billion supply
-    function test_shipmentDistributionKicksInAtCorrectSupply() public {
-        // supply is 1,010bil, sunrise is called and new pintos are distributed
-        increaseSupplyAndDistribute();
-
-        // assert that: 1 % of mints went to the payback field so harvestable index must have increased
-        assertGt(pinto.harvestableIndex(PAYBACK_FIELD_ID), 0, "Harvestable index must have increased");
-
-        // assert that: 1 % of mints went to the silo so silo payback balance of pinto must have increased
-        assertGt(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), 0, "Silo payback balance must have increased");
-
-        // assert that: 1 % of mints went to the barn so barn payback balance of pinto must have increased
-        assertGt(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), 0, "Barn payback balance must have increased");
-    }
-
-    // note: test distribution at the edge, ~1bil supply, asserts the scaling is correct
-    function test_shipmentDistributionScaledAtSupplyEdge() public {}
-
-    // note: test when a payback is done,
-    // replace the payback contracts with mock contracts via etch to return 0 on silo and barn payback remaining calls
-    // or use vm.mockCall to return 0 on silo and barn payback remaining calls
-    function test_shipmentDistributionFinishesWhenNoRemainingPayback() public {}
-
-    // note: test that all users can claim their rewards at any point
-    // iterate through the accounts array of silo and fert payback and claim the rewards for each
-    // silo
-    function test_siloPaybackClaimShipmentDistribution() public {}
-    // barn
-    function test_barnPaybackClaimShipmentDistribution() public {}
 
     //////////////////// Helper Functions ////////////////////
 

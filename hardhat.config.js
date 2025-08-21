@@ -23,6 +23,7 @@ const {
   PINTO_DIAMOND_DEPLOYER,
   BEANSTALK_SHIPMENTS_DEPLOYER,
   BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
+  BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
   L2_PCM,
   BASE_BLOCK_TIME,
   PINTO_WETH_WELL_BASE,
@@ -2097,7 +2098,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     }
 
     // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
-    console.log("🛤️  STEP 2: ADDING NEW TEMPREPAYMENTFIELD FACET TO THE PINTO DIAMOND");
+    console.log("🛤️  STEP 2: ADDING NEW TEMP_REPAYMENT_FIELD_FACET TO THE PINTO DIAMOND");
     console.log("-".repeat(50));
 
     await upgradeWithNewFacets({
@@ -2192,6 +2193,32 @@ task(
     verbose: true,
     account: owner
   });
+});
+
+// As a backup solution, ethAccounts will be able to send a message on the L1 to claim their assets on the L2
+// from the L2 ContractPaybackDistributor contract. We deploy the L1ContractMessenger contract on the L1
+// and whitelist the ethAccounts that are eligible to claim their assets.
+task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(async (taskArgs) => {
+  const mock = true;
+  let deployer;
+  if (mock) {
+    deployer = await impersonateSigner(L2_PCM);
+    await mintEth(deployer.address);
+  } else {
+    deployer = (await ethers.getSigners())[0];
+  }
+
+  // read the contract accounts from the json file
+  const contractAccounts = JSON.parse(fs.readFileSync("./scripts/beanstalkShipments/data/ethContractAccounts.json"));
+
+  const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
+  const l1Messenger = await L1Messenger.deploy(
+    BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
+    contractAccounts
+  );
+  await l1Messenger.deployed();
+
+  console.log("L1ContractMessenger deployed to:", l1Messenger.address);
 });
 
 //////////////////////// CONFIGURATION ////////////////////////
