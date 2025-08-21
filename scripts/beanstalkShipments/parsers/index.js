@@ -1,6 +1,7 @@
 const parseBarnData = require('./parseBarnData');
 const parseFieldData = require('./parseFieldData');
 const parseSiloData = require('./parseSiloData');
+const parseContractData = require('./parseContractData');
 
 /**
  * Main parser orchestrator that runs all parsers
@@ -28,11 +29,17 @@ function parseAllExportData(parseContracts = false) {
     console.log('-'.repeat(30));
     results.silo = parseSiloData(parseContracts);
     
+    // Parse contract data for distributor initialization
+    console.log('🏗️  CONTRACT DISTRIBUTOR DATA');
+    console.log('-'.repeat(30));
+    results.contracts = parseContractData(parseContracts);
+    
     console.log('📋 PARSING SUMMARY');
     console.log('-'.repeat(30));
     console.log(`📊 Barn: ${results.barn.stats.fertilizerIds} fertilizer IDs, ${results.barn.stats.accountEntries} account entries`);
     console.log(`📊 Field: ${results.field.stats.totalAccounts} accounts, ${results.field.stats.totalPlots} plots`);
     console.log(`📊 Silo: ${results.silo.stats.totalAccounts} accounts with BDV`);
+    console.log(`📊 Contracts: ${results.contracts.stats.totalContracts} contracts for distributor`);
     console.log(`📊 Include contracts: ${parseContracts}`);
     
     return results;
@@ -47,5 +54,6 @@ module.exports = {
   parseBarnData,
   parseFieldData,
   parseSiloData,
+  parseContractData,
   parseAllExportData
 };

@@ -24,7 +24,7 @@ async function populateBeanstalkField({ diamondAddress, account, verbose, mockDa
   const rawPlotData = JSON.parse(fs.readFileSync(plotsPath));
 
   // Split into chunks for processing
-  const targetEntriesPerChunk = 500;
+  const targetEntriesPerChunk = 300;
   const plotChunks = splitEntriesIntoChunksOptimized(rawPlotData, targetEntriesPerChunk);
   console.log(`Starting to process ${plotChunks.length} chunks...`);
 

@@ -2121,10 +2121,10 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     }
 
     // Step 4: Update shipment routes and create new field
-    // The season facet will also need to be updated to support the new receipients in the
+    // The SeasonFacet will also need to be updated to support the new receipients in the
     // ShipmentRecipient enum in System.sol since the facet inherits from Distribution.sol
     // That contains the function getShipmentRoutes() which reads the shipment routes from storage
-    // and imports the ShipmentRoute struct.
+    // and imports the ShipmentRoute struct. LibReceiving was also updated.
     console.log("\n🛤️  STEP 4: UPDATING SHIPMENT ROUTES AND CREATING NEW FIELD");
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));

@@ -46,16 +46,40 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   console.log("✅ ShipmentPlanner deployed to:", shipmentPlannerContract.address);
 
   //////////////////////////// Contract Payback Distributor ////////////////////////////
-  // console.log("\n📦 Deploying ContractPaybackDistributor...");
-  // const contractPaybackDistributorFactory = await ethers.getContractFactory("ContractPaybackDistributor", account);
-  // const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy();
-  // await contractPaybackDistributorContract.deployed();
-  // console.log("✅ ContractPaybackDistributor deployed to:", contractPaybackDistributorContract.address);
+  console.log("\n📦 Deploying ContractPaybackDistributor...");
+  const contractPaybackDistributorFactory = await ethers.getContractFactory("ContractPaybackDistributor", account);
+  
+  // Load contract accounts and initialization data
+  const contractAccountsPath = "./scripts/beanstalkShipments/data/ethContractAccounts.json";
+  const initDataPath = "./scripts/beanstalkShipments/data/ethAccountDistributorInit.json";
+  
+  let contractAccounts = [];
+  let initData = [];
+  
+  try {
+    contractAccounts = JSON.parse(fs.readFileSync(contractAccountsPath));
+    initData = JSON.parse(fs.readFileSync(initDataPath));
+    console.log(`📊 Loaded ${contractAccounts.length} contract accounts for initialization`);
+  } catch (error) {
+    console.log("⚠️  No contract data found - deploying with empty initialization");
+    console.log("   Run parsers with includeContracts=true to generate contract data");
+  }
+  
+  const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy(
+    initData,           // AccountData[] memory _accountsData
+    contractAccounts,   // address[] memory _contractAccounts
+    PINTO,             // address _pintoProtocol
+    siloPaybackContract.address,  // address _siloPayback
+    barnPaybackContract.address   // address _barnPayback
+  );
+  await contractPaybackDistributorContract.deployed();
+  console.log("✅ ContractPaybackDistributor deployed to:", contractPaybackDistributorContract.address);
 
   return {
     siloPaybackContract,
     barnPaybackContract,
-    shipmentPlannerContract
+    shipmentPlannerContract,
+    contractPaybackDistributorContract
   };
 }
 
