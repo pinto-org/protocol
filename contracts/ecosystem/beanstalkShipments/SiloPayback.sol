@@ -35,7 +35,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     mapping(address => uint256) public rewards;
 
     /// @dev event emitted when user claims rewards
-    event Claimed(address indexed user, uint256 amount, uint256 rewards);
+    event Claimed(address indexed user, uint256 amount, LibTransfer.To toMode);
     /// @dev event emitted when rewards are received from shipments
     event SiloPaybackRewardsReceived(uint256 amount, uint256 newIndex);
     /// @dev event emitted when unripe bdv tokens are minted
@@ -95,47 +95,23 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /////////////////// Claiming rewards ///////////////////
 
     /**
-     * @notice Claims accumulated rewards for the caller, optionally for a specific token amount
-     * If no active tractor execution, the caller is msg.sender.
-     * Otherwise it is the active blueprint publisher
-     * By specifying the token amount to claim for, users can partially claim using tokens from their internal
-     * balance without actually specfifying a mode where the rewards are stored.
-     * @param tokenAmount The amount of tokens to claim rewards for (0 to claim for the entire balance)
+     * @notice Claims accumulated rewards for an account and sends them to a recipient's external or internal balance
+     * If no active tractor execution, the caller is msg.sender. Otherwise it is the active blueprint publisher
      * @param recipient The address to send the rewards to
      * @param toMode The mode to send the rewards in
      */
-    function claim(uint256 tokenAmount, address recipient, LibTransfer.To toMode) external {
+    function claim(address recipient, LibTransfer.To toMode) external {
         address account = _getActiveAccount();
         uint256 userCombinedBalance = getBalanceCombined(account);
 
-        // If tokenAmount is 0, claim for all tokens
-        if (tokenAmount == 0) tokenAmount = userCombinedBalance;
-
-        // Validate tokenAmount and balance
-        require(tokenAmount > 0, "SiloPayback: tokenAmount to claim for must be greater than 0");
+        // Validate balance
         require(userCombinedBalance > 0, "SiloPayback: token balance must be greater than 0");
-        require(
-            tokenAmount <= userCombinedBalance,
-            "SiloPayback: tokenAmount to claim for exceeds balance"
-        );
 
-        // update the reward state for the account
+        // Update the reward state for the account
         _updateReward(account);
-        uint256 totalEarned = rewards[account];
-        require(totalEarned > 0, "SiloPayback: no rewards to claim");
-
-        uint256 rewardsToClaim;
-        if (tokenAmount == userCombinedBalance) {
-            // full balance claim, reset rewards to 0
-            rewardsToClaim = totalEarned;
-            rewards[account] = 0;
-        } else {
-            // partial claim, rewards are proportional to the token amount specified
-            rewardsToClaim = (totalEarned * tokenAmount) / userCombinedBalance;
-            // update rewards to reflect the portion claimed
-            // maintains consistency since the user's checkpoint remains valid
-            rewards[account] = totalEarned - rewardsToClaim;
-        }
+        uint256 rewardsToClaim = rewards[account];
+        require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
+        rewards[account] = 0;
 
         // Transfer the rewards to the recipient
         pintoProtocol.transferToken(
@@ -146,7 +122,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             toMode
         );
 
-        emit Claimed(account, tokenAmount, rewardsToClaim);
+        emit Claimed(account, rewardsToClaim, toMode);
     }
 
     /**

@@ -26,9 +26,6 @@ contract SiloPaybackTest is TestHelper {
     uint256 constant PRECISION = 1e18;
     uint256 constant INITIAL_MINT_AMOUNT = 1000e6; // 1000 tokens with 6 decimals
 
-    event Claimed(address indexed user, uint256 amount, uint256 rewards);
-    event RewardsReceived(uint256 amount, uint256 newIndex);
-
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
@@ -112,27 +109,6 @@ contract SiloPaybackTest is TestHelper {
         assertEq(siloPayback.earned(farmer1) + siloPayback.earned(farmer2), rewardAmount);
     }
 
-    function test_siloPaybackEarnedCalculationMultipleUsersPartialInternalBalance() public {
-        // Mint tokens: farmer1 40%, farmer2 60%
-        _mintTokensToUser(farmer1, 400e6, LibTransfer.To.INTERNAL);
-        _mintTokensToUser(farmer2, 600e6, LibTransfer.To.INTERNAL);
-
-        // Get initial internal balances
-        uint256 farmer1InternalBefore = bs.getInternalBalance(farmer1, address(BEAN));
-        uint256 farmer2InternalBefore = bs.getInternalBalance(farmer2, address(BEAN));
-
-        // Send rewards
-        uint256 rewardAmount = 150e6;
-        _sendRewardsToContract(rewardAmount);
-
-        // Check proportional rewards
-        assertEq(siloPayback.earned(farmer1), 60e6); // 40% of 150
-        assertEq(siloPayback.earned(farmer2), 90e6); // 60% of 150
-
-        // Total should equal reward amount
-        assertEq(siloPayback.earned(farmer1) + siloPayback.earned(farmer2), rewardAmount);
-    }
-
     ////////////// Claim //////////////
 
     /**
@@ -157,7 +133,7 @@ contract SiloPaybackTest is TestHelper {
         // farmer1 claims immediately after first distribution (claiming every season)
         uint256 farmer1BalanceBefore = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
-        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // Verify farmer1 received rewards and state is updated
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBefore + farmer1Earned1);
@@ -187,7 +163,7 @@ contract SiloPaybackTest is TestHelper {
         // Now farmer1 claims again (claiming every season)
         uint256 farmer1BalanceBeforeClaim2 = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
-        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // farmer1 should have received their second round rewards
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBeforeClaim2 + farmer1Earned2);
@@ -196,47 +172,11 @@ contract SiloPaybackTest is TestHelper {
         // farmer2 finally claims all accumulated rewards
         uint256 farmer2BalanceBefore = IERC20(BEAN).balanceOf(farmer2);
         vm.prank(farmer2);
-        siloPayback.claim(0, farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // farmer2 should receive all their accumulated rewards
         assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2BalanceBefore + farmer2Earned2);
         assertEq(siloPayback.earned(farmer2), 0);
-    }
-
-    /**
-     * @dev test that a user can claim a partial amount of their rewards and then the remaining rewards
-     */
-    function test_siloPayback1UserPartialClaim() public {
-        // Setup: farmer1 has 40%
-        _mintTokensToUser(farmer1, 400e6, LibTransfer.To.EXTERNAL); // farmer1 has 40%
-        _mintTokensToUser(farmer2, 600e6, LibTransfer.To.EXTERNAL); // farmer2 has 60%
-
-        // First distribution: 100 BEAN rewards
-        _sendRewardsToContract(100e6);
-
-        uint256 amountToClaimFor = 200e6; // 50% of farmer1's balance
-
-        // farmer1 claims 50% of their balance
-        vm.prank(farmer1);
-        siloPayback.claim(amountToClaimFor, farmer1, LibTransfer.To.EXTERNAL);
-        uint256 farmer1BalanceAfter = IERC20(BEAN).balanceOf(farmer1);
-
-        // Verify farmer1 claimed 20% of total rewards, 20e6 still remaining
-        assertEq(siloPayback.earned(farmer1), 20e6);
-        // state has synced but some rewards remain
-        assertEq(siloPayback.userRewardPerTokenPaid(farmer1), siloPayback.rewardPerTokenStored());
-        // verify balance of bean for farmer1 is 20e6
-        assertEq(IERC20(BEAN).balanceOf(farmer1), 20e6);
-
-        // then the user claims the remaining rewards
-        vm.prank(farmer1);
-        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
-
-        // verify balance of bean for farmer1 is 40e6, the full pro rata reward
-        assertEq(IERC20(BEAN).balanceOf(farmer1), 40e6);
-        // verify state is still synced but no rewards remain
-        assertEq(siloPayback.earned(farmer1), 0);
-        assertEq(siloPayback.userRewardPerTokenPaid(farmer1), siloPayback.rewardPerTokenStored());
     }
 
     /**
@@ -262,10 +202,10 @@ contract SiloPaybackTest is TestHelper {
 
         // Both farmers claim to INTERNAL balance
         vm.prank(farmer1);
-        siloPayback.claim(0, farmer1, LibTransfer.To.INTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.INTERNAL); // 0 means claim all
 
         vm.prank(farmer2);
-        siloPayback.claim(0, farmer2, LibTransfer.To.INTERNAL); // 0 means claim all
+        siloPayback.claim(farmer2, LibTransfer.To.INTERNAL); // 0 means claim all
 
         // Verify both farmers' rewards went to internal balance
         uint256 farmer1InternalAfter = bs.getInternalBalance(farmer1, address(BEAN));
@@ -407,13 +347,13 @@ contract SiloPaybackTest is TestHelper {
 
         // Claim for all users
         vm.prank(farmer1);
-        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         vm.prank(farmer2);
-        siloPayback.claim(0, farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         vm.prank(farmer3);
-        siloPayback.claim(0, farmer3, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer3, LibTransfer.To.EXTERNAL); // 0 means claim all
 
         // Verify all rewards were paid out correctly
         assertEq(
@@ -469,7 +409,7 @@ contract SiloPaybackTest is TestHelper {
         assertEq(farmer1Earned, 50e6); // 50% of 100
         // claim the rewards
         vm.prank(farmer1);
-        siloPayback.claim(0, farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
         // user reward paid is synced to the global reward per token stored
         assertEq(
             siloPayback.userRewardPerTokenPaid(farmer1),
