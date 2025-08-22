@@ -12,6 +12,7 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ShipmentRecipient, ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
+import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 
 /**
  * @notice Tests shipment distribution and claiming functionality for the beanstalk shipments system.
@@ -120,9 +121,75 @@ contract BeanstalkShipmentsTest is TestHelper {
     }
 
     /**
-     * @notice Test distribution at the edge, ~1bil supply, asserts the scaling is correct
+     * @notice Test distribution at the edge, ~1bil supply, checks that the scaling is correct
+     * checks that all paybacks and budget receive pintos
      */
-    function test_shipmentDistributionScaledAtSupplyEdge() public {}
+    function test_shipmentDistributionScaledAtSupplyEdge() public {
+        // increase supply at the edge, get the new supply to calculate the ratio
+        increaseSupplyAtEdge();
+
+        // get the total delta b before sunrise aka the expected pinto mints
+        uint256 totalDeltaBBefore = uint256(pinto.totalDeltaB());
+        // get total supply before sunrise
+        uint256 beanSupplyBefore = IERC20(L2_PINTO).totalSupply();
+
+        // skip 2 blocks and call sunrise, distribute the pintos, expect all shipment receipts to be emitted
+        vm.expectEmit(true, false, true, false);
+        emit LibReceiving.Receipt(ShipmentRecipient.SILO, 0, abi.encode(0)); // SILO
+        emit LibReceiving.Receipt(ShipmentRecipient.FIELD, 0, abi.encode(0)); // FIELD
+        emit LibReceiving.Receipt(ShipmentRecipient.INTERNAL_BALANCE, 0, abi.encode(DEV_BUDGET)); // BUDGET
+        emit LibReceiving.Receipt(
+            ShipmentRecipient.FIELD,
+            0,
+            abi.encode(PAYBACK_FIELD_ID, SILO_PAYBACK, BARN_PAYBACK)
+        ); // PAYBACK FIELD
+        emit LibReceiving.Receipt(
+            ShipmentRecipient.SILO_PAYBACK,
+            0,
+            abi.encode(SILO_PAYBACK, BARN_PAYBACK)
+        ); // SILO PAYBACK
+        emit LibReceiving.Receipt(
+            ShipmentRecipient.BARN_PAYBACK,
+            0,
+            abi.encode(SILO_PAYBACK, BARN_PAYBACK)
+        ); // BARN PAYBACK
+        _skipAndCallSunrise();
+
+        // total delta b before sunrise was 18224884688
+        // bean supply before sunrise was 999990000000000
+        // uint256 remainingBudget = SUPPLY_BUDGET_FLIP - (beanSupply - seasonalMints)
+        // 1_000_000_000e6 - (999990000000000 - 18224884688) = ~28_224e6
+
+        // ratio = (remainingBudget * PRECISION) / seasonalMints
+        // ratio = (28224000000 * 1e18) / 18224884688 = ~1,5486e18 aka 1,005486%
+
+        // all paybacks are active so all points are 1%
+        // and scaled by the ratio (points = (points * paybackRatio) / PRECISION;)
+        // so the expected pinto mints should be slighly less than the 1% of the total delta b
+        // since a portion still goes to the budget so around ~181e6 pintos
+
+        // get the scaled ratio
+        uint256 remainingBudget = SUPPLY_THRESHOLD - (beanSupplyBefore - totalDeltaBBefore);
+        uint256 scaledRatio = (remainingBudget * 1e18) / totalDeltaBBefore;
+        // 1,0054870032 => 1,005487% of the total delta b
+
+        // get the expected pinto mints. first get the 1%
+        uint256 expectedPintoMints = (totalDeltaBBefore * 0.01e18) / 1e18;
+        // then scale it by the ratio
+        expectedPintoMints = (expectedPintoMints * scaledRatio) / 1e18;
+
+        /////////// PAYBACK FIELD ///////////
+        // assert that the expected pinto mints are equal to the actual pinto mints with a 1.5% tolerance
+        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.015e18);
+
+        /////////// SILO PAYBACK ///////////
+        // assert that the silo payback balance of pinto must have increased
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.015e18);
+
+        /////////// BARN PAYBACK ///////////
+        // assert that the barn payback balance of pinto must have increased
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), expectedPintoMints, 0.015e18);
+    }
 
     /**
      * @notice Test that the shipment distribution finishes when no remaining payback
@@ -185,7 +252,7 @@ contract BeanstalkShipmentsTest is TestHelper {
     }
 
     /**
-     * @notice Test when the silo payback is done and the barn payback is done, 
+     * @notice Test when the silo payback is done and the barn payback is done,
      * all 3% of mints should go to the payback field
      */
     function test_shipmentDistributionWhenNoRemainingSiloPayback() public {
@@ -202,7 +269,12 @@ contract BeanstalkShipmentsTest is TestHelper {
 
         /////////// PAYBACK FIELD ///////////
         // assert that the payback field harvestable index must have increased by the expected pinto mints
-        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.001e18, "Payback field harvestable index mismatch");
+        assertApproxEqRel(
+            pinto.harvestableIndex(PAYBACK_FIELD_ID),
+            expectedPintoMints,
+            0.001e18,
+            "Payback field harvestable index mismatch"
+        );
 
         /////////// SILO PAYBACK ///////////
         // assert remaining is 0
@@ -213,7 +285,7 @@ contract BeanstalkShipmentsTest is TestHelper {
         assertEq(barnPayback.barnRemaining(), 0);
     }
 
-    //////////////////////// CLAIMING ////////////////////////
+    //////////////////////// REGULAR ACCOUNT CLAIMING ////////////////////////
 
     // note: test that all users can claim their rewards at any point
     // iterate through the accounts array of silo and fert payback and claim the rewards for each
@@ -223,6 +295,8 @@ contract BeanstalkShipmentsTest is TestHelper {
     function test_barnPaybackClaimShipmentDistribution() public {}
     // payback field
     function test_paybackFieldClaimShipmentDistribution() public {}
+
+    //////////////////////// CONTRACT ACCOUNT CLAIMING ////////////////////////
 
     // check that all contract accounts can claim their rewards directly
     function test_contractAccountsCanClaimShipmentDistribution() public {}
@@ -274,12 +348,37 @@ contract BeanstalkShipmentsTest is TestHelper {
 
         // get the total supply of pinto
         uint256 totalSupplyAfter = IERC20(L2_PINTO).totalSupply();
-        console.log("Total supply after minting", totalSupplyAfter);
         // assert the total supply is above the threshold
         assertGt(totalSupplyAfter, SUPPLY_THRESHOLD, "Total supply is not above the threshold");
         assertGt(pinto.totalDeltaB(), 0, "System should be above the value target");
         // skip 2 blocks and call sunrise
         _skipAndCallSunrise();
+    }
+
+    function increaseSupplyAtEdge() internal {
+        // get the total supply before minting
+        uint256 totalSupplyBefore = IERC20(L2_PINTO).totalSupply();
+        assertLt(totalSupplyBefore, SUPPLY_THRESHOLD, "Total supply is not below the threshold");
+
+        // mint ~990mil so that some mints should go to budget and some to payback contracts
+        // 10_000_000 + 1_000_000_000 - 10_000_000 - 100 = 999_999_000 pintos before sunrise
+        // 18_000 * 0,03 = 540 pintos should go to the budget if there were no paybacks
+        // now that there are paybacks, the should get 540 - 100 = 440 pintos split between silo, barn and payback field
+        deal(L2_PINTO, address(this), SUPPLY_THRESHOLD - totalSupplyBefore - 100e6, true);
+
+        // assert that the minting did not exceed the payback threshold
+        uint256 totalSupplyAfterMinting = IERC20(L2_PINTO).totalSupply();
+        assertLt(
+            totalSupplyAfterMinting,
+            SUPPLY_THRESHOLD,
+            "Total supply is not below the threshold"
+        );
+        // assert that the sum of the 2 exceeeds the threshold
+        assertGt(
+            IERC20(L2_PINTO).totalSupply() + uint256(pinto.totalDeltaB()),
+            SUPPLY_THRESHOLD,
+            "Total supply and delta b before sunrise does not exceed the threshold"
+        );
     }
 
     function _mockFinishPayback(bool silo, bool barn, bool field) internal {
@@ -305,4 +404,7 @@ contract BeanstalkShipmentsTest is TestHelper {
             );
         }
     }
+
+    /// @dev, does not check the shipment amounts, only the recipients and the data
+    function expectPaybackShipmentReceipts() internal {}
 }

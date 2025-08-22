@@ -17,9 +17,10 @@ interface IContractPaybackDistributor {
  * eligible for beanstalk repayment assets but are unable to claim their assets directly on Base.
  */
 contract L1ContractMessenger {
-    // Superchain messenger from Ethereum L1
+    // Base Superchain messenger from Ethereum L1
+    // (https://docs.base.org/base-chain/network-information/base-contracts#l1-contract-addresses)
     ICrossDomainMessenger public constant MESSENGER =
-        ICrossDomainMessenger(0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1);
+        ICrossDomainMessenger(0x866E82a600A1414e583f7F13623F1aC5d58b0Afa);
     // The address of the L2 ContractPaybackDistributor contract
     address public immutable L2_CONTRACT_PAYBACK_DISTRIBUTOR;
 
