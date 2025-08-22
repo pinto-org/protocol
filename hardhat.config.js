@@ -23,6 +23,7 @@ const {
   PINTO_DIAMOND_DEPLOYER,
   BEANSTALK_SHIPMENTS_DEPLOYER,
   BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
+  L1_CONTRACT_MESSENGER_DEPLOYER,
   BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
   L2_PCM,
   BASE_BLOCK_TIME,
@@ -2025,6 +2026,8 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     console.log("-----------------------------------");
   });
 
+  //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
+
 task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments").setAction(
   async (taskArgs) => {
     console.log("=".repeat(80));
@@ -2202,7 +2205,7 @@ task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").se
   const mock = true;
   let deployer;
   if (mock) {
-    deployer = await impersonateSigner(L2_PCM);
+    deployer = await impersonateSigner(L1_CONTRACT_MESSENGER_DEPLOYER);
     await mintEth(deployer.address);
   } else {
     deployer = (await ethers.getSigners())[0];

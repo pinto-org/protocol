@@ -120,14 +120,28 @@ module.exports = {
   DEV_BUDGET_PROXY: "0xb0cdb715D8122bd976a30996866Ebe5e51bb18b0",
   RESERVES_5_PERCENT_MULTISIG: "0x4FAE5420F64c282FD908fdf05930B04E8e079770",
 
-  // Beanstalk Shipments
+  //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
+  // EOA That will deploy the beanstlak shipment contracts
   BEANSTALK_SHIPMENTS_DEPLOYER: "0x47c365cc9ef51052651c2be22f274470ad6afc53",
-  BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR: "0xc4c66c8b199443a8dea5939ce175c3592e349791",
+  // Expected proxt address of the silo payback contract
   BEANSTALK_SILO_PAYBACK: "0x9E449a18155D4B03C2E08A4E28b2BcAE580efC4E",
+  BEANSTALK_SILO_PAYBACK_IMPLEMENTATION: "0x3E0635B980714303351DAeE305dB1A380C56ed38",
+  // Expected proxt address of the barn payback contract
   BEANSTALK_BARN_PAYBACK: "0x71ad4dCd54B1ee0FA450D7F389bEaFF1C8602f9b",
+  BEANSTALK_BARN_PAYBACK_IMPLEMENTATION: "0xeB447cE47107f0c7406716d60Ede2107CE73e5f2",
+  // Expected proxt address of the shipment planner contract
   BEANSTALK_SHIPMENT_PLANNER: "0x1152691C30aAd82eB9baE7e32d662B19391e34Db",
-  // todo figure out address of this based on nonce of deployer
-  BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR: "0x87b06da4be8a4a4d6b2509038532b2f8b2590dcb",
+  // Expected proxt address of the contract payback distributor contract
+  BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR: "0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000",
+
+  // EOA that will populate the repayment field
+  BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR: "0xc4c66c8b199443a8dea5939ce175c3592e349791",
+
+  // Contract Messenger
+  // L1 Contract Messenger deployer
+  L1_CONTRACT_MESSENGER_DEPLOYER: "0xbfb5d09ffcbe67fbed9970b893293f21778be0a6",
+  // L1 Contract Messenger
+  L1_CONTRACT_MESSENGER: "0x4200000000000000000000000000000000000007",
 
   // Wells
   PINTO_WETH_WELL_BASE,

@@ -2,7 +2,10 @@
 pragma solidity ^0.8.20;
 
 library LibTransfer {
-    type To is uint8;
+    enum To {
+        EXTERNAL,
+        INTERNAL
+    }
 }
 
 library BeanstalkFertilizer {

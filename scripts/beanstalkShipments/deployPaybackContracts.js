@@ -68,7 +68,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy(
     initData,           // AccountData[] memory _accountsData
     contractAccounts,   // address[] memory _contractAccounts
-    PINTO,             // address _pintoProtocol
+    L2_PINTO,          // address _pintoProtocol
     siloPaybackContract.address,  // address _siloPayback
     barnPaybackContract.address   // address _barnPayback
   );
