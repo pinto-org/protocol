@@ -51,7 +51,6 @@ contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
         uint256[] fertilizerIds;
         uint256[] fertilizerAmounts;
         uint256[] plotIds;
-        uint256[] plotStarts;
         uint256[] plotEnds;
     }
 
@@ -170,17 +169,15 @@ contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
         }
 
         // transfer the plots to the receiver
-        // todo: very unlikely but need to test with
-        // 0xBc7c5f21C632c5C7CA1Bfde7CBFf96254847d997 that has a ton of plots
-        // to make sure gas is not an issue
-        // todo: may require an allowance to be set on the plots of this contract
+        // make an empty array of plotStarts since all plot transfers start from the beginning of the plot
+        uint256[] memory plotStarts = new uint256[](accountData.plotIds.length);
         if (accountData.plotIds.length > 0) {
             PINTO_PROTOCOL.transferPlots(
                 address(this),
                 receiver,
                 REPAYMENT_FIELD_ID,
                 accountData.plotIds,
-                accountData.plotStarts,
+                plotStarts,
                 accountData.plotEnds
             );
         }

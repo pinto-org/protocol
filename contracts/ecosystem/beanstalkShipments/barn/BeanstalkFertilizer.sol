@@ -24,6 +24,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
 
+    address public constant CONTRACT_DISTRIBUTOR_ADDRESS = address(0x0000000000000000000000000000000000000000);
+
     event ClaimFertilizer(uint256[] ids, uint256 beans);
     event BarnPaybackRewardsReceived(uint256 amount);
 

@@ -66,7 +66,7 @@ function parseContractData(includeContracts = false) {
   for (const normalizedAddress of allContractAddresses) {
     console.log(`\n🔍 Processing contract: ${normalizedAddress}`);
     
-    // Initialize AccountData structure
+    // Initialize AccountData structure (matching contract format)
     const accountData = {
       whitelisted: true,
       claimed: false,
@@ -74,8 +74,7 @@ function parseContractData(includeContracts = false) {
       fertilizerIds: [],
       fertilizerAmounts: [],
       plotIds: [],
-      plotStarts: [],
-      plotEnds: []
+      plotEnds: []  // Only plotEnds needed - plotStarts is always 0 (constant in contract)
     };
     
     // Helper function to find contract data by normalized address
@@ -131,14 +130,10 @@ function parseContractData(includeContracts = false) {
     
     // Convert plot map to arrays
     for (const [plotIndex, totalPods] of plotMap) {
-      // For ContractPaybackDistributor, we need plotIds, plotStarts, and plotEnds
-      // Since we have plotIndex and total pods, we set start=plotIndex and end=plotIndex+pods
-      const plotStart = plotIndex;
-      const plotEnd = (BigInt(plotIndex) + totalPods).toString();
-      
+      // For ContractPaybackDistributor, we only need plotIds and plotEnds
+      // plotStarts is always 0 (constant in contract), plotEnds contains the pod amounts
       accountData.plotIds.push(plotIndex);
-      accountData.plotStarts.push(plotStart);
-      accountData.plotEnds.push(plotEnd);
+      accountData.plotEnds.push(totalPods.toString());  // plotEnds = pod amounts, not calculated end indices
     }
     
     // Only include contracts that have some assets
@@ -152,7 +147,7 @@ function parseContractData(includeContracts = false) {
       console.log(`   ✅ Contract included with merged assets`);
       console.log(`      - Silo BDV: ${accountData.siloPaybackTokensOwed}`);
       console.log(`      - Fertilizers: ${accountData.fertilizerIds.length}`);
-      console.log(`      - Plots: ${accountData.plotIds.length}`);
+      console.log(`      - Plots: ${accountData.plotIds.length} (plotEnds as pod amounts)`);
     } else {
       console.log(`   ⚠️  Contract has no assets - skipping`);
     }

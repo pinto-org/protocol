@@ -86,7 +86,6 @@ contract ContractDistributionTest is TestHelper {
             1000e6,
             "siloPayback balance"
         );
-        // log the fertilizer balance
         assertEq(
             barnPayback.balanceOf(address(contractPaybackDistributor), FERTILIZER_ID),
             80,
@@ -314,7 +313,6 @@ contract ContractDistributionTest is TestHelper {
             fertilizerIds: fertilizerIds,
             fertilizerAmounts: fertilizerAmounts1,
             plotIds: plotIds1,
-            plotStarts: plotStarts1,
             plotEnds: plotEnds1
         });
         // contractAccount2
@@ -325,7 +323,6 @@ contract ContractDistributionTest is TestHelper {
             fertilizerIds: fertilizerIds,
             fertilizerAmounts: fertilizerAmounts2,
             plotIds: plotIds2,
-            plotStarts: plotStarts2,
             plotEnds: plotEnds2
         });
         return accountData;

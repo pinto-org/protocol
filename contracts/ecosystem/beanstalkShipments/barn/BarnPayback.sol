@@ -46,6 +46,11 @@ contract BarnPayback is BeanstalkFertilizer {
 
     //////////////////////////// Initialization ////////////////////////////
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _pinto,
         address _pintoProtocol,
@@ -56,6 +61,7 @@ contract BarnPayback is BeanstalkFertilizer {
 
     /**
      * @notice Batch mints fertilizers to all accounts and initializes balances.
+     * @dev We skip contract addresses except for the distributor address that we know implements the ERC-1155Receiver standard.
      * @param fertilizerIds Array of fertilizer data containing ids, accounts, amounts, and lastBpf.
      */
     function mintFertilizers(Fertilizers[] calldata fertilizerIds) external onlyOwner {
@@ -65,19 +71,21 @@ contract BarnPayback is BeanstalkFertilizer {
 
             // Mint fertilizer to each holder
             for (uint j; j < f.accountData.length; j++) {
-                if (!isContract(f.accountData[j].account)) {
-                    _balances[fid][f.accountData[j].account].amount = f.accountData[j].amount;
-                    _balances[fid][f.accountData[j].account].lastBpf = f.accountData[j].lastBpf;
+                address account = f.accountData[j].account;
+                // Mint to non-contract accounts and the distributor address
+                if (!isContract(account) || account == CONTRACT_DISTRIBUTOR_ADDRESS) {
+                    _balances[fid][account].amount = f.accountData[j].amount;
+                    _balances[fid][account].lastBpf = f.accountData[j].lastBpf;
 
                     // This line used to call beanstalkMint but amounts and balances are set directly here
                     // We also do not need to perform any checks since we are only minting once.
                     // After deployment, no more beanstalk fertilizers will be distributed
-                    _safeMint(f.accountData[j].account, fid, f.accountData[j].amount, "");
+                    _safeMint(account, fid, f.accountData[j].amount, "");
 
                     emit TransferSingle(
                         msg.sender,
                         address(0),
-                        f.accountData[j].account,
+                        account,
                         fid,
                         f.accountData[j].amount
                     );
@@ -89,9 +97,9 @@ contract BarnPayback is BeanstalkFertilizer {
     //////////////////////////// Barn Payback Functions ////////////////////////////
 
     /**
-     * @notice Receive Beans at the Barn. Amount of Sprouts become Rinsible. 
+     * @notice Receive Beans at the Barn. Amount of Sprouts become Rinsible.
      * Copied from LibReceiving.barnReceive on the beanstalk protocol.
-     * @dev Rounding here can cause up to fert.activeFertilizer / 1e6 Beans to be lost. 
+     * @dev Rounding here can cause up to fert.activeFertilizer / 1e6 Beans to be lost.
      * Currently there are 17,217,105 activeFertilizer. So up to 17.217 Beans can be lost.
      * @param shipmentAmount Amount of Beans to receive.
      */
@@ -133,7 +141,7 @@ contract BarnPayback is BeanstalkFertilizer {
         // There will be up to activeFertilizer Beans leftover Beans that are not fertilized.
         // These leftovers will be applied on future Fertilizer receipts.
         fert.leftoverBeans = amountToFertilize - deltaFertilized;
-        emit FertilizerRewardsReceived(shipmentAmount);
+        emit BarnPaybackRewardsReceived(shipmentAmount);
     }
 
     //////////////////////////// Claiming Functions (Update) ////////////////////////////

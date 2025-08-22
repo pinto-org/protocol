@@ -96,12 +96,19 @@ contract BeanstalkShipmentsTest is TestHelper {
 
     //////////////////////// SHIPMENT DISTRIBUTION ////////////////////////
 
-    // note: test distribution normal case, well above 1billion supply
+    /**
+     * @notice Test distribution amount for normal case, well above 1billion supply
+     */
     function test_shipmentDistributionKicksInAtCorrectSupply() public {
         // get the total delta b before sunrise aka the expected pinto mints
         int256 totalDeltaBBefore = pinto.totalDeltaB();
         // 1% of the total delta b shiped to each payback contract, totalDeltaBBefore here is positive
-        uint256 expectedPintoMints = uint256(totalDeltaBBefore) * 0.01e18 / 1e18;
+        uint256 expectedPintoMints = (uint256(totalDeltaBBefore) * 0.01e18) / 1e18;
+
+        // get fertilized index before
+        uint256 fertilizedIndexBefore = _getSystemFertilizer().fertilizedIndex;
+        // get fert remaining before
+        uint256 fertRemainingBefore = barnPayback.barnRemaining();
 
         // supply is 1,010bil, sunrise is called and new pintos are distributed
         increaseSupplyAndDistribute();
@@ -109,35 +116,37 @@ contract BeanstalkShipmentsTest is TestHelper {
         /////////// PAYBACK FIELD ///////////
 
         // assert that: 1 % of mints went to the payback field so harvestable index must have increased
-        assertGt(
-            pinto.harvestableIndex(PAYBACK_FIELD_ID),
-            0,
-            "Harvestable index must have increased"
-        );
-        // assert the harvestable index is within 0.1% of the expected pinto mints shiped to the payback field
+        // by the expected pinto mints with a 0.1% tolerance
         assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.001e18);
 
         /////////// SILO PAYBACK ///////////
 
         // assert that: 1 % of mints went to the silo so silo payback balance of pinto must have increased
-        assertGt(
-            IERC20(L2_PINTO).balanceOf(SILO_PAYBACK),
-            0,
-            "Silo payback balance must have increased"
-        );
-        // assert the silo payback balance is within 0.1% of the expected pinto mints shipped to the silo
         assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.001e18);
+        // assert the silo payback balance is within 0.1% of the expected pinto mints shipped to the silo
+        assertApproxEqRel(
+            siloPayback.totalReceived(),
+            expectedPintoMints,
+            0.001e18,
+            "Silo payback total distributed mismatch"
+        );
+        // assert that remaining is correct
+        uint256 siloPaybackTotalSupply = siloPayback.totalSupply();
+        assertApproxEqRel(
+            siloPayback.siloRemaining(),
+            siloPaybackTotalSupply - expectedPintoMints,
+            0.001e18,
+            "Silo payback silo remaining mismatch"
+        );
 
         /////////// BARN PAYBACK ///////////
 
         // assert that: 1 % of mints went to the barn so barn payback balance of pinto must have increased
-        assertGt(
-            IERC20(L2_PINTO).balanceOf(BARN_PAYBACK),
-            0,
-            "Barn payback balance must have increased"
-        );
-        // assert the barn payback balance is within 0.1% of the expected pinto mints shipped to the barn
         assertApproxEqRel(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), expectedPintoMints, 0.001e18);
+        // assert that the fertilized index has increased
+        assertGt(_getSystemFertilizer().fertilizedIndex, fertilizedIndexBefore);
+        // assert that the fert remaining has decreased
+        assertLt(barnPayback.barnRemaining(), fertRemainingBefore);
     }
 
     // note: test distribution at the edge, ~1bil supply, asserts the scaling is correct
@@ -148,12 +157,30 @@ contract BeanstalkShipmentsTest is TestHelper {
     // or use vm.mockCall to return 0 on silo and barn payback remaining calls
     function test_shipmentDistributionFinishesWhenNoRemainingPayback() public {}
 
+    // note: test when the barn payback is done, the mints should be split 1.5% to silo and 1.5% to payback field
+    function test_shipmentDistributionWhenNoRemainingBarnPayback() public {}
+
+    // note: test when the silo payback is done, all 3% of mints should go to the payback field
+    function test_shipmentDistributionWhenNoRemainingSiloPayback() public {}
+
+
+    //////////////////////// CLAIMING ////////////////////////
+
     // note: test that all users can claim their rewards at any point
     // iterate through the accounts array of silo and fert payback and claim the rewards for each
     // silo
     function test_siloPaybackClaimShipmentDistribution() public {}
     // barn
     function test_barnPaybackClaimShipmentDistribution() public {}
+    // payback field
+    function test_paybackFieldClaimShipmentDistribution() public {}
+
+    // check that all contract accounts can claim their rewards directly
+    function test_contractAccountsCanClaimShipmentDistribution() public {}
+
+    // check that 0xBc7c5f21C632c5C7CA1Bfde7CBFf96254847d997 can claim their rewards
+    // check gas usage
+    function test_plotContractCanClaimShipmentDistribution() public {}
 
     //////////////////////// STATE VERIFICATION ////////////////////////
 
@@ -294,6 +321,8 @@ contract BeanstalkShipmentsTest is TestHelper {
         }
     }
 
+    //////////////////// Silo State Verification ////////////////////
+
     function test_siloPaybackState() public {
         uint256 accountNumber = getAccountNumber(SILO_ADDRESSES_PATH);
 
@@ -328,6 +357,8 @@ contract BeanstalkShipmentsTest is TestHelper {
             );
         }
     }
+
+    //////////////////// Barn State Verification ////////////////////
 
     function test_barnPaybackStateGlobal() public {
         SystemFertilizerStruct memory systemFertilizer = _getSystemFertilizer();

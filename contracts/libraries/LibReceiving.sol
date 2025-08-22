@@ -89,7 +89,7 @@ library LibReceiving {
      * @notice Receive Bean at the Field. The next `shipmentAmount` Pods become harvestable.
      * @dev Amount should never exceed the number of Pods that are not yet Harvestable.
      * @dev In the case of a payback field, even though it cointains additional data,
-     * the fieldId is always the first parameter.
+     * the fieldId is always the first parameter to be decoded.
      * @param shipmentAmount Amount of Bean to receive.
      * @param data Encoded uint256 containing the index of the Field to receive the Bean.
      */
