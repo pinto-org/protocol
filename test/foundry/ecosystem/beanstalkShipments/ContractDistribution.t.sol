@@ -14,7 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {L1ContractMessenger} from "contracts/ecosystem/beanstalkShipments/contractDistribution/L1ContractMessenger.sol";
 import {FieldFacet} from "contracts/beanstalk/facets/field/FieldFacet.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
-import {ContractPaybackDistributor} from "contracts/ecosystem/beanstalkShipments/contractDistribution/ContractPaybackDistributor.sol";
+import {ContractPaybackDistributor,ICrossDomainMessenger} from "contracts/ecosystem/beanstalkShipments/contractDistribution/ContractPaybackDistributor.sol";
 
 contract ContractDistributionTest is TestHelper {
     // Constants
@@ -22,6 +22,12 @@ contract ContractDistributionTest is TestHelper {
 
     uint256 public constant FERTILIZER_ID = 10000000;
     uint256 public constant REPAYMENT_FIELD_ID = 1;
+
+    // L1 messenger of the Superchain
+    ICrossDomainMessenger public constant L1_MESSENGER =
+        ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
+    // L1 sender
+    address public constant L1_SENDER = 0x0000000000000000000000000000000000000000;
 
     // Deployed contracts
     SiloPayback public siloPayback;
@@ -105,6 +111,9 @@ contract ContractDistributionTest is TestHelper {
         assertEq(plots[1].pods, 101e6, "plot 2 pods");
     }
 
+    /**
+     * @notice Test that the contract accounts can claim their rewards directly
+     */
     function test_contractDistributionDirect() public {
         vm.startPrank(contractAccount1);
         contractPaybackDistributor.claimDirect(receiver1);
@@ -112,7 +121,11 @@ contract ContractDistributionTest is TestHelper {
 
         // assert the receiver address holds all the assets for receiver1
         assertEq(siloPayback.balanceOf(receiver1), 500e6, "receiver siloPayback balance");
-        assertEq(barnPayback.balanceOf(receiver1, FERTILIZER_ID), 40, "receiver fertilizer balance");
+        assertEq(
+            barnPayback.balanceOf(receiver1, FERTILIZER_ID),
+            40,
+            "receiver fertilizer balance"
+        );
         // get the plots from the receiver1
         IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(receiver1, REPAYMENT_FIELD_ID);
         assertEq(plots.length, 1, "plots length");
@@ -120,8 +133,16 @@ contract ContractDistributionTest is TestHelper {
         assertEq(plots[0].pods, 101e6, "plot 0 pods for receiver1");
 
         // assert the rest of the assets are still in the distributor
-        assertEq(siloPayback.balanceOf(address(contractPaybackDistributor)), 500e6, "distributor siloPayback balance");
-        assertEq(barnPayback.balanceOf(address(contractPaybackDistributor), FERTILIZER_ID), 40, "distributor fertilizer balance");
+        assertEq(
+            siloPayback.balanceOf(address(contractPaybackDistributor)),
+            500e6,
+            "distributor siloPayback balance"
+        );
+        assertEq(
+            barnPayback.balanceOf(address(contractPaybackDistributor), FERTILIZER_ID),
+            40,
+            "distributor fertilizer balance"
+        );
 
         // try to claim again from contractAccount1
         vm.startPrank(contractAccount1);
@@ -136,18 +157,108 @@ contract ContractDistributionTest is TestHelper {
 
         // assert the receiver address holds all the assets for receiver2
         assertEq(siloPayback.balanceOf(receiver2), 500e6, "receiver siloPayback balance");
-        assertEq(barnPayback.balanceOf(receiver2, FERTILIZER_ID), 40, "receiver fertilizer balance");
+        assertEq(
+            barnPayback.balanceOf(receiver2, FERTILIZER_ID),
+            40,
+            "receiver fertilizer balance"
+        );
         // get the plots from the receiver2
         plots = bs.getPlotsFromAccount(receiver2, REPAYMENT_FIELD_ID);
         assertEq(plots.length, 1, "plots length");
         assertEq(plots[0].index, 101e6, "plot 0 index for receiver2");
         assertEq(plots[0].pods, 101e6, "plot 0 pods for receiver2");
         // assert the no more assets are in the distributor
-        assertEq(siloPayback.balanceOf(address(contractPaybackDistributor)), 0, "distributor siloPayback balance");
-        assertEq(barnPayback.balanceOf(address(contractPaybackDistributor), FERTILIZER_ID), 0, "distributor fertilizer balance");
+        assertEq(
+            siloPayback.balanceOf(address(contractPaybackDistributor)),
+            0,
+            "distributor siloPayback balance"
+        );
+        assertEq(
+            barnPayback.balanceOf(address(contractPaybackDistributor), FERTILIZER_ID),
+            0,
+            "distributor fertilizer balance"
+        );
         // plots
         plots = bs.getPlotsFromAccount(address(contractPaybackDistributor), REPAYMENT_FIELD_ID);
         assertEq(plots.length, 0, "plots length");
+    }
+
+    /**
+     * @notice Test that the contract accounts can claim their rewards from sending an L1 message
+     * - Only the OP stack messenger at 0x42...7 can call the claimFromL1Message function
+     * - The call is successful only if the xDomainMessageSender is the L1 sender
+     */
+    function test_contractDistributionFromL1Message() public {
+
+        // try to claim from non-L1 messenger, expect revert
+        vm.startPrank(address(contractAccount1));
+        vm.expectRevert("ContractPaybackDistributor: Caller not L1 messenger");
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        vm.stopPrank();
+
+        // try to claim from non-L1 sender, expect revert
+        vm.startPrank(address(L1_MESSENGER));
+        vm.mockCall(
+            address(L1_MESSENGER),
+            abi.encodeWithSelector(L1_MESSENGER.xDomainMessageSender.selector),
+            abi.encode(makeAddr("nonL1Sender"))
+        );
+        vm.expectRevert("ContractPaybackDistributor: Bad origin");
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        vm.stopPrank();
+
+        // claim using the L1 message. Mock that the call was initiated by the L1 sender contract
+        // on behalf of contractAccount1
+        vm.startPrank(address(L1_MESSENGER));
+        vm.mockCall(
+            address(L1_MESSENGER),
+            abi.encodeWithSelector(L1_MESSENGER.xDomainMessageSender.selector),
+            abi.encode(L1_SENDER)
+        );
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        vm.stopPrank();
+
+        // assert the receiver address holds all the assets for receiver1
+        assertEq(siloPayback.balanceOf(receiver1), 500e6, "receiver siloPayback balance");
+        assertEq(
+            barnPayback.balanceOf(receiver1, FERTILIZER_ID),
+            40,
+            "receiver fertilizer balance"
+        );
+        // get the plots from the receiver1
+        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(receiver1, REPAYMENT_FIELD_ID);
+        assertEq(plots.length, 1, "plots length");
+        assertEq(plots[0].index, 0, "plot 0 index for receiver1");
+        assertEq(plots[0].pods, 101e6, "plot 0 pods for receiver1");
+
+        // assert the rest of the assets are still in the distributor
+        assertEq(
+            siloPayback.balanceOf(address(contractPaybackDistributor)),
+            500e6,
+            "distributor siloPayback balance"
+        );
+        assertEq(
+            barnPayback.balanceOf(address(contractPaybackDistributor), FERTILIZER_ID),
+            40,
+            "distributor fertilizer balance"
+        );
+
+        // try to claim again from contractAccount1
+        vm.startPrank(address(L1_MESSENGER));
+        vm.mockCall(
+            address(L1_MESSENGER),
+            abi.encodeWithSelector(L1_MESSENGER.xDomainMessageSender.selector),
+            abi.encode(L1_SENDER)
+        );
+        vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        vm.stopPrank();
+
+        // try to claim again for same account directly, expect revert
+        vm.startPrank(address(contractAccount1));
+        vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
+        contractPaybackDistributor.claimDirect(receiver1);
+        vm.stopPrank();
     }
 
     //////////////////////// HELPER FUNCTIONS ////////////////////////
