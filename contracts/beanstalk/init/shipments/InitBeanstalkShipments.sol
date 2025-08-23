@@ -43,16 +43,14 @@ contract InitBeanstalkShipments {
 
     /**
      * @notice Create new field, mimics the addField function in FieldFacet.sol
-     * @dev Harvesting is handled in LibReceiving.sol
      */
     function _initReplaymentField() internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        if (s.sys.fieldCount == 2) return;
-        // require(s.sys.fieldCount == 1, "Repayment field already exists");
+        require(s.sys.fieldCount == 1, "Repayment field already exists");
         uint256 fieldId = s.sys.fieldCount;
         s.sys.fieldCount++;
         // init global state for new field, 
-        // harvestable and harvested vars are 0
+        // harvestable and harvested vars are 0 since we shifted all plots in the data to start from 0
         s.sys.fields[REPAYMENT_FIELD_ID].pods = REPAYMENT_FIELD_PODS;
         emit FieldAdded(fieldId);
     }

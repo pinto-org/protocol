@@ -65,6 +65,8 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     console.log("   Run parsers with includeContracts=true to generate contract data");
   }
   
+  // Even if a contract tries to claim before the initialization of the field is complete,
+  // The call will revert with a "Field: Plot not owned by user." error.
   const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy(
     initData,           // AccountData[] memory _accountsData
     contractAccounts,   // address[] memory _contractAccounts

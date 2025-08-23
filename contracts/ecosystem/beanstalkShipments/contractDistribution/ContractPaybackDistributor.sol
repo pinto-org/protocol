@@ -3,9 +3,6 @@ pragma solidity ^0.8.20;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {Season} from "contracts/beanstalk/storage/System.sol";
-import {IBudget} from "contracts/interfaces/IBudget.sol";
-import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
 import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -42,7 +39,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
         ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
 
     // L1 sender: the contract address that sent the claim message from the L1
-    address public constant L1_SENDER = 0x0000000000000000000000000000000000000000;
+    address public constant L1_SENDER = 0x51f472874a303D5262d7668f5a3d17e3317f8E51;
 
     struct AccountData {
         bool whitelisted;
@@ -145,7 +142,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
 
     /**
      * @notice Transfers all assets for a whitelisted contract account to a receiver
-     * @dev note: if the receiver is a contract it must implement the IERC1155Receiver interface
+     * note: if the receiver is a contract it must implement the IERC1155Receiver interface
      * @param account The address of the account to claim from
      * @param receiver The address to transfer the assets to
      */

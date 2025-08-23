@@ -234,6 +234,13 @@ contract BeanstalkShipmentsStateTest is TestHelper {
 
         console.log("Testing silo payback state for", accountNumber, "accounts");
 
+        assertEq(
+            siloPayback.totalDistributed(),
+            siloPayback.totalSupply(),
+            "Total distributed should be equal to total supply"
+        );
+        assertEq(siloPayback.totalReceived(), 0, "Total shipments received should be 0");
+
         string memory account;
 
         // For every account
@@ -343,6 +350,11 @@ contract BeanstalkShipmentsStateTest is TestHelper {
                 accountFertilizerData,
                 (FertDepositData[])
             );
+
+            for (uint256 k = 0; k < expectedFertilizers.length; k++) {
+                console.log("fertId", expectedFertilizers[k].fertId);
+                console.log("expectedFertilizers amount", expectedFertilizers[k].amount);
+            }
 
             // For each expected fertilizer, verify the balance matches
             for (uint256 j = 0; j < expectedFertilizers.length; j++) {

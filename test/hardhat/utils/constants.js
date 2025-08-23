@@ -131,7 +131,7 @@ module.exports = {
   BEANSTALK_BARN_PAYBACK_IMPLEMENTATION: "0xeB447cE47107f0c7406716d60Ede2107CE73e5f2",
   // Expected proxt address of the shipment planner contract
   BEANSTALK_SHIPMENT_PLANNER: "0x1152691C30aAd82eB9baE7e32d662B19391e34Db",
-  // Expected proxt address of the contract payback distributor contract
+  // Expected address of the contract payback distributor contract
   BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR: "0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000",
 
   // EOA that will populate the repayment field
@@ -140,8 +140,8 @@ module.exports = {
   // Contract Messenger
   // L1 Contract Messenger deployer
   L1_CONTRACT_MESSENGER_DEPLOYER: "0xbfb5d09ffcbe67fbed9970b893293f21778be0a6",
-  // L1 Contract Messenger
-  L1_CONTRACT_MESSENGER: "0x4200000000000000000000000000000000000007",
+  // L1 Contract Messenger, deployed by the deployer at nonce 0
+  L1_CONTRACT_MESSENGER: "0x51f472874a303D5262d7668f5a3d17e3317f8E51",
 
   // Wells
   PINTO_WETH_WELL_BASE,

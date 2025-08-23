@@ -46,7 +46,7 @@ const {
 const {
   deployAndSetupContracts
 } = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
-const { parseAllExportData } = require("./scripts/beanstalkShipments/parsers");
+const { parseAllExportData, generateAddressFiles } = require("./scripts/beanstalkShipments/parsers");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -2047,7 +2047,11 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
     console.log("-".repeat(50));
     try {
       parseAllExportData(parseContracts);
-      console.log("✅ Export data parsing completed\n");
+      console.log("✅ Export data parsing completed");
+      
+      // Generate address files from parsed data
+      generateAddressFiles();
+      console.log("✅ Address files generation completed\n");
     } catch (error) {
       console.error("❌ Failed to parse export data:", error);
       throw error;
@@ -2210,6 +2214,9 @@ task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").se
   } else {
     deployer = (await ethers.getSigners())[0];
   }
+
+  // log deployer address
+  console.log("Deployer address:", deployer.address);
 
   // read the contract accounts from the json file
   const contractAccounts = JSON.parse(fs.readFileSync("./scripts/beanstalkShipments/data/ethContractAccounts.json"));

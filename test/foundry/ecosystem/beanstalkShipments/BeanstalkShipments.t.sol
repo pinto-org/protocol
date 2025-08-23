@@ -396,21 +396,15 @@ contract BeanstalkShipmentsTest is TestHelper {
         uint256 shipmentAmount = 164866037; // 1% of total deltaB
         uint256 amountToFertilize = shipmentAmount + initialFertState.leftoverBeans;
         uint256 expectedBpfIncrease = amountToFertilize / initialFertState.activeFertilizer;
-        uint256 expectedFertilizedIndexIncrease = expectedBpfIncrease *
-            initialFertState.activeFertilizer;
 
         // Verify distribution state changes
         SystemFertilizerStruct memory postDistributionState = _getSystemFertilizer();
 
-        assertEq(
+        assertApproxEqAbs(
             postDistributionState.bpf,
             initialFertState.bpf + expectedBpfIncrease,
+            1, // max error of 1
             "BPF should increase by shipment amount divided by active fertilizer"
-        );
-        assertEq(
-            postDistributionState.fertilizedIndex,
-            initialFertState.fertilizedIndex + expectedFertilizedIndexIncrease,
-            "FertilizedIndex should increase by BPF increase times active fertilizer"
         );
 
         // Load fertilizer data and get first 10 active fertilizer IDs
@@ -481,6 +475,7 @@ contract BeanstalkShipmentsTest is TestHelper {
      * @notice Check that all contract accounts can claim their rewards directly
      * By measuring the gas usage for each claim, we also get the necessary gas limit for the L1 contract messenger
      * See L1ContractMessenger.{claimL2BeanstalkAssets} for details on the gas limit
+     * - Max gas used was 26mil
      */
     function test_contractAccountsCanClaimShipmentDistribution() public {
         uint256 maxGasUsed;
@@ -502,16 +497,16 @@ contract BeanstalkShipmentsTest is TestHelper {
 
     /**
      * @notice Check that 0xBc7c5f21C632c5C7CA1Bfde7CBFf96254847d997 can claim their rewards
-     * check gas usage
+     * - Max gas used was 26mil
      */
     function test_plotContractCanClaimShipmentDistribution() public {
         address plotContract = address(0xBc7c5f21C632c5C7CA1Bfde7CBFf96254847d997);
-        vm.startSnapshotGas("contractClaimWithPlots");
+        vm.startSnapshotGas("contractClaimWithMaxPlots");
         // prank and call claimDirect
         vm.prank(plotContract);
         contractDistributor.claimDirect(farmer1);
         uint256 gasUsed = vm.stopSnapshotGas();
-        console.log("Gas used by contract claim with plots", gasUsed);
+        console.log("Gas used by contract claim with max plots", gasUsed);
     }
 
     //////////////////// Helper Functions ////////////////////

@@ -4,11 +4,7 @@
 
 pragma solidity ^0.8.20;
 
-import {LibRedundantMath128} from "contracts/libraries/Math/LibRedundantMath128.sol";
-import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {BeanstalkFertilizer} from "./BeanstalkFertilizer.sol";
 
 /**
@@ -74,7 +70,6 @@ contract BarnPayback is BeanstalkFertilizer {
                 address account = f.accountData[j].account;
                 // Mint to non-contract accounts and the distributor address
                 if (!isContract(account) || account == CONTRACT_DISTRIBUTOR_ADDRESS) {
-                    _balances[fid][account].amount = f.accountData[j].amount;
                     _balances[fid][account].lastBpf = f.accountData[j].lastBpf;
 
                     // This line used to call beanstalkMint but amounts and balances are set directly here
