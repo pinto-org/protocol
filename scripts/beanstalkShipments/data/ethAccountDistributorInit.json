@@ -91,9 +91,82 @@
   {
     "whitelisted": true,
     "claimed": false,
+    "siloPaybackTokensOwed": "0",
+    "fertilizerIds": [
+      "3458512"
+    ],
+    "fertilizerAmounts": [
+      "130"
+    ],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
     "siloPaybackTokensOwed": "1129291156",
     "fertilizerIds": [],
     "fertilizerAmounts": [],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "0",
+    "fertilizerIds": [
+      "3495000"
+    ],
+    "fertilizerAmounts": [
+      "964"
+    ],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "3597838114",
+    "fertilizerIds": [
+      "6000000"
+    ],
+    "fertilizerAmounts": [
+      "444"
+    ],
+    "plotIds": [
+      "643938854351013",
+      "644373889298847",
+      "768072180047322"
+    ],
+    "plotEnds": [
+      "228851828",
+      "3084780492",
+      "2519675802"
+    ]
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "10646036906",
+    "fertilizerIds": [
+      "3500000"
+    ],
+    "fertilizerAmounts": [
+      "249"
+    ],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "1351212",
+    "fertilizerIds": [
+      "6000000"
+    ],
+    "fertilizerAmounts": [
+      "53"
+    ],
     "plotIds": [],
     "plotEnds": []
   },
@@ -112,6 +185,19 @@
     "siloPaybackTokensOwed": "230057326178",
     "fertilizerIds": [],
     "fertilizerAmounts": [],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "0",
+    "fertilizerIds": [
+      "3268426"
+    ],
+    "fertilizerAmounts": [
+      "500"
+    ],
     "plotIds": [],
     "plotEnds": []
   },
@@ -248,6 +334,25 @@
   {
     "whitelisted": true,
     "claimed": false,
+    "siloPaybackTokensOwed": "0",
+    "fertilizerIds": [
+      "3500000",
+      "6000000"
+    ],
+    "fertilizerAmounts": [
+      "500",
+      "500"
+    ],
+    "plotIds": [
+      "764117220398714"
+    ],
+    "plotEnds": [
+      "5082059700"
+    ]
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
     "siloPaybackTokensOwed": "291524996",
     "fertilizerIds": [],
     "fertilizerAmounts": [],
@@ -275,6 +380,19 @@
     "plotEnds": [
       "43540239232"
     ]
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "0",
+    "fertilizerIds": [
+      "6000000"
+    ],
+    "fertilizerAmounts": [
+      "95"
+    ],
+    "plotIds": [],
+    "plotEnds": []
   },
   {
     "whitelisted": true,
@@ -828,9 +946,39 @@
   {
     "whitelisted": true,
     "claimed": false,
+    "siloPaybackTokensOwed": "6922721398",
+    "fertilizerIds": [
+      "6000000"
+    ],
+    "fertilizerAmounts": [
+      "500"
+    ],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
     "siloPaybackTokensOwed": "116127823",
     "fertilizerIds": [],
     "fertilizerAmounts": [],
+    "plotIds": [],
+    "plotEnds": []
+  },
+  {
+    "whitelisted": true,
+    "claimed": false,
+    "siloPaybackTokensOwed": "78016072001",
+    "fertilizerIds": [
+      "3452316",
+      "3458512",
+      "3472026"
+    ],
+    "fertilizerAmounts": [
+      "1031",
+      "2213",
+      "416"
+    ],
     "plotIds": [],
     "plotEnds": []
   },

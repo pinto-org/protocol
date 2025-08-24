@@ -65,6 +65,21 @@ function generateAddressFiles() {
       '0x4df59c31a3008509B3C1FeE7A808C9a28F701719'
     ];
     
+    // Define fertilizer contract accounts (delegated contracts that need special handling)
+    const fertilizerContractAccounts = [
+      '0x63a7255C515041fD243440e3db0D10f62f9936ae',
+      '0xdff24806405f62637E0b44cc2903F1DfC7c111Cd',
+      '0x36DeF8a94e727A0Ff7B01d2f50780F0a28Fb74b6',
+      '0x4088E870e785320413288C605FD1BD6bD9D5BDAe',
+      '0x8a6EEb9b64EEBA8D3B4404bF67A7c262c555e25B',
+      '0x49072cd3Bf4153DA87d5eB30719bb32bdA60884B',
+      '0xbfc7E3604c3bb518a4A15f8CeEAF06eD48Ac0De2',
+      '0x44db0002349036164dD46A04327201Eb7698A53e',
+      '0x542A94e6f4D9D15AaE550F7097d089f273E38f85',
+      '0xB423A1e013812fCC9Ab47523297e6bE42Fb6157e',
+      '0x7e04231a59C9589D17bcF2B0614bC86aD5Df7C11'
+    ];
+    
     // Define file paths
     const dataDir = path.join(__dirname, '../data/exports');
     const accountsDir = path.join(dataDir, 'accounts');
@@ -79,15 +94,18 @@ function generateAddressFiles() {
     const barnData = JSON.parse(fs.readFileSync(path.join(dataDir, 'beanstalk_barn.json')));
     const fieldData = JSON.parse(fs.readFileSync(path.join(dataDir, 'beanstalk_field.json')));
     
+    // Combine all addresses to exclude
+    const allExcludedAddresses = [...excludedAddresses, ...fertilizerContractAccounts];
+    
     // Extract and filter addresses from each JSON file
     const siloAddresses = Object.keys(siloData.arbEOAs || {}).filter(addr => 
-      !excludedAddresses.includes(addr.toLowerCase()) && !excludedAddresses.includes(addr)
+      !allExcludedAddresses.includes(addr.toLowerCase()) && !allExcludedAddresses.includes(addr)
     );
     const barnAddresses = Object.keys(barnData.arbEOAs || {}).filter(addr => 
-      !excludedAddresses.includes(addr.toLowerCase()) && !excludedAddresses.includes(addr)
+      !allExcludedAddresses.includes(addr.toLowerCase()) && !allExcludedAddresses.includes(addr)
     );
     const fieldAddresses = Object.keys(fieldData.arbEOAs || {}).filter(addr => 
-      !excludedAddresses.includes(addr.toLowerCase()) && !excludedAddresses.includes(addr)
+      !allExcludedAddresses.includes(addr.toLowerCase()) && !allExcludedAddresses.includes(addr)
     );
     
     // Write addresses to text files

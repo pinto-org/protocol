@@ -49,6 +49,8 @@ contract BeanstalkShipmentsStateTest is TestHelper {
     // Owners
     address constant PCM = address(0x2cf82605402912C6a79078a9BBfcCf061CbfD507);
 
+    address[] public fertilizedContractAccounts;
+
     ////////// State Structs //////////
 
     struct SystemFertilizerStruct {
@@ -338,11 +340,19 @@ contract BeanstalkShipmentsStateTest is TestHelper {
         console.log("Testing barn payback state for", accountNumber, "accounts");
 
         string memory account;
+        uint256 totalContractAccounts = 0;
 
         // For every account
         for (uint256 i = 0; i < accountNumber; i++) {
             account = vm.readLine(BARN_ADDRESSES_PATH);
             address accountAddr = vm.parseAddress(account);
+            
+            // skip contract accounts
+            if (isContract(accountAddr)) {
+                totalContractAccounts++;
+                fertilizedContractAccounts.push(accountAddr);
+                continue;
+            }
 
             // Get fertilizer data for this account using the fertilizer finder
             bytes memory accountFertilizerData = searchAccountFertilizer(accountAddr);
@@ -350,11 +360,6 @@ contract BeanstalkShipmentsStateTest is TestHelper {
                 accountFertilizerData,
                 (FertDepositData[])
             );
-
-            for (uint256 k = 0; k < expectedFertilizers.length; k++) {
-                console.log("fertId", expectedFertilizers[k].fertId);
-                console.log("expectedFertilizers amount", expectedFertilizers[k].amount);
-            }
 
             // For each expected fertilizer, verify the balance matches
             for (uint256 j = 0; j < expectedFertilizers.length; j++) {
@@ -375,6 +380,11 @@ contract BeanstalkShipmentsStateTest is TestHelper {
                     )
                 );
             }
+        }
+        console.log("Total contract accounts", totalContractAccounts);
+        // log the contract accounts
+        for (uint256 i = 0; i < fertilizedContractAccounts.length; i++) {
+            console.log("fertilizedContractAccounts index", i, fertilizedContractAccounts[i]);
         }
     }
 
@@ -439,5 +449,16 @@ contract BeanstalkShipmentsStateTest is TestHelper {
                 bpf: bpf,
                 leftoverBeans: leftoverBeans
             });
+    }
+
+    /**
+     * @notice Checks if an account is a contract.
+     */
+    function isContract(address account) internal view returns (bool) {
+        uint size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
     }
 }
