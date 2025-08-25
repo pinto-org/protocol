@@ -25,6 +25,7 @@ const {
   BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
   L1_CONTRACT_MESSENGER_DEPLOYER,
   BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
+  BEANSTALK_SILO_PAYBACK,
   L2_PCM,
   BASE_BLOCK_TIME,
   PINTO_WETH_WELL_BASE,
@@ -2163,7 +2164,7 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
         ]
       },
       initFacetName: "InitBeanstalkShipments",
-      initArgs: [routes],
+      initArgs: [routes, BEANSTALK_SILO_PAYBACK],
       verbose: true,
       account: owner
     });

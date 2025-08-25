@@ -7,6 +7,9 @@ pragma solidity ^0.8.20;
 import "contracts/libraries/LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
+import {TokenHook} from "contracts/beanstalk/storage/System.sol";
+import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
+import {LibTokenHook} from "contracts/libraries/Token/LibTokenHook.sol";
 
 /**
  * @title InitBeanstalkShipments modifies the existing routes to split the payback shipments into 2 routes.
@@ -15,17 +18,21 @@ import {ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
 contract InitBeanstalkShipments {
 
     uint256 constant REPAYMENT_FIELD_ID = 1;
-    /// @dev total length of the podline. The largest index in beanstalk_field.json incremented by the amount.
+
+    /// @dev total length of the podline. 
+    // The largest index in beanstalk_field.json incremented by the corresponding amount.
     uint256 constant REPAYMENT_FIELD_PODS = 919768387056514;
 
     event ShipmentRoutesSet(ShipmentRoute[] newRoutes);
     event FieldAdded(uint256 fieldId);
 
-    function init(ShipmentRoute[] calldata newRoutes) external {
+    function init(ShipmentRoute[] calldata newRoutes, address siloPayback) external {
         // set the shipment routes, replaces the entire set of routes
         _setShipmentRoutes(newRoutes);
         // create the repayment field
         _initReplaymentField();
+        // add the pre-transfer hook for silo payback
+        _addSiloPaybackHook(siloPayback);
     }
 
     /**
@@ -53,5 +60,17 @@ contract InitBeanstalkShipments {
         // harvestable and harvested vars are 0 since we shifted all plots in the data to start from 0
         s.sys.fields[REPAYMENT_FIELD_ID].pods = REPAYMENT_FIELD_PODS;
         emit FieldAdded(fieldId);
+    }
+
+    /**
+     * @notice Adds the internal pre-transfer hook to sync state on the silo payback contract between internal transfers.
+     */
+    function _addSiloPaybackHook(address siloPayback) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibTokenHook.whitelistHook(siloPayback, TokenHook({
+            target: address(siloPayback),
+            selector: ISiloPayback.protocolUpdate.selector,
+            encodeType: 0x00
+        }));
     }
 }
