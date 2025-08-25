@@ -8,19 +8,12 @@ const {
 /**
  * Populates the beanstalk field by reading data from beanstalkPlots.json
  * and calling initializeReplaymentPlots directly on the L2_PINTO contract
- * @param {Object} params - The parameters object
- * @param {string} params.diamondAddress - The address of the diamond contract
- * @param {Object} params.account - The account to use for the transaction
- * @param {boolean} params.verbose - Whether to log verbose output
- * @param {boolean} params.mockData - Whether to use mock data
  */
-async function populateBeanstalkField({ diamondAddress, account, verbose, mockData }) {
+async function populateBeanstalkField({ diamondAddress, account, verbose }) {
   console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
 
   // Read and parse the JSON file
-  const plotsPath = mockData
-    ? "./scripts/beanstalkShipments/data/mocks/mockBeanstalkPlots.json"
-    : "./scripts/beanstalkShipments/data/beanstalkPlots.json";
+  const plotsPath = "./scripts/beanstalkShipments/data/beanstalkPlots.json";
   const rawPlotData = JSON.parse(fs.readFileSync(plotsPath));
 
   // Split into chunks for processing

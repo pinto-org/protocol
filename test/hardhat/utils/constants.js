@@ -123,15 +123,15 @@ module.exports = {
   //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
   // EOA That will deploy the beanstlak shipment contracts
   BEANSTALK_SHIPMENTS_DEPLOYER: "0x47c365cc9ef51052651c2be22f274470ad6afc53",
-  // Expected proxt address of the silo payback contract
+  // Expected proxy address of the silo payback contract from deployer at nonce 1
   BEANSTALK_SILO_PAYBACK: "0x9E449a18155D4B03C2E08A4E28b2BcAE580efC4E",
   BEANSTALK_SILO_PAYBACK_IMPLEMENTATION: "0x3E0635B980714303351DAeE305dB1A380C56ed38",
-  // Expected proxt address of the barn payback contract
+  // Expected proxy address of the barn payback contract from deployer at nonce 3
   BEANSTALK_BARN_PAYBACK: "0x71ad4dCd54B1ee0FA450D7F389bEaFF1C8602f9b",
   BEANSTALK_BARN_PAYBACK_IMPLEMENTATION: "0xeB447cE47107f0c7406716d60Ede2107CE73e5f2",
-  // Expected proxt address of the shipment planner contract
+  // Expected proxy address of the shipment planner contract from deployer at nonce 4
   BEANSTALK_SHIPMENT_PLANNER: "0x1152691C30aAd82eB9baE7e32d662B19391e34Db",
-  // Expected address of the contract payback distributor contract
+  // Expected address of the contract payback distributor contract from deployer at nonce 5
   BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR: "0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000",
 
   // EOA that will populate the repayment field

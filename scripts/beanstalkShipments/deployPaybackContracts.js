@@ -75,7 +75,10 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     barnPaybackContract.address   // address _barnPayback
   );
   await contractPaybackDistributorContract.deployed();
+  const receipt = await contractPaybackDistributorContract.deploymentTransaction().wait();
   console.log("✅ ContractPaybackDistributor deployed to:", contractPaybackDistributorContract.address);
+  // log gas used
+  console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
 
   return {
     siloPaybackContract,
