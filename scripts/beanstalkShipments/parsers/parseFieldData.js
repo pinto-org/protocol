@@ -13,15 +13,14 @@ function parseFieldData(includeContracts = false) {
   const inputPath = path.join(__dirname, '../data/exports/beanstalk_field.json');
   const outputPath = path.join(__dirname, '../data/beanstalkPlots.json');
   
-  console.log('Reading field export data...');
   const fieldData = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
   
   const { arbEOAs, arbContracts = {}, ethContracts = {} } = fieldData;
   
-  console.log(`📋 Processing ${Object.keys(arbEOAs).length} arbEOAs`);
+  console.log(`Processing ${Object.keys(arbEOAs).length} arbEOAs`);
   if (includeContracts) {
-    console.log(`📋 Processing ${Object.keys(arbContracts).length} arbContracts`);
-    console.log(`📋 Processing ${Object.keys(ethContracts).length} ethContracts`);
+    console.log(`Processing ${Object.keys(arbContracts).length} arbContracts`);
+    console.log(`Processing ${Object.keys(ethContracts).length} ethContracts`);
   }
   
   // Load constants for distributor address
@@ -93,15 +92,11 @@ function parseFieldData(includeContracts = false) {
   }, 0);
   
   // Write output file
-  console.log('💾 Writing beanstalkPlots.json...');
   fs.writeFileSync(outputPath, JSON.stringify(plotsData, null, 2));
   
-  console.log('✅ Field data parsing complete!');
-  console.log(`   📊 Accounts with plots: ${totalAccounts}`);
-  console.log(`   📊 Total plots: ${totalPlots}`);
-  console.log(`   📊 Total pods: ${totalPods.toLocaleString()}`);
-  console.log(`   📊 Include contracts: ${includeContracts}`);
-  console.log(''); // Add spacing
+  console.log(`Accounts with plots: ${totalAccounts}`);
+  console.log(`Total plots: ${totalPlots}`);
+  console.log(`Total pods: ${totalPods.toLocaleString()}`);
   
   return {
     plotsData,

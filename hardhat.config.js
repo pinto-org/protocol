@@ -2225,7 +2225,7 @@ task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").se
 
     // read the contract accounts from the json file
     const contractAccounts = JSON.parse(
-      fs.readFileSync("./scripts/beanstalkShipments/data/ethContractAccounts.json")
+      fs.readFileSync("./scripts/beanstalkShipments/data/contractAccounts.json")
     );
 
     const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");

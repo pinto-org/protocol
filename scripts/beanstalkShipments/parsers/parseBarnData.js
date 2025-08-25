@@ -15,7 +15,6 @@ function parseBarnData(includeContracts = false) {
   const outputAccountPath = path.join(__dirname, '../data/beanstalkAccountFertilizer.json');
   const outputGlobalPath = path.join(__dirname, '../data/beanstalkGlobalFertilizer.json');
   
-  console.log('Reading barn export data...');
   const barnData = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
   
   const { 
@@ -38,11 +37,11 @@ function parseBarnData(includeContracts = false) {
     leftoverBeans
   } = storage || {};
   
-  console.log(`🌱 Using beanBpf: ${beanBpf}`);
-  console.log(`📋 Processing ${Object.keys(arbEOAs).length} arbEOAs`);
+  console.log(`Using beanBpf: ${beanBpf}`);
+  console.log(`Processing ${Object.keys(arbEOAs).length} arbEOAs`);
   if (includeContracts) {
-    console.log(`📋 Processing ${Object.keys(arbContracts).length} arbContracts`);
-    console.log(`📋 Processing ${Object.keys(ethContracts).length} ethContracts`);
+    console.log(`Processing ${Object.keys(arbContracts).length} arbContracts`);
+    console.log(`Processing ${Object.keys(ethContracts).length} ethContracts`);
   }
   
   // Load constants for distributor address
@@ -130,18 +129,12 @@ function parseBarnData(includeContracts = false) {
   ];
   
   // Write output files
-  console.log('💾 Writing beanstalkAccountFertilizer.json...');
   fs.writeFileSync(outputAccountPath, JSON.stringify(accountFertilizer, null, 2));
-  
-  console.log('💾 Writing beanstalkGlobalFertilizer.json...');
   fs.writeFileSync(outputGlobalPath, JSON.stringify(globalFertilizer, null, 2));
   
-  console.log('✅ Barn data parsing complete!');
-  console.log(`   📊 Account fertilizer entries: ${accountFertilizer.length}`);
-  console.log(`   📊 Global fertilizer IDs: ${sortedFertIds.length}`);
-  console.log(`   📊 Active fertilizer: ${activeFertilizer}`);
-  console.log(`   📊 Include contracts: ${includeContracts}`);
-  console.log('');
+  console.log(`Account fertilizer entries: ${accountFertilizer.length}`);
+  console.log(`Global fertilizer IDs: ${sortedFertIds.length}`);
+  console.log(`Active fertilizer: ${activeFertilizer}`);
   
   return {
     accountFertilizer,

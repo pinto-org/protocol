@@ -640,7 +640,7 @@ contract BeanstalkShipmentsTest is TestHelper {
      * @notice Load contract accounts from JSON file
      */
     function _loadContractAccountsFromJson() internal {
-        string memory jsonPath = "scripts/beanstalkShipments/data/ethContractAccounts.json";
+        string memory jsonPath = "scripts/beanstalkShipments/data/contractAccounts.json";
         string memory json = vm.readFile(jsonPath);
         contractAccounts = vm.parseJsonAddressArray(json, "");
     }
