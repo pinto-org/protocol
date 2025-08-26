@@ -130,8 +130,7 @@ library LibTransfer {
     ) internal {
         if (
             LibTokenHook.hasTokenHook(address(token)) &&
-            fromMode == From.INTERNAL &&
-            toMode == To.INTERNAL
+            (fromMode == From.INTERNAL || toMode == To.INTERNAL)
         ) {
             LibTokenHook.callPreTransferHook(address(token), sender, recipient, amount);
         }

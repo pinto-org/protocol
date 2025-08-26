@@ -68,7 +68,7 @@ contract TokenHookTest is TestHelper {
     /**
      * @notice Tests that a token hook is called for internal <> internal transfers.
      */
-    function test_mockTokenInternalTransferTokenHook() public {
+    function test_mockTokenInternalToInternalTransferTokenHook() public {
         uint256 transferAmount = 100e18; // 100 tokens
 
         // Initial balances
@@ -118,6 +118,74 @@ contract TokenHookTest is TestHelper {
         );
         assertEq(bs.getInternalBalance(farmers[0], address(mockToken)), 0);
         assertEq(bs.getInternalBalance(farmers[1], address(mockToken)), 200e18);
+    }
+
+    /**
+     * @notice Tests that a token hook is called for external <> internal transfers.
+     */
+    function test_mockTokenExternalToInternalTransferTokenHook() public {
+        uint256 transferAmount = 100e18; // 100 tokens
+
+        // Initial balances
+        uint256 initialFarmer0Balance = IERC20(address(mockToken)).balanceOf(farmers[0]);
+        
+        // Transfer tokens from external balance to internal balance for farmer[0]
+        // Assert that the internal transfer token hook is called (since this goes through internal transfer logic)
+        vm.prank(farmers[0]);
+        vm.expectEmit(true, true, true, true);
+        emit InternalTransferTokenHookCalled(farmers[0], farmers[0], transferAmount);
+        emit TokenHookCalled(
+            address(mockToken), // token
+            address(mockToken), // target
+            mockToken.internalTransferUpdate.selector // selector
+        );
+        bs.sendTokenToInternalBalance(address(mockToken), farmers[0], transferAmount);
+
+        // Verify balances after transfer
+        assertEq(
+            IERC20(address(mockToken)).balanceOf(farmers[0]),
+            initialFarmer0Balance - transferAmount
+        );
+        assertEq(bs.getInternalBalance(farmers[0], address(mockToken)), transferAmount);
+    }
+
+    /**
+     * @notice Tests that a token hook is called for internal <> external transfers.
+     */
+    function test_mockTokenInternalToExternalTransferTokenHook() public {
+        uint256 transferAmount = 100e18; // 100 tokens
+
+        // First transfer tokens to internal balance
+        vm.prank(farmers[0]);
+        bs.sendTokenToInternalBalance(address(mockToken), farmers[0], transferAmount);
+
+        // Initial balances after internal transfer
+        uint256 initialFarmer0Balance = IERC20(address(mockToken)).balanceOf(farmers[0]);
+
+        // Transfer tokens from internal balance to external balance for farmer[0]
+        // Assert that the internal transfer token hook is called
+        vm.prank(farmers[0]);
+        vm.expectEmit(true, true, true, true);
+        emit InternalTransferTokenHookCalled(farmers[0], farmers[0], transferAmount);
+        emit TokenHookCalled(
+            address(mockToken), // token
+            address(mockToken), // target
+            mockToken.internalTransferUpdate.selector // selector
+        );
+        bs.transferInternalTokenFrom(
+            address(mockToken),
+            farmers[0],
+            farmers[0],
+            transferAmount,
+            uint8(LibTransfer.To.EXTERNAL)
+        );
+
+        // Verify balances after transfer
+        assertEq(
+            IERC20(address(mockToken)).balanceOf(farmers[0]),
+            initialFarmer0Balance + transferAmount
+        );
+        assertEq(bs.getInternalBalance(farmers[0], address(mockToken)), 0);
     }
 
     /**
