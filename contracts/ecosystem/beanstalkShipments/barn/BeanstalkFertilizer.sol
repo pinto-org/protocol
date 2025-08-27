@@ -294,7 +294,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     }
 
     /**
-     * @notice Handles state updates before a fertilizer transfer,
+     * @notice Updates the reward state for both the sender and recipient and transfers pinto rewards.
      * Following the 1155 design from OpenZeppelin Contracts < 5.x.
      * @param from - the account to transfer from
      * @param to - the account to transfer to
@@ -318,6 +318,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     /**
      * @notice Calculates and transfers the rewarded beans
      * from a set of fertilizer ids to an account's internal balance
+     * @dev _update is called as a hook before token transfers so the user does not specify the transfer mode
+     * In this case, we use internal balance to transfer the pintos to the user by default.
      * @param account - the user to update
      * @param ids - an array of fertilizer ids
      * @param bpf - the beans per fertilizer
@@ -326,7 +328,14 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         uint256 amount = __update(account, ids, bpf);
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
-            LibTransfer.sendToken(pinto, amount, account, LibTransfer.To.INTERNAL);
+            // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
+            pintoProtocol.transferToken(
+                pinto,
+                account,
+                amount,
+                LibTransfer.From.EXTERNAL,
+                LibTransfer.To.INTERNAL
+            );
         }
     }
 
