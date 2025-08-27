@@ -2031,6 +2031,23 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
 
 //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
 
+////// STEP 0: PARSE EXPORT DATA //////
+task("parseExportData", "parses the export data and checks for contract addresses").setAction(
+  async (taskArgs) => {
+    const parseContracts = true;
+    // Step 0: Parse export data into required format
+    console.log("\n📊 STEP 0: PARSING EXPORT DATA");
+    console.log("-".repeat(50));
+    try {
+      await parseAllExportData(parseContracts);
+      console.log("✅ Export data parsing completed");
+    } catch (error) {
+      console.error("❌ Failed to parse export data:", error);
+      throw error;
+    }
+  }
+);
+
 ////// STEP 1: DEPLOY PAYBACK CONTRACTS //////
 task(
   "deployPaybackContracts",
@@ -2043,25 +2060,9 @@ task(
   // params
   const verbose = true;
   const populateData = true;
-  const parseContracts = true;
   const mock = true;
 
-  // Step 0: Parse export data into required format
-  console.log("\n📊 STEP 0: PARSING EXPORT DATA");
-  console.log("-".repeat(50));
-  try {
-    parseAllExportData(parseContracts);
-    console.log("✅ Export data parsing completed");
-
-    // Generate address files from parsed data
-    generateAddressFiles();
-    console.log("✅ Address files generation completed\n");
-  } catch (error) {
-    console.error("❌ Failed to parse export data:", error);
-    throw error;
-  }
-
-  // Use the diamond deployer for dimond cuts
+  // Use the shipments deployer to get correct addresses
   let deployer;
   if (mock) {
     deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);

@@ -4,19 +4,25 @@ const parseSiloData = require('./parseSiloData');
 const parseContractData = require('./parseContractData');
 const fs = require('fs');
 const path = require('path');
-const { ethers } = require("hardhat");
 
 /**
  * Detects which addresses have associated contract code on the active hardhat network
+ * We use a helper contract "MockIsContract" to check if an address is a contract to replicate 
+ * the check in the fertilizer distirbution to avoid false positives.
  */
 async function detectContractAddresses(addresses) {
   console.log(`Checking ${addresses.length} addresses for contract code...`);
   const contractAddresses = [];
+
+  // deploy the contract that checks if an address is a contract
+  const MockIsContract = await ethers.getContractFactory("MockIsContract");
+  const mockIsContract = await MockIsContract.deploy();
+  await mockIsContract.deployed();
   
   for (const address of addresses) {
     try {
-      const code = await ethers.provider.getCode(address);
-      if (code.length > 2) {
+      const isContract = await mockIsContract.isContract(address);
+      if (isContract) {
         contractAddresses.push(address.toLowerCase());
       }
     } catch (error) {
@@ -30,9 +36,8 @@ async function detectContractAddresses(addresses) {
 
 /**
  * Main parser orchestrator that runs all parsers
- * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
  */
-async function parseAllExportData(parseContracts = false) {
+async function parseAllExportData(parseContracts) {
   console.log('Starting export data parsing...');
   console.log(`Include contracts: ${parseContracts}`);
   
@@ -67,17 +72,18 @@ async function parseAllExportData(parseContracts = false) {
 /**
  * Generates address files from the parsed JSON export data
  * Reads the JSON files and extracts addresses to text files
+ * Used in foundry fork tests for the shipments
  */
 async function generateAddressFiles() {
   console.log('Generating address files from export data...');
   
   try {
-    // Define excluded addresses
+    // Define excluded addresses that have almost 0 BDV and no other assets
     const excludedAddresses = [
       '0x0245934a930544c7046069968eb4339b03addfcf',
       '0x4df59c31a3008509B3C1FeE7A808C9a28F701719'
     ];
-    
+
     // Define file paths
     const dataDir = path.join(__dirname, '../data/exports');
     const accountsDir = path.join(dataDir, 'accounts');

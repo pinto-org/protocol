@@ -6,11 +6,8 @@ const path = require('path');
  * 
  * Expected output format:
  * contractAccountDistributorInit.json: Array of AccountData objects for contract initialization
- * 
- * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
- * @param {Function} detectContractAddresses - Function to detect contract addresses
  */
-async function parseContractData(includeContracts = false, detectContractAddresses = null) {
+async function parseContractData(includeContracts, detectContractAddresses) {
   if (!includeContracts) {
     return {
       contractAccounts: [],
@@ -76,13 +73,13 @@ async function parseContractData(includeContracts = false, detectContractAddress
   
   
   // Build contract data for each address, merging data from different cases
-  const contractAccounts = [];
   const accountDataArray = [];
   
   for (const normalizedAddress of allContractAddresses) {
     
-    // Initialize AccountData structure (matching contract format)
+    // Initialize AccountData structure (matching contract format) with address field
     const accountData = {
+      address: normalizedAddress,  // Include the contract address in the data
       whitelisted: true,
       claimed: false,
       siloPaybackTokensOwed: "0",
@@ -116,7 +113,7 @@ async function parseContractData(includeContracts = false, detectContractAddress
     const allSiloEntries = [...siloEntries, ...siloArbEntries];
     
     let totalSiloBdv = BigInt(0);
-    for (const [originalAddr, siloData] of allSiloEntries) {
+    for (const [, siloData] of allSiloEntries) {
       if (siloData && siloData.bdvAtRecapitalization && siloData.bdvAtRecapitalization.total) {
         totalSiloBdv += BigInt(siloData.bdvAtRecapitalization.total);
       }
@@ -131,7 +128,7 @@ async function parseContractData(includeContracts = false, detectContractAddress
     const allBarnEntries = [...barnEntries, ...barnArbEntries];
     
     const fertilizerMap = new Map(); // fertId -> total amount
-    for (const [originalAddr, barnData] of allBarnEntries) {
+    for (const [, barnData] of allBarnEntries) {
       if (barnData && barnData.beanFert) {
         for (const [fertId, amount] of Object.entries(barnData.beanFert)) {
           const currentAmount = fertilizerMap.get(fertId) || BigInt(0);
@@ -152,7 +149,7 @@ async function parseContractData(includeContracts = false, detectContractAddress
     const allFieldEntries = [...fieldEntries, ...fieldArbEntries];
     
     const plotMap = new Map(); // plotIndex -> total pods
-    for (const [originalAddr, fieldData] of allFieldEntries) {
+    for (const [, fieldData] of allFieldEntries) {
       if (fieldData) {
         for (const [plotIndex, pods] of Object.entries(fieldData)) {
           const currentPods = plotMap.get(plotIndex) || BigInt(0);
@@ -175,18 +172,18 @@ async function parseContractData(includeContracts = false, detectContractAddress
                      accountData.plotIds.length > 0;
     
     if (hasAssets) {
-      contractAccounts.push(normalizedAddress);
       accountDataArray.push(accountData);
     }
   }
   
   // Sort by contract address for deterministic output
-  const sortedData = contractAccounts
-    .map((address, index) => ({ address, data: accountDataArray[index] }))
-    .sort((a, b) => a.address.localeCompare(b.address));
+  const sortedAccountData = accountDataArray.sort((a, b) => a.address.localeCompare(b.address));
   
-  const finalContractAccounts = sortedData.map(item => item.address);
-  const finalAccountData = sortedData.map(item => item.data);
+  // Extract addresses for contractAccounts.json
+  const finalContractAccounts = sortedAccountData.map(data => data.address);
+  
+  // Keep address field for contractAccountDistributorInit.json
+  const finalAccountData = sortedAccountData;
   
   // Calculate statistics
   const totalContracts = finalContractAccounts.length;
@@ -195,13 +192,24 @@ async function parseContractData(includeContracts = false, detectContractAddress
   const totalPlots = finalAccountData.reduce((sum, data) => sum + data.plotIds.length, 0);
   
   // Write output files
-  fs.writeFileSync(outputAccountsPath, JSON.stringify(finalContractAccounts, null, 2));
-  fs.writeFileSync(outputInitPath, JSON.stringify(finalAccountData, null, 2));
+  try {
+    fs.writeFileSync(outputAccountsPath, JSON.stringify(finalContractAccounts, null, 2));
+    fs.writeFileSync(outputInitPath, JSON.stringify(finalAccountData, null, 2));
+    console.log(`✅ Successfully wrote contract data files:`);
+    console.log(`   - contractAccounts.json: ${finalContractAccounts.length} addresses`);
+    console.log(`   - contractAccountDistributorInit.json: ${finalAccountData.length} account data entries`);
+  } catch (error) {
+    console.error(`❌ Error writing contract data files:`, error);
+    throw error;
+  }
   
-  console.log(`Contracts with assets: ${totalContracts}`);
-  console.log(`Total silo tokens owed: ${totalSiloTokens.toString()}`);
-  console.log(`Total fertilizer entries: ${totalFertilizers}`);
-  console.log(`Total plot entries: ${totalPlots}`);
+  console.log(`\n📊 Contract Processing Summary:`);
+  console.log(`   - Contracts with assets: ${totalContracts}`);
+  console.log(`   - Total silo tokens owed: ${totalSiloTokens.toString()}`);
+  console.log(`   - Total fertilizer entries: ${totalFertilizers}`);
+  console.log(`   - Total plot entries: ${totalPlots}`);
+  console.log(`   - ethContracts processed: ${Object.keys(siloEthContracts).length + Object.keys(barnEthContracts).length + Object.keys(fieldEthContracts).length}`);
+  console.log(`   - Detected contract accounts: ${detectedContractAccounts.length}`);
   
   return {
     contractAccounts: finalContractAccounts,
@@ -211,7 +219,9 @@ async function parseContractData(includeContracts = false, detectContractAddress
       totalSiloTokens: totalSiloTokens.toString(),
       totalFertilizers,
       totalPlots,
-      includeContracts
+      includeContracts,
+      ethContractsProcessed: Object.keys(siloEthContracts).length + Object.keys(barnEthContracts).length + Object.keys(fieldEthContracts).length,
+      detectedContracts: detectedContractAccounts.length
     }
   };
 }

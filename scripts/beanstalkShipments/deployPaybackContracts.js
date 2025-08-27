@@ -47,38 +47,25 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
 
   //////////////////////////// Contract Payback Distributor ////////////////////////////
   console.log("\n📦 Deploying ContractPaybackDistributor...");
-  const contractPaybackDistributorFactory = await ethers.getContractFactory("ContractPaybackDistributor", account);
-  
-  // Load contract accounts and initialization data
-  const contractAccountsPath = "./scripts/beanstalkShipments/data/contractAccounts.json";
-  const initDataPath = "./scripts/beanstalkShipments/data/contractAccountDistributorInit.json";
-  
-  let contractAccounts = [];
-  let initData = [];
-  
-  try {
-    contractAccounts = JSON.parse(fs.readFileSync(contractAccountsPath));
-    initData = JSON.parse(fs.readFileSync(initDataPath));
-    console.log(`📊 Loaded ${contractAccounts.length} contract accounts for initialization`);
-  } catch (error) {
-    console.log("⚠️  No contract data found - deploying with empty initialization");
-    console.log("   Run parsers with includeContracts=true to generate contract data");
-  }
-  
-  // Even if a contract tries to claim before the initialization of the field is complete,
-  // The call will revert with a "Field: Plot not owned by user." error.
+  const contractPaybackDistributorFactory = await ethers.getContractFactory(
+    "ContractPaybackDistributor",
+    account
+  );
+
   const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy(
-    initData,           // AccountData[] memory _accountsData
-    contractAccounts,   // address[] memory _contractAccounts
-    L2_PINTO,          // address _pintoProtocol
-    siloPaybackContract.address,  // address _siloPayback
-    barnPaybackContract.address   // address _barnPayback
+    L2_PINTO, // address _pintoProtocol
+    siloPaybackContract.address, // address _siloPayback
+    barnPaybackContract.address // address _barnPayback
   );
   await contractPaybackDistributorContract.deployed();
-  const receipt = await contractPaybackDistributorContract.deploymentTransaction().wait();
-  console.log("✅ ContractPaybackDistributor deployed to:", contractPaybackDistributorContract.address);
-  // log gas used
-  console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+  console.log(
+    "✅ ContractPaybackDistributor deployed to:",
+    contractPaybackDistributorContract.address
+  );
+  console.log(
+    "👤 ContractPaybackDistributor owner:",
+    await contractPaybackDistributorContract.owner()
+  );
 
   return {
     siloPaybackContract,
@@ -152,7 +139,6 @@ async function distributeUnripeBdvTokens({
   }
 }
 
-
 // Distributes barn payback tokens from JSON file to contract recipients
 async function distributeBarnPaybackTokens({
   barnPaybackContract,
@@ -198,11 +184,93 @@ async function distributeBarnPaybackTokens({
   }
 }
 
+// Distributes contract account data from JSON files to contract distributor
+async function distributeContractAccountData({
+  contractPaybackDistributorContract,
+  account,
+  verbose = true,
+  targetEntriesPerChunk = 25
+}) {
+  if (verbose) console.log("🌱 Distributing contract account data...");
 
-// Transfers ownership of both payback contracts to PCM
+  try {
+    // Load contract accounts and initialization data
+    const contractAccountsPath = "./scripts/beanstalkShipments/data/contractAccounts.json";
+    const initDataPath = "./scripts/beanstalkShipments/data/contractAccountDistributorInit.json";
+
+    let contractAccounts = [];
+    let initData = [];
+
+    contractAccounts = JSON.parse(fs.readFileSync(contractAccountsPath));
+    initData = JSON.parse(fs.readFileSync(initDataPath));
+    console.log(`📊 Loaded ${contractAccounts.length} contract accounts for initialization`);
+
+    if (contractAccounts.length === 0 || initData.length === 0) {
+      console.log("ℹ️  No contract accounts to distribute");
+      return;
+    }
+
+    // Verify data consistency
+    if (contractAccounts.length !== initData.length) {
+      throw new Error(
+        `Data mismatch: ${contractAccounts.length} addresses but ${initData.length} data entries`
+      );
+    }
+
+    // Split into chunks for processing
+    const chunks = [];
+    for (let i = 0; i < contractAccounts.length; i += targetEntriesPerChunk) {
+      const accountChunk = contractAccounts.slice(i, i + targetEntriesPerChunk);
+      const dataChunk = initData.slice(i, i + targetEntriesPerChunk);
+      chunks.push({ accounts: accountChunk, data: dataChunk });
+    }
+
+    console.log(`Starting to process ${chunks.length} chunks...`);
+    let totalGasUsed = ethers.BigNumber.from(0);
+
+    for (let i = 0; i < chunks.length; i++) {
+      if (verbose) {
+        console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
+        console.log(`Chunk contains ${chunks[i].accounts.length} contract accounts`);
+        console.log("-----------------------------------");
+      }
+
+      await retryOperation(async () => {
+        // Remove address field from data before contract call (contract doesn't expect this field)
+        const dataForContract = chunks[i].data.map((accountData) => {
+          const { address, ...dataWithoutAddress } = accountData;
+          return dataWithoutAddress;
+        });
+
+        // Initialize contract account data in chunks
+        const tx = await contractPaybackDistributorContract
+          .connect(account)
+          .initializeAccountData(chunks[i].accounts, dataForContract);
+        const receipt = await tx.wait();
+        totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+        if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+      });
+
+      await updateProgress(i + 1, chunks.length);
+    }
+
+    if (verbose) {
+      console.log("\n📊 Total Gas Summary:");
+      console.log(`⛽ Total gas used: ${totalGasUsed.toString()}`);
+    }
+
+    if (verbose) console.log("✅ Contract account data distributed to ContractPaybackDistributor");
+  } catch (error) {
+    console.error("Error distributing contract account data:", error);
+    throw error;
+  }
+}
+
+// Transfers ownership of payback contracts to PCM
 async function transferContractOwnership({
   siloPaybackContract,
   barnPaybackContract,
+  contractPaybackDistributorContract,
   L2_PCM,
   verbose = true
 }) {
@@ -213,6 +281,9 @@ async function transferContractOwnership({
 
   await barnPaybackContract.transferOwnership(L2_PCM);
   if (verbose) console.log("✅ BarnPayback ownership transferred to PCM");
+
+  await contractPaybackDistributorContract.transferOwnership(L2_PCM);
+  if (verbose) console.log("✅ ContractPaybackDistributor ownership transferred to PCM");
 }
 
 // Main function that orchestrates all deployment steps
@@ -234,11 +305,17 @@ async function deployAndSetupContracts(params) {
       verbose: true
     });
 
+    await distributeContractAccountData({
+      contractPaybackDistributorContract: contracts.contractPaybackDistributorContract,
+      account: params.account,
+      verbose: true
+    });
   }
 
   await transferContractOwnership({
     siloPaybackContract: contracts.siloPaybackContract,
     barnPaybackContract: contracts.barnPaybackContract,
+    contractPaybackDistributorContract: contracts.contractPaybackDistributorContract,
     L2_PCM: params.L2_PCM,
     verbose: true
   });
@@ -250,6 +327,7 @@ module.exports = {
   deployShipmentContracts,
   distributeUnripeBdvTokens,
   distributeBarnPaybackTokens,
+  distributeContractAccountData,
   transferContractOwnership,
   deployAndSetupContracts
 };
