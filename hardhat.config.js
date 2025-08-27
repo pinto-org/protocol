@@ -47,7 +47,10 @@ const {
 const {
   deployAndSetupContracts
 } = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
-const { parseAllExportData, generateAddressFiles } = require("./scripts/beanstalkShipments/parsers");
+const {
+  parseAllExportData,
+  generateAddressFiles
+} = require("./scripts/beanstalkShipments/parsers");
 
 //////////////////////// TASKS ////////////////////////
 
@@ -2027,57 +2030,96 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     console.log("-----------------------------------");
   });
 
-  //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
+//////////////////////// BEANSTALK SHIPMENTS ////////////////////////
 
-task("beanstalkShipments", "performs all actions to initialize the beanstalk shipments").setAction(
+////// STEP 1: DEPLOY PAYBACK CONTRACTS //////
+task(
+  "deployPaybackContracts",
+  "performs all actions to initialize the beanstalk shipments"
+).setAction(async (taskArgs) => {
+  console.log("=".repeat(80));
+  console.log("🌱 BEANSTALK SHIPMENTS INITIALIZATION");
+  console.log("=".repeat(80));
+
+  // params
+  const verbose = true;
+  const populateData = true;
+  const parseContracts = true;
+  const mock = true;
+
+  // Step 0: Parse export data into required format
+  console.log("\n📊 STEP 0: PARSING EXPORT DATA");
+  console.log("-".repeat(50));
+  try {
+    parseAllExportData(parseContracts);
+    console.log("✅ Export data parsing completed");
+
+    // Generate address files from parsed data
+    generateAddressFiles();
+    console.log("✅ Address files generation completed\n");
+  } catch (error) {
+    console.error("❌ Failed to parse export data:", error);
+    throw error;
+  }
+
+  // Use the diamond deployer for dimond cuts
+  let deployer;
+  if (mock) {
+    deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+    await mintEth(deployer.address);
+  } else {
+    deployer = (await ethers.getSigners())[1];
+  }
+
+  // Step 1: Deploy and setup payback contracts, distribute assets to users and distributor contract
+  console.log("STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
+  console.log("-".repeat(50));
+  await deployAndSetupContracts({
+    PINTO,
+    L2_PINTO,
+    L2_PCM,
+    account: deployer,
+    verbose,
+    populateData: populateData,
+    useChunking: true
+  });
+  console.log("✅ Payback contracts deployed and configured\n");
+});
+
+////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
+task(
+  "deployTempFieldFacetAndTokenHookFacet",
+  "deploys the TempFieldFacet and TokenHookFacet contracts"
+).setAction(async (taskArgs) => {
+  // params
+  const mock = true;
+
+  // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
+  console.log(
+    "STEP 2: ADDING NEW TEMP_REPAYMENT_FIELD_FACET AND THE TOKEN_HOOK_FACET TO THE PINTO DIAMOND"
+  );
+  console.log("-".repeat(50));
+
+  // Todo: add the TokenHookFacet here with init script to whitelist the silo payback hook
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: ["TempRepaymentFieldFacet"],
+    initArgs: [],
+    verbose: true,
+    object: !mock,
+    account: deployer
+  });
+});
+
+////// STEP 3: POPULATE THE BEANSTALK FIELD WITH DATA //////
+// After the initialization of the repayment field is done and the shipments have been deployed
+// The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
+task("populateRepaymentField", "populates the repayment field with data").setAction(
   async (taskArgs) => {
-    console.log("=".repeat(80));
-    console.log("🌱 BEANSTALK SHIPMENTS INITIALIZATION");
-    console.log("=".repeat(80));
-
     // params
-    const verbose = true;
-    const deploy = true;
-    const populateData = true;
-    const populateField = true;
-    const parseContracts = true;
-    const mockFieldData = false;
-
-    // Step 0: Parse export data into required format
-    console.log("\n📊 STEP 0: PARSING EXPORT DATA");
-    console.log("-".repeat(50));
-    try {
-      parseAllExportData(parseContracts);
-      console.log("✅ Export data parsing completed");
-      
-      // Generate address files from parsed data
-      generateAddressFiles();
-      console.log("✅ Address files generation completed\n");
-    } catch (error) {
-      console.error("❌ Failed to parse export data:", error);
-      throw error;
-    }
-
-    // Use the diamond deployer for dimond cuts
     const mock = true;
-    let owner;
-    if (mock) {
-      owner = await impersonateSigner(L2_PCM);
-      await mintEth(owner.address);
-    } else {
-      owner = (await ethers.getSigners())[0];
-    }
+    const verbose = true;
 
-    // Use the diamond deployer for dimond cuts
-    let deployer;
-    if (mock) {
-      deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
-      await mintEth(deployer.address);
-    } else {
-      deployer = (await ethers.getSigners())[1];
-    }
-
-    // Use the repayment field populator for the beanstalk field initialization
     let repaymentFieldPopulator;
     if (mock) {
       repaymentFieldPopulator = await impersonateSigner(
@@ -2088,53 +2130,40 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       repaymentFieldPopulator = (await ethers.getSigners())[2];
     }
 
-    // Step 1: Deploy and setup payback contracts, distribute assets to users and distributor contract
-    console.log("🚀 STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
+    // Populate the repayment field with data
+    console.log("STEP 3: POPULATING THE BEANSTALK FIELD WITH DATA");
     console.log("-".repeat(50));
-    let contracts = {};
-    if (deploy) {
-      contracts = await deployAndSetupContracts({
-        PINTO,
-        L2_PINTO,
-        L2_PCM,
-        account: deployer,
-        verbose,
-        populateData: populateData,
-        useChunking: true
-      });
-      console.log("✅ Payback contracts deployed and configured\n");
-    }
-
-    // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
-    console.log("🛤️  STEP 2: ADDING NEW TEMP_REPAYMENT_FIELD_FACET TO THE PINTO DIAMOND");
-    console.log("-".repeat(50));
-
-    await upgradeWithNewFacets({
+    await populateBeanstalkField({
       diamondAddress: L2_PINTO,
-      facetNames: ["TempRepaymentFieldFacet"],
-      initArgs: [],
-      verbose: true,
-      account: owner
+      account: repaymentFieldPopulator,
+      verbose: verbose
     });
+    console.log("✅ Beanstalk field initialized\n");
+  }
+);
 
-    // Step 3: Populate the repayment field with data
-    console.log("📈 STEP 3: POPULATING THE BEANSTALK FIELD WITH DATA");
-    console.log("-".repeat(50));
-    if (populateField) {
-      await populateBeanstalkField({
-        diamondAddress: L2_PINTO,
-        account: repaymentFieldPopulator,
-        verbose: verbose,
-        mockData: mockFieldData
-      });
+////// STEP 4: FINALIZE THE BEANSTALK SHIPMENTS //////
+task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setAction(
+  async (taskArgs) => {
+    // params
+    const mock = true;
+
+    // Use any account for diamond cuts
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
     }
 
-    // Step 4: Update shipment routes and create new field
-    // The SeasonFacet will also need to be updated to support the new receipients in the
-    // ShipmentRecipient enum in System.sol since the facet inherits from Distribution.sol
-    // That contains the function getShipmentRoutes() which reads the shipment routes from storage
-    // and imports the ShipmentRoute struct. LibReceiving was also updated.
-    console.log("\n🛤️  STEP 4: UPDATING SHIPMENT ROUTES AND CREATING NEW FIELD");
+    // Step 4: Update shipment routes, create new field and remove the TempRepaymentFieldFacet
+    // The SeasonFacet will also need to be updated since LibReceiving was modified.
+    // Selectors removed:
+    // 0x31f2cd56: REPAYMENT_FIELD_ID()
+    // 0x49e40d6c: REPAYMENT_FIELD_POPULATOR()
+    // 0x0b678c09: initializeReplaymentPlots()
+    console.log("\nSTEP 4: UPDATING SHIPMENT ROUTES, CREATING NEW FIELD AND REMOVING TEMP FACET");
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));
 
@@ -2165,7 +2194,9 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
       },
       initFacetName: "InitBeanstalkShipments",
       initArgs: [routes, BEANSTALK_SILO_PAYBACK],
+      selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x0b678c09"],
       verbose: true,
+      object: !mock,
       account: owner
     });
     console.log("✅ Shipment routes updated and new field created\n");
@@ -2176,61 +2207,38 @@ task("beanstalkShipments", "performs all actions to initialize the beanstalk shi
   }
 );
 
-// After the initialization of the repayment field is done and the shipments have been deployed
-// The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
-task(
-  "removeTempRepaymentFieldFacet",
-  "removes the TempRepaymentFieldFacet from the diamond"
-).setAction(async (taskArgs) => {
-  const mock = true;
-  let owner;
-  if (mock) {
-    owner = await impersonateSigner(L2_PCM);
-    await mintEth(owner.address);
-  } else {
-    owner = (await ethers.getSigners())[0];
-  }
-
-  // 0x31f2cd56: REPAYMENT_FIELD_ID()
-  // 0x49e40d6c: REPAYMENT_FIELD_POPULATOR()
-  // 0x0b678c09: initializeReplaymentPlots()
-  await upgradeWithNewFacets({
-    diamondAddress: L2_PINTO,
-    facetNames: [],
-    selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x0b678c09"],
-    verbose: true,
-    account: owner
-  });
-});
-
 // As a backup solution, ethAccounts will be able to send a message on the L1 to claim their assets on the L2
 // from the L2 ContractPaybackDistributor contract. We deploy the L1ContractMessenger contract on the L1
 // and whitelist the ethAccounts that are eligible to claim their assets.
-task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(async (taskArgs) => {
-  const mock = true;
-  let deployer;
-  if (mock) {
-    deployer = await impersonateSigner(L1_CONTRACT_MESSENGER_DEPLOYER);
-    await mintEth(deployer.address);
-  } else {
-    deployer = (await ethers.getSigners())[0];
+task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(
+  async (taskArgs) => {
+    const mock = true;
+    let deployer;
+    if (mock) {
+      deployer = await impersonateSigner(L1_CONTRACT_MESSENGER_DEPLOYER);
+      await mintEth(deployer.address);
+    } else {
+      deployer = (await ethers.getSigners())[0];
+    }
+
+    // log deployer address
+    console.log("Deployer address:", deployer.address);
+
+    // read the contract accounts from the json file
+    const contractAccounts = JSON.parse(
+      fs.readFileSync("./scripts/beanstalkShipments/data/contractAccounts.json")
+    );
+
+    const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
+    const l1Messenger = await L1Messenger.deploy(
+      BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
+      contractAccounts
+    );
+    await l1Messenger.deployed();
+
+    console.log("L1ContractMessenger deployed to:", l1Messenger.address);
   }
-
-  // log deployer address
-  console.log("Deployer address:", deployer.address);
-
-  // read the contract accounts from the json file
-  const contractAccounts = JSON.parse(fs.readFileSync("./scripts/beanstalkShipments/data/ethContractAccounts.json"));
-
-  const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
-  const l1Messenger = await L1Messenger.deploy(
-    BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
-    contractAccounts
-  );
-  await l1Messenger.deployed();
-
-  console.log("L1ContractMessenger deployed to:", l1Messenger.address);
-});
+);
 
 //////////////////////// CONFIGURATION ////////////////////////
 

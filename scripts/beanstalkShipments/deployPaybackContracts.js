@@ -50,8 +50,8 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   const contractPaybackDistributorFactory = await ethers.getContractFactory("ContractPaybackDistributor", account);
   
   // Load contract accounts and initialization data
-  const contractAccountsPath = "./scripts/beanstalkShipments/data/ethContractAccounts.json";
-  const initDataPath = "./scripts/beanstalkShipments/data/ethAccountDistributorInit.json";
+  const contractAccountsPath = "./scripts/beanstalkShipments/data/contractAccounts.json";
+  const initDataPath = "./scripts/beanstalkShipments/data/contractAccountDistributorInit.json";
   
   let contractAccounts = [];
   let initData = [];
@@ -75,7 +75,10 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     barnPaybackContract.address   // address _barnPayback
   );
   await contractPaybackDistributorContract.deployed();
+  const receipt = await contractPaybackDistributorContract.deploymentTransaction().wait();
   console.log("✅ ContractPaybackDistributor deployed to:", contractPaybackDistributorContract.address);
+  // log gas used
+  console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
 
   return {
     siloPaybackContract,

@@ -51,7 +51,7 @@ contract L1ContractMessenger {
      * to claim the assets for a given L2 receiver address
      * @param l2Receiver The address to transfer the assets to on the L2
      * The gas limit is the max gas limit needed on the l2 with a 20% on top of that as buffer
-     * From fork testing, all contract accounts claimed with a maximum of 26mil gas.
+     * From fork testing, all contract accounts claimed their assets with a maximum of 26million gas.
      * (https://docs.optimism.io/app-developers/bridging/messaging#basics-of-communication-between-layers)
      */
     function claimL2BeanstalkAssets(address l2Receiver) public onlyWhitelistedL1Caller {
