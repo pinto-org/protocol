@@ -2031,7 +2031,49 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
 
 //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
 
+////// PRE-DEPLOYMENT: DEPLOY L1 CONTRACT MESSENGER //////
+// As a backup solution, ethAccounts will be able to send a message on the L1 to claim their assets on the L2
+// from the L2 ContractPaybackDistributor contract. We deploy the L1ContractMessenger contract on the L1
+// and whitelist the ethAccounts that are eligible to claim their assets.
+// Make sure account[0] in the hardhat config for mainnet is the L1_CONTRACT_MESSENGER_DEPLOYER at 0xbfb5d09ffcbe67fbed9970b893293f21778be0a6
+//  - npx hardhat deployL1ContractMessenger --network mainnet
+task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(
+  async (taskArgs) => {
+    const mock = true;
+    let deployer;
+    if (mock) {
+      deployer = await impersonateSigner(L1_CONTRACT_MESSENGER_DEPLOYER);
+      await mintEth(deployer.address);
+    } else {
+      deployer = (await ethers.getSigners())[0];
+    }
+
+    // log deployer address
+    console.log("Deployer address:", deployer.address);
+
+    // read the contract accounts from the json file
+    const contractAccounts = JSON.parse(
+      fs.readFileSync("./scripts/beanstalkShipments/data/contractAccounts.json")
+    );
+
+    const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
+    const l1Messenger = await L1Messenger.deploy(
+      BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
+      contractAccounts
+    );
+    await l1Messenger.deployed();
+
+    console.log("L1ContractMessenger deployed to:", l1Messenger.address);
+  }
+);
+
 ////// STEP 0: PARSE EXPORT DATA //////
+// Run this task prior to deploying the contracts on a local fork at the latest base block to
+// dynamically identify EOAs that have contract code due to contract code delegation.
+// Spin up a local anvil node: 
+//  - anvil --fork-url <url> --chain-id 1337 --no-rate-limit --threads 0
+// Run the parseExportData task:
+//  - npx hardhat parseExportData --network localhost
 task("parseExportData", "parses the export data and checks for contract addresses").setAction(
   async (taskArgs) => {
     const parseContracts = true;
@@ -2049,14 +2091,14 @@ task("parseExportData", "parses the export data and checks for contract addresse
 );
 
 ////// STEP 1: DEPLOY PAYBACK CONTRACTS //////
+// Deploy and initialize the payback contracts and the ContractPaybackDistributor contract
+// Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER at 0x47c365cc9ef51052651c2be22f274470ad6afc53
+// Set mock to false to deploy the payback contracts on base.
+//  - npx hardhat deployPaybackContracts --network base
 task(
   "deployPaybackContracts",
   "performs all actions to initialize the beanstalk shipments"
 ).setAction(async (taskArgs) => {
-  console.log("=".repeat(80));
-  console.log("🌱 BEANSTALK SHIPMENTS INITIALIZATION");
-  console.log("=".repeat(80));
-
   // params
   const verbose = true;
   const populateData = true;
@@ -2087,6 +2129,11 @@ task(
 });
 
 ////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
+// To minimize the number of transaction the PCM multisig has to sign, we deploy the TempFieldFacet
+// that allows an EOA to add plots to the repayment field.
+// Set mock to false to deploy the TempFieldFacet and TokenHookFacet on base.
+//  - npx hardhat deployTempFieldFacetAndTokenHookFacet --network base
+// Grab the diamond cut, queue it in the multisig and wait for execution before proceeding to the next step.
 task(
   "deployTempFieldFacetAndTokenHookFacet",
   "deploys the TempFieldFacet and TokenHookFacet contracts"
@@ -2100,10 +2147,20 @@ task(
   );
   console.log("-".repeat(50));
 
+  let deployer;
+  if (mock) {
+    deployer = await impersonateSigner(L2_PCM);
+    await mintEth(deployer.address);
+  } else {
+    deployer = (await ethers.getSigners())[0];
+  }
+
   // Todo: add the TokenHookFacet here with init script to whitelist the silo payback hook
   await upgradeWithNewFacets({
     diamondAddress: L2_PINTO,
     facetNames: ["TempRepaymentFieldFacet"],
+    libraryNames: [],
+    facetLibraries: {},
     initArgs: [],
     verbose: true,
     object: !mock,
@@ -2114,6 +2171,8 @@ task(
 ////// STEP 3: POPULATE THE BEANSTALK FIELD WITH DATA //////
 // After the initialization of the repayment field is done and the shipments have been deployed
 // The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
+// Set mock to false to populate the repayment field on base.
+//  - npx hardhat populateRepaymentField --network base
 task("populateRepaymentField", "populates the repayment field with data").setAction(
   async (taskArgs) => {
     // params
@@ -2143,6 +2202,10 @@ task("populateRepaymentField", "populates the repayment field with data").setAct
 );
 
 ////// STEP 4: FINALIZE THE BEANSTALK SHIPMENTS //////
+// The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
+// At the same time, the new shipment routes that include the payback contracts will need to be set.
+// Set mock to false to finalize the beanstalk shipments on base.
+//  - npx hardhat finalizeBeanstalkShipments --network base
 task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setAction(
   async (taskArgs) => {
     // params
@@ -2204,39 +2267,6 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
     console.log("=".repeat(80));
     console.log("🎉 BEANSTALK SHIPMENTS INITIALIZATION COMPLETED");
     console.log("=".repeat(80));
-  }
-);
-
-// As a backup solution, ethAccounts will be able to send a message on the L1 to claim their assets on the L2
-// from the L2 ContractPaybackDistributor contract. We deploy the L1ContractMessenger contract on the L1
-// and whitelist the ethAccounts that are eligible to claim their assets.
-task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(
-  async (taskArgs) => {
-    const mock = true;
-    let deployer;
-    if (mock) {
-      deployer = await impersonateSigner(L1_CONTRACT_MESSENGER_DEPLOYER);
-      await mintEth(deployer.address);
-    } else {
-      deployer = (await ethers.getSigners())[0];
-    }
-
-    // log deployer address
-    console.log("Deployer address:", deployer.address);
-
-    // read the contract accounts from the json file
-    const contractAccounts = JSON.parse(
-      fs.readFileSync("./scripts/beanstalkShipments/data/contractAccounts.json")
-    );
-
-    const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
-    const l1Messenger = await L1Messenger.deploy(
-      BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
-      contractAccounts
-    );
-    await l1Messenger.deployed();
-
-    console.log("L1ContractMessenger deployed to:", l1Messenger.address);
   }
 );
 

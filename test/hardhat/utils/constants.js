@@ -121,7 +121,7 @@ module.exports = {
   RESERVES_5_PERCENT_MULTISIG: "0x4FAE5420F64c282FD908fdf05930B04E8e079770",
 
   //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
-  // EOA That will deploy the beanstlak shipment contracts
+  // EOA That will deploy the beanstlak shipment related contracts on base
   BEANSTALK_SHIPMENTS_DEPLOYER: "0x47c365cc9ef51052651c2be22f274470ad6afc53",
   // Expected proxy address of the silo payback contract from deployer at nonce 1
   BEANSTALK_SILO_PAYBACK: "0x9E449a18155D4B03C2E08A4E28b2BcAE580efC4E",
