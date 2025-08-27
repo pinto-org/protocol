@@ -25,6 +25,7 @@ const {
   BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
   L1_CONTRACT_MESSENGER_DEPLOYER,
   BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
+  BEANSTALK_SILO_PAYBACK,
   L2_PCM,
   BASE_BLOCK_TIME,
   PINTO_WETH_WELL_BASE,
@@ -2192,8 +2193,8 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
         ]
       },
       initFacetName: "InitBeanstalkShipments",
+      initArgs: [routes, BEANSTALK_SILO_PAYBACK],
       selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x0b678c09"],
-      initArgs: [routes],
       verbose: true,
       object: !mock,
       account: owner

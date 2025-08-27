@@ -12,13 +12,12 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /// @dev precision used for reward calculations
     uint256 public constant PRECISION = 1e18;
 
-    /// @dev struct to store the unripe bdv token data for batch minting
     struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;
     }
 
-    /// @dev External contracts for interactions with the Pinto protocol
+    // Contracts
     IBeanstalk public pintoProtocol;
     IERC20 public pinto;
 
@@ -27,6 +26,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /// @dev Tracks total received pinto from shipments.
     uint256 public totalReceived;
 
+    // Rewards
     /// @dev Global accumulator tracking total rewards per token since contract inception (scaled by 1e18)
     uint256 public rewardPerTokenStored;
     /// @dev Per-user checkpoint of rewardPerTokenStored at their last reward update to prevent double claiming
@@ -34,14 +34,12 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     /// @dev Per-user accumulated rewards ready to claim (updated on transfers/claims)
     mapping(address => uint256) public rewards;
 
-    /// @dev event emitted when user claims rewards
+    // Events
     event Claimed(address indexed user, uint256 amount, LibTransfer.To toMode);
-    /// @dev event emitted when rewards are received from shipments
     event SiloPaybackRewardsReceived(uint256 amount, uint256 newIndex);
-    /// @dev event emitted when unripe bdv tokens are minted
     event UnripeBdvTokenMinted(address indexed user, uint256 amount);
 
-    /// @dev modifier to ensure only the Pinto protocol can call the function
+    // Modifiers
     modifier onlyPintoProtocol() {
         require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
         _;
@@ -193,49 +191,49 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             rewards[account];
     }
 
-    /// @dev get the remaining amount of silo payback tokens to be distributed, called by the planner
+    /**
+     * @notice Returns the remaining amount of pinto required to pay off the unripe bdv tokens
+     * Called by the shipment planner to calculate the amount of pinto to ship as underlying rewards.
+     * When rewards per token reach 1 then all unripe bdv tokens will be paid off.
+     */
     function siloRemaining() public view returns (uint256) {
         return totalDistributed - totalReceived;
     }
 
-    /////////////////// Transfer Hook and ERC20 overrides ///////////////////
+    /////////////////// Transfer Hook ///////////////////
 
     /**
-     * @notice pre transfer hook to update rewards for both sender and receiver
+     * @notice Pre-transfer hook to update rewards for both sender and receiver
      * The result is that token balances change, but both parties have been
      * "checkpointed" to prevent any reward manipulation through transfers.
      * Claims happen only when the user decides to claim.
      * This way all claims can also happen in the internal balance.
      * @param from The address of the sender
      * @param to The address of the receiver
+     * @param amount The amount of tokens being transferred. (Unused here but required by openzeppelin)
      */
-    function _beforeTokenTransfer(address from, address to) internal {
-        if (from != address(0)) {
-            // capture any existing rewards for the sender, update their checkpoint to current global state
-            rewards[from] = earned(from);
-            userRewardPerTokenPaid[from] = rewardPerTokenStored;
-        }
-
-        if (to != address(0)) {
-            // capture any existing rewards for the receiver, update their checkpoint to current global state
-            rewards[to] = earned(to);
-            userRewardPerTokenPaid[to] = rewardPerTokenStored;
-        }
+    function _update(address from, address to, uint256 amount) internal override {
+        _updateReward(from);
+        _updateReward(to);
+        super._update(from, to, amount);
     }
 
-    /// @dev override the standard transfer function to update rewards
-    function transfer(address to, uint256 amount) public override returns (bool) {
-        _beforeTokenTransfer(msg.sender, to);
-        return super.transfer(to, amount);
+    /**
+     * @notice External variant of the pre-transfer hook.
+     * Updates reward state when transferring between internal balances from inside the protocol.
+     * We don't need to call super._update here since we don't update the token balance mappings in internal transfers.
+     * @param from The address of the sender
+     * @param to The address of the receiver
+     * @param amount The amount of tokens being transferred
+     */
+    function protocolUpdate(address from, address to, uint256 amount) external onlyPintoProtocol {
+        _updateReward(from);
+        _updateReward(to);
     }
 
-    /// @dev override the standard transferFrom function to update rewards
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        _beforeTokenTransfer(from, to);
-        return super.transferFrom(from, to, amount);
-    }
-
-    /// @dev override the decimals to 6 decimal places, BDV has 6 decimals
+    /**
+     * @dev override the decimals to 6 decimal places, BDV has 6 decimals
+     */
     function decimals() public view override returns (uint8) {
         return 6;
     }

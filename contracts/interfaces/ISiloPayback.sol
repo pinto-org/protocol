@@ -58,4 +58,5 @@ interface ISiloPayback {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transferOwnership(address newOwner) external;
     function userRewardPerTokenPaid(address) external view returns (uint256);
+    function protocolUpdate(address from, address to, uint256 amount) external;
 }
