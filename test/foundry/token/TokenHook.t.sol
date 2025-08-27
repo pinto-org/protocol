@@ -128,7 +128,7 @@ contract TokenHookTest is TestHelper {
 
         // Initial balances
         uint256 initialFarmer0Balance = IERC20(address(mockToken)).balanceOf(farmers[0]);
-        
+
         // Transfer tokens from external balance to internal balance for farmer[0]
         // Assert that the internal transfer token hook is called (since this goes through internal transfer logic)
         vm.prank(farmers[0]);
