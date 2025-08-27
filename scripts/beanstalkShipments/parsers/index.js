@@ -4,7 +4,6 @@ const parseSiloData = require('./parseSiloData');
 const parseContractData = require('./parseContractData');
 const fs = require('fs');
 const path = require('path');
-const { ethers } = require("hardhat");
 
 /**
  * Detects which addresses have associated contract code on the active hardhat network
