@@ -19,7 +19,11 @@ contract MockTokenWithHook is ERC20, ERC20Burnable {
     string private _symbol = "MOCK";
     string private _name = "MockToken";
 
-    constructor(string memory name, string memory __symbol, address _protocol) ERC20(name, __symbol) {
+    constructor(
+        string memory name,
+        string memory __symbol,
+        address _protocol
+    ) ERC20(name, __symbol) {
         protocol = _protocol;
     }
 

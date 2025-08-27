@@ -15,7 +15,6 @@ import {TokenHook} from "contracts/beanstalk/storage/System.sol";
  * @notice Manages the pre-transfer hook whitelist for internal token transfers.
  */
 contract TokenHookFacet is Invariable, ReentrancyGuard {
-
     /**
      * @notice Registers a pre-transfer hook for a specific token.
      * @param token The token address to register the hook for.
