@@ -561,7 +561,7 @@ contract SiloPaybackTest is TestHelper {
         vm.startPrank(sender);
         IERC20(address(siloPayback)).approve(address(bs), amount);
         // if from internal and to internal, expect pre transfer hook event to be emitted
-        if (fromMode == LibTransfer.From.INTERNAL && toMode == LibTransfer.To.INTERNAL) {
+        if (fromMode == LibTransfer.From.INTERNAL || toMode == LibTransfer.To.INTERNAL) {
             vm.expectEmit(true, true, true, true);
             emit TokenHookCalled(
                 address(siloPayback),

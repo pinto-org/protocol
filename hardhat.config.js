@@ -2089,7 +2089,7 @@ task(
 ////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
 task(
   "deployTempFieldFacetAndTokenHookFacet",
-  "deploys the TempFieldFacet and TokenHookFacet contracts"
+  "deploys the TempFieldFacet"
 ).setAction(async (taskArgs) => {
   // params
   const mock = true;
@@ -2100,7 +2100,6 @@ task(
   );
   console.log("-".repeat(50));
 
-  // Todo: add the TokenHookFacet here with init script to whitelist the silo payback hook
   await upgradeWithNewFacets({
     diamondAddress: L2_PINTO,
     facetNames: ["TempRepaymentFieldFacet"],
@@ -2169,7 +2168,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["SeasonFacet"],
+      facetNames: ["SeasonFacet", "TokenHookFacet"],
       libraryNames: [
         "LibEvaluate",
         "LibGauge",

@@ -35,9 +35,14 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     mapping(address => uint256) public rewards;
 
     // Events
-    event Claimed(address indexed user, uint256 amount, LibTransfer.To toMode);
-    event SiloPaybackRewardsReceived(uint256 amount, uint256 newIndex);
-    event UnripeBdvTokenMinted(address indexed user, uint256 amount);
+    event SiloPaybackRewardsClaimed(
+        address indexed account,
+        address indexed recipient,
+        uint256 amount,
+        LibTransfer.To toMode
+    );
+    event SiloPaybackRewardsReceived(uint256 amount, uint256 newRewardsIndex);
+    event UnripeBdvTokenMinted(address indexed receipient, uint256 amount);
 
     // Modifiers
     modifier onlyPintoProtocol() {
@@ -120,7 +125,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             toMode
         );
 
-        emit Claimed(account, rewardsToClaim, toMode);
+        emit SiloPaybackRewardsClaimed(account, recipient, rewardsToClaim, toMode);
     }
 
     /**
