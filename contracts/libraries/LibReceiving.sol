@@ -174,7 +174,7 @@ library LibReceiving {
     /**
      * @notice Receive Bean at the Silo Payback contract.
      * When the Silo Payback contract receives Bean, it needs to update:
-     * - the total beans that have been distributed to beanstalk unripe
+     * - the total beans that have been sent to beanstalk unripe
      * - the reward accumulators for the unripe bdv tokens
      * @param shipmentAmount Amount of Bean to receive.
      * @param data ABI encoded address of the silo payback contract.

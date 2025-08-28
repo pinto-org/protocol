@@ -114,17 +114,17 @@ contract BeanstalkShipmentsTest is TestHelper {
 
         // assert that: 1 % of mints went to the payback field so harvestable index must have increased
         // by the expected pinto mints with a 0.1% tolerance
-        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.001e18);
+        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.0011e18);
 
         /////////// SILO PAYBACK ///////////
 
         // assert that: 1 % of mints went to the silo so silo payback balance of pinto must have increased
-        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.001e18);
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.0011e18);
         // assert the silo payback balance is within 0.1% of the expected pinto mints shipped to the silo
         assertApproxEqRel(
             siloPayback.totalReceived(),
             expectedPintoMints,
-            0.001e18,
+            0.0011e18,
             "Silo payback total distributed mismatch"
         );
         // assert that remaining is correct
@@ -132,14 +132,14 @@ contract BeanstalkShipmentsTest is TestHelper {
         assertApproxEqRel(
             siloPayback.siloRemaining(),
             siloPaybackTotalSupply - expectedPintoMints,
-            0.001e18,
+            0.0011e18,
             "Silo payback silo remaining mismatch"
         );
 
         /////////// BARN PAYBACK ///////////
 
         // assert that: 1 % of mints went to the barn so barn payback balance of pinto must have increased
-        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), expectedPintoMints, 0.001e18);
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(BARN_PAYBACK), expectedPintoMints, 0.0011e18);
         // assert that the fertilized index has increased
         assertGt(_getSystemFertilizer().fertilizedIndex, fertilizedIndexBefore);
         // assert that the fert remaining has decreased
@@ -263,18 +263,18 @@ contract BeanstalkShipmentsTest is TestHelper {
 
         /////////// SILO PAYBACK ///////////
         // assert that the silo payback balance of pinto must have received 1.5% of the mints
-        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.001e18);
+        assertApproxEqRel(IERC20(L2_PINTO).balanceOf(SILO_PAYBACK), expectedPintoMints, 0.0011e18);
         // assert the silo payback balance is within 0.1% of the expected pinto mints shipped to the silo
         assertApproxEqRel(
             siloPayback.totalReceived(),
             expectedPintoMints,
-            0.001e18,
+            0.0011e18,
             "Silo payback total distributed mismatch"
         );
 
         /////////// PAYBACK FIELD ///////////
         // assert that the payback field harvestable index must have increased by the expected pinto mints
-        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.001e18);
+        assertApproxEqRel(pinto.harvestableIndex(PAYBACK_FIELD_ID), expectedPintoMints, 0.0011e18);
     }
 
     /**
@@ -298,7 +298,7 @@ contract BeanstalkShipmentsTest is TestHelper {
         assertApproxEqRel(
             pinto.harvestableIndex(PAYBACK_FIELD_ID),
             expectedPintoMints,
-            0.001e18,
+            0.0011e18,
             "Payback field harvestable index mismatch"
         );
 

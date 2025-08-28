@@ -2277,7 +2277,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
 // Set mock to false to transfer ownership of the payback contracts to the PCM on base.
 // The owner is the deployer account at 0x47c365cc9ef51052651c2be22f274470ad6afc53
 task(
-  "transferContractOwnership",
+  "transferPaybackContractOwnership",
   "transfers ownership of the payback contracts to the PCM"
 ).setAction(async (taskArgs) => {
   const mock = true;

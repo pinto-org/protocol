@@ -146,6 +146,11 @@ contract ShipmentPlanner {
         return ShipmentPlan({points: points, cap: beanstalk.totalUnharvestable(fieldId)});
     }
 
+    /**
+     * @notice Get the current points and cap for the Silo portion of payback shipments.
+     * @dev data param contains the silo and barn payback contract addresses to get the remaining paybacks.
+     * @dev The silo is the second payback to be paid off.
+     */
     function getPaybackSiloPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
@@ -188,6 +193,11 @@ contract ShipmentPlanner {
         return ShipmentPlan({points: points, cap: cap});
     }
 
+    /**
+     * @notice Get the current points and cap for the Barn portion of payback shipments.
+     * @dev data param contains the silo and barn payback contract addresses to get the remaining paybacks.
+     * @dev The barn is the first payback to be paid off.
+     */
     function getPaybackBarnPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
@@ -252,6 +262,12 @@ contract ShipmentPlanner {
         }
     }
 
+    /**
+     * @notice Returns the remaining pinto to be paid off for the silo and barn payback contracts.
+     * @return totalSuccess True if both calls were successful, false otherwise.
+     * @return siloRemaining The remaining pinto to be paid off for the silo payback contract.
+     * @return barnRemaining The remaining pinto to be paid off for the barn payback contract.
+     */
     function paybacksRemaining(
         address siloPaybackContract,
         address barnPaybackContract
