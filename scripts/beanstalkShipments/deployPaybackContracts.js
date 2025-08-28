@@ -312,14 +312,6 @@ async function deployAndSetupContracts(params) {
     });
   }
 
-  await transferContractOwnership({
-    siloPaybackContract: contracts.siloPaybackContract,
-    barnPaybackContract: contracts.barnPaybackContract,
-    contractPaybackDistributorContract: contracts.contractPaybackDistributorContract,
-    L2_PCM: params.L2_PCM,
-    verbose: true
-  });
-
   return contracts;
 }
 

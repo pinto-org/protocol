@@ -9,8 +9,9 @@ const path = require('path');
  * beanstalkGlobalFertilizer.json: [fertIds[], amounts[], activeFertilizer, fertilizedIndex, unfertilizedIndex, fertilizedPaidIndex, fertFirst, fertLast, bpf, leftoverBeans]
  * 
  * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
+ * @param {string[]} detectedContractAddresses - Array of detected contract addresses to redirect to distributor
  */
-function parseBarnData(includeContracts = false) {
+function parseBarnData(includeContracts = false, detectedContractAddresses = []) {
   const inputPath = path.join(__dirname, '../data/exports/beanstalk_barn.json');
   const outputAccountPath = path.join(__dirname, '../data/beanstalkAccountFertilizer.json');
   const outputGlobalPath = path.join(__dirname, '../data/beanstalkGlobalFertilizer.json');
@@ -55,7 +56,7 @@ function parseBarnData(includeContracts = false) {
   }
   
   // Reassign all ethContracts fertilizer assets to the distributor contract
-  for (const [ethContractAddress, ethContractData] of Object.entries(ethContracts)) {
+  for (const [, ethContractData] of Object.entries(ethContracts)) {
     if (ethContractData && ethContractData.beanFert) {
       // If distributor already has data, merge fertilizer data
       if (allAccounts[DISTRIBUTOR_ADDRESS]) {
@@ -73,6 +74,38 @@ function parseBarnData(includeContracts = false) {
           beanFert: { ...ethContractData.beanFert }
         };
       }
+    }
+  }
+  
+  // Reassign detected contract addresses fertilizer assets to the distributor contract
+  for (const detectedAddress of detectedContractAddresses) {
+    const normalizedDetectedAddress = detectedAddress.toLowerCase();
+    
+    // Check if this detected contract has fertilizer assets in arbEOAs that need to be redirected
+    const detectedContract = Object.keys(allAccounts).find(addr => addr.toLowerCase() === normalizedDetectedAddress);
+    
+    if (detectedContract && allAccounts[detectedContract] && allAccounts[detectedContract].beanFert) {
+      const contractData = allAccounts[detectedContract];
+      
+      // If distributor already has data, merge fertilizer data
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        if (!allAccounts[DISTRIBUTOR_ADDRESS].beanFert) {
+          allAccounts[DISTRIBUTOR_ADDRESS].beanFert = {};
+        }
+        // Merge fertilizer amounts for same IDs
+        for (const [fertId, amount] of Object.entries(contractData.beanFert)) {
+          const existingAmount = parseInt(allAccounts[DISTRIBUTOR_ADDRESS].beanFert[fertId] || '0');
+          const newAmount = parseInt(amount);
+          allAccounts[DISTRIBUTOR_ADDRESS].beanFert[fertId] = (existingAmount + newAmount).toString();
+        }
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = {
+          beanFert: { ...contractData.beanFert }
+        };
+      }
+      
+      // Remove the detected contract from allAccounts since its assets are now redirected
+      delete allAccounts[detectedContract];
     }
   }
   

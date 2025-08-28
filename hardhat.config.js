@@ -44,7 +44,8 @@ const {
   populateBeanstalkField
 } = require("./scripts/beanstalkShipments/populateBeanstalkField.js");
 const {
-  deployAndSetupContracts
+  deployAndSetupContracts,
+  transferContractOwnership
 } = require("./scripts/beanstalkShipments/deployPaybackContracts.js");
 const {
   parseAllExportData,
@@ -2070,7 +2071,7 @@ task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").se
 ////// STEP 0: PARSE EXPORT DATA //////
 // Run this task prior to deploying the contracts on a local fork at the latest base block to
 // dynamically identify EOAs that have contract code due to contract code delegation.
-// Spin up a local anvil node: 
+// Spin up a local anvil node:
 //  - anvil --fork-url <url> --chain-id 1337 --no-rate-limit --threads 0
 // Run the parseExportData task:
 //  - npx hardhat parseExportData --network localhost
@@ -2269,6 +2270,42 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
     console.log("=".repeat(80));
   }
 );
+
+////// STEP 5: TRANSFER OWNERSHIP OF PAYBACK CONTRACTS TO THE PCM //////
+// The deployer will need to transfer ownership of the payback contracts to the PCM
+//  - npx hardhat transferContractOwnership --network base
+// Set mock to false to transfer ownership of the payback contracts to the PCM on base.
+// The owner is the deployer account at 0x47c365cc9ef51052651c2be22f274470ad6afc53
+task(
+  "transferContractOwnership",
+  "transfers ownership of the payback contracts to the PCM"
+).setAction(async (taskArgs) => {
+  const mock = true;
+  const verbose = true;
+
+  let deployer;
+  if (mock) {
+    deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+    await mintEth(deployer.address);
+  } else {
+    deployer = (await ethers.getSigners())[0];
+  }
+
+  const siloPaybackContract = await ethers.getContractAt("SiloPayback", BEANSTALK_SILO_PAYBACK);
+  const barnPaybackContract = await ethers.getContractAt("BarnPayback", BEANSTALK_BARN_PAYBACK);
+  const contractPaybackDistributorContract = await ethers.getContractAt(
+    "ContractPaybackDistributor",
+    BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR
+  );
+
+  await transferContractOwnership({
+    siloPaybackContract: siloPaybackContract,
+    barnPaybackContract: barnPaybackContract,
+    contractPaybackDistributorContract: contractPaybackDistributorContract,
+    L2_PCM: L2_PCM,
+    verbose: verbose
+  });
+});
 
 //////////////////////// CONFIGURATION ////////////////////////
 

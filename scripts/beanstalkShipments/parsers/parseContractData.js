@@ -7,7 +7,7 @@ const path = require('path');
  * Expected output format:
  * contractAccountDistributorInit.json: Array of AccountData objects for contract initialization
  */
-async function parseContractData(includeContracts, detectContractAddresses) {
+async function parseContractData(includeContracts, detectedContractAddresses = []) {
   if (!includeContracts) {
     return {
       contractAccounts: [],
@@ -40,23 +40,8 @@ async function parseContractData(includeContracts, detectContractAddresses) {
   
   console.log(`Found ethContracts - Silo: ${Object.keys(siloEthContracts).length}, Barn: ${Object.keys(barnEthContracts).length}, Field: ${Object.keys(fieldEthContracts).length}`);
   
-  // Get detected contract accounts from external function
-  let detectedContractAccounts = [];
-  
-  if (detectContractAddresses) {
-    // Get all arbEOAs addresses to check for contract code
-    const allArbEOAAddresses = [
-      ...Object.keys(siloData.arbEOAs || {}),
-      ...Object.keys(barnData.arbEOAs || {}),
-      ...Object.keys(fieldData.arbEOAs || {})
-    ];
-    
-    // Deduplicate addresses
-    const uniqueArbEOAAddresses = [...new Set(allArbEOAAddresses)];
-    
-    // Dynamically detect which arbEOAs have contract code
-    detectedContractAccounts = await detectContractAddresses(uniqueArbEOAAddresses);
-  }
+  // Use the already detected contract accounts passed in
+  const detectedContractAccounts = detectedContractAddresses;
 
   // Get all unique contract addresses and normalize to lowercase
   const allContractAddressesRaw = [

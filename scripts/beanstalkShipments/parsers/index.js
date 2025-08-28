@@ -42,19 +42,46 @@ async function parseAllExportData(parseContracts) {
   console.log(`Include contracts: ${parseContracts}`);
   
   const results = {};
+  let detectedContractAddresses = [];
   
   try {
+    // Detect contract addresses once at the beginning if needed
+    if (parseContracts) {
+      console.log('\nDetecting contract addresses...');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Read export data to get all arbEOA addresses
+      const siloData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_silo.json')));
+      const barnData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_barn.json')));
+      const fieldData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_field.json')));
+      
+      const allArbEOAAddresses = [
+        ...Object.keys(siloData.arbEOAs || {}),
+        ...Object.keys(barnData.arbEOAs || {}),
+        ...Object.keys(fieldData.arbEOAs || {})
+      ];
+      
+      // Deduplicate addresses
+      const uniqueArbEOAAddresses = [...new Set(allArbEOAAddresses)];
+      
+      // Detect which arbEOAs are actually contracts
+      detectedContractAddresses = await detectContractAddresses(uniqueArbEOAAddresses);
+      
+      console.log(`Found ${detectedContractAddresses.length} contract addresses in arbEOAs that will be redirected to distributor`);
+    }
+    
     console.log('\nProcessing barn data...');
-    results.barn = parseBarnData(parseContracts);
+    results.barn = parseBarnData(parseContracts, detectedContractAddresses);
     
     console.log('Processing field data...');
-    results.field = parseFieldData(parseContracts);
+    results.field = parseFieldData(parseContracts, detectedContractAddresses);
     
     console.log('Processing silo data...');
-    results.silo = parseSiloData(parseContracts);
+    results.silo = parseSiloData(parseContracts, detectedContractAddresses);
     
     console.log('Processing contract data...');
-    results.contracts = await parseContractData(parseContracts, detectContractAddresses);
+    results.contracts = await parseContractData(parseContracts, detectedContractAddresses);
     
     console.log('\nParsing complete');
     console.log(`Barn: ${results.barn.stats.fertilizerIds} fertilizer IDs, ${results.barn.stats.accountEntries} account entries`);

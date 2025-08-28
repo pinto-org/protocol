@@ -27,7 +27,9 @@ contract ContractDistributionTest is TestHelper {
     ICrossDomainMessenger public constant L1_MESSENGER =
         ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
     // L1 sender
-    address public constant L1_SENDER = 0x0000000000000000000000000000000000000000;
+    address public constant L1_SENDER = 0x51f472874a303D5262d7668f5a3d17e3317f8E51;
+
+    address public constant EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR = 0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000;
 
     // Deployed contracts
     SiloPayback public siloPayback;
@@ -61,13 +63,24 @@ contract ContractDistributionTest is TestHelper {
         contractAccounts[0] = contractAccount1;
         contractAccounts[1] = contractAccount2;
         // Account data
-        contractPaybackDistributor = new ContractPaybackDistributor(
-            _createAccountData(),
-            contractAccounts,
-            address(bs),
-            address(siloPayback),
-            address(barnPayback)
+        vm.prank(owner);
+        deployCodeTo(
+            "ContractPaybackDistributor.sol:ContractPaybackDistributor",
+            abi.encode(address(bs), address(siloPayback), address(barnPayback)),
+            EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
         );
+
+        contractPaybackDistributor = ContractPaybackDistributor(
+            address(0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000)
+        );
+
+        // assert owner is correct
+        assertEq(contractPaybackDistributor.owner(), owner, "distributor owner");
+
+        // Initialize the account data
+        ContractPaybackDistributor.AccountData[] memory accountData = _createAccountData();
+        vm.prank(owner);
+        contractPaybackDistributor.initializeAccountData(contractAccounts, accountData);
 
         // mint the actual silo payback tokens to the distributor contract:
         // 500e6 for contractAccount1
@@ -79,8 +92,9 @@ contract ContractDistributionTest is TestHelper {
         BarnPayback.Fertilizers[] memory fertilizerData = _createFertilizerAccountData(
             address(contractPaybackDistributor)
         );
-        vm.prank(owner);
+        vm.startPrank(owner);
         barnPayback.mintFertilizers(fertilizerData);
+        vm.stopPrank();
 
         // sow 2 plots for the distributor contract
         sowPodsForContractPaybackDistributor(100e6); // 0 --> 101e6 place in line
@@ -370,7 +384,7 @@ contract ContractDistributionTest is TestHelper {
             memory accounts = new BarnPayback.AccountFertilizerData[](2);
         accounts[0] = BarnPayback.AccountFertilizerData({
             account: receiver,
-            amount: 40, // 60 to contractAccount1
+            amount: 40, // 40 to contractAccount1
             lastBpf: 100
         });
         accounts[1] = BarnPayback.AccountFertilizerData({
