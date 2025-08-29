@@ -157,6 +157,7 @@ library LibTokenHook {
     ) internal pure returns (bytes memory) {
         if (encodeType == 0x00) {
             return abi.encodeWithSelector(selector, from, to, amount);
+        // any other encode types should be added here
         } else {
             revert("LibTokenHook: Invalid encodeType");
         }
