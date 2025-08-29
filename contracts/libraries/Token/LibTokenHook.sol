@@ -137,7 +137,14 @@ library LibTokenHook {
         require(isContract(hook.target), "LibTokenHook: Target is not a contract");
         // verify the target is callable
         (bool success, ) = hook.target.call(
-            encodeHookCall(hook.encodeType, hook.selector, address(0), address(0), address(0), uint256(0))
+            encodeHookCall(
+                hook.encodeType,
+                hook.selector,
+                address(0),
+                address(0),
+                address(0),
+                uint256(0)
+            )
         );
         require(success, "LibTokenHook: Invalid TokenHook implementation");
     }
