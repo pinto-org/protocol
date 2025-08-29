@@ -26,7 +26,7 @@ contract TokenHookFacet is Invariable, ReentrancyGuard {
     //     TokenHook memory hook
     // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
     //     LibDiamond.enforceIsOwnerOrContract();
-    //     LibTokenHook.whitelistHook(token, hook);
+    //     LibTokenHook.addTokenHook(token, hook);
     // }
 
     // /**
@@ -37,7 +37,7 @@ contract TokenHookFacet is Invariable, ReentrancyGuard {
     //     address token
     // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
     //     LibDiamond.enforceIsOwnerOrContract();
-    //     LibTokenHook.removeWhitelistedHook(token);
+    //     LibTokenHook.removeTokenHook(token);
     // }
 
     // /**
@@ -50,7 +50,7 @@ contract TokenHookFacet is Invariable, ReentrancyGuard {
     //     TokenHook memory hook
     // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
     //     LibDiamond.enforceIsOwnerOrContract();
-    //     LibTokenHook.updateWhitelistedHook(token, hook);
+    //     LibTokenHook.updateTokenHook(token, hook);
     // }
 
     /**

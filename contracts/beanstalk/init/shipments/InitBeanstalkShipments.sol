@@ -66,7 +66,7 @@ contract InitBeanstalkShipments {
      */
     function _addSiloPaybackHook(address siloPayback) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        LibTokenHook.whitelistHook(
+        LibTokenHook.addTokenHook(
             siloPayback,
             TokenHook({
                 target: address(siloPayback),

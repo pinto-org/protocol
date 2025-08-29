@@ -19,12 +19,12 @@ library LibTokenHook {
     /**
      * @notice Emitted when a pre-transfer token hook is registered.
      */
-    event TokenHookRegistered(address indexed token, address indexed target, bytes4 selector);
+    event AddedTokenHook(address indexed token, address indexed target, bytes4 selector);
 
     /**
      * @notice Emitted when a whitelisted pre-transfer token hook is removed.
      */
-    event TokenHookRemoved(address indexed token);
+    event RemovedTokenHook(address indexed token);
 
     /**
      * @notice Emitted when a whitelisted pre-transfer token hook is called.
@@ -36,7 +36,7 @@ library LibTokenHook {
      * @param token The token address to register the hook for.
      * @param hook The TokenHook struct containing target, selector, and data.
      */
-    function whitelistHook(address token, TokenHook memory hook) internal {
+    function addTokenHook(address token, TokenHook memory hook) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(token != address(0), "LibTokenHook: Invalid token address");
         require(hook.target != address(0), "LibTokenHook: Invalid target address");
@@ -47,20 +47,20 @@ library LibTokenHook {
 
         s.sys.tokenHook[token] = hook;
 
-        emit TokenHookRegistered(token, hook.target, hook.selector);
+        emit AddedTokenHook(token, hook.target, hook.selector);
     }
 
     /**
      * @notice Removes a pre-transfer hook for a specific token.
      * @param token The token address to remove the hook for.
      */
-    function removeWhitelistedHook(address token) internal {
+    function removeTokenHook(address token) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(s.sys.tokenHook[token].target != address(0), "LibTokenHook: Hook not whitelisted");
 
         delete s.sys.tokenHook[token];
 
-        emit TokenHookRemoved(token);
+        emit RemovedTokenHook(token);
     }
 
     /**
@@ -68,14 +68,14 @@ library LibTokenHook {
      * @param token The token address to update the hook for.
      * @param hook The new TokenHook struct.
      */
-    function updateWhitelistedHook(address token, TokenHook memory hook) internal {
+    function updateTokenHook(address token, TokenHook memory hook) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(s.sys.tokenHook[token].target != address(0), "LibTokenHook: Hook not whitelisted");
 
         // remove old hook
-        removeWhitelistedHook(token);
+        removeTokenHook(token);
         // add new hook
-        whitelistHook(token, hook);
+        addTokenHook(token, hook);
     }
 
     /**

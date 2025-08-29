@@ -1926,9 +1926,9 @@ interface IMockFBeanstalk {
 
     function setPenaltyRatio(uint256 penaltyRatio) external;
 
-    function whitelistTokenHook(address token, TokenHook memory hook) external payable;
+    function addTokenHook(address token, TokenHook memory hook) external payable;
 
-    function dewhitelistTokenHook(address token) external payable;
+    function removeTokenHook(address token) external payable;
 
     function updateTokenHook(address token, TokenHook memory hook) external payable;
 

@@ -20,23 +20,23 @@ contract MockTokenHookFacet is Invariable, ReentrancyGuard {
      * @param token The token address to register the hook for.
      * @param hook The TokenHook struct. (See System.{TokenHook})
      */
-    function whitelistTokenHook(
+    function addTokenHook(
         address token,
         TokenHook memory hook
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         LibDiamond.enforceIsOwnerOrContract();
-        LibTokenHook.whitelistHook(token, hook);
+        LibTokenHook.addTokenHook(token, hook);
     }
 
     /**
      * @notice Removes a pre-transfer hook for a specific token.
      * @param token The token address to remove the hook for.
      */
-    function dewhitelistTokenHook(
+    function removeTokenHook(
         address token
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         LibDiamond.enforceIsOwnerOrContract();
-        LibTokenHook.removeWhitelistedHook(token);
+        LibTokenHook.removeTokenHook(token);
     }
 
     /**
@@ -49,7 +49,7 @@ contract MockTokenHookFacet is Invariable, ReentrancyGuard {
         TokenHook memory hook
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         LibDiamond.enforceIsOwnerOrContract();
-        LibTokenHook.updateWhitelistedHook(token, hook);
+        LibTokenHook.updateTokenHook(token, hook);
     }
 
     /**

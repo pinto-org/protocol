@@ -57,7 +57,7 @@ contract SiloPaybackTest is TestHelper {
 
         // whitelist the pre-transfer token hook
         vm.prank(deployer);
-        bs.whitelistTokenHook(
+        bs.addTokenHook(
             address(siloPayback),
             IMockFBeanstalk.TokenHook({
                 target: address(siloPayback),

@@ -14,7 +14,7 @@ contract TokenHookTest is TestHelper {
 
     // Protocol events
     event TokenHookCalled(address indexed token, address indexed target, bytes4 selector);
-    event TokenHookRegistered(address indexed token, address indexed target, bytes4 selector);
+    event AddedTokenHook(address indexed token, address indexed target, bytes4 selector);
 
     // test accounts
     address[] farmers;
@@ -36,12 +36,12 @@ contract TokenHookTest is TestHelper {
         // Whitelist token hook for internal transfers, expect whitelist event to be emitted
         vm.prank(deployer);
         vm.expectEmit(true, true, true, true);
-        emit TokenHookRegistered(
+        emit AddedTokenHook(
             address(mockToken),
             address(mockToken),
             mockToken.internalTransferUpdate.selector
         );
-        bs.whitelistTokenHook(
+        bs.addTokenHook(
             address(mockToken),
             IMockFBeanstalk.TokenHook({
                 target: address(mockToken),
@@ -195,7 +195,7 @@ contract TokenHookTest is TestHelper {
         // try to whitelist token hook as non-owner
         vm.expectRevert("LibDiamond: Must be contract or owner");
         vm.prank(farmers[0]);
-        bs.whitelistTokenHook(
+        bs.addTokenHook(
             address(mockToken),
             IMockFBeanstalk.TokenHook({
                 target: address(mockToken),
@@ -207,7 +207,7 @@ contract TokenHookTest is TestHelper {
         // try to dewhitelist token hook as non-owner
         vm.expectRevert("LibDiamond: Must be contract or owner");
         vm.prank(farmers[0]);
-        bs.dewhitelistTokenHook(address(mockToken));
+        bs.removeTokenHook(address(mockToken));
 
         // try to update token hook as non-owner
         vm.expectRevert("LibDiamond: Must be contract or owner");
@@ -224,7 +224,7 @@ contract TokenHookTest is TestHelper {
         // try to dewhitelist a non existent token hook as owner
         vm.expectRevert("LibTokenHook: Hook not whitelisted");
         vm.prank(deployer);
-        bs.dewhitelistTokenHook(address(1));
+        bs.removeTokenHook(address(1));
 
         // try to update a non existent token hook as owner
         vm.expectRevert("LibTokenHook: Hook not whitelisted");
@@ -246,7 +246,7 @@ contract TokenHookTest is TestHelper {
         // try to whitelist a token hook with a non-contract target
         vm.prank(deployer);
         vm.expectRevert("LibTokenHook: Target is not a contract");
-        bs.whitelistTokenHook(
+        bs.addTokenHook(
             address(randomMockTokenAddress),
             IMockFBeanstalk.TokenHook({
                 target: randomMockTokenAddress, // invalid target
@@ -258,7 +258,7 @@ contract TokenHookTest is TestHelper {
         // try to whitelist a token hook on a contract with an invalid selector
         vm.prank(deployer);
         vm.expectRevert("LibTokenHook: Invalid TokenHook implementation");
-        bs.whitelistTokenHook(
+        bs.addTokenHook(
             address(mockToken),
             IMockFBeanstalk.TokenHook({
                 target: address(mockToken),
@@ -275,7 +275,7 @@ contract TokenHookTest is TestHelper {
         // try to whitelist a token hook on a contract with an invalid encode type, expect early revert
         vm.prank(deployer);
         vm.expectRevert("LibTokenHook: Invalid encodeType");
-        bs.whitelistTokenHook(
+        bs.addTokenHook(
             address(mockToken),
             IMockFBeanstalk.TokenHook({
                 target: address(mockToken),
