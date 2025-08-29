@@ -13,44 +13,45 @@ import {TokenHook} from "contracts/beanstalk/storage/System.sol";
 /**
  * @title TokenHookFacet
  * @notice Manages the pre-transfer hook whitelist for internal token transfers.
+ * @dev State changing functions are commented out for security reasons.
  */
 contract TokenHookFacet is Invariable, ReentrancyGuard {
-    /**
-     * @notice Registers a pre-transfer hook for a specific token.
-     * @param token The token address to register the hook for.
-     * @param hook The TokenHook struct. (See System.{TokenHook})
-     */
-    function whitelistTokenHook(
-        address token,
-        TokenHook memory hook
-    ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
-        LibDiamond.enforceIsOwnerOrContract();
-        LibTokenHook.whitelistHook(token, hook);
-    }
+    // /**
+    //  * @notice Registers a pre-transfer hook for a specific token.
+    //  * @param token The token address to register the hook for.
+    //  * @param hook The TokenHook struct. (See System.{TokenHook})
+    //  */
+    // function whitelistTokenHook(
+    //     address token,
+    //     TokenHook memory hook
+    // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
+    //     LibDiamond.enforceIsOwnerOrContract();
+    //     LibTokenHook.whitelistHook(token, hook);
+    // }
 
-    /**
-     * @notice Removes a pre-transfer hook for a specific token.
-     * @param token The token address to remove the hook for.
-     */
-    function dewhitelistTokenHook(
-        address token
-    ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
-        LibDiamond.enforceIsOwnerOrContract();
-        LibTokenHook.removeWhitelistedHook(token);
-    }
+    // /**
+    //  * @notice Removes a pre-transfer hook for a specific token.
+    //  * @param token The token address to remove the hook for.
+    //  */
+    // function dewhitelistTokenHook(
+    //     address token
+    // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
+    //     LibDiamond.enforceIsOwnerOrContract();
+    //     LibTokenHook.removeWhitelistedHook(token);
+    // }
 
-    /**
-     * @notice Updates a pre-transfer hook for a specific token.
-     * @param token The token address to update the hook for.
-     * @param hook The new TokenHook struct.
-     */
-    function updateTokenHook(
-        address token,
-        TokenHook memory hook
-    ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
-        LibDiamond.enforceIsOwnerOrContract();
-        LibTokenHook.updateWhitelistedHook(token, hook);
-    }
+    // /**
+    //  * @notice Updates a pre-transfer hook for a specific token.
+    //  * @param token The token address to update the hook for.
+    //  * @param hook The new TokenHook struct.
+    //  */
+    // function updateTokenHook(
+    //     address token,
+    //     TokenHook memory hook
+    // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
+    //     LibDiamond.enforceIsOwnerOrContract();
+    //     LibTokenHook.updateWhitelistedHook(token, hook);
+    // }
 
     /**
      * @notice Checks if token has a pre-transfer hook associated with it.
