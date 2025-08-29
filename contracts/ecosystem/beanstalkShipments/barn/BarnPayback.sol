@@ -6,7 +6,6 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {BeanstalkFertilizer} from "./BeanstalkFertilizer.sol";
-
 /**
  * @dev BarnPayback facilitates the payback of beanstalk fertilizer holders.
  * Inherits from BeanstalkFertilizer that contains a copy of the beanstalk ERC-1155 fertilizer implementation.
@@ -58,6 +57,7 @@ contract BarnPayback is BeanstalkFertilizer {
     /**
      * @notice Batch mints fertilizers to all accounts and initializes balances.
      * @dev We skip contract addresses except for the distributor address that we know implements the ERC-1155Receiver standard.
+     * Contract addresses will be able to use the Distributor contract to claim their fertilizers.
      * @param fertilizerIds Array of fertilizer data containing ids, accounts, amounts, and lastBpf.
      */
     function mintFertilizers(Fertilizers[] calldata fertilizerIds) external onlyOwner {
@@ -96,7 +96,7 @@ contract BarnPayback is BeanstalkFertilizer {
      * Copied from LibReceiving.barnReceive on the beanstalk protocol.
      * @dev Rounding here can cause up to fert.activeFertilizer / 1e6 Beans to be lost.
      * Currently there are 17,217,105 activeFertilizer. So up to 17.217 Beans can be lost.
-     * @param shipmentAmount Amount of Beans to receive.
+     * @param shipmentAmount Amount of Beans received from shipments.
      */
     function barnPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
         uint256 amountToFertilize = shipmentAmount + fert.leftoverBeans;
@@ -150,7 +150,7 @@ contract BarnPayback is BeanstalkFertilizer {
         uint256 amount = __update(msg.sender, ids, uint256(fert.bpf));
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
-            // Transfer the rewards to the recipient, pintos are streamed to the contract's external balance
+            // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
             pintoProtocol.transferToken(pinto, msg.sender, amount, LibTransfer.From.EXTERNAL, mode);
         }
     }

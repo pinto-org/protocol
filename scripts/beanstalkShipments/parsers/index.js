@@ -7,15 +7,22 @@ const path = require('path');
 
 /**
  * Detects which addresses have associated contract code on the active hardhat network
+ * We use a helper contract "MockIsContract" to check if an address is a contract to replicate 
+ * the check in the fertilizer distirbution to avoid false positives.
  */
 async function detectContractAddresses(addresses) {
   console.log(`Checking ${addresses.length} addresses for contract code...`);
   const contractAddresses = [];
+
+  // deploy the contract that checks if an address is a contract
+  const MockIsContract = await ethers.getContractFactory("MockIsContract");
+  const mockIsContract = await MockIsContract.deploy();
+  await mockIsContract.deployed();
   
   for (const address of addresses) {
     try {
-      const code = await ethers.provider.getCode(address);
-      if (code.length > 2) {
+      const isContract = await mockIsContract.isContract(address);
+      if (isContract) {
         contractAddresses.push(address.toLowerCase());
       }
     } catch (error) {
@@ -29,26 +36,52 @@ async function detectContractAddresses(addresses) {
 
 /**
  * Main parser orchestrator that runs all parsers
- * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
  */
-async function parseAllExportData(parseContracts = false) {
+async function parseAllExportData(parseContracts) {
   console.log('Starting export data parsing...');
   console.log(`Include contracts: ${parseContracts}`);
   
   const results = {};
+  let detectedContractAddresses = [];
   
   try {
+    // Detect contract addresses once at the beginning if needed
+    if (parseContracts) {
+      console.log('\nDetecting contract addresses...');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Read export data to get all arbEOA addresses
+      const siloData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_silo.json')));
+      const barnData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_barn.json')));
+      const fieldData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_field.json')));
+      
+      const allArbEOAAddresses = [
+        ...Object.keys(siloData.arbEOAs || {}),
+        ...Object.keys(barnData.arbEOAs || {}),
+        ...Object.keys(fieldData.arbEOAs || {})
+      ];
+      
+      // Deduplicate addresses
+      const uniqueArbEOAAddresses = [...new Set(allArbEOAAddresses)];
+      
+      // Detect which arbEOAs are actually contracts
+      detectedContractAddresses = await detectContractAddresses(uniqueArbEOAAddresses);
+      
+      console.log(`Found ${detectedContractAddresses.length} contract addresses in arbEOAs that will be redirected to distributor`);
+    }
+    
     console.log('\nProcessing barn data...');
-    results.barn = parseBarnData(parseContracts);
+    results.barn = parseBarnData(parseContracts, detectedContractAddresses);
     
     console.log('Processing field data...');
-    results.field = parseFieldData(parseContracts);
+    results.field = parseFieldData(parseContracts, detectedContractAddresses);
     
     console.log('Processing silo data...');
-    results.silo = parseSiloData(parseContracts);
+    results.silo = parseSiloData(parseContracts, detectedContractAddresses);
     
     console.log('Processing contract data...');
-    results.contracts = await parseContractData(parseContracts, detectContractAddresses);
+    results.contracts = await parseContractData(parseContracts, detectedContractAddresses);
     
     console.log('\nParsing complete');
     console.log(`Barn: ${results.barn.stats.fertilizerIds} fertilizer IDs, ${results.barn.stats.accountEntries} account entries`);
@@ -66,17 +99,18 @@ async function parseAllExportData(parseContracts = false) {
 /**
  * Generates address files from the parsed JSON export data
  * Reads the JSON files and extracts addresses to text files
+ * Used in foundry fork tests for the shipments
  */
 async function generateAddressFiles() {
   console.log('Generating address files from export data...');
   
   try {
-    // Define excluded addresses
+    // Define excluded addresses that have almost 0 BDV and no other assets
     const excludedAddresses = [
       '0x0245934a930544c7046069968eb4339b03addfcf',
       '0x4df59c31a3008509B3C1FeE7A808C9a28F701719'
     ];
-    
+
     // Define file paths
     const dataDir = path.join(__dirname, '../data/exports');
     const accountsDir = path.join(dataDir, 'accounts');

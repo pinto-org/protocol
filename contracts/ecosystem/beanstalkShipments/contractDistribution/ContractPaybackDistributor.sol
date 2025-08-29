@@ -8,6 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title ContractPaybackDistributor
@@ -29,7 +30,7 @@ import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Re
  *
  * 3. If an account has just delegated its code to a contract, they can just call claimDirect() and receive their assets.
  */
-contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
+contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receiver {
     using SafeERC20 for IERC20;
 
     // Repayment field id
@@ -88,28 +89,34 @@ contract ContractPaybackDistributor is ReentrancyGuard, IERC1155Receiver {
     }
 
     /**
-     * @param _accountsData Array of account data for whitelisted contracts
-     * @param _contractAccounts Array of contract account addresses to whitelist
      * @param _pintoProtocol The pinto protocol address
      * @param _siloPayback The silo payback token address
      * @param _barnPayback The barn payback token address
      */
     constructor(
-        AccountData[] memory _accountsData,
-        address[] memory _contractAccounts,
         address _pintoProtocol,
         address _siloPayback,
         address _barnPayback
-    ) {
-        require(_accountsData.length == _contractAccounts.length, "Init Array length mismatch");
+    ) Ownable(msg.sender) {
+        PINTO_PROTOCOL = IBeanstalk(_pintoProtocol);
+        SILO_PAYBACK = IERC20(_siloPayback);
+        BARN_PAYBACK = IBarnPayback(_barnPayback);
+    }
+
+    /**
+     * @notice Initializes the claimable assets for the contract accounts
+     * @param _contractAccounts The contract account addresses to whitelist
+     * @param _accountsData The account data for the contract accounts to whitelist
+     */
+    function initializeAccountData(
+        address[] memory _contractAccounts,
+        AccountData[] memory _accountsData
+    ) external onlyOwner {
+        require(_contractAccounts.length == _accountsData.length, "Init Array length mismatch");
         for (uint256 i = 0; i < _contractAccounts.length; i++) {
             require(_contractAccounts[i] != address(0), "Invalid contract account address");
             accounts[_contractAccounts[i]] = _accountsData[i];
         }
-
-        PINTO_PROTOCOL = IBeanstalk(_pintoProtocol);
-        SILO_PAYBACK = IERC20(_siloPayback);
-        BARN_PAYBACK = IBarnPayback(_barnPayback);
     }
 
     /**

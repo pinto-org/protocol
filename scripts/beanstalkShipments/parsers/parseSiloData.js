@@ -8,8 +8,9 @@ const path = require('path');
  * unripeBdvTokens.json: Array of [account, totalBdvAtRecapitalization]
  * 
  * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
+ * @param {string[]} detectedContractAddresses - Array of detected contract addresses to redirect to distributor
  */
-function parseSiloData(includeContracts = false) {
+function parseSiloData(includeContracts = false, detectedContractAddresses = []) {
   const inputPath = path.join(__dirname, '../data/exports/beanstalk_silo.json');
   const outputPath = path.join(__dirname, '../data/unripeBdvTokens.json');
   
@@ -48,6 +49,34 @@ function parseSiloData(includeContracts = false) {
           }
         };
       }
+    }
+  }
+  
+  // Reassign detected contract addresses assets to the distributor contract
+  for (const detectedAddress of detectedContractAddresses) {
+    const normalizedDetectedAddress = detectedAddress.toLowerCase();
+    
+    // Check if this detected contract has assets in arbEOAs that need to be redirected
+    const detectedContract = Object.keys(allAccounts).find(addr => addr.toLowerCase() === normalizedDetectedAddress);
+    
+    if (detectedContract && allAccounts[detectedContract] && allAccounts[detectedContract].bdvAtRecapitalization) {
+      const contractData = allAccounts[detectedContract];
+      
+      // If distributor already has data, add to it, otherwise create new entry
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        const distributorBdv = parseInt(allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total || '0');
+        const contractBdv = parseInt(contractData.bdvAtRecapitalization.total || '0');
+        allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total = (distributorBdv + contractBdv).toString();
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = {
+          bdvAtRecapitalization: {
+            total: contractData.bdvAtRecapitalization.total
+          }
+        };
+      }
+      
+      // Remove the detected contract from allAccounts since its assets are now redirected
+      delete allAccounts[detectedContract];
     }
   }
   

@@ -235,41 +235,60 @@ contract BarnPaybackTest is TestHelper {
     }
 
     /**
-     * @notice Test progressive fertilizer payback until all fertilizers are inactive
+     * @notice Test attempting to send more payments after all fertilizers are inactive
      */
-    function test_completePaybackFlow() public {
-        uint256 initialUnfertilized = barnPayback.totalUnfertilizedBeans();
-        console.log("Initial unfertilized beans:", initialUnfertilized);
+    function test_paymentAfterAllFertilizersInactive() public {
+        // First, make all fertilizers inactive
+        SystemFertilizerStruct memory initialFert = _getSystemFertilizer();
+        uint256 completeRepayment = (FERT_ID_3 - initialFert.bpf + 10e6) *
+            initialFert.activeFertilizer;
 
-        // Send multiple payback amounts to gradually pay down fertilizers
-        uint256 paybackAmount = initialUnfertilized / 5; // Pay back 20% at a time
+        _sendRewardsToContract(completeRepayment);
 
-        for (uint i = 0; i < 5; i++) {
-            uint256 beforePayback = barnPayback.totalUnfertilizedBeans();
+        // Verify all fertilizers are inactive
+        SystemFertilizerStruct memory postPaymentFert = _getSystemFertilizer();
+        assertEq(postPaymentFert.activeFertilizer, 0, "All fertilizers should be inactive");
 
-            vm.prank(address(BEANSTALK));
-            barnPayback.barnPaybackReceive(paybackAmount);
+        // try to send another payment, expect revert
+        uint256 additionalPayment = 1000e6;
 
-            uint256 afterPayback = barnPayback.totalUnfertilizedBeans();
-            console.log("Payback round", i + 1);
-            console.log("totalUnfertilizedBeans Before:", beforePayback);
-            console.log("totalUnfertilizedBeans After:", afterPayback);
+        deal(address(BEAN), address(deployer), additionalPayment);
+        vm.prank(deployer);
+        IERC20(BEAN).transfer(address(barnPayback), additionalPayment);
+        vm.prank(address(BEANSTALK));
+        vm.expectRevert();
+        barnPayback.barnPaybackReceive(additionalPayment);
+    }
 
-            // Should steadily reduce unfertilized beans
-            assertLe(afterPayback, beforePayback, "Should reduce or maintain unfertilized beans");
-        }
-
-        // Final cleanup - send remaining amount to complete payback
-        uint256 remaining = barnPayback.barnRemaining();
-        if (remaining > 0) {
-            vm.prank(address(BEANSTALK));
-            barnPayback.barnPaybackReceive(remaining + 1000); // Slightly over to handle rounding
-        }
-
-        // Should be close to fully paid back
-        uint256 finalRemaining = barnPayback.barnRemaining();
-        console.log("Final remaining:", finalRemaining);
-        assertLe(finalRemaining, initialUnfertilized / 100, "Should be mostly paid back"); // Within 1%
+    /**
+     * @notice Test that rewards are claimed to sender's internal balance on fertilizer transfer
+     */
+    function test_rewardsClaimedOnTransfer() public {
+        // Send rewards to create claimable beans for FERT_ID_1
+        uint256 paymentAmount = 500e6;
+        _sendRewardsToContract(paymentAmount);
+        
+        // Check user1 has rewards available
+        uint256[] memory user1Ids = new uint256[](1);
+        user1Ids[0] = FERT_ID_1;
+        uint256 pendingRewards = barnPayback.balanceOfFertilized(user1, user1Ids);
+        assertGt(pendingRewards, 0, "User1 should have pending rewards");
+        
+        // Get user1's initial internal bean balance
+        uint256 initialBalance = IERC20(BEAN).balanceOf(user1);
+        
+        // Transfer fertilizer to another address
+        address recipient = makeAddr("recipient");
+        vm.prank(user1);
+        barnPayback.safeTransferFrom(user1, recipient, FERT_ID_1, 10, "");
+        
+        // Check that beans were transferred to user1's internal balance
+        uint256 finalBalance = IERC20(BEAN).balanceOf(user1);
+        assertEq(finalBalance, initialBalance, "Beans should be transferred to external balance");
+        // user should have no more fertilized beans for these IDs
+        assertEq(barnPayback.balanceOfFertilized(user1, user1Ids), 0);
+        // user should have the pending rewards in their internal balance
+        assertEq(bs.getInternalBalance(user1, BEAN), pendingRewards);
     }
 
     ///////////////////// Helper functions /////////////////////

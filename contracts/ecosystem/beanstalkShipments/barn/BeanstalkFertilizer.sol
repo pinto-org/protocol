@@ -13,6 +13,8 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {LibBytes64} from "contracts/libraries/LibBytes64.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.
@@ -23,6 +25,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
+    using Strings for uint256;
 
     address public constant CONTRACT_DISTRIBUTOR_ADDRESS =
         address(0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000);
@@ -294,7 +297,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     }
 
     /**
-     * @notice Handles state updates before a fertilizer transfer,
+     * @notice Updates the reward state for both the sender and recipient and transfers pinto rewards.
      * Following the 1155 design from OpenZeppelin Contracts < 5.x.
      * @param from - the account to transfer from
      * @param to - the account to transfer to
@@ -318,6 +321,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     /**
      * @notice Calculates and transfers the rewarded beans
      * from a set of fertilizer ids to an account's internal balance
+     * @dev _update is called as a hook before token transfers so the user does not specify the transfer mode
+     * In this case, we use internal balance to transfer the pintos to the user by default.
      * @param account - the user to update
      * @param ids - an array of fertilizer ids
      * @param bpf - the beans per fertilizer
@@ -326,7 +331,14 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         uint256 amount = __update(account, ids, bpf);
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
-            LibTransfer.sendToken(pinto, amount, account, LibTransfer.To.INTERNAL);
+            // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
+            pintoProtocol.transferToken(
+                pinto,
+                account,
+                amount,
+                LibTransfer.From.EXTERNAL,
+                LibTransfer.To.INTERNAL
+            );
         }
     }
 
@@ -485,11 +497,41 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         }
     }
 
+    /////////////////////// Metadata ///////////////////////////
+
     /**
-     * @dev the uri for the payback fertilizer, omitted here due to lack of metadata
+     * @notice Assembles and returns a base64 encoded json metadata
+     * URI for a given fertilizer ID.
+     * @param _id - the id of the fertilizer
+     * @return - the json metadata URI
      */
-    function uri(uint256) public view virtual override returns (string memory) {
-        return "";
+    function uri(uint256 _id) public view virtual override returns (string memory) {
+        // get the remaining bpf (id - fert.bpf)
+        uint128 bpfRemaining = uint128(_id) >= fert.bpf ? uint128(_id) - fert.bpf : 0;
+
+        // todo: use an image uri if we decide to add one
+        string memory imageUri = "";
+
+        // assemble and return the json URI
+        return (
+            string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    LibBytes64.encode(
+                        bytes(
+                            abi.encodePacked(
+                                '{"name": "Beanstalk Payback Fertilizer", ',
+                                '"description": "The Beanstalk Payback Barn fertilizer pays back Beanstalk fertilizer holders with Pinto after the 1 billion supply threshold is reached.", "image": "',
+                                imageUri,
+                                '", "attributes": [{ "trait_type": "BPF Remaining","display_type": "boost_number","value": ',
+                                formatBpRemaining(bpfRemaining),
+                                " }]}"
+                            )
+                        )
+                    )
+                )
+            )
+        );
     }
 
     function name() external pure returns (string memory) {
@@ -509,5 +551,27 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
             size := extcodesize(account)
         }
         return size > 0;
+    }
+
+    /**
+     * @notice Formats a the bpf remaining value with 6 decimals to a string with 2 decimals.
+     * @param number - The bpf value to format.
+     */
+    function formatBpRemaining(uint256 number) internal pure returns (string memory) {
+        // 6 to 2 decimal places
+        uint256 scaled = number / 10000;
+        // Separate the integer and decimal parts
+        uint256 integerPart = scaled / 100;
+        uint256 decimalPart = scaled % 100;
+        string memory result = integerPart.toString();
+        // Add decimal point
+        result = string(abi.encodePacked(result, "."));
+        // Add leading zero if necessary
+        if (decimalPart < 10) {
+            result = string(abi.encodePacked(result, "0"));
+        }
+        // Add decimal part
+        result = string(abi.encodePacked(result, decimalPart.toString()));
+        return result;
     }
 }

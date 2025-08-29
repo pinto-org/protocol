@@ -8,8 +8,9 @@ const path = require('path');
  * beanstalkPlots.json: Array of [account, [[plotIndex, pods]]]
  * 
  * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
+ * @param {string[]} detectedContractAddresses - Array of detected contract addresses to redirect to distributor
  */
-function parseFieldData(includeContracts = false) {
+function parseFieldData(includeContracts = false, detectedContractAddresses = []) {
   const inputPath = path.join(__dirname, '../data/exports/beanstalk_field.json');
   const outputPath = path.join(__dirname, '../data/beanstalkPlots.json');
   
@@ -34,7 +35,7 @@ function parseFieldData(includeContracts = false) {
   }
   
   // Reassign all ethContracts plot assets to the distributor contract
-  for (const [ethContractAddress, plotsMap] of Object.entries(ethContracts)) {
+  for (const [, plotsMap] of Object.entries(ethContracts)) {
     if (plotsMap && typeof plotsMap === 'object') {
       // If distributor already has data, merge plot data
       if (allAccounts[DISTRIBUTOR_ADDRESS]) {
@@ -52,6 +53,38 @@ function parseFieldData(includeContracts = false) {
       } else {
         allAccounts[DISTRIBUTOR_ADDRESS] = { ...plotsMap };
       }
+    }
+  }
+  
+  // Reassign detected contract addresses plot assets to the distributor contract
+  for (const detectedAddress of detectedContractAddresses) {
+    const normalizedDetectedAddress = detectedAddress.toLowerCase();
+    
+    // Check if this detected contract has plot assets in arbEOAs that need to be redirected
+    const detectedContract = Object.keys(allAccounts).find(addr => addr.toLowerCase() === normalizedDetectedAddress);
+    
+    if (detectedContract && allAccounts[detectedContract] && typeof allAccounts[detectedContract] === 'object') {
+      const contractPlotData = allAccounts[detectedContract];
+      
+      // If distributor already has data, merge plot data
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        // Merge plot data
+        for (const [plotIndex, pods] of Object.entries(contractPlotData)) {
+          // If same plot index exists, add the pod amounts
+          if (allAccounts[DISTRIBUTOR_ADDRESS][plotIndex]) {
+            const existingPods = parseInt(allAccounts[DISTRIBUTOR_ADDRESS][plotIndex]);
+            const newPods = parseInt(pods);
+            allAccounts[DISTRIBUTOR_ADDRESS][plotIndex] = (existingPods + newPods).toString();
+          } else {
+            allAccounts[DISTRIBUTOR_ADDRESS][plotIndex] = pods;
+          }
+        }
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = { ...contractPlotData };
+      }
+      
+      // Remove the detected contract from allAccounts since its assets are now redirected
+      delete allAccounts[detectedContract];
     }
   }
   
