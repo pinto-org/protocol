@@ -11,6 +11,9 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SiloPaybackTest is TestHelper {
+    // Events
+    event TokenHookCalled(address indexed token, address indexed target, bytes4 selector);
+
     SiloPayback public siloPayback;
     MockToken public pintoToken;
 
@@ -51,6 +54,18 @@ contract SiloPaybackTest is TestHelper {
 
         // set the silo payback proxy
         siloPayback = SiloPayback(address(siloPaybackProxy));
+
+        // whitelist the pre-transfer token hook
+        vm.prank(deployer);
+        bs.addTokenHook(
+            address(siloPayback),
+            IMockFBeanstalk.Implementation({
+                target: address(siloPayback),
+                selector: siloPayback.protocolUpdate.selector,
+                encodeType: 0x00,
+                data: "" // data is unused
+            })
+        );
 
         vm.label(farmer1, "farmer1");
         vm.label(farmer2, "farmer2");
@@ -133,7 +148,7 @@ contract SiloPaybackTest is TestHelper {
         // farmer1 claims immediately after first distribution (claiming every season)
         uint256 farmer1BalanceBefore = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
 
         // Verify farmer1 received rewards and state is updated
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBefore + farmer1Earned1);
@@ -163,7 +178,7 @@ contract SiloPaybackTest is TestHelper {
         // Now farmer1 claims again (claiming every season)
         uint256 farmer1BalanceBeforeClaim2 = IERC20(BEAN).balanceOf(farmer1);
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
 
         // farmer1 should have received their second round rewards
         assertEq(IERC20(BEAN).balanceOf(farmer1), farmer1BalanceBeforeClaim2 + farmer1Earned2);
@@ -172,7 +187,7 @@ contract SiloPaybackTest is TestHelper {
         // farmer2 finally claims all accumulated rewards
         uint256 farmer2BalanceBefore = IERC20(BEAN).balanceOf(farmer2);
         vm.prank(farmer2);
-        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL);
 
         // farmer2 should receive all their accumulated rewards
         assertEq(IERC20(BEAN).balanceOf(farmer2), farmer2BalanceBefore + farmer2Earned2);
@@ -202,10 +217,10 @@ contract SiloPaybackTest is TestHelper {
 
         // Both farmers claim to INTERNAL balance
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.INTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.INTERNAL);
 
         vm.prank(farmer2);
-        siloPayback.claim(farmer2, LibTransfer.To.INTERNAL); // 0 means claim all
+        siloPayback.claim(farmer2, LibTransfer.To.INTERNAL);
 
         // Verify both farmers' rewards went to internal balance
         uint256 farmer1InternalAfter = bs.getInternalBalance(farmer1, address(BEAN));
@@ -347,13 +362,13 @@ contract SiloPaybackTest is TestHelper {
 
         // Claim for all users
         vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL);
 
         vm.prank(farmer2);
-        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer2, LibTransfer.To.EXTERNAL);
 
         vm.prank(farmer3);
-        siloPayback.claim(farmer3, LibTransfer.To.EXTERNAL); // 0 means claim all
+        siloPayback.claim(farmer3, LibTransfer.To.EXTERNAL);
 
         // Verify all rewards were paid out correctly
         assertEq(
@@ -385,91 +400,134 @@ contract SiloPaybackTest is TestHelper {
         assertEq(siloPayback.earned(farmer3), 0, "farmer3 earned reset after claim");
     }
 
-    // test case for sure
-    // user puts the tokens in their internal balance, we claim from the ui via a farm call.
-    // rewardPertoken paid for user is updated.
+    /////////////////// Internal Transfer Support With Hook ///////////////////
 
-    // rewards keep accumulating as pinto distribution happens
+    /**
+     * @dev Internal --> Internal
+     * Before the hook: Neither the sender nor the recipient rewards are checkpointed.
+     * After the hook: Both the sender and the recipient rewards are checkpointed.
+     */
+    function test_siloPaybackDoubleClaimInternalToInternalTransfer() public {
+        _mintTokensToUser(farmer1, 100e6, LibTransfer.To.INTERNAL); // farmer1 has 50% of total in internal
+        _mintTokensToUser(farmer2, 100e6, LibTransfer.To.INTERNAL); // farmer2 has 50% of total in internal
 
-    // user transfers the tokens to another address via internal balance
-    // no state variables get updated BUT
-    // earned now updates to reflect the new internal balance
-
-    function test_siloPaybackDoubleClaimInternalTransfer() public {
-        // Setup: farmer1 has 40%
-        _mintTokensToUser(farmer1, 100e6, LibTransfer.To.EXTERNAL); // farmer1 has 50% of total, half in internal
-        _mintTokensToUser(farmer1, 100e6, LibTransfer.To.INTERNAL);
-        _mintTokensToUser(farmer2, 200e6, LibTransfer.To.EXTERNAL); // farmer2 has 50% of total all in external
-
-        // First distribution: 100 BEAN rewards
+        // distribution
         _sendRewardsToContract(100e6);
 
         // get the state of rewards pre-internal transfer
+        // farmer1
         uint256 farmer1Earned = siloPayback.earned(farmer1);
         assertEq(farmer1Earned, 50e6); // 50% of 100
-        // claim the rewards
-        vm.prank(farmer1);
-        siloPayback.claim(farmer1, LibTransfer.To.EXTERNAL); // 0 means claim all
-        // user reward paid is synced to the global reward per token stored
-        assertEq(
-            siloPayback.userRewardPerTokenPaid(farmer1),
-            siloPayback.rewardPerTokenStored(),
-            "farmer1 rewards not synced"
-        );
+        // farmer2
+        uint256 farmer2Earned = siloPayback.earned(farmer2);
+        assertEq(farmer2Earned, 50e6); // 50% of 100
 
         // farmer1 transfers 100 tokens to farmer3 in internal balance
+        // internal --> internal transfer
         _transferTokensToUser(
             farmer1,
-            farmer3,
+            farmer2,
             100e6,
             LibTransfer.From.INTERNAL,
             LibTransfer.To.INTERNAL
         );
 
-        // new ownership of tokens:
-        // farmer1: 100 external, 0 internal, 0 rewards
-        assertEq(siloPayback.balanceOf(farmer1), 100e6, "farmer1 balance not updated");
-        assertEq(siloPayback.earned(farmer1), 0, "farmer1 earned not updated");
+        // farmer1: 0 external, 0 internal, 50 rewards
+        assertEq(siloPayback.getBalanceCombined(farmer1), 0, "farmer1 balance not updated");
+        assertEq(siloPayback.earned(farmer1), 50e6, "farmer1 earned should remain the same");
 
-        // farmer2: 200 external, 0 internal, 50 rewards
-        assertEq(siloPayback.balanceOf(farmer2), 200e6, "farmer2 balance not updated");
-        assertEq(siloPayback.earned(farmer2), 50e6, "farmer2 earned not updated");
-
-        // farmer3: 100 internal, 0 external, 0 rewards
-        assertEq(siloPayback.getBalanceCombined(farmer3), 100e6, "farmer3 balance not updated");
-        assertEq(
-            siloPayback.getBalanceInMode(farmer3, LibTransfer.From.INTERNAL),
-            100e6,
-            "farmer3 internal balance not updated"
-        );
-        assertEq(
-            siloPayback.getBalanceInMode(farmer3, LibTransfer.From.EXTERNAL),
-            0,
-            "farmer3 external balance not updated"
-        );
-        // assertEq(siloPayback.earned(farmer3), 0, "farmer3 earned should be 0 before second reward distribution");
-
-        // log reward per token stored
-        console.log("reward per token stored", siloPayback.rewardPerTokenStored());
-        // log user reward per token paid
-        console.log(
-            "user reward per token paid for farmer3",
-            siloPayback.userRewardPerTokenPaid(farmer3)
-        );
-
-        // Second distribution: 100 BEAN rewards
-        // _sendRewardsToContract(100e6);
+        // farmer2: 0 external, 200 internal, 50 rewards
+        // Even though getBalanceCombined is 200e6, and no claims have occured
+        // The reward indexes are synced because of the pre transfer hook
+        assertEq(siloPayback.getBalanceCombined(farmer2), 200e6, "farmer2 balance not updated");
+        assertEq(siloPayback.balanceOf(farmer2), 0, "farmer2 external balance not updated");
+        assertEq(siloPayback.earned(farmer2), 50e6, "farmer2 earned should stay the same");
     }
 
-    // Scenario:
-    //   - User has 100 external + 50 internal tokens (150
-    //   total)
-    //   - Earns rewards for 150 tokens
-    //   - Internal balance changes to 25 via direct Pinto
-    //   protocol calls
-    //   - User still has checkpoint for 150 tokens but only 125
-    //    total balance
-    //   - Could claim excess rewards or have calculation errors
+    /**
+     * @dev External --> Internal
+     * SiloPayback knows the following when doing the ERC20 transfer:
+     * - sender = farmer1 | recipient = Pinto Diamond
+     * - Without the hook: Sender rewards do get checkpointed but the recipient rewards are not since it is the address of the diamond.
+     * - With the hook: Sender rewards do get checkpointed and the recipient rewards are also checkpointed.
+     */
+    function test_siloPaybackDoubleClaimExternalToInternalTransfer() public {
+        _mintTokensToUser(farmer1, 100e6, LibTransfer.To.EXTERNAL); // farmer1 has 50% of total, half in external
+        _mintTokensToUser(farmer2, 100e6, LibTransfer.To.EXTERNAL); // farmer2 has 50% of total all in external
+
+        // distribution
+        _sendRewardsToContract(100e6);
+
+        // get the state of rewards pre-internal transfer
+        // farmer1
+        uint256 farmer1Earned = siloPayback.earned(farmer1);
+        assertEq(farmer1Earned, 50e6); // 50% of 100
+        // farmer2
+        uint256 farmer2Earned = siloPayback.earned(farmer2);
+        assertEq(farmer2Earned, 50e6); // 50% of 100
+
+        // farmer1 transfers 100 tokens to farmer2 in internal balance
+        // external --> internal transfer
+        _transferTokensToUser(
+            farmer1,
+            farmer2,
+            100e6,
+            LibTransfer.From.EXTERNAL,
+            LibTransfer.To.INTERNAL
+        );
+
+        // farmer1: 0 external, 0 internal, 0 rewards
+        assertEq(siloPayback.getBalanceCombined(farmer1), 0, "farmer1 balance not updated");
+        assertEq(siloPayback.earned(farmer1), 50e6, "farmer1 earned should remain the same");
+
+        // farmer2: 100 external, 100 internal, 50 unclaimed rewards
+        assertEq(siloPayback.getBalanceCombined(farmer2), 200e6, "farmer2 balance not updated");
+        assertEq(siloPayback.balanceOf(farmer2), 100e6, "farmer2 external balance not updated");
+        assertEq(siloPayback.earned(farmer2), 50e6, "farmer2 earned should remain the same");
+    }
+
+    /**
+     * @dev Internal --> External
+     * SiloPayback knows the following when doing the ERC20 transfer:
+     * - sender = Pinto Diamond | recipient = farmer2
+     * - Without the hook: Sender rewards do not get checkpointed since sender is the diamond. Recipient rewards do get checkpointed.
+     * - With the hook: Both sender and recipient rewards are checkpointed.
+     */
+    function test_siloPaybackDoubleClaimInternalToExternalTransfer() public {
+        _mintTokensToUser(farmer1, 100e6, LibTransfer.To.INTERNAL); // farmer1 has 50% of total, half in internal
+        _mintTokensToUser(farmer2, 100e6, LibTransfer.To.EXTERNAL); // farmer2 has 50% of total all in external
+
+        // distribution
+        _sendRewardsToContract(100e6);
+
+        // get the state of rewards pre-internal transfer
+        // farmer1
+        uint256 farmer1Earned = siloPayback.earned(farmer1);
+        assertEq(farmer1Earned, 50e6); // 50% of 100
+        // farmer2
+        uint256 farmer2Earned = siloPayback.earned(farmer2);
+        assertEq(farmer2Earned, 50e6); // 50% of 100
+
+        // farmer1 transfers 100 tokens to farmer2 in external balance
+        // internal --> external transfer
+        _transferTokensToUser(
+            farmer1,
+            farmer2,
+            100e6,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.EXTERNAL
+        );
+
+        // farmer1: 0 external, 0 internal, 50 rewards still unclaimed
+        assertEq(siloPayback.getBalanceCombined(farmer1), 0, "farmer1 balance not updated");
+        assertEq(siloPayback.earned(farmer1), 50e6, "farmer1 earned should remain the same");
+
+        // farmer2: 200 external, 0 internal, 50 rewards still unclaimed
+        // Even though getBalanceCombined is 200e6, and no claims have occured
+        // The reward indexes are synced because of the pre transfer hook
+        assertEq(siloPayback.balanceOf(farmer2), 200e6, "farmer2 balance not updated");
+        assertEq(siloPayback.earned(farmer2), 50e6, "farmer2 earned should remain the same");
+    }
 
     ////////////// HELPER FUNCTIONS //////////////
 
@@ -503,6 +561,15 @@ contract SiloPaybackTest is TestHelper {
     ) internal {
         vm.startPrank(sender);
         IERC20(address(siloPayback)).approve(address(bs), amount);
+        // if from internal and to internal, expect pre transfer hook event to be emitted
+        if (fromMode == LibTransfer.From.INTERNAL || toMode == LibTransfer.To.INTERNAL) {
+            vm.expectEmit(true, true, true, true);
+            emit TokenHookCalled(
+                address(siloPayback),
+                address(siloPayback),
+                siloPayback.protocolUpdate.selector
+            );
+        }
         bs.transferToken(address(siloPayback), receipient, amount, uint8(fromMode), uint8(toMode));
         vm.stopPrank();
     }
