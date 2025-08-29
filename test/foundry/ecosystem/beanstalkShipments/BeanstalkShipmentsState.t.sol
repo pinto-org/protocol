@@ -346,7 +346,7 @@ contract BeanstalkShipmentsStateTest is TestHelper {
         for (uint256 i = 0; i < accountNumber; i++) {
             account = vm.readLine(BARN_ADDRESSES_PATH);
             address accountAddr = vm.parseAddress(account);
-            
+
             // skip contract accounts
             if (isContract(accountAddr)) {
                 totalContractAccounts++;
@@ -386,6 +386,28 @@ contract BeanstalkShipmentsStateTest is TestHelper {
         for (uint256 i = 0; i < fertilizedContractAccounts.length; i++) {
             console.log("fertilizedContractAccounts index", i, fertilizedContractAccounts[i]);
         }
+    }
+
+    /**
+     * @notice Tests that the silo payback hook is whitelisted and has the correct parameters.
+     */
+    function test_siloPaybackHook() public {
+        assertEq(pinto.hasTokenHook(SILO_PAYBACK), true, "Silo payback hook not whitelisted");
+        assertEq(
+            pinto.getTokenHook(SILO_PAYBACK).target,
+            SILO_PAYBACK,
+            "Silo payback hook target mismatch"
+        );
+        assertEq(
+            pinto.getTokenHook(SILO_PAYBACK).selector,
+            ISiloPayback.protocolUpdate.selector,
+            "Silo payback hook selector mismatch"
+        );
+        assertEq(
+            pinto.getTokenHook(SILO_PAYBACK).encodeType,
+            0x00,
+            "Silo payback hook encode type mismatch"
+        );
     }
 
     //////////////////// Helper Functions ////////////////////
