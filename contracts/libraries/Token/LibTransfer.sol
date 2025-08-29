@@ -43,7 +43,13 @@ library LibTransfer {
         From fromMode,
         To toMode
     ) internal returns (uint256 transferredAmount) {
-        checkForInternalTransferHook(token, sender, recipient, amount, fromMode, toMode);
+        // if the transfer involves internal balances and the token has a hook, call the hook
+        if (
+            (fromMode == From.INTERNAL || toMode == To.INTERNAL) &&
+            LibTokenHook.hasTokenHook(address(token))
+        ) {
+            LibTokenHook.callPreTransferHook(address(token), sender, recipient, amount);
+        }
 
         if (fromMode == From.EXTERNAL && toMode == To.EXTERNAL) {
             uint256 beforeBalance = token.balanceOf(recipient);
@@ -107,31 +113,6 @@ library LibTransfer {
         } else {
             token.mint(address(this), amount);
             LibTransfer.sendToken(token, amount, recipient, mode);
-        }
-    }
-
-    /**
-     * @notice Checks if a token has a pre-transfer hook for internal transfers and calls it if it does.
-     * @param token The token being transferred.
-     * @param sender The sender of the transfer.
-     * @param recipient The recipient of the transfer.
-     * @param amount The amount of tokens being transferred.
-     * @param fromMode The mode of the transfer.
-     * @param toMode The mode of the transfer.
-     */
-    function checkForInternalTransferHook(
-        IERC20 token,
-        address sender,
-        address recipient,
-        uint256 amount,
-        From fromMode,
-        To toMode
-    ) internal {
-        if (
-            LibTokenHook.hasTokenHook(address(token)) &&
-            (fromMode == From.INTERNAL || toMode == To.INTERNAL)
-        ) {
-            LibTokenHook.callPreTransferHook(address(token), sender, recipient, amount);
         }
     }
 }
