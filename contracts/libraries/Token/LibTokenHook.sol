@@ -126,6 +126,7 @@ library LibTokenHook {
      * @dev Unlike view functions like the bdv selector, we can't staticcall pre-transfer hooks
      * since they might potentially modify state or emit events so we perform a regular call with
      * default parameters and assume the hook does not revert for 0 values.
+     * @dev Care must be taken to only whitelist trusted hooks since a hook is an arbitrary function call.
      * @param token The token address.
      * @param hook The TokenHook to verify.
      */
