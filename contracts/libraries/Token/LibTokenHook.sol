@@ -109,8 +109,9 @@ library LibTokenHook {
      * @param to The recipient address.
      * @param amount The transfer amount.
      */
-    function callPreTransferHook(address token, address from, address to, uint256 amount) internal {
+    function checkForAndCallPreTransferHook(address token, address from, address to, uint256 amount) internal {
         TokenHook memory hook = getTokenHook(token);
+        if (hook.target == address(0)) return;
 
         // call the hook. If it reverts, revert the entire transfer.
         (bool success, ) = hook.target.call(

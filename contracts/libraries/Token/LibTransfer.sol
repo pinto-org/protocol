@@ -44,11 +44,8 @@ library LibTransfer {
         To toMode
     ) internal returns (uint256 transferredAmount) {
         // if the transfer involves internal balances and the token has a hook, call the hook
-        if (
-            (fromMode == From.INTERNAL || toMode == To.INTERNAL) &&
-            LibTokenHook.hasTokenHook(address(token))
-        ) {
-            LibTokenHook.callPreTransferHook(address(token), sender, recipient, amount);
+        if (fromMode == From.INTERNAL || toMode == To.INTERNAL) {
+            LibTokenHook.checkForAndCallPreTransferHook(address(token), sender, recipient, amount);
         }
 
         if (fromMode == From.EXTERNAL && toMode == To.EXTERNAL) {
