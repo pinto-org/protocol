@@ -285,6 +285,12 @@ interface IMockFBeanstalk {
         bool oracleFailure;
     }
 
+    struct TokenHook {
+        address target;
+        bytes4 selector;
+        bytes1 encodeType;
+    }
+
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();
@@ -547,6 +553,10 @@ interface IMockFBeanstalk {
         Implementation gpImplementation,
         Implementation lwImplementation
     );
+
+    event TokenHookRegistered(address indexed token, address target, bytes4 selector);
+    event TokenHookRemoved(address indexed token);
+    event TokenHookUpdated(address indexed token, address target, bytes4 selector);
 
     function abovePeg() external view returns (bool);
 
@@ -1915,4 +1925,14 @@ interface IMockFBeanstalk {
     ) external view returns (uint256 amountIn);
 
     function setPenaltyRatio(uint256 penaltyRatio) external;
+
+    function addTokenHook(address token, TokenHook memory hook) external payable;
+
+    function removeTokenHook(address token) external payable;
+
+    function updateTokenHook(address token, TokenHook memory hook) external payable;
+
+    function hasTokenHook(address token) external view returns (bool);
+
+    function getTokenHook(address token) external view returns (TokenHook memory);
 }
