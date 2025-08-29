@@ -115,7 +115,7 @@ library LibTokenHook {
 
         // call the hook. If it reverts, revert the entire transfer.
         (bool success, ) = hook.target.call(
-            encodeHookCall(hook.encodeType, hook.selector, from, to, amount)
+            encodeHookCall(hook.encodeType, hook.selector, token, from, to, amount)
         );
         require(success, "LibTokenHook: Hook execution failed");
 
@@ -145,6 +145,7 @@ library LibTokenHook {
      * @notice Encodes a hook call for a token before an internal transfer.
      * @param encodeType The encode type byte, indicating the parameters to be passed to the hook.
      * @param selector The selector to call on the target contract.
+     * @param token The token being transferred.
      * @param from The sender address from the transfer.
      * @param to The recipient address from the transfer.
      * @param amount The transfer amount.
@@ -152,14 +153,17 @@ library LibTokenHook {
     function encodeHookCall(
         bytes1 encodeType,
         bytes4 selector,
+        address token,
         address from,
         address to,
         uint256 amount
     ) internal pure returns (bytes memory) {
         if (encodeType == 0x00) {
             return abi.encodeWithSelector(selector, from, to, amount);
-            // any other encode types should be added here
+        } else if (encodeType == 0x01) {
+            return abi.encodeWithSelector(selector, token, from, to, amount);
         } else {
+            // any other encode types should be added here
             revert("LibTokenHook: Invalid encodeType");
         }
     }
