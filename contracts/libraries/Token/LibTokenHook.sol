@@ -37,6 +37,7 @@ library LibTokenHook {
      * @param hook The TokenHook struct containing target, selector, and data.
      */
     function whitelistHook(address token, TokenHook memory hook) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         require(token != address(0), "LibTokenHook: Invalid token address");
         require(hook.target != address(0), "LibTokenHook: Invalid target address");
         require(hook.selector != bytes4(0), "LibTokenHook: Invalid selector");
@@ -44,7 +45,6 @@ library LibTokenHook {
         // Verify the hook implementation is callable
         verifyPreTransferHook(token, hook);
 
-        AppStorage storage s = LibAppStorage.diamondStorage();
         s.sys.tokenHook[token] = hook;
 
         emit TokenHookRegistered(token, hook.target, hook.selector);
