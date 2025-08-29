@@ -43,10 +43,11 @@ contract TokenHookTest is TestHelper {
         );
         bs.addTokenHook(
             address(mockToken),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(mockToken),
                 selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
 
@@ -197,10 +198,11 @@ contract TokenHookTest is TestHelper {
         vm.prank(farmers[0]);
         bs.addTokenHook(
             address(mockToken),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(mockToken),
                 selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
 
@@ -214,10 +216,11 @@ contract TokenHookTest is TestHelper {
         vm.prank(farmers[0]);
         bs.updateTokenHook(
             address(mockToken),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(mockToken),
                 selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
 
@@ -231,10 +234,11 @@ contract TokenHookTest is TestHelper {
         vm.prank(deployer);
         bs.updateTokenHook(
             address(1),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(mockToken),
                 selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
     }
@@ -248,10 +252,11 @@ contract TokenHookTest is TestHelper {
         vm.expectRevert("LibTokenHook: Target is not a contract");
         bs.addTokenHook(
             address(randomMockTokenAddress),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: randomMockTokenAddress, // invalid target
                 selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
 
@@ -260,10 +265,11 @@ contract TokenHookTest is TestHelper {
         vm.expectRevert("LibTokenHook: Invalid TokenHook implementation");
         bs.addTokenHook(
             address(mockToken),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(mockToken),
                 selector: bytes4(0x12345678), // invalid selector
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
     }
@@ -277,10 +283,11 @@ contract TokenHookTest is TestHelper {
         vm.expectRevert("LibTokenHook: Invalid encodeType");
         bs.addTokenHook(
             address(mockToken),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(mockToken),
                 selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x01 // invalid encode type
+                encodeType: 0x02, // invalid encode type
+                data: "" // data is unused
             })
         );
     }

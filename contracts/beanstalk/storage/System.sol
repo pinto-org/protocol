@@ -40,7 +40,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param evaluationParameters See {EvaluationParameters}.
  * @param sop See {SeasonOfPlenty}.
  * @param gauges See {Gauge}.
- * @param tokenHook A mapping from token address to the pre-transfer hook to be called before a token is transferred from a user's internal balance.
+ * @param tokenHook A mapping from token address to the pre-transfer hook Implementation to be called before a token is transferred from a user's internal balance.
+ * - Encode type 0x00 indicates that the hook receives (address from, address to, uint256 amount) as arguments.
+ *   This is in line with the default OpenZeppelin ERC20 _update pre-transfer function.
+ * - Encode type 0x01 indicates that the hook receives (address token, address from, address to, uint256 amount) as arguments.
  */
 struct System {
     address bean;
@@ -77,7 +80,7 @@ struct System {
     SeasonOfPlenty sop;
     ExtEvaluationParameters extEvaluationParameters;
     GaugeData gaugeData;
-    mapping(address => TokenHook) tokenHook;
+    mapping(address => Implementation) tokenHook;
     // A buffer is not included here, bc current layout of AppStorage makes it unnecessary.
 }
 
@@ -334,6 +337,7 @@ struct ShipmentRoute {
  * @param data Any additional data, for example timeout
  * @dev assumes all future implementations will use the same parameters as the beanstalk
  * gaugePoint and liquidityWeight implementations.
+ * @dev Can also be used to store token hooks to be called before a token is transferred from a user's internal balance.
  */
 struct Implementation {
     address target; // 20 bytes

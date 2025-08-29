@@ -7,7 +7,7 @@ pragma solidity ^0.8.20;
 import "contracts/libraries/LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
-import {TokenHook} from "contracts/beanstalk/storage/System.sol";
+import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
 import {LibTokenHook} from "contracts/libraries/Token/LibTokenHook.sol";
 
@@ -68,10 +68,11 @@ contract InitBeanstalkShipments {
         AppStorage storage s = LibAppStorage.diamondStorage();
         LibTokenHook.addTokenHook(
             siloPayback,
-            TokenHook({
+            Implementation({
                 target: address(siloPayback),
                 selector: ISiloPayback.protocolUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused here
             })
         );
     }

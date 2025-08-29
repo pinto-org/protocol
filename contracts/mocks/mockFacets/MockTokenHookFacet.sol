@@ -8,21 +8,22 @@ import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {Invariable} from "contracts/beanstalk/Invariable.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibTokenHook} from "contracts/libraries/Token/LibTokenHook.sol";
-import {TokenHook} from "contracts/beanstalk/storage/System.sol";
+import {Implementation} from "contracts/beanstalk/storage/System.sol";
 
 /**
- * @title TokenHookFacet
+ * @title MockTokenHookFacet
  * @notice Manages the pre-transfer hook whitelist for internal token transfers.
+ * @dev This facet is a mock implementation of the TokenHookFacet with admin functions not commented out.
  */
 contract MockTokenHookFacet is Invariable, ReentrancyGuard {
     /**
      * @notice Registers a pre-transfer hook for a specific token.
      * @param token The token address to register the hook for.
-     * @param hook The TokenHook struct. (See System.{TokenHook})
+     * @param hook The Implementation token hook struct. (See System.{Implementation})
      */
     function addTokenHook(
         address token,
-        TokenHook memory hook
+        Implementation memory hook
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         LibDiamond.enforceIsOwnerOrContract();
         LibTokenHook.addTokenHook(token, hook);
@@ -42,11 +43,11 @@ contract MockTokenHookFacet is Invariable, ReentrancyGuard {
     /**
      * @notice Updates a pre-transfer hook for a specific token.
      * @param token The token address to update the hook for.
-     * @param hook The new TokenHook struct.
+     * @param hook The new Implementation token hook struct. (See System.{Implementation})
      */
     function updateTokenHook(
         address token,
-        TokenHook memory hook
+        Implementation memory hook
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         LibDiamond.enforceIsOwnerOrContract();
         LibTokenHook.updateTokenHook(token, hook);
@@ -63,9 +64,9 @@ contract MockTokenHookFacet is Invariable, ReentrancyGuard {
     /**
      * @notice Gets the pre-transfer hook struct for a specific token.
      * @param token The token address.
-     * @return TokenHook struct for the token. (See System.{TokenHook})
+     * @return Implementation token hook struct for the token. (See System.{Implementation})
      */
-    function getTokenHook(address token) external view returns (TokenHook memory) {
+    function getTokenHook(address token) external view returns (Implementation memory) {
         return LibTokenHook.getTokenHook(token);
     }
 }

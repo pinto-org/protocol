@@ -1926,13 +1926,13 @@ interface IMockFBeanstalk {
 
     function setPenaltyRatio(uint256 penaltyRatio) external;
 
-    function addTokenHook(address token, TokenHook memory hook) external payable;
+    function addTokenHook(address token, Implementation memory hook) external payable;
 
     function removeTokenHook(address token) external payable;
 
-    function updateTokenHook(address token, TokenHook memory hook) external payable;
+    function updateTokenHook(address token, Implementation memory hook) external payable;
 
     function hasTokenHook(address token) external view returns (bool);
 
-    function getTokenHook(address token) external view returns (TokenHook memory);
+    function getTokenHook(address token) external view returns (Implementation memory);
 }

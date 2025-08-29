@@ -59,10 +59,11 @@ contract SiloPaybackTest is TestHelper {
         vm.prank(deployer);
         bs.addTokenHook(
             address(siloPayback),
-            IMockFBeanstalk.TokenHook({
+            IMockFBeanstalk.Implementation({
                 target: address(siloPayback),
                 selector: siloPayback.protocolUpdate.selector,
-                encodeType: 0x00
+                encodeType: 0x00,
+                data: "" // data is unused
             })
         );
 
