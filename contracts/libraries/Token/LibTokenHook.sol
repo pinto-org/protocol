@@ -19,7 +19,7 @@ library LibTokenHook {
     /**
      * @notice Emitted when a pre-transfer token hook is registered.
      */
-    event AddedTokenHook(address indexed token, address indexed target, bytes4 selector);
+    event AddedTokenHook(address indexed token, Implementation hook);
 
     /**
      * @notice Emitted when a whitelisted pre-transfer token hook is removed.
@@ -29,7 +29,7 @@ library LibTokenHook {
     /**
      * @notice Emitted when a whitelisted pre-transfer token hook is called.
      */
-    event TokenHookCalled(address indexed token, address indexed target, bytes4 selector);
+    event TokenHookCalled(address indexed token, address indexed target, bytes encodedCall);
 
     /**
      * @notice Registers and verifies a token hook for a specific token.
@@ -47,7 +47,7 @@ library LibTokenHook {
 
         s.sys.tokenHook[token] = hook;
 
-        emit AddedTokenHook(token, hook.target, hook.selector);
+        emit AddedTokenHook(token, hook);
     }
 
     /**
@@ -116,12 +116,18 @@ library LibTokenHook {
         if (hook.target == address(0)) return;
 
         // call the hook. If it reverts, revert the entire transfer.
-        (bool success, ) = hook.target.call(
-            encodeHookCall(hook.encodeType, hook.selector, token, from, to, amount)
+        bytes memory encodedCall = encodeHookCall(
+            hook.encodeType,
+            hook.selector,
+            token,
+            from,
+            to,
+            amount
         );
+        (bool success, ) = hook.target.call(encodedCall);
         require(success, "LibTokenHook: Hook execution failed");
 
-        emit TokenHookCalled(token, hook.target, hook.selector);
+        emit TokenHookCalled(token, hook.target, encodedCall);
     }
 
     /**
@@ -137,7 +143,14 @@ library LibTokenHook {
         require(isContract(hook.target), "LibTokenHook: Target is not a contract");
         // verify the target is callable
         (bool success, ) = hook.target.call(
-            encodeHookCall(hook.encodeType, hook.selector, address(0), address(0), address(0), uint256(0))
+            encodeHookCall(
+                hook.encodeType,
+                hook.selector,
+                address(0),
+                address(0),
+                address(0),
+                uint256(0)
+            )
         );
         require(success, "LibTokenHook: Invalid TokenHook implementation");
     }

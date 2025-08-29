@@ -13,8 +13,8 @@ contract TokenHookTest is TestHelper {
     event RegularTransferTokenHookCalled(address indexed from, address indexed to, uint256 amount);
 
     // Protocol events
-    event TokenHookCalled(address indexed token, address indexed target, bytes4 selector);
-    event AddedTokenHook(address indexed token, address indexed target, bytes4 selector);
+    event TokenHookCalled(address indexed token, address indexed target, bytes encodedCall);
+    event AddedTokenHook(address indexed token, IMockFBeanstalk.Implementation hook);
 
     // test accounts
     address[] farmers;
@@ -34,22 +34,17 @@ contract TokenHookTest is TestHelper {
         mockToken = new MockTokenWithHook("MockHookToken", "MOCKHT", address(bs));
 
         // Whitelist token hook for internal transfers, expect whitelist event to be emitted
-        vm.prank(deployer);
+        vm.startPrank(deployer);
         vm.expectEmit(true, true, true, true);
-        emit AddedTokenHook(
-            address(mockToken),
-            address(mockToken),
-            mockToken.internalTransferUpdate.selector
-        );
-        bs.addTokenHook(
-            address(mockToken),
-            IMockFBeanstalk.Implementation({
-                target: address(mockToken),
-                selector: mockToken.internalTransferUpdate.selector,
-                encodeType: 0x00,
-                data: "" // data is unused
-            })
-        );
+        IMockFBeanstalk.Implementation memory hook = IMockFBeanstalk.Implementation({
+            target: address(mockToken),
+            selector: mockToken.internalTransferUpdate.selector,
+            encodeType: 0x00,
+            data: "" // data is unused
+        });
+        emit AddedTokenHook(address(mockToken), hook);
+        bs.addTokenHook(address(mockToken), hook);
+        vm.stopPrank();
 
         // init users
         farmers.push(users[1]);
@@ -98,7 +93,12 @@ contract TokenHookTest is TestHelper {
         emit TokenHookCalled(
             address(mockToken), // token
             address(mockToken), // target
-            mockToken.internalTransferUpdate.selector // selector
+            abi.encodeWithSelector(
+                mockToken.internalTransferUpdate.selector,
+                farmers[0],
+                farmers[1],
+                transferAmount
+            )
         );
         bs.transferInternalTokenFrom(
             address(mockToken),
@@ -138,7 +138,12 @@ contract TokenHookTest is TestHelper {
         emit TokenHookCalled(
             address(mockToken), // token
             address(mockToken), // target
-            mockToken.internalTransferUpdate.selector // selector
+            abi.encodeWithSelector(
+                mockToken.internalTransferUpdate.selector,
+                farmers[0],
+                farmers[0],
+                transferAmount
+            )
         );
         bs.sendTokenToInternalBalance(address(mockToken), farmers[0], transferAmount);
 
@@ -171,7 +176,12 @@ contract TokenHookTest is TestHelper {
         emit TokenHookCalled(
             address(mockToken), // token
             address(mockToken), // target
-            mockToken.internalTransferUpdate.selector // selector
+            abi.encodeWithSelector(
+                mockToken.internalTransferUpdate.selector,
+                farmers[0],
+                farmers[0],
+                transferAmount
+            )
         );
         bs.transferInternalTokenFrom(
             address(mockToken),
