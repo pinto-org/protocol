@@ -125,6 +125,8 @@ interface IBeanstalk {
         address[] calldata tokens
     ) external view returns (MowStatus[] memory mowStatuses);
 
+    function getInternalBalance(address account, address token) external view returns (uint256);
+
     function getNonBeanTokenAndIndexFromWell(address well) external view returns (address, uint256);
 
     function getTokenDepositIdsForAccount(
@@ -193,6 +195,26 @@ interface IBeanstalk {
         uint256 amount,
         LibTransfer.From fromMode,
         LibTransfer.To toMode
+    ) external payable;
+
+
+    function transferPlot(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 end
+    ) external payable;
+
+
+    function transferPlots(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256[] calldata ids,
+        uint256[] calldata starts,
+        uint256[] calldata ends
     ) external payable;
 
     function update(address account) external payable;

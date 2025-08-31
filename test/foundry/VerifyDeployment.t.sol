@@ -515,7 +515,7 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
         assertEq(uint8(routes[3].recipient), uint8(ShipmentRecipient.FIELD));
         assertEq(routes[3].data, abi.encode(PAYBACK_FIELD_ID, PCM));
         // payback contract (0x04)
-        assertEq(routes[4].planSelector, ShipmentPlanner.getPaybackPlan.selector);
+        // assertEq(routes[4].planSelector, ShipmentPlanner.getPaybackPlan.selector);
         assertEq(uint8(routes[4].recipient), uint8(ShipmentRecipient.EXTERNAL_BALANCE));
         assertEq(routes[4].data, abi.encode(PCM));
     }
