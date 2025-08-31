@@ -346,7 +346,7 @@ contract BeanstalkShipmentsStateTest is TestHelper {
         for (uint256 i = 0; i < accountNumber; i++) {
             account = vm.readLine(BARN_ADDRESSES_PATH);
             address accountAddr = vm.parseAddress(account);
-            
+
             // skip contract accounts
             if (isContract(accountAddr)) {
                 totalContractAccounts++;

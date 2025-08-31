@@ -14,7 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {L1ContractMessenger} from "contracts/ecosystem/beanstalkShipments/contractDistribution/L1ContractMessenger.sol";
 import {FieldFacet} from "contracts/beanstalk/facets/field/FieldFacet.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
-import {ContractPaybackDistributor,ICrossDomainMessenger} from "contracts/ecosystem/beanstalkShipments/contractDistribution/ContractPaybackDistributor.sol";
+import {ContractPaybackDistributor, ICrossDomainMessenger} from "contracts/ecosystem/beanstalkShipments/contractDistribution/ContractPaybackDistributor.sol";
 
 contract ContractDistributionTest is TestHelper {
     // Constants
@@ -29,7 +29,8 @@ contract ContractDistributionTest is TestHelper {
     // L1 sender
     address public constant L1_SENDER = 0x51f472874a303D5262d7668f5a3d17e3317f8E51;
 
-    address public constant EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR = 0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000;
+    address public constant EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR =
+        0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000;
 
     // Deployed contracts
     SiloPayback public siloPayback;
@@ -203,7 +204,6 @@ contract ContractDistributionTest is TestHelper {
      * - The call is successful only if the xDomainMessageSender is the L1 sender
      */
     function test_contractDistributionFromL1Message() public {
-
         // try to claim from non-L1 messenger, expect revert
         vm.startPrank(address(contractAccount1));
         vm.expectRevert("ContractPaybackDistributor: Caller not L1 messenger");

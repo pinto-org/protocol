@@ -13,7 +13,6 @@ import {ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
  * The first route is the silo payback contract and the second route is the barn payback contract.
  **/
 contract InitBeanstalkShipments {
-
     uint256 constant REPAYMENT_FIELD_ID = 1;
     /// @dev total length of the podline. The largest index in beanstalk_field.json incremented by the amount.
     uint256 constant REPAYMENT_FIELD_PODS = 919768387056514;
@@ -49,7 +48,7 @@ contract InitBeanstalkShipments {
         require(s.sys.fieldCount == 1, "Repayment field already exists");
         uint256 fieldId = s.sys.fieldCount;
         s.sys.fieldCount++;
-        // init global state for new field, 
+        // init global state for new field,
         // harvestable and harvested vars are 0 since we shifted all plots in the data to start from 0
         s.sys.fields[REPAYMENT_FIELD_ID].pods = REPAYMENT_FIELD_PODS;
         emit FieldAdded(fieldId);

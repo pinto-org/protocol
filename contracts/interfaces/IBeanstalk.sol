@@ -197,7 +197,6 @@ interface IBeanstalk {
         LibTransfer.To toMode
     ) external payable;
 
-
     function transferPlot(
         address sender,
         address recipient,
@@ -206,7 +205,6 @@ interface IBeanstalk {
         uint256 start,
         uint256 end
     ) external payable;
-
 
     function transferPlots(
         address sender,
