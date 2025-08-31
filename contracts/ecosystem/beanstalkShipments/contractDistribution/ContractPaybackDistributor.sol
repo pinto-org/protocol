@@ -154,7 +154,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
      * @param receiver The address to transfer the assets to
      */
     function _transferAllAssetsForAccount(address account, address receiver) internal {
-        AccountData storage accountData = accounts[account];
+        AccountData memory accountData = accounts[account];
 
         // transfer silo payback tokens to the receiver
         if (accountData.siloPaybackTokensOwed > 0) {
@@ -190,8 +190,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     //////////////////////////// ERC1155Receiver ////////////////////////////
 
     /**
-     * @dev For this contract to receive minted fertilizers from the barn payback contract,
-     * it must implement the IERC1155Receiver interface.
+     * @dev ERC-1155 hook allowing this contract to receive a single fertilizer from the barn payback contract
      */
     function onERC1155Received(
         address operator,
@@ -204,8 +203,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     }
 
     /**
-     * @dev For this contract to receive minted fertilizers from the barn payback contract,
-     * it must implement the IERC1155Receiver interface.
+     * @dev ERC-1155 hook allowing this contract to receive a batch of fertilizers from the barn payback contract
      */
     function onERC1155BatchReceived(
         address operator,
@@ -218,8 +216,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     }
 
     /**
-     * @dev For this contract to receive minted fertilizers from the barn payback contract,
-     * it must implement the IERC1155Receiver interface.
+     * @dev ERC-1155 compliance function to indicate that this contract implements the IERC1155Receiver interface
      */
     function supportsInterface(bytes4 interfaceId) external view returns (bool) {
         return interfaceId == type(IERC1155Receiver).interfaceId;
