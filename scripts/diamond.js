@@ -491,7 +491,8 @@ async function upgradeWithDeployedFacets({
   initFacetAddress = ethers.constants.AddressZero,
   initArgs = [],
   account = null,
-  verbose = false
+  verbose = false,
+  object = false
 }) {
   let totalGasUsed = ethers.BigNumber.from("0");
   let initFacetCallGas = ethers.BigNumber.from("0");
@@ -554,6 +555,27 @@ async function upgradeWithDeployedFacets({
     const initFacet = await ethers.getContractAt("IDiamondCut", initFacetAddress);
     functionCall = await initFacet.interface.encodeFunctionData("init", initArgs);
     if (verbose) console.log(`Function call: ${functionCall.toString().substring(0, 100)}`);
+  }
+
+  if (object) {
+    const dc = {
+      diamondCut: diamondCut,
+      initFacetAddress: initFacetAddress,
+      functionCall: functionCall
+    };
+    const encodedDiamondCut = await diamondCutFacet.interface.encodeFunctionData(
+      "diamondCut",
+      Object.values(dc)
+    );
+    console.log(JSON.stringify(dc, null, 4));
+    console.log("Encoded: -------------------------------------------------------------");
+    console.log(encodedDiamondCut);
+    const dcName = `diamondCut-deployed-${Math.floor(Date.now() / 1000)}-${facetNames.length}-facets.json`;
+    await fs.writeFileSync(
+      `./scripts/diamondCuts/${dcName}`,
+      JSON.stringify({ diamondCut: dc, encoded: encodedDiamondCut }, null, 4)
+    );
+    return dc;
   }
 
   let result = await diamondCutFacet
