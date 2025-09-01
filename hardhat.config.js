@@ -33,7 +33,11 @@ const {
   addressToBalanceSlotMap
 } = require("./test/hardhat/utils/constants.js");
 const { task } = require("hardhat/config");
-const { upgradeWithNewFacets, decodeDiamondCutAction } = require("./scripts/diamond.js");
+const {
+  upgradeWithNewFacets,
+  upgradeWithDeployedFacets,
+  decodeDiamondCutAction
+} = require("./scripts/diamond.js");
 const { resolveDependencies } = require("./scripts/resolveDependencies");
 const { getFacetBytecode, compareBytecode } = require("./test/hardhat/utils/bytecode");
 
@@ -2013,6 +2017,108 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     }
 
     console.log("-----------------------------------");
+  });
+
+//////////////// Unpause ////////////////////
+
+// Run this at a fork block before pausing the diamond to get all the active facet addresses for the next task
+task("getFacetAddressesAtCurrentBlock", "Gets facet addresses at the current block on localhost").setAction(
+  async (taskArgs) => {
+    const diamond = await ethers.getContractAt("IDiamondLoupe", L2_PINTO);
+    const facets = await diamond.facets();
+    console.log(`Total facets: ${facets.length}`);
+    // log it in a comma separated list
+    console.log(facets.map((facet) => facet.facetAddress).join(","));
+  }
+);
+
+task(
+  "addBackAllFacets",
+  "Adds specified facets back to the diamond using upgradeWithDeployedFacets"
+)
+  .addParam("addresses", "Comma-separated list of facet addresses to add back")
+  .setAction(async (taskArgs) => {
+    const BASESCAN_API_KEY = process.env.ETHERSCAN_KEY_BASE;
+    if (!BASESCAN_API_KEY) {
+      console.error("Please set ETHERSCAN_KEY_BASE in your environment variables");
+      return;
+    }
+
+    console.log("Adding facets back to the diamond");
+
+    // Filter out diamond system facets that will never be removed
+    const excludedAddresses = [
+      "0x6A65163f92a37530d0ABF9ba52f6FD9AfDd6a05B", // DiamondCutFacet
+      "0xa319dC165d81fA54B2A8F8f6D0EcEDca54BA7308" // DiamondLoupeFacet
+    ];
+
+    const allAddresses = taskArgs.addresses.split(",").map((addr) => addr.trim());
+    const facetAddresses = allAddresses.filter((addr) => !excludedAddresses.includes(addr));
+
+    if (facetAddresses.length === 0) {
+      console.log("No valid facet addresses to add after filtering");
+      return;
+    }
+
+    console.log("Facet addresses to add:", facetAddresses);
+
+    // Get contract names from BaseScan
+    const facetNames = [];
+    console.log("Fetching contract names from BaseScan...");
+
+    for (const address of facetAddresses) {
+      const response = await fetch(
+        `https://api.basescan.org/api?module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
+      );
+      const data = await response.json();
+
+      if (data.status === "1" && data.result[0]) {
+        const contractName = data.result[0].ContractName;
+        facetNames.push(contractName);
+        console.log(`${address}: ${contractName}`);
+      } else {
+        console.error(`Failed to get contract name for ${address}`);
+        return;
+      }
+
+      // Add delay to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    // Deployment params
+    let mock = true;
+    let callSunrise = true;
+
+    // Setup owner account
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Using account:", await owner.getAddress());
+    }
+
+    console.log("Creating diamond cut...");
+
+    const result = await upgradeWithDeployedFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: facetNames,
+      facetAddresses: facetAddresses,
+      account: owner,
+      verbose: true,
+      object: !mock
+    });
+
+    console.log("Diamond cut completed!");
+    console.log("Transaction hash:", result.hash);
+
+    if (callSunrise) {
+      console.log("Calling sunrise...");
+      const beanstalk = await getBeanstalk(L2_PINTO);
+      await beanstalk.connect(owner).sunrise({ gasLimit: 100000000 });
+      console.log("Sunrise completed!");
+    }
   });
 
 //////////////////////// CONFIGURATION ////////////////////////
