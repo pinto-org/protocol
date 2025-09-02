@@ -507,7 +507,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     function uri(uint256 _id) public view virtual override returns (string memory) {
         // get the remaining bpf (id - fert.bpf)
         uint128 bpfRemaining = uint128(_id) >= fert.bpf ? uint128(_id) - fert.bpf : 0;
-        
+
         // get the image URI
         string memory imageUri = imageURI(_id, bpfRemaining);
 
