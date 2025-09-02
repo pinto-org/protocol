@@ -121,7 +121,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     }
 
     /**
-     * @notice Destroy existing blueprint by incrementing the nonce to type(uint256).max
+     * @notice Destroy existing blueprint
      */
     function cancelBlueprint(
         LibTractor.Requisition calldata requisition
