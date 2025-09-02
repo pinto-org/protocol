@@ -179,7 +179,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // Harvest if the conditions are met
         if (vars.shouldHarvest) {
             uint256 harvestedBeans = beanstalk.harvest(
-            beanstalk.activeField(),
+                beanstalk.activeField(),
                 vars.harvestablePlots,
                 LibTransfer.To.INTERNAL
             );
