@@ -78,6 +78,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         bool shouldMow;
         bool shouldPlant;
         bool shouldHarvest;
+        IBeanstalk.Season seasonInfo;
         uint256[] harvestablePlots;
         LibTractorHelpers.WithdrawalPlan plan;
     }
@@ -112,6 +113,8 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         vars.orderHash = beanstalk.getCurrentBlueprintHash();
         vars.account = beanstalk.tractorUser();
         vars.tipAddress = params.opParams.tipAddress;
+        // Cache the current season struct
+        vars.seasonInfo = beanstalk.time();
 
         // get the user state from the protocol and validate against params
         (
@@ -119,10 +122,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             vars.shouldMow,
             vars.shouldPlant,
             vars.shouldHarvest
-        ) = _getAndValidateUserState(vars.account, params);
+        ) = _getAndValidateUserState(vars.account, vars.seasonInfo, params);
 
         // validate blueprint
-        _validateBlueprint(vars.orderHash);
+        _validateBlueprint(vars.orderHash, vars.seasonInfo.current);
 
         // validate order params and revert early if invalid
         _validateParams(params);
@@ -176,7 +179,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // Harvest if the conditions are met
         if (vars.shouldHarvest) {
             uint256 harvestedBeans = beanstalk.harvest(
-                beanstalk.activeField(),
+            beanstalk.activeField(),
                 vars.harvestablePlots,
                 LibTransfer.To.INTERNAL
             );
@@ -186,7 +189,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         }
 
         // Update the last executed season for this blueprint
-        updateLastExecutedSeason(vars.orderHash, beanstalk.time().current);
+        updateLastExecutedSeason(vars.orderHash, vars.seasonInfo.current);
     }
 
     /**
@@ -200,6 +203,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
      */
     function _getAndValidateUserState(
         address account,
+        IBeanstalk.Season memory seasonInfo,
         MowPlantHarvestBlueprintStruct calldata params
     )
         internal
@@ -223,7 +227,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         shouldMow = _checkSmartMowConditions(
             params.mowPlantHarvestParams.mintwaDeltaB,
             params.mowPlantHarvestParams.minMowAmount,
-            totalClaimableStalk
+            totalClaimableStalk,
+            seasonInfo.timestamp,
+            seasonInfo.period
         );
         shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
         shouldHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
@@ -246,12 +252,12 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     function _checkSmartMowConditions(
         uint256 mintwaDeltaB,
         uint256 minMowAmount,
-        uint256 totalClaimableStalk
+        uint256 totalClaimableStalk,
+        uint256 previousSeasonTimestamp,
+        uint256 seasonPeriod
     ) internal view returns (bool) {
-        IBeanstalk.Season memory seasonInfo = beanstalk.time();
-
         // if the time until next season is more than the buffer don't mow, too early
-        uint256 nextSeasonExpectedTimestamp = seasonInfo.timestamp + seasonInfo.period;
+        uint256 nextSeasonExpectedTimestamp = previousSeasonTimestamp + seasonPeriod;
         if (nextSeasonExpectedTimestamp - block.timestamp > SMART_MOW_BUFFER) return false;
 
         // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
@@ -374,10 +380,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     }
 
     /// @dev validates info related to the blueprint such as the order hash and the last executed season
-    function _validateBlueprint(bytes32 orderHash) internal view {
+    function _validateBlueprint(bytes32 orderHash, uint32 currentSeason) internal view {
         require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
         require(
-            orderLastExecutedSeason[orderHash] < beanstalk.time().current,
+            orderLastExecutedSeason[orderHash] < currentSeason,
             "Blueprint already executed this season"
         );
     }
