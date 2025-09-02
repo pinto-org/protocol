@@ -3,16 +3,15 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {TractorHelpers} from "./TractorHelpers.sol";
-import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
  * @title MowPlantHarvestBlueprint
  * @author DefaultJuice
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
-contract MowPlantHarvestBlueprint is PerFunctionPausable {
+contract MowPlantHarvestBlueprint is BlueprintBase {
 
     /**
      * @dev Minutes after sunrise to check if the totalDeltaB is about to be positive for the following season
@@ -57,18 +56,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     }
 
     /**
-     * @notice Struct to hold operator parameters
-     * @param whitelistedOperators What operators are allowed to execute the blueprint
-     * @param tipAddress Address to send tip to
-     * @param operatorTipAmount Amount of tip to pay to operator
-     */
-    struct OperatorParams {
-        address[] whitelistedOperators;
-        address tipAddress;
-        int256 operatorTipAmount;
-    }
-
-    /**
      * @notice Local variables for the mow, plant and harvest function
      * @dev Used to avoid stack too deep errors
      */
@@ -87,21 +74,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         LibTractorHelpers.WithdrawalPlan plan;
     }
 
-    // Mapping to track the last executed season for each order hash
-    mapping(bytes32 orderHash => uint32 lastExecutedSeason) public orderLastExecutedSeason;
-
-    // Contracts
-    IBeanstalk public immutable beanstalk;
-    TractorHelpers public immutable tractorHelpers;
-
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers
-    ) PerFunctionPausable(_owner) {
-        beanstalk = IBeanstalk(_beanstalk);
-        tractorHelpers = TractorHelpers(_tractorHelpers);
-    }
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {}
 
     /**
      * @notice Main entry point for the mow, plant and harvest blueprint
@@ -135,7 +112,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         _validateParams(params);
 
         // if tip address is not set, set it to the operator
-        if (vars.tipAddress == address(0)) vars.tipAddress = beanstalk.operator();
+        vars.tipAddress = _resolveTipAddress(vars.tipAddress);
 
         // Withdrawal Plan and Tip
         // Check if enough beans are available using getWithdrawalPlan
@@ -193,7 +170,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         }
 
         // Update the last executed season for this blueprint
-        updateLastExecutedSeason(vars.orderHash, vars.seasonInfo.current);
+        _updateLastExecutedSeason(vars.orderHash, vars.seasonInfo.current);
     }
 
     /**
@@ -362,15 +339,11 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
      * @dev validates the parameters for the mow, plant and harvest operation
      */
     function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal view {
-        require(
-            params.mowPlantHarvestParams.sourceTokenIndices.length > 0,
-            "Must provide at least one source token"
-        );
-        // Check if the executing operator (msg.sender) is whitelisted
-        require(
-            tractorHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
-            "Operator not whitelisted"
-        );
+        // Shared validations
+        _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
+        _validateOperatorParams(params.opParams);
+        
+        // Blueprint specific validations
         // Validate that minPlantAmount and minHarvestAmount result in profit
         if (params.opParams.operatorTipAmount >= 0) {
             require(
@@ -386,21 +359,4 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         }
     }
 
-    /**
-     * @dev validates info related to the blueprint such as the order hash and the last executed season
-     */
-    function _validateBlueprint(bytes32 orderHash, uint32 currentSeason) internal view {
-        require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
-        require(
-            orderLastExecutedSeason[orderHash] < currentSeason,
-            "Blueprint already executed this season"
-        );
-    }
-
-    /**
-     * @dev updates the last executed season for a given order hash
-     */
-    function updateLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
-        orderLastExecutedSeason[orderHash] = season;
-    }
 }

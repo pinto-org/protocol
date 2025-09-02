@@ -7,6 +7,7 @@ import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 
 contract TractorHelper is TestHelper {
     // Add this at the top of the contract
@@ -245,7 +246,7 @@ contract TractorHelper is TestHelper {
         });
 
         // Create OperatorParams struct
-        SowBlueprintv0.OperatorParams memory opParams = SowBlueprintv0.OperatorParams({
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOps,
             tipAddress: tipAddress,
             operatorTipAmount: operatorTipAmount
@@ -369,7 +370,7 @@ contract TractorHelper is TestHelper {
             });
 
         // Create OperatorParams struct
-        MowPlantHarvestBlueprint.OperatorParams memory opParams = MowPlantHarvestBlueprint
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase
             .OperatorParams({
                 whitelistedOperators: whitelistedOps,
                 tipAddress: tipAddress,
