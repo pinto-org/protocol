@@ -256,7 +256,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
         // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
         // This also guards against double dipping the blueprint after planting or harvesting since stalk will be 0
-        return beanstalk.totalDeltaB() > int256(mintwaDeltaB) && totalClaimableStalk > minMowAmount;
+        return totalClaimableStalk > minMowAmount && beanstalk.totalDeltaB() > int256(mintwaDeltaB);
     }
 
     /**
