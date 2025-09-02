@@ -13,7 +13,6 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
 contract MowPlantHarvestBlueprint is PerFunctionPausable {
-
     /**
      * @dev Minutes after sunrise to check if the totalDeltaB is about to be positive for the following season
      */
