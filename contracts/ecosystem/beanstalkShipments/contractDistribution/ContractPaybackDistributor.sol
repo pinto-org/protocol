@@ -149,7 +149,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
 
     /**
      * @notice Transfers all assets for a whitelisted contract account to a receiver
-     * note: if the receiver is a contract it must implement the IERC1155Receiver interface
+     * note: if the receiver is a contract it must implement the ERC1155Receiver interface
      * @param account The address of the account to claim from
      * @param receiver The address to transfer the assets to
      */

@@ -2264,10 +2264,6 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
       account: owner
     });
     console.log("✅ Shipment routes updated and new field created\n");
-
-    console.log("=".repeat(80));
-    console.log("🎉 BEANSTALK SHIPMENTS INITIALIZATION COMPLETED");
-    console.log("=".repeat(80));
   }
 );
 

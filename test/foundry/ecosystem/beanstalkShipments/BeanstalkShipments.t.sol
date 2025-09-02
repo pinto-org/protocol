@@ -19,8 +19,9 @@ import {ContractPaybackDistributor} from "contracts/ecosystem/beanstalkShipments
  * @notice Tests shipment distribution and claiming functionality for the beanstalk shipments system.
  * This tests should be ran against a local node after the deployment and initialization task is complete.
  * 1. Create a local anvil node at block 33349326, right before Season 5952 where the deltab was +19,281 TWAΔP
- * 2. Run the hardhat task: `npx hardhat compile && npx hardhat beanstalkShipments --network localhost`
+ * 2. Run the hardhat tasks to initialize the shipments.`
  * 3. Run the test: `forge test --match-contract BeanstalkShipmentsTest --fork-url http://localhost:8545`
+ * Alternatively, the tests need to be ran using a fork after the deployment is done.
  */
 contract BeanstalkShipmentsTest is TestHelper {
     // Contracts
@@ -35,20 +36,11 @@ contract BeanstalkShipmentsTest is TestHelper {
 
     // Paths
     // Field
-    string constant FIELD_ADDRESSES_PATH =
-        "./scripts/beanstalkShipments/data/exports/accounts/field_addresses.txt";
     string constant FIELD_JSON_PATH =
         "./scripts/beanstalkShipments/data/exports/beanstalk_field.json";
     // Silo
     string constant SILO_ADDRESSES_PATH =
         "./scripts/beanstalkShipments/data/exports/accounts/silo_addresses.txt";
-    string constant SILO_JSON_PATH =
-        "./scripts/beanstalkShipments/data/exports/beanstalk_silo.json";
-    // Barn
-    string constant BARN_ADDRESSES_PATH =
-        "./scripts/beanstalkShipments/data/exports/accounts/barn_addresses.txt";
-    string constant BARN_JSON_PATH =
-        "./scripts/beanstalkShipments/data/exports/beanstalk_barn.json";
 
     ////////// State Structs //////////
 
@@ -81,13 +73,10 @@ contract BeanstalkShipmentsTest is TestHelper {
     // Contract accounts loaded from JSON file
     address[] contractAccounts;
 
-    // we need to:
-    // - Verify that all state matches the one in the json files for shipments, silo and barn payback
-    // - get to a supply where the beanstalk shipments kick in
-    // - make the system print, check distribution in each contract
-    // - for each component, make sure everything is distributed correctly
-    // - make sure that at any point all users can claim their rewards pro rata
     function setUp() public {
+        // after deployment, uncomment this, set forkBlock at a later block
+        // uint256 forkBlock = 33349326;
+        // vm.createSelectFork("base", forkBlock);
         _loadContractAccountsFromJson();
     }
 
