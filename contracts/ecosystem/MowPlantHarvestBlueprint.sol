@@ -13,8 +13,11 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
 contract MowPlantHarvestBlueprint is PerFunctionPausable {
-    /// @dev Buffer for operators to check if the protocol is close to printing
-    uint256 public constant SMART_MOW_BUFFER = 5 minutes;
+
+    /**
+     * @dev Minutes after sunrise to check if the totalDeltaB is about to be positive for the following season
+     */
+    uint256 public constant MINUTES_AFTER_SUNRISE = 55 minutes;
 
     /**
      * @notice Main struct for mow, plant and harvest blueprint
@@ -29,7 +32,8 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     /**
      * @notice Struct to hold mow, plant and harvest parameters
      * @param minMowAmount The minimum total claimable stalk threshold to mow
-     * @param mintwaDeltaB The minimum twaDeltaB to mow if the protocol is close to printing
+     * @param mintwaDeltaB The minimum twaDeltaB to mow if the protocol
+     * is close to starting the next season above the value target
      * @param minPlantAmount The earned beans threshold to plant
      * @param minHarvestAmount The total harvestable pods threshold to harvest
      * -----------------------------------------------------------
@@ -122,7 +126,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             vars.shouldMow,
             vars.shouldPlant,
             vars.shouldHarvest
-        ) = _getAndValidateUserState(vars.account, vars.seasonInfo, params);
+        ) = _getAndValidateUserState(vars.account, vars.seasonInfo.timestamp, params);
 
         // validate blueprint
         _validateBlueprint(vars.orderHash, vars.seasonInfo.current);
@@ -179,7 +183,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         // Harvest if the conditions are met
         if (vars.shouldHarvest) {
             uint256 harvestedBeans = beanstalk.harvest(
-            beanstalk.activeField(),
+                beanstalk.activeField(),
                 vars.harvestablePlots,
                 LibTransfer.To.INTERNAL
             );
@@ -203,7 +207,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
      */
     function _getAndValidateUserState(
         address account,
-        IBeanstalk.Season memory seasonInfo,
+        uint256 previousSeasonTimestamp,
         MowPlantHarvestBlueprintStruct calldata params
     )
         internal
@@ -228,8 +232,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             params.mowPlantHarvestParams.mintwaDeltaB,
             params.mowPlantHarvestParams.minMowAmount,
             totalClaimableStalk,
-            seasonInfo.timestamp,
-            seasonInfo.period
+            previousSeasonTimestamp
         );
         shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
         shouldHarvest = totalHarvestablePods >= params.mowPlantHarvestParams.minHarvestAmount;
@@ -244,21 +247,19 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
     /**
      * @notice Check smart mow conditions to trigger a mow
-     * @dev A smart mow happens when the protocol is about to print
-     * and the user has enough claimable stalk such as he gets more yield.
-     * note: Assumes sunrise is called at the top of the hour.
+     * @dev A smart mow happens when:
+     * - `MINUTES_AFTER_SUNRISE` has passed since the last sunrise call
+     * - The protocol is about to start the next season above the value target.
+     * - The user has enough claimable stalk such as he gets more yield.
      * @return bool True if the user should smart mow, false otherwise
      */
     function _checkSmartMowConditions(
         uint256 mintwaDeltaB,
         uint256 minMowAmount,
         uint256 totalClaimableStalk,
-        uint256 previousSeasonTimestamp,
-        uint256 seasonPeriod
+        uint256 previousSeasonTimestamp
     ) internal view returns (bool) {
-        // if the time until next season is more than the buffer don't mow, too early
-        uint256 nextSeasonExpectedTimestamp = previousSeasonTimestamp + seasonPeriod;
-        if (nextSeasonExpectedTimestamp - block.timestamp > SMART_MOW_BUFFER) return false;
+        if (block.timestamp - previousSeasonTimestamp < MINUTES_AFTER_SUNRISE) return false;
 
         // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
         // This also guards against double dipping the blueprint after planting or harvesting since stalk will be 0
@@ -308,12 +309,16 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
     /**
      * @notice Helper function to get the total harvestable pods and plots for a user
      * @param account The address of the user
-     * @return totalHarvestablePods The total amount of harvestable pods
-     * @return harvestablePlots The harvestable plot ids for the user
+     * @return totalUserHarvestablePods The total amount of harvestable pods for the user
+     * @return userHarvestablePlots The harvestable plot ids for the user
      */
     function _userHarvestablePods(
         address account
-    ) internal view returns (uint256 totalHarvestablePods, uint256[] memory harvestablePlots) {
+    )
+        internal
+        view
+        returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
+    {
         // Get all plots for the user in the field
         IBeanstalk.Plot[] memory plots = beanstalk.getPlotsFromAccount(
             account,
@@ -331,7 +336,7 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         }
 
         // Allocate the array
-        harvestablePlots = new uint256[](count);
+        userHarvestablePlots = new uint256[](count);
         uint256 j = 0;
 
         // Now, fill the array and sum pods
@@ -341,19 +346,21 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
 
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
-                harvestablePlots[j++] = startIndex;
-                totalHarvestablePods += plotPods;
+                userHarvestablePlots[j++] = startIndex;
+                totalUserHarvestablePods += plotPods;
             } else if (startIndex < harvestableIndex) {
                 // Partially harvestable
-                harvestablePlots[j++] = startIndex;
-                totalHarvestablePods += harvestableIndex - startIndex;
+                userHarvestablePlots[j++] = startIndex;
+                totalUserHarvestablePods += harvestableIndex - startIndex;
             }
         }
 
-        return (totalHarvestablePods, harvestablePlots);
+        return (totalUserHarvestablePods, userHarvestablePlots);
     }
 
-    /// @dev validates the parameters for the mow, plant and harvest operation
+    /**
+     * @dev validates the parameters for the mow, plant and harvest operation
+     */
     function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal view {
         require(
             params.mowPlantHarvestParams.sourceTokenIndices.length > 0,
@@ -379,7 +386,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         }
     }
 
-    /// @dev validates info related to the blueprint such as the order hash and the last executed season
+    /**
+     * @dev validates info related to the blueprint such as the order hash and the last executed season
+     */
     function _validateBlueprint(bytes32 orderHash, uint32 currentSeason) internal view {
         require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
         require(
@@ -388,7 +397,9 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         );
     }
 
-    /// @dev updates the last executed season for a given order hash
+    /**
+     * @dev updates the last executed season for a given order hash
+     */
     function updateLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
         orderLastExecutedSeason[orderHash] = season;
     }
