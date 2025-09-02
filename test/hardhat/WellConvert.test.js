@@ -229,7 +229,7 @@ describe("Well Convert", function () {
           mockBeanstalk
             .connect(owner)
             .convertInternalE(this.well.address, "3018239549693752550560", convertData)
-        ).to.be.revertedWith("Convert: Invalid Well");
+        ).to.be.revertedWith("LibWhitelistedTokens: Token not found");
       });
 
       it("convert below max", async function () {

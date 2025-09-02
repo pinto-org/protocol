@@ -131,7 +131,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             (pipeData.grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
                 cp.toToken,
                 toBdv,
-                pipeData.grownStalk
+                pipeData.grownStalk,
+                cp.fromAmount
             );
             emit LibConvert.ConvertDownPenalty(cp.account, grownStalkLost, pipeData.grownStalk);
         }

@@ -12,6 +12,7 @@ import {Call, IWell} from "contracts/interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
  * @title Well Convert Library
@@ -27,20 +28,24 @@ library LibWellConvert {
      * convert to the LP Token of a given `well` while maintaining a delta B >= 0.
      */
     function beansToPeg(address well) internal view returns (uint256 beans) {
-        (beans, ) = _beansToPeg(well);
+        (beans, ) = _beansToPegAtRate(well, LibWell.DEFAULT_RATE);
     }
 
     /**
-     * An internal version of `beansToPeg` that always returns the
+     * @dev Calculates the maximum amount of Beans that can be
+     * convert to the LP Token of a given `well` while maintaining a delta such that the exchange rate of bean:token is equal to `rate`.
      * index of the Bean token in a given `well`.
      */
-    function _beansToPeg(address well) internal view returns (uint256 beans, uint256 beanIndex) {
+    function _beansToPegAtRate(
+        address well,
+        uint256 rate
+    ) internal view returns (uint256 beans, uint256 beanIndex) {
         IERC20[] memory tokens = IWell(well).tokens();
         uint256[] memory reserves = IWell(well).getReserves();
         Call memory wellFunction = IWell(well).wellFunction();
         uint256[] memory ratios;
         bool success;
-        (ratios, beanIndex, success) = LibWell.getRatiosAndBeanIndex(tokens);
+        (ratios, beanIndex, success) = LibWell.getRatiosAndBeanIndexAtRate(tokens, 0, rate);
         // If the USD Oracle oracle call fails, the convert should not be allowed.
         require(success, "Convert: USD Oracle failed");
 
@@ -123,7 +128,9 @@ library LibWellConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
         (uint256 lp, uint256 minBeans, address well) = convertData.convertWithAddress();
 
-        require(LibWell.isWell(well), "Convert: Invalid Well");
+        // note: the input token does not need to be a currently whitelisted well,
+        // but must be previously whitelisted.
+        require(LibWhitelistedTokens.wellIsOrWasSoppable(well), "Convert: Invalid Well");
 
         tokenOut = s.sys.bean;
         tokenIn = well;
@@ -184,7 +191,7 @@ library LibWellConvert {
         address well
     ) internal returns (uint256 lp, uint256 beansConverted) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        (uint256 maxBeans, ) = _beansToPeg(well);
+        uint256 maxBeans = beansToPeg(well);
         require(maxBeans > 0, "Convert: P must be >= 1.");
         beansConverted = beans > maxBeans ? maxBeans : beans;
         BeanstalkERC20(s.sys.bean).transfer(well, beansConverted);

@@ -155,7 +155,7 @@ contract MockSeasonFacet is SeasonFacet {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
+        (, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
         stepSun(caseId, bs);
     }
 
@@ -455,7 +455,7 @@ contract MockSeasonFacet is SeasonFacet {
 
     function calculateCultivationFactorDeltaE(
         LibEvaluate.BeanstalkState memory bs
-    ) external returns (uint256) {
+    ) external view returns (uint256) {
         uint256 cultivationFactor = abi.decode(
             LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)

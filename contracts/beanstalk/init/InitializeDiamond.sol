@@ -20,11 +20,11 @@ import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
 
 /**
- * @title InitalizeDiamond
- * @notice InitalizeDiamond provides helper functions to initalize beanstalk.
+ * @title InitializeDiamond
+ * @notice InitializeDiamond provides helper functions to initalize beanstalk.
  **/
 
-contract InitalizeDiamond {
+contract InitializeDiamond {
     AppStorage internal s;
 
     // INITIAL CONSTANTS //
@@ -100,21 +100,30 @@ contract InitalizeDiamond {
     // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
 
+    // Convert Down Penalty Gauge additional fields
+    uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
+    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 10_000_000e6; // initalize to 10M
+    // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18 = 4.1666667e14 (18 decimals)
+    uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // ~0.000416667e18 with 18 decimals
+
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
     // Min Soil Sown Demand
     uint256 internal constant MIN_SOIL_SOWN_DEMAND = 5e6; // 5
 
+    // Convert Down Penalty Rate (1.005 with 6 decimals)
+    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6;
+
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
-     * @notice Initalizes the diamond with base conditions.
-     * @dev the base initalization initalizes various parameters,
+     * @notice Initializes the diamond with base conditions.
+     * @dev the base initialization initializes various parameters,
      * as well as whitelists the bean and bean:TKN pools.
      */
-    function initalizeDiamond(address bean, address beanTokenWell) internal {
+    function initializeDiamond(address bean, address beanTokenWell) internal {
         addInterfaces();
         initializeTokens(bean);
         initalizeSeason();
@@ -198,7 +207,7 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalizes field parameters.
+     * @notice Initializes field parameters.
      */
     function initalizeField() internal {
         s.sys.weather.temp = 1e6;
@@ -209,7 +218,7 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalizes season parameters.
+     * @notice Initializes season parameters.
      */
     function initalizeSeason() internal {
         // set current season to 1.
@@ -228,7 +237,7 @@ contract InitalizeDiamond {
             ? (block.timestamp / s.sys.season.period) * s.sys.season.period
             : block.timestamp;
 
-        // initalizes the cases that beanstalk uses
+        // initializes the cases that beanstalk uses
         // to change certain parameters of itself.
         setCases();
 
@@ -353,10 +362,26 @@ contract InitalizeDiamond {
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
 
         Gauge memory convertDownPenaltyGauge = Gauge(
-            abi.encode(INIT_CONVERT_DOWN_PENALTY_RATIO, INIT_ROLLING_SEASONS_ABOVE_PEG),
+            abi.encode(
+                LibGaugeHelpers.ConvertDownPenaltyValue({
+                    penaltyRatio: INIT_CONVERT_DOWN_PENALTY_RATIO,
+                    rollingSeasonsAbovePeg: INIT_ROLLING_SEASONS_ABOVE_PEG
+                })
+            ),
             address(this),
             IGaugeFacet.convertDownPenaltyGauge.selector,
-            abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
+            abi.encode(
+                LibGaugeHelpers.ConvertDownPenaltyData({
+                    rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
+                    rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
+                    beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
+                    beanMintedThreshold: INIT_BEAN_AMOUNT_ABOVE_THRESHOLD,
+                    runningThreshold: 0,
+                    percentSupplyThresholdRate: INIT_PERCENT_SUPPLY_THRESHOLD_RATE,
+                    convertDownPenaltyRate: CONVERT_DOWN_PENALTY_RATE,
+                    thresholdSet: true
+                })
+            )
         );
         LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
     }

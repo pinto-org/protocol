@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {AssetSettings} from "contracts/beanstalk/storage/System.sol";
-import "contracts/beanstalk/init/InitalizeDiamond.sol";
+import "contracts/beanstalk/init/InitializeDiamond.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibWhitelist} from "contracts/libraries/Silo/LibWhitelist.sol";
 import {BDVFacet} from "contracts/beanstalk/facets/silo/BDVFacet.sol";
@@ -17,7 +17,7 @@ import {BDVFacet} from "contracts/beanstalk/facets/silo/BDVFacet.sol";
  * @dev MockInitDiamond additionally:
  * - Whitelists the bean:wsteth well.
  **/
-contract MockInitDiamond is InitalizeDiamond {
+contract MockInitDiamond is InitializeDiamond {
     // min 1micro stalk earned per season due to germination.
     uint32 internal constant INIT_BEAN_WSTETH_WELL_STALK_EARNED_PER_SEASON = 4e6;
     uint128 internal constant INIT_TOKEN_POINTS = 100e18;
@@ -31,8 +31,8 @@ contract MockInitDiamond is InitalizeDiamond {
 
     function init() external {
         // initalize the default state of the diamond.
-        // {see. InitalizeDiamond.initalizeDiamond()}
-        initalizeDiamond(BEAN, BEAN_ETH_WELL);
+        // {see. InitializeDiamond.initializeDiamond()}
+        initializeDiamond(BEAN, BEAN_ETH_WELL);
 
         // Whitelist the LP well.
         whitelistLPWell(BEAN_WSTETH_WELL);

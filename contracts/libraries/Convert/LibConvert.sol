@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibLambdaConvert} from "./LibLambdaConvert.sol";
 import {LibConvertData} from "./LibConvertData.sol";
-import {LibWellConvert} from "./LibWellConvert.sol";
+import {LibWellConvert, LibWhitelistedTokens} from "./LibWellConvert.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
@@ -14,19 +14,18 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
+import {ConvertCapacity, GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 
 /**
  * @title LibConvert
@@ -128,7 +127,29 @@ library LibConvert {
         if (fromToken == s.sys.bean && toToken.isWell()) return LibWellConvert.beansToPeg(toToken);
 
         // Well LP Token -> Bean
-        if (fromToken.isWell() && toToken == s.sys.bean) return LibWellConvert.lpToPeg(fromToken);
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(fromToken) && toToken == s.sys.bean)
+            return LibWellConvert.lpToPeg(fromToken);
+
+        revert("Convert: Tokens not supported");
+    }
+
+    /**
+     * @notice Returns the maximum amount that can be converted of `fromToken` to `toToken` such that the price after the convert is equal to the rate.
+     * @dev At time of writing, this is only supported for Bean -> Well LP Token (as it is the only case where applicable).
+     * This function may return a value such that the price after the convert is slightly lower than the rate, due to rounding errors.
+     * Developers should be cautious and provide an appropriate buffer to account for this.
+     */
+    function getMaxAmountInAtRate(
+        address fromToken,
+        address toToken,
+        uint256 rate
+    ) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // Bean -> Well LP Token
+        if (fromToken == s.sys.bean && toToken.isWell()) {
+            (uint256 beans, ) = LibWellConvert._beansToPegAtRate(toToken, rate);
+            return beans;
+        }
 
         revert("Convert: Tokens not supported");
     }
@@ -150,7 +171,7 @@ library LibConvert {
         }
 
         // Well LP Token -> Bean
-        if (fromToken.isWell() && toToken == s.sys.bean) {
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(fromToken) && toToken == s.sys.bean) {
             return LibWellConvert.getBeanAmountOut(fromToken, fromAmount);
         }
 
@@ -445,7 +466,6 @@ library LibConvert {
         uint256 maxTokens,
         address user
     ) internal returns (uint256, uint256, uint256) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
         require(stems.length == amounts.length, "Convert: stems, amounts are diff lengths.");
 
         AssetsRemovedConvert memory a;
@@ -575,15 +595,19 @@ library LibConvert {
      * @notice Computes new grown stalk after downward convert penalty.
      * No penalty if P > Q or grown stalk below germination threshold.
      * @dev Inbound must not be germinating, will return germinating amount of grown stalk.
+     * this function only supports grown stalk penalties for BEAN -> WELL converts.
      * @return newGrownStalk Amount of grown stalk to assign the deposit.
      * @return grownStalkLost Amount of grown stalk lost to penalty.
      */
     function downPenalizedGrownStalk(
         address well,
         uint256 bdv,
-        uint256 grownStalk
+        uint256 grownStalk,
+        uint256 fromAmount
     ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
         AppStorage storage s = LibAppStorage.diamondStorage();
+
+        require(bdv > 0 && fromAmount > 0, "Convert: bdv or fromAmount is 0");
 
         // No penalty if output deposit germinating.
         uint256 minGrownStalk = LibTokenSilo.calculateGrownStalkAtNonGerminatingStem(well, bdv);
@@ -591,57 +615,114 @@ library LibConvert {
             return (grownStalk, 0);
         }
 
-        // No penalty if P > Q.
-        if (pGreaterThanQ(well)) {
+        // Get convertDownPenaltyRate from gauge data.
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].data,
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
+        (bool greaterThanRate, uint256 penalizedAmount) = pGreaterThanRate(
+            well,
+            gd.convertDownPenaltyRate,
+            fromAmount
+        );
+
+        // If the price of the well is greater than the penalty rate after the convert, there is no penalty.
+        if (greaterThanRate) {
             return (grownStalk, 0);
         }
+
+        // price is lower than the penalty rate.
 
         // Get penalty ratio from gauge.
         (uint256 penaltyRatio, ) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].value,
             (uint256, uint256)
         );
-        newGrownStalk = max(
-            grownStalk -
-                LibPRBMathRoundable.mulDiv(
-                    grownStalk,
-                    penaltyRatio,
-                    C.PRECISION,
-                    LibPRBMathRoundable.Rounding.Up
-                ),
-            minGrownStalk
-        );
-        grownStalkLost = grownStalk - newGrownStalk;
+
+        // enforce penalty ratio is not greater than 100%.
+        require(penaltyRatio <= C.PRECISION, "Convert: penaltyRatio is greater than 100%");
+
+        if (penaltyRatio > 0) {
+            // calculate the penalized bdv.
+            // note: if greaterThanRate is false, penalizedAmount could be non-zero.
+            require(
+                penalizedAmount <= fromAmount,
+                "Convert: penalizedAmount is greater than fromAmount"
+            );
+            uint256 penalizedBdv = (bdv * penalizedAmount) / fromAmount;
+
+            // calculate the grown stalk that may be lost due to the penalty.
+            uint256 penalizedGrownStalk = (grownStalk * penalizedBdv) / bdv;
+
+            // apply the penalty to the grown stalk via the penalty ratio,
+            // and calculate the new grown stalk of the deposit.
+            newGrownStalk = max(
+                grownStalk - (penalizedGrownStalk * penaltyRatio) / C.PRECISION,
+                minGrownStalk
+            );
+
+            // calculate the amount of grown stalk lost due to the penalty.
+            grownStalkLost = grownStalk - newGrownStalk;
+        } else {
+            // no penalty was applied.
+            newGrownStalk = grownStalk;
+            grownStalkLost = 0;
+        }
     }
 
-    function pGreaterThanQ(address well) internal view returns (bool) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-
-        // No penalty if P > Q.
-        (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell.getRatiosAndBeanIndex(
-            IWell(well).tokens(),
-            0
-        );
+    /**
+     *
+     * @notice verifies that the exchange rate of the well is above a rate,
+     * after an bean -> lp convert has occured with `amount`.
+     * @return greaterThanRate true if the price after the convert is greater than the rate, false otherwise
+     * @return beansOverRate the amount of beans that exceed the rate. 0 if `greaterThanRate` is true.
+     */
+    function pGreaterThanRate(
+        address well,
+        uint256 rate,
+        uint256 amount
+    ) internal view returns (bool greaterThanRate, uint256 beansOverRate) {
+        // No penalty if P > rate.
+        (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell
+            .getRatiosAndBeanIndexAtRate(IWell(well).tokens(), 0, rate);
         require(success, "Convert: USD Oracle failed");
 
-        // Scale ratio by Q.
-        ratios[beanIndex] =
-            (ratios[beanIndex] * 1e6) /
-            s.sys.evaluationParameters.excessivePriceThreshold;
-
         uint256[] memory instantReserves = LibDeltaB.instantReserves(well);
+
         Call memory wellFunction = IWell(well).wellFunction();
-        uint256 beansAtQ = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
-            instantReserves,
-            beanIndex,
-            ratios,
-            wellFunction.data
-        );
-        // Fewer Beans indicates a higher Bean price.
-        if (instantReserves[beanIndex] < beansAtQ) {
-            return true;
+
+        // increment the amount of beans in reserves by the amount of beans that would be added to liquidity.
+        uint256[] memory reservesAfterAmount = new uint256[](instantReserves.length);
+        uint256 tokenIndex = beanIndex == 0 ? 1 : 0;
+
+        reservesAfterAmount[beanIndex] = instantReserves[beanIndex] + amount;
+        reservesAfterAmount[tokenIndex] = instantReserves[tokenIndex];
+
+        // used to check if the price prior to the convert is higher/lower than the target price.
+        uint256 beansAtRate = IBeanstalkWellFunction(wellFunction.target)
+            .calcReserveAtRatioLiquidity(instantReserves, beanIndex, ratios, wellFunction.data);
+
+        // if the reserves `before` the convert is higher than the beans reserves at `rate`,
+        // it means the price `before` the convert is lower than `rate`.
+        // independent of the amount converted, the price will always be lower than `rate`.
+        if (instantReserves[beanIndex] > beansAtRate) {
+            return (false, amount);
+        } else {
+            // reserves `before` the convert is lower than the beans reserves at `rate`.
+            // the price `before` the convert is higher than `rate`.
+
+            if (reservesAfterAmount[beanIndex] < beansAtRate) {
+                // if the reserves `after` the convert is lower than the beans reserves at `rate`,
+                // it means the price `after` the convert is higher than `rate`.
+                return (true, 0);
+            } else {
+                // if the reserves `after` the convert is higher than the beans reserves at `rate`,
+                // it means the price `after` the convert is lower than `rate`.
+                // then the amount of beans over the rate is the difference between the beans reserves at `rate` and the reserves after the convert.
+                return (false, reservesAfterAmount[beanIndex] - beansAtRate);
+            }
         }
-        return false;
     }
 
     function abs(int256 a) internal pure returns (uint256) {

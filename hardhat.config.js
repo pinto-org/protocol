@@ -64,28 +64,28 @@ task("callSunrise", "Calls the sunrise function", async function () {
   const pinto = await ethers.getContractAt("BeanstalkERC20", PINTO);
   const totalSupply = await pinto.totalSupply();
 
-  console.log(
-    "sunrise complete!\ncurrent season:",
-    currentSeason,
-    "\ncurrent blockchain time:",
-    unixTime,
-    "\nhuman readable time:",
-    currentTime,
-    "\ncurrent block:",
-    (await ethers.provider.getBlock("latest")).number,
-    "\ndeltaB:",
-    (await beanstalk.totalDeltaB()).toString(),
-    "\nraining:",
-    raining,
-    "\nlast sop:",
-    lastSop,
-    "\nlast sop season:",
-    lastSopSeason,
-    "\nflooded this season:",
-    floodedThisSeason,
-    "\ncurrent pinto supply:",
-    await ethers.utils.formatUnits(totalSupply, 6)
-  );
+  // console.log(
+  //   "sunrise complete!\ncurrent season:",
+  //   currentSeason,
+  //   "\ncurrent blockchain time:",
+  //   unixTime,
+  //   "\nhuman readable time:",
+  //   currentTime,
+  //   "\ncurrent block:",
+  //   (await ethers.provider.getBlock("latest")).number,
+  //   "\ndeltaB:",
+  //   (await beanstalk.totalDeltaB()).toString(),
+  //   "\nraining:",
+  //   raining,
+  //   "\nlast sop:",
+  //   lastSop,
+  //   "\nlast sop season:",
+  //   lastSopSeason,
+  //   "\nflooded this season:",
+  //   floodedThisSeason,
+  //   "\ncurrent pinto supply:",
+  //   await ethers.utils.formatUnits(totalSupply, 6)
+  // );
 });
 
 task("epi0", async () => {
@@ -846,9 +846,84 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
   }
 );
 
+task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gauge").setAction(
+  async function () {
+    // Get the diamond address
+    const diamondAddress = L2_PINTO;
+
+    const mock = false;
+    let owner;
+    if (mock) {
+      await hre.run("updateOracleTimeouts");
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Account address: ", await owner.getAddress());
+    }
+
+    // Deploy and execute InitPI11
+    console.log("📦 Deploying InitPI11 contract...");
+    await upgradeWithNewFacets({
+      diamondAddress: diamondAddress,
+      facetNames: [
+        "ConvertFacet",
+        "ConvertGettersFacet",
+        "PipelineConvertFacet",
+        "GaugeFacet",
+        "ApprovalFacet",
+        "SeasonFacet",
+        "ClaimFacet",
+        "SiloGettersFacet",
+        "GaugeGettersFacet",
+        "OracleFacet",
+        "SeasonGettersFacet"
+      ],
+      libraryNames: [
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibSilo",
+        "LibTokenSilo",
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate",
+        "LibWeather"
+      ],
+      facetLibraries: {
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate",
+          "LibWeather"
+        ],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        SeasonGettersFacet: ["LibWellMinting"]
+      },
+      initFacetName: "InitPI11",
+      selectorsToRemove: [
+        "0x527ec6ba" // `downPenalizedGrownStalk(address,uint256,uint256)`
+      ],
+      bip: false,
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  }
+);
+
 task(
-  "PI-11",
-  "Deploys Pinto improvement set 11, Misc. Improvements and convert up bonus"
+  "PI-12",
+  "Deploys Pinto improvement set 12, Misc. Improvements and convert up bonus"
 ).setAction(async function () {
   const mock = true;
   let owner;
@@ -911,6 +986,27 @@ task(
     account: owner,
     initArgs: [],
     initFacetName: "InitPI11"
+  });
+});
+
+task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets, no new facets or libraries, only init
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [],
+    initArgs: [],
+    initFacetName: "InitWhitelistRebalance",
+    object: !mock,
+    verbose: true,
+    account: owner
   });
 });
 
@@ -1953,7 +2049,8 @@ module.exports = {
     base: {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
-      timeout: 100000000
+      timeout: 100000000,
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : []
     },
     custom: {
       chainId: 41337,
