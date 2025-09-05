@@ -282,7 +282,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             uint256[] memory harvestablePlots
         )
     {
-        // get whitelisted tokens
         address[] memory whitelistedTokens = beanstalk.getWhitelistedTokens();
 
         // check how much claimable stalk the user by all whitelisted tokens combined
@@ -290,8 +289,6 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
             account,
             whitelistedTokens
         );
-
-        // sum it to get total claimable grown stalk
         for (uint256 i = 0; i < grownStalks.length; i++) {
             totalClaimableStalk += grownStalks[i];
         }
@@ -317,41 +314,39 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         internal
         view
         returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
-    {
-        // Get all plots for the user in the field
+    {   
+        // fetch field and plot info from the diamond
+        uint256 activeField = beanstalk.activeField();
         IBeanstalk.Plot[] memory plots = beanstalk.getPlotsFromAccount(
             account,
-            beanstalk.activeField()
+            activeField
         );
-        uint256 harvestableIndex = beanstalk.harvestableIndex(beanstalk.activeField());
+        uint256 harvestableIndex = beanstalk.harvestableIndex(activeField);
 
-        // First, count how many plots are at least partially harvestable
-        uint256 count;
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            if (startIndex < harvestableIndex) {
-                count++;
-            }
-        }
+        // initialize array with full length
+        userHarvestablePlots = new uint256[](plots.length);
+        uint256 harvestableCount;
 
-        // Allocate the array
-        userHarvestablePlots = new uint256[](count);
-        uint256 j = 0;
-
-        // Now, fill the array and sum pods
         for (uint256 i = 0; i < plots.length; i++) {
             uint256 startIndex = plots[i].index;
             uint256 plotPods = plots[i].pods;
 
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
-                userHarvestablePlots[j++] = startIndex;
+                userHarvestablePlots[harvestableCount] = startIndex;
                 totalUserHarvestablePods += plotPods;
+                harvestableCount++;
             } else if (startIndex < harvestableIndex) {
                 // Partially harvestable
-                userHarvestablePlots[j++] = startIndex;
+                userHarvestablePlots[harvestableCount] = startIndex;
                 totalUserHarvestablePods += harvestableIndex - startIndex;
+                harvestableCount++;
             }
+        }
+
+        // resize array to actual harvestable plots count
+        assembly {
+            mstore(userHarvestablePlots, harvestableCount)
         }
 
         return (totalUserHarvestablePods, userHarvestablePlots);
