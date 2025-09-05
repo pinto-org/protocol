@@ -483,9 +483,8 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         assertEq(plots[0].index, 0, "plot index should be 0");
         assertEq(plots[0].pods, totalPodsBeforeCombine, "plot pods should be 1010e6");
 
-        // 
+        //
     }
-
 
     function setUpMultipleAccountPlots(
         address account,
