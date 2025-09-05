@@ -315,21 +315,21 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         view
         returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
     {   
-        // fetch field and plot info from the diamond
+        // get field info and plot count directly
         uint256 activeField = beanstalk.activeField();
-        IBeanstalk.Plot[] memory plots = beanstalk.getPlotsFromAccount(
-            account,
-            activeField
-        );
+        uint256[] memory plotIndexes = beanstalk.getPlotIndexesFromAccount(account, activeField);
         uint256 harvestableIndex = beanstalk.harvestableIndex(activeField);
 
+        if (plotIndexes.length == 0) return (0, new uint256[](0));
+        
         // initialize array with full length
-        userHarvestablePlots = new uint256[](plots.length);
+        userHarvestablePlots = new uint256[](plotIndexes.length);
         uint256 harvestableCount;
 
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            uint256 plotPods = plots[i].pods;
+        // single loop to process all plot indexes directly
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 startIndex = plotIndexes[i];
+            uint256 plotPods = beanstalk.plot(account, activeField, startIndex);
 
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable

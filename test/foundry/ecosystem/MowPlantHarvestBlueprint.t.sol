@@ -355,11 +355,11 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
                 state.user,
                 state.beanToken
             );
-            // assert the user total bdv has decreased as a result of the harvest
+            // assert the user total bdv has increased as a result of the harvest
             assertGt(
                 userTotalBdvAfterHarvest,
                 userTotalBdvBeforeHarvest,
-                "userTotalBdv should have decreased"
+                "userTotalBdv should have increased"
             );
 
             // assert user harvestable pods is 0
@@ -464,44 +464,52 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     /////////////////////////// HELPER FUNCTIONS ///////////////////////////
 
-    /// @dev Helper function to get the total harvestable pods and plot indexes for a user
+    /**
+     * @notice Helper function to get the total harvestable pods and plots for a user
+     * @param account The address of the user
+     * @return totalUserHarvestablePods The total amount of harvestable pods for the user
+     * @return userHarvestablePlots The harvestable plot ids for the user
+     */
     function _userHarvestablePods(
         address account
-    ) internal view returns (uint256 totalHarvestablePods, uint256[] memory harvestablePlots) {
-        // Get all plots for the user in the field
-        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(account, bs.activeField());
-        uint256 harvestableIndex = bs.harvestableIndex(bs.activeField());
+    )
+        internal
+        view
+        returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
+    {   
+        // get field info and plot count directly
+        uint256 activeField = bs.activeField();
+        uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, activeField);
+        uint256 harvestableIndex = bs.harvestableIndex(activeField);
 
-        // First, count how many plots are at least partially harvestable
-        uint256 count;
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            if (startIndex < harvestableIndex) {
-                count++;
-            }
-        }
+        if (plotIndexes.length == 0) return (0, new uint256[](0));
+        
+        // initialize array with full length
+        userHarvestablePlots = new uint256[](plotIndexes.length);
+        uint256 harvestableCount;
 
-        // Allocate the array
-        harvestablePlots = new uint256[](count);
-        uint256 j = 0;
-
-        // Now, fill the array and sum pods
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            uint256 plotPods = plots[i].pods;
+        // single loop to process all plot indexes directly
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 startIndex = plotIndexes[i];
+            uint256 plotPods = bs.plot(account, activeField, startIndex);
 
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
-                harvestablePlots[j++] = startIndex;
-                totalHarvestablePods += plotPods;
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += plotPods;
+                harvestableCount++;
             } else if (startIndex < harvestableIndex) {
                 // Partially harvestable
-                harvestablePlots[j++] = startIndex;
-                totalHarvestablePods += harvestableIndex - startIndex;
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += harvestableIndex - startIndex;
+                harvestableCount++;
             }
         }
-
-        return (totalHarvestablePods, harvestablePlots);
+        // resize array to actual harvestable plots count
+        assembly {
+            mstore(userHarvestablePlots, harvestableCount)
+        }
+        return (totalUserHarvestablePods, userHarvestablePlots);
     }
 
     /// @dev Advance to the next season and update oracles
