@@ -314,13 +314,10 @@ contract MowPlantHarvestBlueprint is PerFunctionPausable {
         internal
         view
         returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
-    {   
+    {
         // fetch field and plot info from the diamond
         uint256 activeField = beanstalk.activeField();
-        IBeanstalk.Plot[] memory plots = beanstalk.getPlotsFromAccount(
-            account,
-            activeField
-        );
+        IBeanstalk.Plot[] memory plots = beanstalk.getPlotsFromAccount(account, activeField);
         uint256 harvestableIndex = beanstalk.harvestableIndex(activeField);
 
         // initialize array with full length

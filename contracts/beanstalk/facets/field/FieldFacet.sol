@@ -483,8 +483,8 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      * @notice returns Plot indexes by their positions in the plotIndexes array.
      * @dev plotIndexes is an array of Plot indexes, used to return the farm plots of a Farmer.
      */
-     // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
-     //  You may want to make this such that you can request multiple indexes, or range.
+    // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
+    //  You may want to make this such that you can request multiple indexes, or range.
     function getPlotIndexesAtPositions(
         address account,
         uint256 fieldId,
@@ -492,7 +492,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     ) external view returns (uint256[] memory plotIndexes) {
         uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
         plotIndexes = new uint256[](arrayIndexes.length);
-        
+
         for (uint256 i = 0; i < arrayIndexes.length; i++) {
             require(arrayIndexes[i] < accountPlotIndexes.length, "Field: Index out of bounds");
             plotIndexes[i] = accountPlotIndexes[arrayIndexes[i]];
@@ -502,8 +502,8 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     /**
      * @notice returns Plot indexes for a specified range in the plotIndexes array.
      */
-     // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot. 
-     // You may want to make this such that you can request multiple indexes, or range.
+    // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
+    // You may want to make this such that you can request multiple indexes, or range.
     function getPlotIndexesByRange(
         address account,
         uint256 fieldId,
@@ -513,7 +513,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
         require(startIndex < endIndex, "Field: Invalid range");
         require(endIndex <= accountPlotIndexes.length, "Field: End index out of bounds");
-        
+
         plotIndexes = new uint256[](endIndex - startIndex);
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             plotIndexes[i] = accountPlotIndexes[startIndex + i];
