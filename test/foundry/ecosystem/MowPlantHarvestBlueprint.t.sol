@@ -462,6 +462,48 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         }
     }
 
+    function test_mergeAdjacentPlotsSimple() public {
+        // Setup test state
+        // setupPlant: false, setupHarvest: false (dont sow default amounts), abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, true);
+
+        uint256[] memory plotIndexes = setUpMultipleAccountPlots(state.user, 1000e6, 10); // 10 sows of 100 beans each at 1% temp
+        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(state.user, bs.activeField());
+        uint256 totalPodsBeforeCombine = 0;
+        for (uint256 i = 0; i < plots.length; i++) {
+            totalPodsBeforeCombine += plots[i].pods;
+        }
+        assertEq(plots.length, 10, "user should have 10 plots");
+        // combine all plots into one
+        bs.combinePlots(state.user, bs.activeField(), plotIndexes);
+
+        // assert user has 1 plot
+        plots = bs.getPlotsFromAccount(state.user, bs.activeField());
+        assertEq(plots.length, 1, "user should have 1 plot");
+        assertEq(plots[0].index, 0, "plot index should be 0");
+        assertEq(plots[0].pods, totalPodsBeforeCombine, "plot pods should be 1010e6");
+
+        // 
+    }
+
+
+    function setUpMultipleAccountPlots(
+        address account,
+        uint256 totalSoil,
+        uint256 sowCount
+    ) internal returns (uint256[] memory plotIndexes) {
+        // set soil to totalSoil
+        bs.setSoilE(totalSoil);
+        // sow totalSoil beans sowCount times of totalSoil/sowCount each
+        uint256 sowAmount = totalSoil / sowCount;
+        for (uint256 i = 0; i < sowCount; i++) {
+            vm.prank(account);
+            bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+        }
+        plotIndexes = bs.getPlotIndexesFromAccount(account, bs.activeField());
+        return plotIndexes;
+    }
+
     /////////////////////////// HELPER FUNCTIONS ///////////////////////////
 
     /**

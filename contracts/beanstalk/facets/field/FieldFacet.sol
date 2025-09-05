@@ -16,6 +16,7 @@ import {LibDibbler} from "contracts/libraries/LibDibbler.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibMarket} from "contracts/libraries/LibMarket.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import "forge-std/console.sol";
 
 interface IBeanstalk {
     function cancelPodListing(uint256 fieldId, uint256 index) external;
@@ -517,6 +518,82 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         plotIndexes = new uint256[](endIndex - startIndex);
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             plotIndexes[i] = accountPlotIndexes[startIndex + i];
+        }
+    }
+
+    /**
+     * @notice Combines an account's adjacent plots.
+     * @param account The account that owns the plots to combine
+     * @param fieldId The field ID containing the plots
+     * @param plotIndexes Array of adjacent plot indexes to combine (must be sorted and consecutive)
+     * @dev Plots must be adjacent: plot[i].index + plot[i].pods == plot[i+1].index
+     *      Updates storage by merging plots and rebuilding plotIndexes/piIndex
+     *      Any account can combine any other account's adjacent plots
+     */
+    function combinePlots(
+        address account,
+        uint256 fieldId,
+        uint256[] calldata plotIndexes
+    ) external payable fundsSafu noSupplyChange noNetFlow nonReentrant {
+        require(plotIndexes.length >= 2, "Field: Need at least 2 plots to combine");
+        
+        // initialize total pods with the first plot
+        uint256 totalPods = s.accts[account].fields[fieldId].plots[plotIndexes[0]];
+        require(totalPods > 0, "Field: Plot to combine not owned by account");
+        // track the expected next start position to avoid querying deleted plots
+        uint256 expectedNextStart = plotIndexes[0] + totalPods;
+        
+        for (uint256 i = 1; i < plotIndexes.length; i++) {
+            uint256 currentPods = s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+            require(currentPods > 0, "Field: Plot to combine not owned by account");
+            
+            // check adjacency: expected next start == current plot start
+            require(expectedNextStart == plotIndexes[i], "Field: Plots to combine not adjacent");
+            
+            totalPods += currentPods;
+            expectedNextStart = plotIndexes[i] + currentPods;
+            
+            // delete subsequent plots, set the amount to 0 so that we can rebuild the array later
+            delete s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+        }
+        
+        // update first plot with combined pods
+        s.accts[account].fields[fieldId].plots[plotIndexes[0]] = totalPods;
+        
+        // rebuild plotIndexes array and piIndex mapping
+        _rebuildPlotStorage(account, fieldId);
+    }
+
+    /**
+     * @dev Rebuilds a plotIndexes array and piIndex mapping after combining plots.
+     */
+    function _rebuildPlotStorage(address account, uint256 fieldId) internal {
+
+        uint256[] storage userPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        
+        uint256 writeIndex = 0;
+        
+        // compact array by keeping only existing plots
+        for (uint256 i = 0; i < userPlotIndexes.length; i++) {
+            uint256 plotIndex = userPlotIndexes[i];
+            
+            // from previous step, if we deleted the plot, plots[plotIndex] will be 0
+            if (s.accts[account].fields[fieldId].plots[plotIndex] > 0) {
+                // if the plot is not deleted, we need to update the plotIndexes array
+                if (writeIndex != i) userPlotIndexes[writeIndex] = plotIndex;
+                // update the piIndex mapping to point to the new index in the userPlotIndexes array
+                s.accts[account].fields[fieldId].piIndex[plotIndex] = writeIndex;
+                writeIndex++;
+            } else {
+                // if the plot is deleted, we need to delete the piIndex mapping
+                delete s.accts[account].fields[fieldId].piIndex[plotIndex];
+            }
+        }
+        
+        // resize array using assembly, 
+        // a dynamic array's base slot contains the array length
+        assembly {
+            sstore(userPlotIndexes.slot, writeIndex)
         }
     }
 }
