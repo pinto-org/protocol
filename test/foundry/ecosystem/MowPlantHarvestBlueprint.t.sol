@@ -476,14 +476,14 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         internal
         view
         returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
-    {   
+    {
         // get field info and plot count directly
         uint256 activeField = bs.activeField();
         uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, activeField);
         uint256 harvestableIndex = bs.harvestableIndex(activeField);
 
         if (plotIndexes.length == 0) return (0, new uint256[](0));
-        
+
         // initialize array with full length
         userHarvestablePlots = new uint256[](plotIndexes.length);
         uint256 harvestableCount;
