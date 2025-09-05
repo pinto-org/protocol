@@ -427,6 +427,17 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         return s.accts[account].fields[fieldId].plotIndexes;
     }
 
+    // 1. a function that gets the length of a farmers plotIndexes array
+    /**
+     * @notice returns the length of the plotIndexes owned by `account`.
+     */
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256) {
+        return s.accts[account].fields[fieldId].plotIndexes.length;
+    }
+
     /**
      * @notice returns the plots owned by `account`.
      */
@@ -443,6 +454,19 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         }
     }
 
+    // 2. A function that takes in a farmer and index, and return the value in the piIndex mapping.
+    /**
+     * @notice returns the value in the piIndex mapping for a given account, fieldId and index.
+     * piIndex is a mapping from Plot index to the index in the plotIndexes array.
+     */
+    function getPiIndexFromAccount(
+        address account,
+        uint256 fieldId,
+        uint256 index
+    ) external view returns (uint256) {
+        return s.accts[account].fields[fieldId].piIndex[index];
+    }
+
     /**
      * @notice returns the number of pods owned by `account` in a field.
      */
@@ -450,6 +474,49 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256[] memory plotIndexes = s.accts[account].fields[fieldId].plotIndexes;
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+        }
+    }
+
+    //////////////////// PLOT INDEX HELPERS ////////////////////
+
+    /**
+     * @notice returns Plot indexes by their positions in the plotIndexes array.
+     * @dev plotIndexes is an array of Plot indexes, used to return the farm plots of a Farmer.
+     */
+    // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
+    //  You may want to make this such that you can request multiple indexes, or range.
+    function getPlotIndexesAtPositions(
+        address account,
+        uint256 fieldId,
+        uint256[] calldata arrayIndexes
+    ) external view returns (uint256[] memory plotIndexes) {
+        uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        plotIndexes = new uint256[](arrayIndexes.length);
+
+        for (uint256 i = 0; i < arrayIndexes.length; i++) {
+            require(arrayIndexes[i] < accountPlotIndexes.length, "Field: Index out of bounds");
+            plotIndexes[i] = accountPlotIndexes[arrayIndexes[i]];
+        }
+    }
+
+    /**
+     * @notice returns Plot indexes for a specified range in the plotIndexes array.
+     */
+    // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
+    // You may want to make this such that you can request multiple indexes, or range.
+    function getPlotIndexesByRange(
+        address account,
+        uint256 fieldId,
+        uint256 startIndex,
+        uint256 endIndex
+    ) external view returns (uint256[] memory plotIndexes) {
+        uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        require(startIndex < endIndex, "Field: Invalid range");
+        require(endIndex <= accountPlotIndexes.length, "Field: End index out of bounds");
+
+        plotIndexes = new uint256[](endIndex - startIndex);
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            plotIndexes[i] = accountPlotIndexes[startIndex + i];
         }
     }
 }
