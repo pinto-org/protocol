@@ -272,7 +272,7 @@ contract TokenHookTest is TestHelper {
 
         // try to whitelist a token hook on a contract with an invalid selector
         vm.prank(deployer);
-        vm.expectRevert("LibTokenHook: Invalid TokenHook implementation");
+        vm.expectRevert("LibTokenHook: Hook execution failed");
         bs.addTokenHook(
             address(mockToken),
             IMockFBeanstalk.Implementation({

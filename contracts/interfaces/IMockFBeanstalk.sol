@@ -285,12 +285,6 @@ interface IMockFBeanstalk {
         bool oracleFailure;
     }
 
-    struct TokenHook {
-        address target;
-        bytes4 selector;
-        bytes1 encodeType;
-    }
-
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();

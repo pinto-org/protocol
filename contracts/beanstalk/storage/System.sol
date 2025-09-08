@@ -475,22 +475,6 @@ struct SeasonOfPlenty {
 }
 
 /**
- * @notice TokenHook specifies the pre-transfer hook to be called before a token is transferred from a user's internal balance.
- * A hook should generally be an external protected function that updates the state of an ERC20 token, callable only by the protocol.
- * @param target The target contract address in which `selector` is called at (e.g the token address).
- * @param selector The function selector that is used to call on the target contract.
- * @param encodeType The encode type that should be used to encode the function call.
- * - Encode type 0x00 indicates that the hook receives (address from, address to, uint256 amount) as arguments.
- *   This is in line with the default OpenZeppelin ERC20 _update pre-transfer function.
- * @dev Data here is ommited since call parameters are dynamic based on every transfer.
- */
-struct TokenHook {
-    address target;
-    bytes4 selector;
-    bytes1 encodeType;
-}
-
-/**
  * @notice Germinate determines what germination struct to use.
  * @dev "odd" and "even" refers to the value of the season counter.
  * "Odd" germinations are used when the season is odd, and vice versa.

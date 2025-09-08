@@ -13,7 +13,7 @@ import {Implementation} from "contracts/beanstalk/storage/System.sol";
 /**
  * @title TokenHookFacet
  * @notice Manages the pre-transfer hook whitelist for internal token transfers.
- * @dev State changing functions are commented out for security reasons.
+ * @dev State changing functions are commented out to reduce security surface.
  */
 contract TokenHookFacet is Invariable, ReentrancyGuard {
     // /**
@@ -23,7 +23,7 @@ contract TokenHookFacet is Invariable, ReentrancyGuard {
     //  */
     // function whitelistTokenHook(
     //     address token,
-    //     TokenHook memory hook
+    //     Implementation memory hook
     // ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
     //     LibDiamond.enforceIsOwnerOrContract();
     //     LibTokenHook.addTokenHook(token, hook);
