@@ -567,7 +567,12 @@ contract SiloPaybackTest is TestHelper {
             emit TokenHookCalled(
                 address(siloPayback),
                 address(siloPayback),
-                abi.encodeWithSelector(siloPayback.protocolUpdate.selector, sender, receipient, amount)
+                abi.encodeWithSelector(
+                    siloPayback.protocolUpdate.selector,
+                    sender,
+                    receipient,
+                    amount
+                )
             );
         }
         bs.transferToken(address(siloPayback), receipient, amount, uint8(fromMode), uint8(toMode));
