@@ -25,6 +25,7 @@ const {
   BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
   L1_CONTRACT_MESSENGER_DEPLOYER,
   BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
+  BEANSTALK_SILO_PAYBACK,
   L2_PCM,
   BASE_BLOCK_TIME,
   PINTO_WETH_WELL_BASE,
@@ -2132,12 +2133,12 @@ task(
 ////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
 // To minimize the number of transaction the PCM multisig has to sign, we deploy the TempFieldFacet
 // that allows an EOA to add plots to the repayment field.
-// Set mock to false to deploy the TempFieldFacet and TokenHookFacet on base.
-//  - npx hardhat deployTempFieldFacetAndTokenHookFacet --network base
+// Set mock to false to deploy the TempFieldFacet
+//  - npx hardhat deployTempFieldFacetA --network base
 // Grab the diamond cut, queue it in the multisig and wait for execution before proceeding to the next step.
 task(
-  "deployTempFieldFacetAndTokenHookFacet",
-  "deploys the TempFieldFacet and TokenHookFacet contracts"
+  "deployTempFieldFacet",
+  "deploys the TempFieldFacet"
 ).setAction(async (taskArgs) => {
   // params
   const mock = true;
@@ -2156,7 +2157,7 @@ task(
     deployer = (await ethers.getSigners())[0];
   }
 
-  // Todo: add the TokenHookFacet here with init script to whitelist the silo payback hook
+
   await upgradeWithNewFacets({
     diamondAddress: L2_PINTO,
     facetNames: ["TempRepaymentFieldFacet"],
@@ -2233,7 +2234,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["SeasonFacet"],
+      facetNames: ["SeasonFacet", "TokenHookFacet"],
       libraryNames: [
         "LibEvaluate",
         "LibGauge",
@@ -2257,8 +2258,8 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
         ]
       },
       initFacetName: "InitBeanstalkShipments",
+      initArgs: [routes, BEANSTALK_SILO_PAYBACK],
       selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x0b678c09"],
-      initArgs: [routes],
       verbose: true,
       object: !mock,
       account: owner

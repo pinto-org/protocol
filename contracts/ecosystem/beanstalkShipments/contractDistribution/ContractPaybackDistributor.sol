@@ -28,6 +28,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * 2. Send a cross chain message from Ethereum L1 using the cross chain messenger that when
  *    received, calls claimFromMessage and receive their assets in an address of their choice
  *
+ * 3. If an account has just delegated its code to a contract, they can just call claimDirect() and receive their assets.
  */
 contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receiver {
     using SafeERC20 for IERC20;
