@@ -267,21 +267,21 @@ contract BarnPaybackTest is TestHelper {
         // Send rewards to create claimable beans for FERT_ID_1
         uint256 paymentAmount = 500e6;
         _sendRewardsToContract(paymentAmount);
-        
+
         // Check user1 has rewards available
         uint256[] memory user1Ids = new uint256[](1);
         user1Ids[0] = FERT_ID_1;
         uint256 pendingRewards = barnPayback.balanceOfFertilized(user1, user1Ids);
         assertGt(pendingRewards, 0, "User1 should have pending rewards");
-        
+
         // Get user1's initial internal bean balance
         uint256 initialBalance = IERC20(BEAN).balanceOf(user1);
-        
+
         // Transfer fertilizer to another address
         address recipient = makeAddr("recipient");
         vm.prank(user1);
         barnPayback.safeTransferFrom(user1, recipient, FERT_ID_1, 10, "");
-        
+
         // Check that beans were transferred to user1's internal balance
         uint256 finalBalance = IERC20(BEAN).balanceOf(user1);
         assertEq(finalBalance, initialBalance, "Beans should be transferred to external balance");

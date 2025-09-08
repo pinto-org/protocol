@@ -20,7 +20,6 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.
  * We rewrite transfer and mint functions to allow the balance transfer function be overwritten as well.
  * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol from the beanstalk protocol.
- * All metadata-related functionality has been removed.
  */
 contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using LibRedundantMath256 for uint256;
@@ -509,8 +508,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         // get the remaining bpf (id - fert.bpf)
         uint128 bpfRemaining = uint128(_id) >= fert.bpf ? uint128(_id) - fert.bpf : 0;
 
-        // todo: use an image uri if we decide to add one
-        string memory imageUri = "";
+        // get the image URI
+        string memory imageUri = imageURI(_id, bpfRemaining);
 
         // assemble and return the json URI
         return (
@@ -534,23 +533,22 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         );
     }
 
+    /**
+     * @dev imageURI returns the base64 encoded image URI representation of the Fertilizer
+     * @param _id - the id of the Fertilizer
+     * @param bpfRemaining - the bpfRemaining of the Fertilizer
+     * @return imageUri - the image URI representation of the Fertilizer
+     */
+    function imageURI(uint256 _id, uint128 bpfRemaining) public view returns (string memory) {
+        return "";
+    }
+
     function name() external pure returns (string memory) {
         return "Beanstalk Payback Fertilizer";
     }
 
     function symbol() external pure returns (string memory) {
         return "bsFERT";
-    }
-
-    /**
-     * @notice Checks if an account is a contract.
-     */
-    function isContract(address account) internal view returns (bool) {
-        uint size;
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
     }
 
     /**
@@ -573,5 +571,16 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         // Add decimal part
         result = string(abi.encodePacked(result, decimalPart.toString()));
         return result;
+    }
+
+    /**
+     * @notice Checks if an account is a contract.
+     */
+    function isContract(address account) internal view returns (bool) {
+        uint size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
     }
 }

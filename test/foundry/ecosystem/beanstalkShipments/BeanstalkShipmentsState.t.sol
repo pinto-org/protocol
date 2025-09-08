@@ -17,8 +17,9 @@ import {ShipmentRecipient, ShipmentRoute} from "contracts/beanstalk/storage/Syst
  * @notice Tests state verification for the beanstalk shipments system.
  * This tests should be ran against a local node after the deployment and initialization task is complete.
  * 1. Create a local anvil node at block 33349326, right before Season 5952 where the deltab was +19,281 TWAΔP
- * 2. Run the hardhat task: `npx hardhat compile && npx hardhat beanstalkShipments --network localhost`
+ * 2. Run the hardhat tasks to initialize the shipments.`
  * 3. Run the test: `forge test --match-contract BeanstalkShipmentsStateTest --fork-url http://localhost:8545`
+ * Alternatively, the tests need to be ran using a fork after the deployment is done.
  */
 contract BeanstalkShipmentsStateTest is TestHelper {
     // Contracts
@@ -80,7 +81,11 @@ contract BeanstalkShipmentsStateTest is TestHelper {
     IBarnPayback barnPayback = IBarnPayback(BARN_PAYBACK);
     IMockFBeanstalk pinto = IMockFBeanstalk(PINTO);
 
-    function setUp() public {}
+    function setUp() public {
+        // after deployment, uncomment this, set forkBlock at a later block
+        // uint256 forkBlock = 33349326;
+        // vm.createSelectFork("base", forkBlock);
+    }
 
     //////////////////////// STATE VERIFICATION ////////////////////////
 

@@ -3,12 +3,8 @@ pragma solidity ^0.8.20;
 
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
 
-
 interface IContractPaybackDistributor {
-    function claimFromL1Message(
-        address caller,
-        address receiver
-    ) external;
+    function claimFromL1Message(address caller, address receiver) external;
 }
 
 /**
@@ -21,6 +17,7 @@ contract L1ContractMessenger {
     // (https://docs.base.org/base-chain/network-information/base-contracts#l1-contract-addresses)
     ICrossDomainMessenger public constant MESSENGER =
         ICrossDomainMessenger(0x866E82a600A1414e583f7F13623F1aC5d58b0Afa);
+
     // The address of the L2 ContractPaybackDistributor contract
     address public immutable L2_CONTRACT_PAYBACK_DISTRIBUTOR;
 
@@ -57,7 +54,10 @@ contract L1ContractMessenger {
     function claimL2BeanstalkAssets(address l2Receiver) public onlyWhitelistedL1Caller {
         MESSENGER.sendMessage(
             L2_CONTRACT_PAYBACK_DISTRIBUTOR, // target
-            abi.encodeCall(IContractPaybackDistributor.claimFromL1Message, (msg.sender, l2Receiver)), // message
+            abi.encodeCall(
+                IContractPaybackDistributor.claimFromL1Message,
+                (msg.sender, l2Receiver)
+            ), // message
             MAX_GAS_LIMIT // gas limit
         );
     }

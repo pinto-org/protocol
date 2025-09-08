@@ -57,11 +57,11 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     mapping(address => AccountData) public accounts;
 
     // Beanstalk protocol
-    IBeanstalk immutable PINTO_PROTOCOL;
+    IBeanstalk immutable pintoProtocol;
     // Silo payback token
-    IERC20 immutable SILO_PAYBACK;
+    IERC20 immutable siloPayback;
     // Barn payback token
-    IBarnPayback immutable BARN_PAYBACK;
+    IBarnPayback immutable barnPayback;
 
     modifier onlyWhitelistedCaller(address caller) {
         require(
@@ -98,9 +98,9 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
         address _siloPayback,
         address _barnPayback
     ) Ownable(msg.sender) {
-        PINTO_PROTOCOL = IBeanstalk(_pintoProtocol);
-        SILO_PAYBACK = IERC20(_siloPayback);
-        BARN_PAYBACK = IBarnPayback(_barnPayback);
+        pintoProtocol = IBeanstalk(_pintoProtocol);
+        siloPayback = IERC20(_siloPayback);
+        barnPayback = IBarnPayback(_barnPayback);
     }
 
     /**
@@ -150,21 +150,21 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
 
     /**
      * @notice Transfers all assets for a whitelisted contract account to a receiver
-     * note: if the receiver is a contract it must implement the IERC1155Receiver interface
+     * note: if the receiver is a contract it must implement the ERC1155Receiver interface
      * @param account The address of the account to claim from
      * @param receiver The address to transfer the assets to
      */
     function _transferAllAssetsForAccount(address account, address receiver) internal {
-        AccountData storage accountData = accounts[account];
+        AccountData memory accountData = accounts[account];
 
         // transfer silo payback tokens to the receiver
         if (accountData.siloPaybackTokensOwed > 0) {
-            SILO_PAYBACK.safeTransfer(receiver, accountData.siloPaybackTokensOwed);
+            siloPayback.safeTransfer(receiver, accountData.siloPaybackTokensOwed);
         }
 
         // transfer fertilizer ERC1155s to the receiver
         if (accountData.fertilizerIds.length > 0) {
-            BARN_PAYBACK.safeBatchTransferFrom(
+            barnPayback.safeBatchTransferFrom(
                 address(this),
                 receiver,
                 accountData.fertilizerIds,
@@ -177,7 +177,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
         // make an empty array of plotStarts since all plot transfers start from the beginning of the plot
         uint256[] memory plotStarts = new uint256[](accountData.plotIds.length);
         if (accountData.plotIds.length > 0) {
-            PINTO_PROTOCOL.transferPlots(
+            pintoProtocol.transferPlots(
                 address(this),
                 receiver,
                 REPAYMENT_FIELD_ID,
@@ -191,8 +191,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     //////////////////////////// ERC1155Receiver ////////////////////////////
 
     /**
-     * @dev For this contract to receive minted fertilizers from the barn payback contract,
-     * it must implement the IERC1155Receiver interface.
+     * @dev ERC-1155 hook allowing this contract to receive a single fertilizer from the barn payback contract
      */
     function onERC1155Received(
         address operator,
@@ -205,8 +204,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     }
 
     /**
-     * @dev For this contract to receive minted fertilizers from the barn payback contract,
-     * it must implement the IERC1155Receiver interface.
+     * @dev ERC-1155 hook allowing this contract to receive a batch of fertilizers from the barn payback contract
      */
     function onERC1155BatchReceived(
         address operator,
@@ -219,8 +217,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     }
 
     /**
-     * @dev For this contract to receive minted fertilizers from the barn payback contract,
-     * it must implement the IERC1155Receiver interface.
+     * @dev ERC-1155 compliance function to indicate that this contract implements the IERC1155Receiver interface
      */
     function supportsInterface(bytes4 interfaceId) external view returns (bool) {
         return interfaceId == type(IERC1155Receiver).interfaceId;
