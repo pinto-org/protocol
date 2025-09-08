@@ -12,7 +12,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SiloPaybackTest is TestHelper {
     // Events
-    event TokenHookCalled(address indexed token, address indexed target, bytes4 selector);
+    event TokenHookCalled(address indexed token, address indexed target, bytes encodedCall);
 
     SiloPayback public siloPayback;
     MockToken public pintoToken;
@@ -567,7 +567,7 @@ contract SiloPaybackTest is TestHelper {
             emit TokenHookCalled(
                 address(siloPayback),
                 address(siloPayback),
-                siloPayback.protocolUpdate.selector
+                abi.encodeWithSelector(siloPayback.protocolUpdate.selector, sender, receipient, amount)
             );
         }
         bs.transferToken(address(siloPayback), receipient, amount, uint8(fromMode), uint8(toMode));
