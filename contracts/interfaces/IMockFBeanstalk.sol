@@ -548,6 +548,10 @@ interface IMockFBeanstalk {
         Implementation lwImplementation
     );
 
+    event TokenHookRegistered(address indexed token, address target, bytes4 selector);
+    event TokenHookRemoved(address indexed token);
+    event TokenHookUpdated(address indexed token, address target, bytes4 selector);
+
     function abovePeg() external view returns (bool);
 
     function activeField() external view returns (uint256);
@@ -1915,4 +1919,14 @@ interface IMockFBeanstalk {
     ) external view returns (uint256 amountIn);
 
     function setPenaltyRatio(uint256 penaltyRatio) external;
+
+    function addTokenHook(address token, Implementation memory hook) external payable;
+
+    function removeTokenHook(address token) external payable;
+
+    function updateTokenHook(address token, Implementation memory hook) external payable;
+
+    function hasTokenHook(address token) external view returns (bool);
+
+    function getTokenHook(address token) external view returns (Implementation memory);
 }
