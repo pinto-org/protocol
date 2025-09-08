@@ -116,13 +116,7 @@ library LibTokenHook {
         if (hook.target == address(0)) return;
 
         // call the hook. If it reverts, revert the entire transfer.
-        bytes memory encodedCall = encodeHookCall(
-            hook,
-            token,
-            from,
-            to,
-            amount
-        );
+        bytes memory encodedCall = encodeHookCall(hook, token, from, to, amount);
         callTokenHook(hook, encodedCall);
         emit TokenHookCalled(token, hook.target, encodedCall);
     }
@@ -179,10 +173,7 @@ library LibTokenHook {
      * @param hook The Implementation token hook struct. (See System.{Implementation})
      * @param encodedCall The encoded calldata to call on the hook target address.
      */
-    function callTokenHook(
-        Implementation memory hook,
-        bytes memory encodedCall
-    ) internal {
+    function callTokenHook(Implementation memory hook, bytes memory encodedCall) internal {
         (bool success, ) = hook.target.call(encodedCall);
         require(success, "LibTokenHook: Hook execution failed");
     }
