@@ -36,14 +36,14 @@ library LibInitGauges {
 
     //////////// Convert Up Bonus Gauge ////////////
     // Gauge values
-    uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0; // the initial bonus stalk per bdv\
+    uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0; // the initial bonus stalk per bdv
     uint256 internal constant INIT_CONVERT_CAPACITY_FACTOR = 1e6; // the initial convert capacity factor
     uint256 internal constant INIT_CONVERT_CAPACITY = 0; // the initial convert capacity
     // Gauge data
-    uint256 internal constant MIN_SEASON_TARGET = 100e6; // the minimum seasons to reach value target via conversions. 6 decimal precision.
-    uint256 internal constant MAX_SEASON_TARGET = 500e6; // the maximum seasons to reach value target via conversions. 6 decimal precision.
-    uint256 internal constant MIN_DELTA_CAPACITY = 0.3e6; // the minimum value that the convert capacity factor can be adjusted by. 6 decimal precision.
-    uint256 internal constant MAX_DELTA_CAPACITY = 0.5e6; // the maximum value that the convert capacity factor can be adjusted by. 6 decimal precision.
+    uint256 internal constant MIN_SEASON_TARGET = 250e6; // the minimum seasons to reach value target via conversions. 6 decimal precision.
+    uint256 internal constant MAX_SEASON_TARGET = 1000e6; // the maximum seasons to reach value target via conversions. 6 decimal precision.
+    uint256 internal constant MIN_DELTA_CAPACITY = 0.5e6; // the minimum value that the convert capacity factor can be adjusted by. 6 decimal precision.
+    uint256 internal constant MAX_DELTA_CAPACITY = 1.5e6; // the maximum value that the convert capacity factor can be adjusted by. 6 decimal precision.
 
     //////////// Cultivation Factor Gauge ////////////
 

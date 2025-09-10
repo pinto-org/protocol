@@ -380,7 +380,7 @@ library LibEvaluate {
     }
 
     /**
-     * @notice Calculates the minimum soil sown needed to properly calculate delta pod demand.
+     * @notice Calculates the minimum Beans Sown needed to properly calculate delta pod demand.
      * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
      * occurs without substantial cost.
      * If less than this amount is sown, Beanstalk assumes demand is decreasing.
@@ -394,7 +394,10 @@ library LibEvaluate {
         if (initialSoil < MIN_BEAN_SOWN_DEMAND) {
             return initialSoil;
         } else {
-            // else, use min(MIN_BEAN_SOWN_DEMAND, x% of soil)
+            // else, use maximum of the minimum bean sown demand and x% of soil
+            // this means that the minimum amount of Beans needed to measure demand
+            // will be `MIN_BEAN_SOWN_DEMAND` until the initial soil issued is greater than
+            // `MIN_BEAN_SOWN_DEMAND` / `MIN_BEAN_SOWN_DEMAND_PERCENT`.
             uint256 soilBasedThreshold = (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) /
                 SOIL_PRECISION;
             return

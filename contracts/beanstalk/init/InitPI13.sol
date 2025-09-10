@@ -13,22 +13,21 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibWeather} from "../../libraries/Sun/LibWeather.sol";
 
 /**
- * @title InitPI12
- * @dev Initializes parameters for pinto improvement 12.
+ * @title InitPI13
+ * @dev Initializes parameters for pinto improvement 13.
  **/
-contract InitPI12 {
+contract InitPI13 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
     uint16 constant MORNING_DURATION = 600;
     uint128 constant MORNING_CONTROL = uint128(1e18) / 240;
-    uint256 constant TWA_DELTA_B = 960_000e6;
 
-    function init(uint256 bonusStalkPerBdv) external {
+    function init(uint256 bonusStalkPerBdv, uint256 twaDeltaB) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // initialize the gauge point update.
         initMaxGaugePoints();
 
         // add the convert up bonus gauge
-        LibInitGauges.initConvertUpBonusGauge(TWA_DELTA_B);
+        LibInitGauges.initConvertUpBonusGauge(twaDeltaB);
 
         // update the gauge with the stalk per bdv bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(

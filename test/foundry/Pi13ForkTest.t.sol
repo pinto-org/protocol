@@ -9,15 +9,15 @@ import "forge-std/console.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {InitPI12} from "contracts/beanstalk/init/InitPI12.sol";
+import {InitPI13} from "contracts/beanstalk/init/InitPI13.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 
 /**
  * @dev forks base and tests different cultivation factor scenarios
- * InitPI12Mock is used as the init facet to init the cultivation temperatures to 748.5e6 instead of 0
+ * InitPI13Mock is used as the init facet to init the cultivation temperatures to 748.5e6 instead of 0
  **/
-contract Pi12ForkTest is TestHelper {
+contract Pi13ForkTest is TestHelper {
     // address with substantial LP deposits to simulate conversions.
     address farmer = address(0xaad938805E85f3404E3dbD5a501F9E43672037BB);
     address well = 0x3e11226fe3d85142B734ABCe6e58918d5828d1b4;
@@ -29,8 +29,8 @@ contract Pi12ForkTest is TestHelper {
             forkBlock,
             vm.envString("BASE_RPC"),
             PINTO,
-            "InitPI12",
-            abi.encodeWithSelector(InitPI12.init.selector, 1e9) // initialize bonus stalk per bdv
+            "InitPI13",
+            abi.encodeWithSelector(InitPI13.init.selector, 1e9) // initialize bonus stalk per bdv
         );
         bs = IMockFBeanstalk(PINTO);
     }
