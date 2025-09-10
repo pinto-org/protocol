@@ -336,7 +336,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // Shared validations
         _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
         _validateOperatorParams(params.opParams);
-        
+
         // Blueprint specific validations
         // Validate that minPlantAmount and minHarvestAmount result in profit
         if (params.opParams.operatorTipAmount >= 0) {
@@ -352,5 +352,4 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             );
         }
     }
-
 }

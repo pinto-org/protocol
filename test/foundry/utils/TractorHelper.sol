@@ -370,12 +370,11 @@ contract TractorHelper is TestHelper {
             });
 
         // Create OperatorParams struct
-        BlueprintBase.OperatorParams memory opParams = BlueprintBase
-            .OperatorParams({
-                whitelistedOperators: whitelistedOps,
-                tipAddress: tipAddress,
-                operatorTipAmount: operatorTipAmount
-            });
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
+            whitelistedOperators: whitelistedOps,
+            tipAddress: tipAddress,
+            operatorTipAmount: operatorTipAmount
+        });
 
         return
             MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
