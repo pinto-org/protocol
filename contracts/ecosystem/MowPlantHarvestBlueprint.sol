@@ -12,7 +12,6 @@ import {BlueprintBase} from "./BlueprintBase.sol";
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
 contract MowPlantHarvestBlueprint is BlueprintBase {
-
     /**
      * @dev Minutes after sunrise to check if the totalDeltaB is about to be positive for the following season
      */
@@ -260,7 +259,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             uint256[] memory harvestablePlots
         )
     {
-        // get whitelisted tokens
         address[] memory whitelistedTokens = beanstalk.getWhitelistedTokens();
 
         // check how much claimable stalk the user by all whitelisted tokens combined
@@ -268,8 +266,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             account,
             whitelistedTokens
         );
-
-        // sum it to get total claimable grown stalk
         for (uint256 i = 0; i < grownStalks.length; i++) {
             totalClaimableStalk += grownStalks[i];
         }
@@ -296,40 +292,38 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         view
         returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
     {
-        // Get all plots for the user in the field
-        IBeanstalk.Plot[] memory plots = beanstalk.getPlotsFromAccount(
-            account,
-            beanstalk.activeField()
-        );
-        uint256 harvestableIndex = beanstalk.harvestableIndex(beanstalk.activeField());
+        // get field info and plot count directly
+        uint256 activeField = beanstalk.activeField();
+        uint256[] memory plotIndexes = beanstalk.getPlotIndexesFromAccount(account, activeField);
+        uint256 harvestableIndex = beanstalk.harvestableIndex(activeField);
 
-        // First, count how many plots are at least partially harvestable
-        uint256 count;
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            if (startIndex < harvestableIndex) {
-                count++;
-            }
-        }
+        if (plotIndexes.length == 0) return (0, new uint256[](0));
 
-        // Allocate the array
-        userHarvestablePlots = new uint256[](count);
-        uint256 j = 0;
+        // initialize array with full length
+        userHarvestablePlots = new uint256[](plotIndexes.length);
+        uint256 harvestableCount;
 
-        // Now, fill the array and sum pods
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            uint256 plotPods = plots[i].pods;
+        // single loop to process all plot indexes directly
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 startIndex = plotIndexes[i];
+            uint256 plotPods = beanstalk.plot(account, activeField, startIndex);
 
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
-                userHarvestablePlots[j++] = startIndex;
+                userHarvestablePlots[harvestableCount] = startIndex;
                 totalUserHarvestablePods += plotPods;
+                harvestableCount++;
             } else if (startIndex < harvestableIndex) {
                 // Partially harvestable
-                userHarvestablePlots[j++] = startIndex;
+                userHarvestablePlots[harvestableCount] = startIndex;
                 totalUserHarvestablePods += harvestableIndex - startIndex;
+                harvestableCount++;
             }
+        }
+
+        // resize array to actual harvestable plots count
+        assembly {
+            mstore(userHarvestablePlots, harvestableCount)
         }
 
         return (totalUserHarvestablePods, userHarvestablePlots);

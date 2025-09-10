@@ -355,11 +355,11 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
                 state.user,
                 state.beanToken
             );
-            // assert the user total bdv has decreased as a result of the harvest
+            // assert the user total bdv has increased as a result of the harvest
             assertGt(
                 userTotalBdvAfterHarvest,
                 userTotalBdvBeforeHarvest,
-                "userTotalBdv should have decreased"
+                "userTotalBdv should have increased"
             );
 
             // assert user harvestable pods is 0
@@ -462,46 +462,95 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         }
     }
 
+    function test_mergeAdjacentPlotsSimple() public {
+        // Setup test state
+        // setupPlant: false, setupHarvest: false (dont sow default amounts), abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, true);
+
+        uint256[] memory plotIndexes = setUpMultipleAccountPlots(state.user, 1000e6, 10); // 10 sows of 100 beans each at 1% temp
+        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(state.user, bs.activeField());
+        uint256 totalPodsBeforeCombine = 0;
+        for (uint256 i = 0; i < plots.length; i++) {
+            totalPodsBeforeCombine += plots[i].pods;
+        }
+        assertEq(plots.length, 10, "user should have 10 plots");
+        // combine all plots into one
+        bs.combinePlots(state.user, bs.activeField(), plotIndexes);
+
+        // assert user has 1 plot
+        plots = bs.getPlotsFromAccount(state.user, bs.activeField());
+        assertEq(plots.length, 1, "user should have 1 plot");
+        assertEq(plots[0].index, 0, "plot index should be 0");
+        assertEq(plots[0].pods, totalPodsBeforeCombine, "plot pods should be 1010e6");
+
+        //
+    }
+
+    function setUpMultipleAccountPlots(
+        address account,
+        uint256 totalSoil,
+        uint256 sowCount
+    ) internal returns (uint256[] memory plotIndexes) {
+        // set soil to totalSoil
+        bs.setSoilE(totalSoil);
+        // sow totalSoil beans sowCount times of totalSoil/sowCount each
+        uint256 sowAmount = totalSoil / sowCount;
+        for (uint256 i = 0; i < sowCount; i++) {
+            vm.prank(account);
+            bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+        }
+        plotIndexes = bs.getPlotIndexesFromAccount(account, bs.activeField());
+        return plotIndexes;
+    }
+
     /////////////////////////// HELPER FUNCTIONS ///////////////////////////
 
-    /// @dev Helper function to get the total harvestable pods and plot indexes for a user
+    /**
+     * @notice Helper function to get the total harvestable pods and plots for a user
+     * @param account The address of the user
+     * @return totalUserHarvestablePods The total amount of harvestable pods for the user
+     * @return userHarvestablePlots The harvestable plot ids for the user
+     */
     function _userHarvestablePods(
         address account
-    ) internal view returns (uint256 totalHarvestablePods, uint256[] memory harvestablePlots) {
-        // Get all plots for the user in the field
-        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(account, bs.activeField());
-        uint256 harvestableIndex = bs.harvestableIndex(bs.activeField());
+    )
+        internal
+        view
+        returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
+    {
+        // get field info and plot count directly
+        uint256 activeField = bs.activeField();
+        uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, activeField);
+        uint256 harvestableIndex = bs.harvestableIndex(activeField);
 
-        // First, count how many plots are at least partially harvestable
-        uint256 count;
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            if (startIndex < harvestableIndex) {
-                count++;
-            }
-        }
+        if (plotIndexes.length == 0) return (0, new uint256[](0));
 
-        // Allocate the array
-        harvestablePlots = new uint256[](count);
-        uint256 j = 0;
+        // initialize array with full length
+        userHarvestablePlots = new uint256[](plotIndexes.length);
+        uint256 harvestableCount;
 
-        // Now, fill the array and sum pods
-        for (uint256 i = 0; i < plots.length; i++) {
-            uint256 startIndex = plots[i].index;
-            uint256 plotPods = plots[i].pods;
+        // single loop to process all plot indexes directly
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 startIndex = plotIndexes[i];
+            uint256 plotPods = bs.plot(account, activeField, startIndex);
 
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
-                harvestablePlots[j++] = startIndex;
-                totalHarvestablePods += plotPods;
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += plotPods;
+                harvestableCount++;
             } else if (startIndex < harvestableIndex) {
                 // Partially harvestable
-                harvestablePlots[j++] = startIndex;
-                totalHarvestablePods += harvestableIndex - startIndex;
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += harvestableIndex - startIndex;
+                harvestableCount++;
             }
         }
-
-        return (totalHarvestablePods, harvestablePlots);
+        // resize array to actual harvestable plots count
+        assembly {
+            mstore(userHarvestablePlots, harvestableCount)
+        }
+        return (totalUserHarvestablePods, userHarvestablePlots);
     }
 
     /// @dev Advance to the next season and update oracles

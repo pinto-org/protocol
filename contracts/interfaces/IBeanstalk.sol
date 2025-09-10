@@ -165,6 +165,18 @@ interface IBeanstalk {
         uint256 fieldId
     ) external view returns (Plot[] memory plots);
 
+    function getPlotIndexesFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256[] memory plotIndexes);
+
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256);
+
+    function plot(address account, uint256 fieldId, uint256 index) external view returns (uint256);
+
     function mowAll(address account) external payable;
 
     function activeField() external view returns (uint256);
