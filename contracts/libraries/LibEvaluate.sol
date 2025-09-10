@@ -389,21 +389,16 @@ library LibEvaluate {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 initialSoil = s.sys.initialSoil;
 
-        // if initial soil is less than the minimum amount of beans to measure demand,
+        // calculate the minimum amount of beans needed to be sown to measure demand
+        uint256 soilBasedThreshold = (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) / SOIL_PRECISION;
+
+        // if initial soil is less than the minimum amount of beans needed to be sown to measure demand,
         // set the threshold to the initial soil (all soil must be sown to measure demand)
-        if (initialSoil < MIN_BEAN_SOWN_DEMAND) {
+        if (initialSoil < soilBasedThreshold) {
             return initialSoil;
         } else {
-            // else, use maximum of the minimum bean sown demand and x% of soil
-            // this means that the minimum amount of Beans needed to measure demand
-            // will be `MIN_BEAN_SOWN_DEMAND` until the initial soil issued is greater than
-            // `MIN_BEAN_SOWN_DEMAND` / `MIN_BEAN_SOWN_DEMAND_PERCENT`.
-            uint256 soilBasedThreshold = (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) /
-                SOIL_PRECISION;
-            return
-                soilBasedThreshold > MIN_BEAN_SOWN_DEMAND
-                    ? MIN_BEAN_SOWN_DEMAND
-                    : soilBasedThreshold;
+            // else, use the minimum amount of beans needed to be sown to measure demand
+            return soilBasedThreshold;
         }
     }
 }
