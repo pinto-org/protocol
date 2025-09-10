@@ -12,7 +12,6 @@ import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol"
  * @notice Abstract base contract for Tractor blueprints providing shared state and validation functions
  */
 abstract contract BlueprintBase is PerFunctionPausable {
-
     /**
      * @notice Struct to hold operator parameters
      * @param whitelistedOperators Array of whitelisted operator addresses
@@ -27,7 +26,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
 
     /**
      * Mapping to track the last executed season for each order hash
-     * If a Blueprint needs to track more state about orders, an additional 
+     * If a Blueprint needs to track more state about orders, an additional
      * mapping(orderHash => state) can be added to the contract inheriting from BlueprintBase.
      */
     mapping(bytes32 orderHash => uint32 lastExecutedSeason) public orderLastExecutedSeason;
@@ -85,10 +84,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @param sourceTokenIndices Array of source token indices
      */
     function _validateSourceTokens(uint8[] calldata sourceTokenIndices) internal pure {
-        require(
-            sourceTokenIndices.length > 0,
-            "Must provide at least one source token"
-        );
+        require(sourceTokenIndices.length > 0, "Must provide at least one source token");
     }
 
     /**
