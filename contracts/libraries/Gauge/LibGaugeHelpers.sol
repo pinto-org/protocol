@@ -5,6 +5,7 @@ import {LibAppStorage} from "./LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {C} from "contracts/C.sol";
+import {Implementation} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title LibGaugeHelpers
@@ -104,6 +105,19 @@ library LibGaugeHelpers {
         DECREASING,
         STEADY,
         INCREASING
+    }
+
+    // LP gauge distrubution Update
+    // LpDisturbutionSettings - a settings struct determining how the Distrobutiion works
+    struct LpDistrubutionGaugeData {
+        LpDisturbutionSettings settings;
+        address[] tokens;
+        int256[] delta;
+    }
+
+    struct LpDistrobutionSettings {
+        uint256 duration;
+        Call[] foo;
     }
 
     // Gauge events

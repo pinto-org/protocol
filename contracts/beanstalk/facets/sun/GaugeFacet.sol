@@ -388,6 +388,18 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         return (abi.encode(gv), abi.encode(gd));
     }
 
+    /**
+     * @notice Updates the `optimalPercentDepositedBdv` for a list of whitelisted tokens.
+     * @dev `lpDistrubutionUpdateGauge` has no outward facing values, as it updates values internally.
+     */
+    function lpDistrubutionUpdateGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory) {
+        return LibGaugeLogic.lpDistrubutionGauge(value, systemData, gaugeData);
+    }
+
     /// GAUGE ADD/REMOVE/UPDATE ///
 
     function getGauge(GaugeId gaugeId) external view returns (Gauge memory) {
