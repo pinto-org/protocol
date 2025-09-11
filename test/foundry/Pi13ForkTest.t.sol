@@ -24,13 +24,13 @@ contract Pi13ForkTest is TestHelper {
     string constant CSV_PATH = "convert_up_data.csv";
 
     function setUp() public {
-        uint256 forkBlock = 32098119;
+        uint256 forkBlock = 35363162;
         forkMainnetAndUpgradeAllFacets(
             forkBlock,
             vm.envString("BASE_RPC"),
             PINTO,
             "InitPI13",
-            abi.encodeWithSelector(InitPI13.init.selector, 1e9) // initialize bonus stalk per bdv
+            abi.encodeWithSelector(InitPI13.init.selector, 1e9, 960_000e6) // initialize bonus stalk per bdv and twa delta b
         );
         bs = IMockFBeanstalk(PINTO);
     }
@@ -209,10 +209,13 @@ contract Pi13ForkTest is TestHelper {
      * then a new order comes in that is below the bonus.
      */
     function test_forkBase_convertUp_oneOrder_at_bonus() public {
-        vm.writeFile(
-            CSV_PATH,
-            "step,season,convert_capacity_factor,max_convert_capacity,bonus_stalk_per_bdv,bdv_converted_this_season, bdv_converted_last_season, last_convert_bonus_taken\n"
-        );
+        bool write = false;
+        if (write) {
+            vm.writeFile(
+                CSV_PATH,
+                "step,season,convert_capacity_factor,max_convert_capacity,bonus_stalk_per_bdv,bdv_converted_this_season, bdv_converted_last_season, last_convert_bonus_taken\n"
+            );
+        }
         LibGaugeHelpers.ConvertBonusGaugeValue memory gvBefore;
         LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore;
         LibGaugeHelpers.ConvertBonusGaugeValue memory gvAfter;
@@ -251,7 +254,9 @@ contract Pi13ForkTest is TestHelper {
             (gvAfter, gdAfter) = getConvertUpData();
 
             logSeasonData(i);
-            writeToCSV(vm.toString(i), gvBefore, gdBefore);
+            if (write) {
+                writeToCSV(vm.toString(i), gvBefore, gdBefore);
+            }
             if (i < 10) {
                 if (convertedLastSeasonOrder1) {
                     // if someone converted last season,

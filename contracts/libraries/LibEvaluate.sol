@@ -390,7 +390,10 @@ library LibEvaluate {
         uint256 initialSoil = s.sys.initialSoil;
 
         // calculate the minimum amount of beans needed to be sown to measure demand
-        uint256 soilBasedThreshold = (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) / SOIL_PRECISION;
+        uint256 soilBasedThreshold = MIN_BEAN_SOWN_DEMAND >
+            (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) / SOIL_PRECISION
+            ? MIN_BEAN_SOWN_DEMAND
+            : (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) / SOIL_PRECISION;
 
         // if initial soil is less than the minimum amount of beans needed to be sown to measure demand,
         // set the threshold to the initial soil (all soil must be sown to measure demand)

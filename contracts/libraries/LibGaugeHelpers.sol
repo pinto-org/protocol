@@ -387,58 +387,45 @@ library LibGaugeHelpers {
      * @param bonusStalkPerBdv The bonus stalk per bdv from the previous season.
      * @param cbu The convert bonus capacity utilization.
      * @param cd The convert demand state (INCREASING, STEADY, or DECREASING).
-     * @param twaDeltaB The twaDeltaB of the current season.
      * @return The updated bonus stalk per bdv.
      */
     function updateBonusStalkPerBdv(
         uint256 bonusStalkPerBdv,
         ConvertBonusCapacityUtilization cbu,
-        ConvertDemand cd,
-        int256 twaDeltaB
+        ConvertDemand cd
     ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // get stem tips for all whitelisted lp tokens and get the min
         address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
         uint256 beanSeeds = s.sys.silo.assetSettings[s.sys.bean].stalkEarnedPerSeason;
         uint256 maxLpSeeds;
+        // find the largest LP seeds.
         for (uint256 i = 0; i < lpTokens.length; i++) {
             uint256 lpSeeds = s.sys.silo.assetSettings[lpTokens[i]].stalkEarnedPerSeason;
             if (lpSeeds > maxLpSeeds) maxLpSeeds = lpSeeds;
         }
-
-        // if the bean seeds are greater than or equal to the max lp seeds,
-        // the bonus is updated based on the convert demand.
-
-        // 9 states:
-        // 1. demand increasing, capacity filled: bonus decreases
-        // 2. demand increasing, capacity mostly filled: bonus increases
-
+        // when bean seeds > max lp seeds, the bonus increases/decreases as a
+        // function of convert demand and capacity utilization.
+        uint256 bonusStalkPerBdvChange;
         if (beanSeeds >= maxLpSeeds) {
-            uint256 bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
-
-            // adjust bonus based on convert demand
-
-            if (
-                cd == ConvertDemand.INCREASING ||
-                cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED
-            ) {
-                if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
-                    return 0;
-                } else {
-                    return bonusStalkPerBdv - bonusStalkPerBdvChange;
-                }
-            } else if (cd == ConvertDemand.DECREASING) {
-                return bonusStalkPerBdv + bonusStalkPerBdvChange;
-            } else {
-                return bonusStalkPerBdv;
-            }
-        } else if (twaDeltaB >= 0) {
-            // if the bean seeds are less than the max lp seeds (implying the crop ratio < 100%),
-            // and twaDeltaB is positive, the bonus is reset.
-            return 0;
+            bonusStalkPerBdvChange = beanSeeds - maxLpSeeds;
         } else {
-            // if the bean seeds are less than the max lp seeds, and twaDeltaB is negative,
-            // the bonus remains unchanged.
+            bonusStalkPerBdvChange = bonusStalkPerBdv / 100;
+        }
+        if (
+            cd == ConvertDemand.INCREASING ||
+            cbu == LibGaugeHelpers.ConvertBonusCapacityUtilization.FILLED
+        ) {
+            if (bonusStalkPerBdvChange > bonusStalkPerBdv) {
+                return 0;
+            } else {
+                return bonusStalkPerBdv - bonusStalkPerBdvChange;
+            }
+        } else if (cd == ConvertDemand.DECREASING && beanSeeds >= maxLpSeeds) {
+            // if demand is decreasing and Bean Seeds are greater than or equal to max lp seeds,
+            // the bonus increases as a function of the change in bonus stalk per bdv.
+            return bonusStalkPerBdv + bonusStalkPerBdvChange;
+        } else {
             return bonusStalkPerBdv;
         }
     }
