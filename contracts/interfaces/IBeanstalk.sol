@@ -251,6 +251,6 @@ interface IBeanstalk {
         returns (WhitelistStatus[] memory _whitelistStatuses);
 
     function setShipmentRoutes(ShipmentRoute[] calldata shipmentRoutes) external;
-    
+
     function addField() external;
 }
