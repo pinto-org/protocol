@@ -16,7 +16,6 @@ import {LibDibbler} from "contracts/libraries/LibDibbler.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibMarket} from "contracts/libraries/LibMarket.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import "forge-std/console.sol";
 
 interface IBeanstalk {
     function cancelPodListing(uint256 fieldId, uint256 index) external;
@@ -428,7 +427,6 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         return s.accts[account].fields[fieldId].plotIndexes;
     }
 
-    // 1. a function that gets the length of a farmers plotIndexes array
     /**
      * @notice returns the length of the plotIndexes owned by `account`.
      */
@@ -455,10 +453,9 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         }
     }
 
-    // 2. A function that takes in a farmer and index, and return the value in the piIndex mapping.
     /**
-     * @notice returns the value in the piIndex mapping for a given account, fieldId and index.
-     * piIndex is a mapping from Plot index to the index in the plotIndexes array.
+     * @notice Returns the value in the piIndex mapping for a given account, fieldId and index.
+     * @dev `piIndex` is a mapping from Plot index to the index in the `plotIndexes` array.
      */
     function getPiIndexFromAccount(
         address account,
@@ -481,11 +478,9 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     //////////////////// PLOT INDEX HELPERS ////////////////////
 
     /**
-     * @notice returns Plot indexes by their positions in the plotIndexes array.
+     * @notice Returns Plot indexes by their positions in the `plotIndexes` array.
      * @dev plotIndexes is an array of Plot indexes, used to return the farm plots of a Farmer.
      */
-    // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
-    //  You may want to make this such that you can request multiple indexes, or range.
     function getPlotIndexesAtPositions(
         address account,
         uint256 fieldId,
@@ -501,10 +496,8 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
-     * @notice returns Plot indexes for a specified range in the plotIndexes array.
+     * @notice Returns Plot indexes for a specified range in the `plotIndexes` array.
      */
-    // 3. A function that, given a farmer and index of an array, returns only the 'index' portion of the plot.
-    // You may want to make this such that you can request multiple indexes, or range.
     function getPlotIndexesByRange(
         address account,
         uint256 fieldId,
@@ -527,7 +520,6 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      * @param fieldId The field ID containing the plots
      * @param plotIndexes Array of adjacent plot indexes to combine (must be sorted and consecutive)
      * @dev Plots must be adjacent: plot[i].index + plot[i].pods == plot[i+1].index
-     *      Updates storage by merging plots and rebuilding plotIndexes/piIndex
      *      Any account can combine any other account's adjacent plots
      */
     function combinePlots(
@@ -553,46 +545,12 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             totalPods += currentPods;
             expectedNextStart = plotIndexes[i] + currentPods;
 
-            // delete subsequent plots, set the amount to 0 so that we can rebuild the array later
+            // delete subsequent plot, plotIndex and piIndex mapping entry
             delete s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+            LibDibbler.removePlotIndexFromAccount(account, fieldId, plotIndexes[i]);
         }
 
         // update first plot with combined pods
         s.accts[account].fields[fieldId].plots[plotIndexes[0]] = totalPods;
-
-        // rebuild plotIndexes array and piIndex mapping
-        _rebuildPlotStorage(account, fieldId);
-    }
-
-    /**
-     * @dev Rebuilds a plotIndexes array and piIndex mapping after combining plots.
-     */
-    function _rebuildPlotStorage(address account, uint256 fieldId) internal {
-        uint256[] storage userPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
-
-        uint256 writeIndex = 0;
-
-        // compact array by keeping only existing plots
-        for (uint256 i = 0; i < userPlotIndexes.length; i++) {
-            uint256 plotIndex = userPlotIndexes[i];
-
-            // from previous step, if we deleted the plot, plots[plotIndex] will be 0
-            if (s.accts[account].fields[fieldId].plots[plotIndex] > 0) {
-                // if the plot is not deleted, we need to update the plotIndexes array
-                if (writeIndex != i) userPlotIndexes[writeIndex] = plotIndex;
-                // update the piIndex mapping to point to the new index in the userPlotIndexes array
-                s.accts[account].fields[fieldId].piIndex[plotIndex] = writeIndex;
-                writeIndex++;
-            } else {
-                // if the plot is deleted, we need to delete the piIndex mapping
-                delete s.accts[account].fields[fieldId].piIndex[plotIndex];
-            }
-        }
-
-        // resize array using assembly,
-        // a dynamic array's base slot contains the array length
-        assembly {
-            sstore(userPlotIndexes.slot, writeIndex)
-        }
     }
 }
