@@ -330,7 +330,8 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         uint256 amount = __update(account, ids, bpf);
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
-            // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
+            // Transfer the rewards to the caller,
+            // note: pintos are streamed to the contract's external balance during the gm call
             pintoProtocol.transferToken(
                 pinto,
                 account,
