@@ -13,6 +13,8 @@ import {LibTransfer, BeanstalkFertilizer} from "./BeanstalkFertilizer.sol";
  * beanstalk fertilizer holders until they all become inactive.
  */
 contract BarnPayback is BeanstalkFertilizer {
+    event BarnPaybackRewardsReceived(uint256 amount);
+
     /**
      * @notice Contains per-account intialization data for Fertilizer.
      */
@@ -145,11 +147,12 @@ contract BarnPayback is BeanstalkFertilizer {
      * @param mode - the balance to transfer Beans to; see {LibTransfer.To}
      */
     function claimFertilized(uint256[] memory ids, LibTransfer.To mode) external {
-        uint256 amount = __update(msg.sender, ids, uint256(fert.bpf));
+        address account = _getBeanstalkFarmer();
+        uint256 amount = __update(account, ids, uint256(fert.bpf));
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
             // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
-            pintoProtocol.transferToken(pinto, msg.sender, amount, LibTransfer.From.EXTERNAL, mode);
+            pintoProtocol.transferToken(pinto, account, amount, LibTransfer.From.EXTERNAL, mode);
         }
     }
 

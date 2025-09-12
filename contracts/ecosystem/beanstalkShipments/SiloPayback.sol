@@ -7,8 +7,9 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
 
-contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
+contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, TractorEnabled {
     /// @dev precision used for reward calculations
     uint256 public constant PRECISION = 1e18;
 
@@ -17,8 +18,6 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
         uint256 bdv;
     }
 
-    // Contracts
-    IBeanstalk public pintoProtocol;
     IERC20 public pinto;
 
     /// @dev Tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
@@ -104,7 +103,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
      * @param toMode The mode to send the rewards in
      */
     function claim(address recipient, LibTransfer.To toMode) external {
-        address account = _getActiveAccount();
+        address account = _getBeanstalkFarmer();
         uint256 userCombinedBalance = getBalanceCombined(account);
 
         // Validate balance
@@ -137,17 +136,6 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable {
             rewards[account] = earned(account);
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
-    }
-
-    /**
-     * @notice Gets the active account from the diamond tractor storage
-     * The account returned is either msg.sender or an active publisher
-     * Since msg.sender for the external call is this contract, we need to adjust
-     * it to the actual function caller
-     */
-    function _getActiveAccount() internal view returns (address) {
-        address tractorAccount = pintoProtocol.tractorUser();
-        return tractorAccount == address(this) ? msg.sender : tractorAccount;
     }
 
     /**

@@ -15,13 +15,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {LibBytes64} from "contracts/libraries/LibBytes64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
 
 /**
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.
  * We rewrite transfer and mint functions to allow the balance transfer function be overwritten as well.
  * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol from the beanstalk protocol.
  */
-contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, TractorEnabled {
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
     using Strings for uint256;
@@ -30,7 +31,6 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         address(0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000);
 
     event ClaimFertilizer(uint256[] ids, uint256 beans);
-    event BarnPaybackRewardsReceived(uint256 amount);
 
     struct Balance {
         uint128 amount;
@@ -86,7 +86,6 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     mapping(uint256 => mapping(address => Balance)) internal _balances;
     SystemFertilizer public fert;
     IERC20 public pinto;
-    IBeanstalk public pintoProtocol;
 
     /// @dev gap for future upgrades
     uint256[50] private __gap;
