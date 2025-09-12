@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AdvancedFarmCall} from "../libraries/LibFarm.sol";
 import {LibTransfer} from "../libraries/Token/LibTransfer.sol";
 import {LibTractor} from "../libraries/LibTractor.sol";
+import {ShipmentRoute} from "../beanstalk/storage/System.sol";
 
 interface IBeanstalk {
     enum GerminationSide {
@@ -248,4 +249,8 @@ interface IBeanstalk {
         external
         view
         returns (WhitelistStatus[] memory _whitelistStatuses);
+
+    function setShipmentRoutes(ShipmentRoute[] calldata shipmentRoutes) external;
+    
+    function addField() external;
 }
