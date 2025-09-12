@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { splitEntriesIntoChunks, updateProgress, retryOperation } = require("../../utils/read.js");
+const { BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR } = require("../../test/hardhat/utils/constants.js");
 
 // Deploys SiloPayback, BarnPayback, ShipmentPlanner, and ContractPaybackDistributor contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
@@ -28,7 +29,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   // factory, args, proxy options
   const barnPaybackContract = await upgrades.deployProxy(
     barnPaybackFactory,
-    [PINTO, L2_PINTO, barnPaybackArgs],
+    [PINTO, L2_PINTO, BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR, barnPaybackArgs],
     {
       initializer: "initialize",
       kind: "transparent"

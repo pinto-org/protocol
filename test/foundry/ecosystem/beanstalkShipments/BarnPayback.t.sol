@@ -78,6 +78,7 @@ contract BarnPaybackTest is TestHelper {
             BarnPayback.initialize.selector,
             address(BEAN),
             address(BEANSTALK),
+            address(0), // contract distributor
             initSystemFert
         );
 

@@ -323,6 +323,7 @@ contract ContractDistributionTest is TestHelper {
             BarnPayback.initialize.selector,
             address(BEAN),
             address(BEANSTALK),
+            address(EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR),
             initSystemFert
         );
 

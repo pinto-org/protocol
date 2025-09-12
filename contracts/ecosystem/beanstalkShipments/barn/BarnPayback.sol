@@ -50,9 +50,10 @@ contract BarnPayback is BeanstalkFertilizer {
     function initialize(
         address _pinto,
         address _pintoProtocol,
+        address _contractDistributor,
         InitSystemFertilizer calldata initSystemFert
     ) public override initializer {
-        super.initialize(_pinto, _pintoProtocol, initSystemFert);
+        super.initialize(_pinto, _pintoProtocol, _contractDistributor, initSystemFert);
     }
 
     /**
@@ -62,6 +63,8 @@ contract BarnPayback is BeanstalkFertilizer {
      * @param fertilizerIds Array of fertilizer data containing ids, accounts, amounts, and lastBpf.
      */
     function mintFertilizers(Fertilizers[] calldata fertilizerIds) external onlyOwner {
+        // cache the distributor address
+        address distributor = contractDistributor;
         for (uint i; i < fertilizerIds.length; i++) {
             Fertilizers memory f = fertilizerIds[i];
             uint128 fid = f.fertilizerId;
@@ -70,7 +73,7 @@ contract BarnPayback is BeanstalkFertilizer {
             for (uint j; j < f.accountData.length; j++) {
                 address account = f.accountData[j].account;
                 // Mint to non-contract accounts and the distributor address
-                if (!isContract(account) || account == CONTRACT_DISTRIBUTOR_ADDRESS) {
+                if (!isContract(account) || account == distributor) {
                     _balances[fid][account].lastBpf = f.accountData[j].lastBpf;
 
                     // This line used to call beanstalkMint but amounts and balances are set directly here

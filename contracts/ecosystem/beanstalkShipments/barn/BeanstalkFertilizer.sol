@@ -27,9 +27,6 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     using LibRedundantMath128 for uint128;
     using Strings for uint256;
 
-    address public constant CONTRACT_DISTRIBUTOR_ADDRESS =
-        address(0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000);
-
     event ClaimFertilizer(uint256[] ids, uint256 beans);
 
     struct Balance {
@@ -86,6 +83,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     mapping(uint256 => mapping(address => Balance)) internal _balances;
     SystemFertilizer public fert;
     IERC20 public pinto;
+    address public contractDistributor;
 
     /// @dev gap for future upgrades
     uint256[50] private __gap;
@@ -98,6 +96,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
     function initialize(
         address _pinto,
         address _pintoProtocol,
+        address _contractDistributor,
         InitSystemFertilizer calldata initSystemFert
     ) public virtual onlyInitializing {
         // Inheritance Inits
@@ -108,6 +107,7 @@ contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, Reentran
         // State Inits
         pinto = IERC20(_pinto);
         pintoProtocol = IBeanstalk(_pintoProtocol);
+        contractDistributor = _contractDistributor;
         setFertilizerState(initSystemFert);
         // approve the pinto protocol to spend the incoming pinto tokens for claims
         pinto.approve(address(pintoProtocol), type(uint256).max);
