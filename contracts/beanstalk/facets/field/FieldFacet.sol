@@ -428,6 +428,16 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice returns the length of the plotIndexes owned by `account`.
+     */
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256) {
+        return s.accts[account].fields[fieldId].plotIndexes.length;
+    }
+
+    /**
      * @notice returns the plots owned by `account`.
      */
     function getPlotsFromAccount(
@@ -444,6 +454,18 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns the value in the piIndex mapping for a given account, fieldId and index.
+     * @dev `piIndex` is a mapping from Plot index to the index in the `plotIndexes` array.
+     */
+    function getPiIndexFromAccount(
+        address account,
+        uint256 fieldId,
+        uint256 index
+    ) external view returns (uint256) {
+        return s.accts[account].fields[fieldId].piIndex[index];
+    }
+
+    /**
      * @notice returns the number of pods owned by `account` in a field.
      */
     function balanceOfPods(address account, uint256 fieldId) external view returns (uint256 pods) {
@@ -451,5 +473,84 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
         }
+    }
+
+    //////////////////// PLOT INDEX HELPERS ////////////////////
+
+    /**
+     * @notice Returns Plot indexes by their positions in the `plotIndexes` array.
+     * @dev plotIndexes is an array of Plot indexes, used to return the farm plots of a Farmer.
+     */
+    function getPlotIndexesAtPositions(
+        address account,
+        uint256 fieldId,
+        uint256[] calldata arrayIndexes
+    ) external view returns (uint256[] memory plotIndexes) {
+        uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        plotIndexes = new uint256[](arrayIndexes.length);
+
+        for (uint256 i = 0; i < arrayIndexes.length; i++) {
+            require(arrayIndexes[i] < accountPlotIndexes.length, "Field: Index out of bounds");
+            plotIndexes[i] = accountPlotIndexes[arrayIndexes[i]];
+        }
+    }
+
+    /**
+     * @notice Returns Plot indexes for a specified range in the `plotIndexes` array.
+     */
+    function getPlotIndexesByRange(
+        address account,
+        uint256 fieldId,
+        uint256 startIndex,
+        uint256 endIndex
+    ) external view returns (uint256[] memory plotIndexes) {
+        uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        require(startIndex < endIndex, "Field: Invalid range");
+        require(endIndex <= accountPlotIndexes.length, "Field: End index out of bounds");
+
+        plotIndexes = new uint256[](endIndex - startIndex);
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            plotIndexes[i] = accountPlotIndexes[startIndex + i];
+        }
+    }
+
+    /**
+     * @notice Combines an account's adjacent plots.
+     * @param account The account that owns the plots to combine
+     * @param fieldId The field ID containing the plots
+     * @param plotIndexes Array of adjacent plot indexes to combine (must be sorted and consecutive)
+     * @dev Plots must be adjacent: plot[i].index + plot[i].pods == plot[i+1].index
+     *      Any account can combine any other account's adjacent plots
+     */
+    function combinePlots(
+        address account,
+        uint256 fieldId,
+        uint256[] calldata plotIndexes
+    ) external payable fundsSafu noSupplyChange noNetFlow nonReentrant {
+        require(plotIndexes.length >= 2, "Field: Need at least 2 plots to combine");
+
+        // initialize total pods with the first plot
+        uint256 totalPods = s.accts[account].fields[fieldId].plots[plotIndexes[0]];
+        require(totalPods > 0, "Field: Plot to combine not owned by account");
+        // track the expected next start position to avoid querying deleted plots
+        uint256 expectedNextStart = plotIndexes[0] + totalPods;
+
+        for (uint256 i = 1; i < plotIndexes.length; i++) {
+            uint256 currentPods = s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+            require(currentPods > 0, "Field: Plot to combine not owned by account");
+
+            // check adjacency: expected next start == current plot start
+            require(expectedNextStart == plotIndexes[i], "Field: Plots to combine not adjacent");
+
+            totalPods += currentPods;
+            expectedNextStart = plotIndexes[i] + currentPods;
+
+            // delete subsequent plot, plotIndex and piIndex mapping entry
+            delete s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+            LibDibbler.removePlotIndexFromAccount(account, fieldId, plotIndexes[i]);
+        }
+
+        // update first plot with combined pods
+        s.accts[account].fields[fieldId].plots[plotIndexes[0]] = totalPods;
     }
 }
