@@ -194,7 +194,7 @@ contract ShipmentDeployer is Utils {
             planContract: shipmentPlanner,
             planSelector: IShipmentPlanner.getPaybackPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.EXTERNAL_BALANCE,
-            data: abi.encode(payback)
+            data: abi.encode(payback) // sends to payback contract
         });
 
         vm.prank(deployer);
