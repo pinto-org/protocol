@@ -62,7 +62,8 @@ contract BeanstalkDeployer is Utils {
         "ConvertFacet", // MockConvertFacet
         "SeasonFacet", // MockSeasonFacet
         "PipelineConvertFacet", // MockPipelineConvertFacet
-        "SeasonGettersFacet" // MockSeasonGettersFacet
+        "SeasonGettersFacet", // MockSeasonGettersFacet
+        "TokenHookFacet" // MockTokenHookFacet
     ];
     address[] initialDeployFacetAddresses;
     string[] initialDeploFacetNames;
