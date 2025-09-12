@@ -33,7 +33,12 @@ import {IContractPaybackDistributor} from "contracts/interfaces/IContractPayback
  *
  * note: For contract account that have migrated to Arbitrum, no action is needed as their assets will be minted to them directly.
  */
-contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receiver, IContractPaybackDistributor {
+contract ContractPaybackDistributor is
+    ReentrancyGuard,
+    Ownable,
+    IERC1155Receiver,
+    IContractPaybackDistributor
+{
     using SafeERC20 for IERC20;
 
     // Repayment field id
