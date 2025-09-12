@@ -7,7 +7,7 @@ const {
 
 /**
  * Populates the beanstalk field by reading data from beanstalkPlots.json
- * and calling initializeReplaymentPlots directly on the L2_PINTO contract
+ * and calling initializeRepaymentPlots directly on the L2_PINTO contract
  */
 async function populateBeanstalkField({ diamondAddress, account, verbose }) {
   console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
@@ -36,7 +36,7 @@ async function populateBeanstalkField({ diamondAddress, account, verbose }) {
       console.log("-----------------------------------");
     }
     await retryOperation(async () => {
-      const tx = await pintoDiamond.initializeReplaymentPlots(plotChunks[i]);
+      const tx = await pintoDiamond.initializeRepaymentPlots(plotChunks[i]);
       const receipt = await tx.wait();
       if (verbose) {
         console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);

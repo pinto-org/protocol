@@ -2227,7 +2227,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
     // Selectors removed:
     // 0x31f2cd56: REPAYMENT_FIELD_ID()
     // 0x49e40d6c: REPAYMENT_FIELD_POPULATOR()
-    // 0x0b678c09: initializeReplaymentPlots()
+    // 0x0b678c09: initializeRepaymentPlots()
     console.log("\nSTEP 4: UPDATING SHIPMENT ROUTES, CREATING NEW FIELD AND REMOVING TEMP FACET");
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));

@@ -2150,7 +2150,7 @@
         "type": "tuple[]"
       }
     ],
-    "name": "initializeReplaymentPlots",
+    "name": "initializeRepaymentPlots",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
