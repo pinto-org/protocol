@@ -29,7 +29,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  *    received, calls claimFromMessage and receive their assets in an address of their choice
  *
  * 3. If an account has just delegated its code to a contract, they can just call claimDirect() and receive their assets.
- * 
+ *
  * note: For contract account that have migrated to Arbitrum, no action is needed as their assets will be minted to them directly.
  */
 contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receiver {
