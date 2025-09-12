@@ -4,14 +4,13 @@
 
 pragma solidity ^0.8.20;
 
-import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {BeanstalkFertilizer} from "./BeanstalkFertilizer.sol";
+import {LibTransfer, BeanstalkFertilizer} from "./BeanstalkFertilizer.sol";
 /**
  * @dev BarnPayback facilitates the payback of beanstalk fertilizer holders.
  * Inherits from BeanstalkFertilizer that contains a copy of the beanstalk ERC-1155 fertilizer implementation.
- * Instead of keeping the fertilizerstate in the main protocol storage all state is copied and initialized locally.
- * The BarnPayback contract is initialized using the state at the snapshot of Pinto's deployment and repays
- * beanstalk fertilizer holders with pinto until they all become inactive.
+ * Instead of keeping the fertilizer state in the main protocol storage, all state is copied and initialized locally.
+ * The BarnPayback contract is initialized using the state of Beanstalk at block 276160746 on Arbitrum and repays
+ * beanstalk fertilizer holders until they all become inactive.
  */
 contract BarnPayback is BeanstalkFertilizer {
     /**
@@ -101,7 +100,6 @@ contract BarnPayback is BeanstalkFertilizer {
     function barnPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
         uint256 amountToFertilize = shipmentAmount + fert.leftoverBeans;
         // Get the new Beans per Fertilizer and the total new Beans per Fertilizer
-        // Zeroness of activeFertilizer handled in Planner.
         uint256 remainingBpf = amountToFertilize / fert.activeFertilizer;
         uint256 oldBpf = fert.bpf;
         uint256 newBpf = oldBpf + remainingBpf;
