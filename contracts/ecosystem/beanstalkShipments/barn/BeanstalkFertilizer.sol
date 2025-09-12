@@ -22,7 +22,12 @@ import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
  * We rewrite transfer and mint functions to allow the balance transfer function be overwritten as well.
  * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol from the beanstalk protocol.
  */
-contract BeanstalkFertilizer is ERC1155Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, TractorEnabled {
+contract BeanstalkFertilizer is
+    ERC1155Upgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    TractorEnabled
+{
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
     using Strings for uint256;
