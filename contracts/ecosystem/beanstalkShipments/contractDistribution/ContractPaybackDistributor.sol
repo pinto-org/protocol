@@ -50,7 +50,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
         uint256[] fertilizerIds;
         uint256[] fertilizerAmounts;
         uint256[] plotIds;
-        uint256[] plotEnds;
+        uint256[] plotAmounts;
     }
 
     /// @dev contains all the data for all the contract accounts
@@ -134,8 +134,8 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
     }
 
     /**
-     * @notice Receives a message from the l1 messenger and distrubutes all assets to a receiver.
-     * @param caller The address of the caller on the l1. (The encoded msg.sender in the message)
+     * @notice Receives a message from the L1 messenger and distrubutes all assets to a receiver.
+     * @param caller The address of the caller on the L1. (The encoded msg.sender in the message)
      * @param receiver The address to transfer all the assets to.
      */
     function claimFromL1Message(
@@ -183,7 +183,7 @@ contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receive
                 REPAYMENT_FIELD_ID,
                 accountData.plotIds,
                 plotStarts,
-                accountData.plotEnds
+                accountData.plotAmounts
             );
         }
     }
