@@ -9,6 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IContractPaybackDistributor} from "contracts/interfaces/IContractPaybackDistributor.sol";
 
 /**
  * @title ContractPaybackDistributor
@@ -32,7 +33,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * 
  * note: For contract account that have migrated to Arbitrum, no action is needed as their assets will be minted to them directly.
  */
-contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receiver {
+contract ContractPaybackDistributor is ReentrancyGuard, Ownable, IERC1155Receiver, IContractPaybackDistributor {
     using SafeERC20 for IERC20;
 
     // Repayment field id

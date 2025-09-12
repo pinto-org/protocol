@@ -2,10 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
-
-interface IContractPaybackDistributor {
-    function claimFromL1Message(address caller, address receiver) external;
-}
+import {IContractPaybackDistributor} from "contracts/interfaces/IContractPaybackDistributor.sol";
 
 /**
  * @title L1ContractMessenger

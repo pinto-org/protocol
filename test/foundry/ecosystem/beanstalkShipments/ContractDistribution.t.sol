@@ -421,16 +421,16 @@ contract ContractDistributionTest is TestHelper {
         plotIds1[0] = 0; // 0 --> 101e6 place in line
         uint256[] memory plotStarts1 = new uint256[](1);
         plotStarts1[0] = 0; // start from the beginning of the plot
-        uint256[] memory plotEnds1 = new uint256[](1);
-        plotEnds1[0] = 101e6; // end at the end of the plot
+        uint256[] memory plotAmounts1 = new uint256[](1);
+        plotAmounts1[0] = 101e6; // end at the end of the plot
 
         // Plot data for contractAccount2 (plot 1)
         uint256[] memory plotIds2 = new uint256[](1);
         plotIds2[0] = 101e6; // 101e6 --> 202e6 place in line
         uint256[] memory plotStarts2 = new uint256[](1);
         plotStarts2[0] = 0; // start from the beginning of the plot
-        uint256[] memory plotEnds2 = new uint256[](1);
-        plotEnds2[0] = 101e6; // end at the end of the plot
+        uint256[] memory plotAmounts2 = new uint256[](1);
+        plotAmounts2[0] = 101e6; // end at the end of the plot
         // contractAccount1
         accountData[0] = ContractPaybackDistributor.AccountData({
             whitelisted: true,
@@ -439,7 +439,7 @@ contract ContractDistributionTest is TestHelper {
             fertilizerIds: fertilizerIds,
             fertilizerAmounts: fertilizerAmounts1,
             plotIds: plotIds1,
-            plotEnds: plotEnds1
+            plotAmounts: plotAmounts1
         });
         // contractAccount2
         accountData[1] = ContractPaybackDistributor.AccountData({
@@ -449,7 +449,7 @@ contract ContractDistributionTest is TestHelper {
             fertilizerIds: fertilizerIds,
             fertilizerAmounts: fertilizerAmounts2,
             plotIds: plotIds2,
-            plotEnds: plotEnds2
+            plotAmounts: plotAmounts2
         });
         return accountData;
     }
