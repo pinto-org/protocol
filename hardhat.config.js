@@ -2227,7 +2227,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
     // Selectors removed:
     // 0x31f2cd56: REPAYMENT_FIELD_ID()
     // 0x49e40d6c: REPAYMENT_FIELD_POPULATOR()
-    // 0x0b678c09: initializeRepaymentPlots()
+    // 0x1fd620f9: initializeRepaymentPlots()
     console.log("\nSTEP 4: UPDATING SHIPMENT ROUTES, CREATING NEW FIELD AND REMOVING TEMP FACET");
     const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
     const routes = JSON.parse(fs.readFileSync(routesPath));
@@ -2259,7 +2259,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
       },
       initFacetName: "InitBeanstalkShipments",
       initArgs: [routes, BEANSTALK_SILO_PAYBACK],
-      selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x0b678c09"],
+      selectorsToRemove: ["0x31f2cd56", "0x49e40d6c", "0x1fd620f9"],
       verbose: true,
       object: !mock,
       account: owner
