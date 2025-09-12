@@ -85,7 +85,7 @@ contract BeanstalkFertilizer is
     }
 
     // Storage
-    mapping(uint256 => mapping(address => Balance)) internal _balances;
+    mapping(uint256 id => mapping(address account => Balance)) internal _balances;
     SystemFertilizer public fert;
     IERC20 public pinto;
     address public contractDistributor;
