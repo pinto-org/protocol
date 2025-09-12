@@ -509,7 +509,12 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         IERC20(BEAN).approve(address(bs), type(uint256).max);
 
         // setup non-adjacent plots for farmer 1
-        uint256[] memory account1PlotIndexes = setUpNonAdjacentPlots(farmers[0], farmers[1], 1000e6, true);
+        uint256[] memory account1PlotIndexes = setUpNonAdjacentPlots(
+            farmers[0],
+            farmers[1],
+            1000e6,
+            true
+        );
         uint256 totalPodsBefore = getTotalPodsFromAccount(farmers[0]);
 
         // try to combine plots, expect revert since plots are not adjacent
@@ -524,12 +529,24 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         adjacentPlotIndexes[2] = account1PlotIndexes[2];
         bs.combinePlots(farmers[0], activeField, adjacentPlotIndexes);
         // assert user has 3 plots (1 from the 3 merged, 2 from the original)
-        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 3, "user should have 3 plots");
+        assertEq(
+            bs.getPlotIndexesLengthFromAccount(farmers[0], activeField),
+            3,
+            "user should have 3 plots"
+        );
         // assert first plot index is 0 after merge
-        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[0], 0, "plot index should be 0");
-        
+        assertEq(
+            bs.getPlotIndexesFromAccount(farmers[0], activeField)[0],
+            0,
+            "plot index should be 0"
+        );
+
         // plots for farmer 2 should remain unchanged in the middle of the queue
-        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[1], activeField), 2, "user should have 2 plots");
+        assertEq(
+            bs.getPlotIndexesLengthFromAccount(farmers[1], activeField),
+            2,
+            "user should have 2 plots"
+        );
 
         // merge adjacent plots in pairs (indexes 5-6)
         adjacentPlotIndexes = new uint256[](2);
@@ -537,16 +554,32 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         adjacentPlotIndexes[1] = account1PlotIndexes[4];
         bs.combinePlots(farmers[0], activeField, adjacentPlotIndexes);
         // assert user has 2 plots (1 from the 2 merged, 1 from the 3 original merged)
-        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 2, "user should have 2 final plots");
+        assertEq(
+            bs.getPlotIndexesLengthFromAccount(farmers[0], activeField),
+            2,
+            "user should have 2 final plots"
+        );
         // assert first plot index remains the same after 2nd merge
-        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[0], 0, "plot index should be 0");
+        assertEq(
+            bs.getPlotIndexesFromAccount(farmers[0], activeField)[0],
+            0,
+            "plot index should be 0"
+        );
         // final plot should start from the next to last previous plot index
-        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[1], 5000500000, "final plot index");
+        assertEq(
+            bs.getPlotIndexesFromAccount(farmers[0], activeField)[1],
+            5000500000,
+            "final plot index"
+        );
 
         // get total pods from account 1
         uint256 totalPodsAfter = getTotalPodsFromAccount(farmers[0]);
         // assert total pods after merge is the same as before merge
-        assertEq(totalPodsAfter, totalPodsBefore, "total pods after merge should be the same as before merge");
+        assertEq(
+            totalPodsAfter,
+            totalPodsBefore,
+            "total pods after merge should be the same as before merge"
+        );
     }
 
     /////////////////////////// HELPER FUNCTIONS ///////////////////////////
@@ -656,9 +689,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         return plotIndexes;
     }
 
-    function getTotalPodsFromAccount(
-        address account
-    ) internal view returns (uint256 totalPods) {
+    function getTotalPodsFromAccount(address account) internal view returns (uint256 totalPods) {
         uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, bs.activeField());
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             totalPods += bs.plot(account, bs.activeField(), plotIndexes[i]);
