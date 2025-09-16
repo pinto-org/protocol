@@ -131,25 +131,27 @@ contract ShipmentPlanner {
         // 2. Silo: silo will be paid off second
         // 3. Field: field will be paid off last
         uint256 points;
-        uint256 cap = beanstalk.totalUnharvestable(fieldId);
+        uint256 maxCap;
         // silo is second thing to be paid off so if remaining is 0 then all points go to field
         if (siloRemaining == 0) {
             points = PAYBACK_FIELD_POINTS + PAYBACK_SILO_POINTS + PAYBACK_BARN_POINTS;
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 3) / 100); // 3%
+            maxCap = (beanstalk.time().standardMintedBeans * 3) / 100; // 3%
         } else if (barnRemaining == 0) {
             // if barn remaining is 0 then 1.5% of all mints goes to silo and 1.5% goes to the field
             points = PAYBACK_FIELD_POINTS + ((PAYBACK_SILO_POINTS + PAYBACK_BARN_POINTS) * 1) / 4;
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 15) / 1000); // 1.5%
+            maxCap = (beanstalk.time().standardMintedBeans * 15) / 1000; // 1.5%
         } else {
             // else, all are active and 1% of all mints goes to field, 1% goes to silo, 1% goes to fert
             points = PAYBACK_FIELD_POINTS;
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 1) / 100); // 1%
+            maxCap = (beanstalk.time().standardMintedBeans * 1) / 100; // 1%
         }
+        // the absolute cap of all mints is the remaining field debt
+        uint256 cap = min(beanstalk.totalUnharvestable(fieldId), maxCap);
 
         // Scale points by distance to threshold.
         points = (points * paybackRatio) / PRECISION;
 
-        return ShipmentPlan({points: points, cap: beanstalk.totalUnharvestable(fieldId)});
+        return ShipmentPlan({points: points, cap: cap});
     }
 
     /**
@@ -184,18 +186,20 @@ contract ShipmentPlanner {
         if (siloRemaining == 0) return ShipmentPlan({points: 0, cap: siloRemaining});
 
         uint256 points;
-        uint256 cap = siloRemaining;
+        uint256 maxCap;
         // if silo is not paid off and fert is paid off then we need to increase the
         // the points that should go to the silo to 1,5% (finalAllocation = 1,5% to silo, 1,5% to field)
         if (barnRemaining == 0) {
             // half of the paid off fert points go to silo
             points = PAYBACK_SILO_POINTS + (PAYBACK_BARN_POINTS / 2); // 1.5%
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 15) / 1000); // 1.5%
+            maxCap = (beanstalk.time().standardMintedBeans * 15) / 1000; // 1.5%
         } else {
             // if silo is not paid off and fert is not paid off then just assign the regular 1% points
             points = PAYBACK_SILO_POINTS;
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 1) / 100); // 1%
+            maxCap = (beanstalk.time().standardMintedBeans * 1) / 100; // 1%
         }
+        // the absolute cap of all mints is the remaining silo debt
+        uint256 cap = min(siloRemaining, maxCap);
 
         // Scale the points by the payback ratio
         points = (points * paybackRatio) / PRECISION;
@@ -234,18 +238,20 @@ contract ShipmentPlanner {
         if (barnRemaining == 0) return ShipmentPlan({points: 0, cap: barnRemaining});
 
         uint256 points;
-        uint256 cap = barnRemaining;
+        uint256 maxCap;
         // if fert is not paid off and silo is paid off then we need to increase the
         // the points that should go to the fert to 1,5% (finalAllocation = 1,5% to barn, 1,5% to field)
         if (siloRemaining == 0) {
             // half of the paid off silo points go to fert
             points = PAYBACK_BARN_POINTS + (PAYBACK_SILO_POINTS / 2); // 1.5%
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 15) / 100); // 1.5%
+            maxCap = (beanstalk.time().standardMintedBeans * 15) / 100; // 1.5%
         } else {
             // if fert is not paid off and silo is not paid off then just assign the regular 1% points
             points = PAYBACK_BARN_POINTS;
-            cap = min(cap, (beanstalk.time().standardMintedBeans * 1) / 100); // 1%
+            maxCap = (beanstalk.time().standardMintedBeans * 1) / 100; // 1%
         }
+        // the absolute cap of all mints is the remaining barn debt
+        uint256 cap = min(barnRemaining, maxCap);
 
         // Scale the points by the payback ratio
         points = (points * paybackRatio) / PRECISION;
