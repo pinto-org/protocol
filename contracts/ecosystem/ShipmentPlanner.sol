@@ -7,6 +7,7 @@ import {Season} from "contracts/beanstalk/storage/System.sol";
 import {IBudget} from "contracts/interfaces/IBudget.sol";
 import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
 import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
+import {IShipmentPlanner} from "contracts/interfaces/IShipmentPlanner.sol";
 
 /**
  * @notice Constraints of how many Beans to send to a given route at the current time.
@@ -35,7 +36,7 @@ interface IBeanstalk {
  * a new instance and updating the ShipmentRoute planContract addresses help in AppStorage.
  * @dev Called via staticcall. New plan getters must be view/pure functions.
  */
-contract ShipmentPlanner {
+contract ShipmentPlanner is IShipmentPlanner {
     uint256 internal constant PRECISION = 1e18;
 
     uint256 constant FIELD_POINTS = 48_500_000_000_000_000; // 48.5%

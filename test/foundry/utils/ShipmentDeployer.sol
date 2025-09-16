@@ -16,6 +16,7 @@ import {MockShipmentPlanner} from "contracts/mocks/MockShipmentPlanner.sol";
 // Extend the interface to support Fields with different points.
 interface IMockShipmentPlanner is IShipmentPlanner {
     function getFieldPlanMulti(bytes memory data) external view returns (ShipmentPlan memory);
+    function getPaybackPlan(bytes memory data) external view returns (ShipmentPlan memory);
 }
 
 /**
@@ -192,7 +193,7 @@ contract ShipmentDeployer is Utils {
         // Payback.
         shipmentRoutes[4] = IBeanstalk.ShipmentRoute({
             planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getPaybackPlan.selector,
+            planSelector: IMockShipmentPlanner.getPaybackPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.EXTERNAL_BALANCE,
             data: abi.encode(payback) // sends to payback contract
         });
