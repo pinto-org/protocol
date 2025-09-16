@@ -23,14 +23,12 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @notice Event emitted when a convert up order is complete
      * @param blueprintHash The hash of the blueprint
      * @param publisher The address of the publisher
-     * @param amountConverted The amount that was converted
-     * @param bdvConverted The amount of BDV that was converted
+     * @param amountBdvConverted The total amount of BDV that was converted
      */
     event ConvertUpOrderComplete(
         bytes32 indexed blueprintHash,
         address indexed publisher,
-        uint256 amountConverted,
-        uint256 bdvConverted
+        uint256 amountBdvConverted
     );
 
     /**
@@ -40,7 +38,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @param tipAddress Address to send tip to
      * @param bdvLeftToConvert Amount of BDV left to convert from the total
      * @param currentBdvToConvert Amount of BDV to convert in this execution
-     * @param amountConverted Amount actually converted
+     * @param amountBdvConverted Amount of BDV actually converted
      * @param withdrawalPlan Plan for withdrawing tokens for conversion
      */
     struct ConvertUpLocalVars {
@@ -49,7 +47,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         address tipAddress;
         uint256 bdvLeftToConvert;
         uint256 currentBdvToConvert;
-        uint256 amountConverted;
+        uint256 amountBdvConverted;
         uint256 bonusStalkPerBdv;
         LibSiloHelpers.WithdrawalPlan withdrawalPlan;
     }
@@ -240,16 +238,18 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         address beanToken = beanstalk.getBeanToken();
 
         // Execute the conversion using Beanstalk's convert function
-        vars.amountConverted = executeConvertUp(
+        vars.amountBdvConverted = executeConvertUp(
             vars,
             beanToken,
             slippageRatio,
             params.convertUpParams.maxGrownStalkPerBdvPenalty
         );
 
+        require(vars.amountBdvConverted > 0, "No amount converted");
+
         // Update the state
         // If all BDV has been converted, set to max to indicate completion
-        uint256 bdvRemaining = vars.bdvLeftToConvert - vars.currentBdvToConvert;
+        uint256 bdvRemaining = vars.bdvLeftToConvert - vars.amountBdvConverted;
         if (bdvRemaining == 0) bdvRemaining = type(uint256).max;
 
         // Update the BDV left to convert
@@ -269,12 +269,9 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
 
         // Emit completion event
-        emit ConvertUpOrderComplete(
-            vars.orderHash,
-            vars.account,
-            vars.amountConverted,
-            vars.currentBdvToConvert
-        );
+        if (bdvRemaining == 0) {
+            emit ConvertUpOrderComplete(vars.orderHash, vars.account, vars.amountBdvConverted);
+        }
     }
 
     /**
