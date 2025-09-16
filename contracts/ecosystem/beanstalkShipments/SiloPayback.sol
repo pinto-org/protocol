@@ -113,8 +113,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
         require(userCombinedBalance > 0, "SiloPayback: token balance must be greater than 0");
 
         // Update the reward state for the account
-        _updateReward(account);
-        uint256 rewardsToClaim = rewards[account];
+        uint256 rewardsToClaim = _updateReward(account);
         require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
         rewards[account] = 0;
 
@@ -134,11 +133,12 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
      * @notice Updates the reward state for an account before a claim
      * @param account The account to update the reward state for
      */
-    function _updateReward(address account) internal {
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
-        }
+    function _updateReward(address account) internal returns (uint256) {
+        if (account == address(0)) return 0;
+        uint256 earnedRewards = earned(account);
+        rewards[account] = earnedRewards;
+        userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        return earnedRewards;
     }
 
     /**
