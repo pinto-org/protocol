@@ -107,7 +107,7 @@ contract ShipmentPlanner {
         (uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(data);
 
         // get field id from data (third encoded parameter)
-        (, ,uint256 fieldId) = abi.decode(data, (address, address, uint256));
+        (, , uint256 fieldId) = abi.decode(data, (address, address, uint256));
 
         // Add strict % limits.
         // Order of payback based on size of debt is:
