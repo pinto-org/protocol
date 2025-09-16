@@ -127,9 +127,9 @@ contract ShipmentPlanner {
 
         // Add strict % limits.
         // Order of payback based on size of debt is:
-        // 1. barn: fert will be paid off first
-        // 2. silo: silo will be paid off second
-        // 3. field: field will be paid off last
+        // 1. Barn: fert will be paid off first
+        // 2. Silo: silo will be paid off second
+        // 3. Field: field will be paid off last
         uint256 points;
         uint256 cap = beanstalk.totalUnharvestable(fieldId);
         // silo is second thing to be paid off so if remaining is 0 then all points go to field
