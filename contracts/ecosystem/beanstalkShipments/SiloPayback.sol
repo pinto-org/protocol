@@ -13,7 +13,7 @@ import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
  * @title SiloPayback
  * @notice SiloPayback is an ERC20 representation of Unripe BDV in Beanstalk calculated as if Beanstalk was fully recapitalized.
  * It facilitates the payback of unripe holders by allowing them to claim pinto rewards after the 1 billion supply threshold.
- * Tokens are initially distributed and yield gets continuously accrued every time new Pinto supply is minted, 
+ * Tokens are initially distributed and yield gets continuously accrued every time new Pinto supply is minted,
  * until all unripe tokens are worth exactly 1 Pinto underlying.
  */
 contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, TractorEnabled {
