@@ -47,8 +47,8 @@ contract ShipmentPlanner {
 
     uint256 constant SUPPLY_BUDGET_FLIP = 1_000_000_000e6;
 
-    IBeanstalk beanstalk;
-    IERC20 bean;
+    IBeanstalk immutable beanstalk;
+    IERC20 immutable bean;
 
     constructor(address beanstalkAddress, address beanAddress) {
         beanstalk = IBeanstalk(beanstalkAddress);
@@ -97,33 +97,17 @@ contract ShipmentPlanner {
 
     /**
      * @notice Get the current points and cap for the Field portion of payback shipments.
-     * @dev data param is unused data to configure plan details.
+     * @dev data here in addition to the payback coontracts, contains the payback field id endoded as the third parameter.
      */
     function getPaybackFieldPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
-        uint256 paybackRatio = PRECISION - budgetMintRatio();
-        require(
-            paybackRatio > 0,
-            "ShipmentPlanner: Supply above flipping point, no payback allocation"
-        );
+        uint256 paybackRatio = calcAndEnforceActivePayback();
+        // since payback is active, fetch the remaining payback amounts
+        (uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(data);
 
-        (uint256 fieldId, address siloPaybackContract, address barnPaybackContract) = abi.decode(
-            data,
-            (uint256, address, address)
-        );
-        (bool success, uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(
-            siloPaybackContract,
-            barnPaybackContract
-        );
-        // If the contracts do not exist yet, return the default points and cap.
-        if (!success) {
-            return
-                ShipmentPlan({
-                    points: PAYBACK_FIELD_POINTS,
-                    cap: beanstalk.totalUnharvestable(fieldId)
-                });
-        }
+        // get field id from data (third encoded parameter)
+        (, ,uint256 fieldId) = abi.decode(data, (address, address, uint256));
 
         // Add strict % limits.
         // Order of payback based on size of debt is:
@@ -162,25 +146,10 @@ contract ShipmentPlanner {
     function getPaybackSiloPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
-        // get the payback ratio to scale the points if needed
-        uint256 paybackRatio = PRECISION - budgetMintRatio();
-        require(
-            paybackRatio > 0,
-            "ShipmentPlanner: Supply above flipping point, no payback allocation"
-        );
-        // perform a static call to the silo payback contract to get the remaining silo debt
-        (address siloPaybackContract, address barnPaybackContract) = abi.decode(
-            data,
-            (address, address)
-        );
-        (bool success, uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(
-            siloPaybackContract,
-            barnPaybackContract
-        );
-        // If the contracts do not exist yet, return the default points and cap.
-        if (!success) {
-            return ShipmentPlan({points: PAYBACK_SILO_POINTS, cap: type(uint256).max});
-        }
+        // calculate the payback ratio and enforce that payback is active
+        uint256 paybackRatio = calcAndEnforceActivePayback();
+        // since payback is active, fetch the remaining paybacks
+        (uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(data);
 
         // if silo is paid off, no need to send pinto to it.
         if (siloRemaining == 0) return ShipmentPlan({points: 0, cap: siloRemaining});
@@ -214,25 +183,10 @@ contract ShipmentPlanner {
     function getPaybackBarnPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
-        // get the payback ratio to scale the points if needed
-        uint256 paybackRatio = PRECISION - budgetMintRatio();
-        require(
-            paybackRatio > 0,
-            "ShipmentPlanner: Supply above flipping point, no payback allocation"
-        );
-
-        // perform a static call to the fert payback contract to get the remaining fert debt
-        (address siloPaybackContract, address barnPaybackContract) = abi.decode(
-            data,
-            (address, address)
-        );
-        (bool success, uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(
-            siloPaybackContract,
-            barnPaybackContract
-        );
-        if (!success) {
-            return ShipmentPlan({points: PAYBACK_SILO_POINTS, cap: type(uint256).max});
-        }
+        // calculate the payback ratio and enforce that payback is active
+        uint256 paybackRatio = calcAndEnforceActivePayback();
+        // since payback is active, fetch the remaining payback amounts
+        (uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(data);
 
         // if fert is paid off, no need to send pintos to it.
         if (barnRemaining == 0) return ShipmentPlan({points: 0, cap: barnRemaining});
@@ -282,24 +236,32 @@ contract ShipmentPlanner {
 
     /**
      * @notice Returns the remaining pinto to be paid off for the silo and barn payback contracts.
-     * @return totalSuccess True if both calls were successful, false otherwise.
+     * @dev When encoding shipment routes for payback contracts, care must be taken to ensure
+     * the silo and barn payback contract addresses are encoded first in `data` in the correct order.
      * @return siloRemaining The remaining pinto to be paid off for the silo payback contract.
      * @return barnRemaining The remaining pinto to be paid off for the barn payback contract.
      */
     function paybacksRemaining(
-        address siloPaybackContract,
-        address barnPaybackContract
-    ) private view returns (bool totalSuccess, uint256 siloRemaining, uint256 barnRemaining) {
-        (bool success, bytes memory returnData) = siloPaybackContract.staticcall(
-            abi.encodeWithSelector(ISiloPayback.siloRemaining.selector)
+        bytes memory data
+    ) private view returns (uint256 siloRemaining, uint256 barnRemaining) {
+        (address siloPaybackContract, address barnPaybackContract) = abi.decode(
+            data,
+            (address, address)
         );
-        totalSuccess = success;
-        siloRemaining = success ? abi.decode(returnData, (uint256)) : 0;
-        (success, returnData) = barnPaybackContract.staticcall(
-            abi.encodeWithSelector(IBarnPayback.barnRemaining.selector)
+        siloRemaining = ISiloPayback(siloPaybackContract).siloRemaining();
+        barnRemaining = IBarnPayback(barnPaybackContract).barnRemaining();
+    }
+
+    /**
+     * @notice Calculates the payback ratio and enforces that payback is active, above the specified supply threshold.
+     * @return paybackRatio The ratio to allocate new mints to beanstalk payback.
+     */
+    function calcAndEnforceActivePayback() private view returns (uint256 paybackRatio) {
+        paybackRatio = PRECISION - budgetMintRatio();
+        require(
+            paybackRatio > 0,
+            "ShipmentPlanner: Supply above flipping point, no payback allocation"
         );
-        totalSuccess = totalSuccess && success;
-        barnRemaining = success ? abi.decode(returnData, (uint256)) : 0;
     }
 
     function min(uint256 a, uint256 b) private pure returns (uint256) {
