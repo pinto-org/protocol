@@ -28,9 +28,9 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     IERC20 public pinto;
 
     /// @dev Tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
-    uint256 public totalDistributed;
+    uint128 public totalDistributed;
     /// @dev Tracks total received pinto from shipments.
-    uint256 public totalReceived;
+    uint128 public totalReceived;
 
     // Rewards
     /// @dev Global accumulator tracking total rewards per token since contract inception (scaled by 1e18)
@@ -80,7 +80,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     function batchMint(UnripeBdvTokenData[] memory unripeReceipts) external onlyOwner {
         for (uint256 i = 0; i < unripeReceipts.length; i++) {
             _mint(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
-            totalDistributed += unripeReceipts[i].bdv;
+            totalDistributed += uint128(unripeReceipts[i].bdv);
             emit UnripeBdvTokenMinted(unripeReceipts[i].receipient, unripeReceipts[i].bdv);
         }
     }
@@ -92,12 +92,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
      * @param shipmentAmount The amount of Pinto rewards received
      */
     function siloPaybackReceive(uint256 shipmentAmount) external onlyPintoProtocol {
-        uint256 tokenTotalSupply = totalSupply();
-        if (tokenTotalSupply > 0) {
-            rewardPerTokenStored += (shipmentAmount * PRECISION) / tokenTotalSupply;
-            totalReceived += shipmentAmount;
-        }
-
+        rewardPerTokenStored += (shipmentAmount * PRECISION) / totalSupply();
+        totalReceived += uint128(shipmentAmount);
         emit SiloPaybackRewardsReceived(shipmentAmount, rewardPerTokenStored);
     }
 
