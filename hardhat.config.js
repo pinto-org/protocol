@@ -8,7 +8,6 @@ require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
 
 //////////////////////// TASKS ////////////////////////
-
 // Import task modules
 require("./tasks")();
 
