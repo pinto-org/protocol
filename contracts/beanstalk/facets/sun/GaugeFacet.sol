@@ -334,7 +334,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             gv.bonusStalkPerBdv = 0;
             gv.convertCapacityFactor = 0;
 
-            // reset twaDeltaP.
+            // reset Convert maxTwaDeltaB.
             gd.maxTwaDeltaB = 0;
         } else {
             // Update maxTwaDeltaB if current -twaDeltaB is larger.
@@ -377,8 +377,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             gv.bonusStalkPerBdv = LibGaugeHelpers.updateBonusStalkPerBdv(
                 gv.bonusStalkPerBdv,
                 cbu,
-                cd,
-                bs.twaDeltaB
+                cd
             );
         }
 

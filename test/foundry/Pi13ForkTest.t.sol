@@ -9,28 +9,28 @@ import "forge-std/console.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {InitPI12} from "contracts/beanstalk/init/InitPI12.sol";
+import {InitPI13} from "contracts/beanstalk/init/InitPI13.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 
 /**
  * @dev forks base and tests different cultivation factor scenarios
- * InitPI12Mock is used as the init facet to init the cultivation temperatures to 748.5e6 instead of 0
+ * InitPI13Mock is used as the init facet to init the cultivation temperatures to 748.5e6 instead of 0
  **/
-contract Pi12ForkTest is TestHelper {
+contract Pi13ForkTest is TestHelper {
     // address with substantial LP deposits to simulate conversions.
     address farmer = address(0xaad938805E85f3404E3dbD5a501F9E43672037BB);
     address well = 0x3e11226fe3d85142B734ABCe6e58918d5828d1b4;
     string constant CSV_PATH = "convert_up_data.csv";
 
     function setUp() public {
-        uint256 forkBlock = 32098119;
+        uint256 forkBlock = 35363162;
         forkMainnetAndUpgradeAllFacets(
             forkBlock,
             vm.envString("BASE_RPC"),
             PINTO,
-            "InitPI12",
-            abi.encodeWithSelector(InitPI12.init.selector, 1e9) // initialize bonus stalk per bdv
+            "InitPI13",
+            abi.encodeWithSelector(InitPI13.init.selector, 1e9, 960_000e6) // initialize bonus stalk per bdv and twa delta b
         );
         bs = IMockFBeanstalk(PINTO);
     }
@@ -209,10 +209,13 @@ contract Pi12ForkTest is TestHelper {
      * then a new order comes in that is below the bonus.
      */
     function test_forkBase_convertUp_oneOrder_at_bonus() public {
-        vm.writeFile(
-            CSV_PATH,
-            "step,season,convert_capacity_factor,max_convert_capacity,bonus_stalk_per_bdv,bdv_converted_this_season, bdv_converted_last_season, last_convert_bonus_taken\n"
-        );
+        bool write = false;
+        if (write) {
+            vm.writeFile(
+                CSV_PATH,
+                "step,season,convert_capacity_factor,max_convert_capacity,bonus_stalk_per_bdv,bdv_converted_this_season, bdv_converted_last_season, last_convert_bonus_taken\n"
+            );
+        }
         LibGaugeHelpers.ConvertBonusGaugeValue memory gvBefore;
         LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore;
         LibGaugeHelpers.ConvertBonusGaugeValue memory gvAfter;
@@ -251,7 +254,9 @@ contract Pi12ForkTest is TestHelper {
             (gvAfter, gdAfter) = getConvertUpData();
 
             logSeasonData(i);
-            writeToCSV(vm.toString(i), gvBefore, gdBefore);
+            if (write) {
+                writeToCSV(vm.toString(i), gvBefore, gdBefore);
+            }
             if (i < 10) {
                 if (convertedLastSeasonOrder1) {
                     // if someone converted last season,
