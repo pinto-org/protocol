@@ -84,7 +84,7 @@ describe("Complex Weather", function () {
           await bean.mint(user.address, this.testData.totalOutstandingBeans);
           await mockBeanstalk.setLastSowTimeE(this.testData.lastSowTime);
           await mockBeanstalk.setNextSowTimeE(this.testData.thisSowTime);
-          this.result = await mockBeanstalk.calcCaseIdWithParams(
+          this.resultPromise = mockBeanstalk.calcCaseIdWithParams(
             this.pods,
             this.dsoil, // lastDeltaSoil
             this.startSoil - this.endSoil, // beanSown
@@ -95,6 +95,7 @@ describe("Complex Weather", function () {
             this.aboveQ, // aboveQ
             this.L2SRState // L2SR
           );
+          await this.resultPromise;
         });
         it("Checks New Weather", async function () {
           expect(await mockBeanstalk.getT()).to.eq(this.testData.newWeather);
@@ -102,7 +103,7 @@ describe("Complex Weather", function () {
 
         it("Emits The Correct Case Weather", async function () {
           if (this.testData.totalOutstandingBeans !== 0)
-            await expect(this.result)
+            await expect(this.resultPromise)
               .to.emit(beanstalk, "TemperatureChange")
               .withArgs(
                 await beanstalk.season(),
@@ -120,7 +121,7 @@ describe("Complex Weather", function () {
 
         it("Emits The Correct LP Case", async function () {
           if (this.testData.totalOutstandingBeans !== 0)
-            await expect(this.result)
+            await expect(this.resultPromise)
               .to.emit(beanstalk, "BeanToMaxLpGpPerBdvRatioChange")
               .withArgs(await beanstalk.season(), this.testData.Code, to18(this.testData.bL));
         });
