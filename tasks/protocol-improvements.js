@@ -678,7 +678,7 @@ module.exports = function () {
     });
   });
 
-  task("test-temp-changes", "Tests temperature changes after upgrade").setAction(async function () {
+  task("testPI3", "Tests temperature changes after PI-3 upgrade").setAction(async function () {
     // Fork from specific block
     await network.provider.request({
       method: "hardhat_reset",
@@ -695,14 +695,13 @@ module.exports = function () {
     const beanstalk = await getBeanstalk(L2_PINTO);
 
     const RESERVES = "0x4FAE5420F64c282FD908fdf05930B04E8e079770";
-    const PINTO_CBTC_WELL = "0x3e11226fe3d85142B734ABCe6e58918d5828d1b4";
 
     // impersonate reserves address
     const reserves = await impersonateSigner(RESERVES);
     await mintEth(RESERVES);
 
     // Get Well contract and tokens
-    const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL);
+    const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL_BASE);
     const tokens = await well.tokens();
     const pinto = tokens[0];
     const cbBTC = tokens[1];
