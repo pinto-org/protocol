@@ -678,6 +678,60 @@ module.exports = function () {
     });
   });
 
+  task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    // upgrade facets, no new facets or libraries, only init
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [],
+      initArgs: [],
+      initFacetName: "InitWhitelistRebalance",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
+
+  task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    // upgrade facets
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [
+        "ApprovalFacet",
+        "ClaimFacet",
+        "ConvertFacet",
+        "PipelineConvertFacet",
+        "SiloFacet",
+        "SiloGettersFacet"
+      ],
+      libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
+      facetLibraries: {
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        SiloFacet: ["LibSilo", "LibTokenSilo"]
+      },
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
+
   task("testPI3", "Tests temperature changes after PI-3 upgrade").setAction(async function () {
     // Fork from specific block
     await network.provider.request({

@@ -3,13 +3,9 @@ const { parseDeploymentParameters } = require("../scripts/deployment/parameters/
 const { upgradeWithNewFacets } = require("../scripts/diamond.js");
 const { megaInit } = require("../scripts/deployment/megaInit");
 const { impersonateSigner, mintEth } = require("../utils");
-const {
-  L2_PINTO,
-  L2_PCM,
-  PINTO_DIAMOND_DEPLOYER
-} = require("../test/hardhat/utils/constants.js");
+const { L2_PINTO, L2_PCM, PINTO_DIAMOND_DEPLOYER } = require("../test/hardhat/utils/constants.js");
 
-module.exports = function() {
+module.exports = function () {
   task("epi0", async () => {
     const mock = true;
     let deployer;
@@ -181,58 +177,4 @@ module.exports = function() {
       }
     }
   );
-
-  task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
-    const mock = true;
-    let owner;
-    if (mock) {
-      owner = await impersonateSigner(L2_PCM);
-      await mintEth(owner.address);
-    } else {
-      owner = (await ethers.getSigners())[0];
-    }
-    // upgrade facets, no new facets or libraries, only init
-    await upgradeWithNewFacets({
-      diamondAddress: L2_PINTO,
-      facetNames: [],
-      initArgs: [],
-      initFacetName: "InitWhitelistRebalance",
-      object: !mock,
-      verbose: true,
-      account: owner
-    });
-  });
-
-  task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
-    const mock = true;
-    let owner;
-    if (mock) {
-      owner = await impersonateSigner(L2_PCM);
-      await mintEth(owner.address);
-    } else {
-      owner = (await ethers.getSigners())[0];
-    }
-    // upgrade facets
-    await upgradeWithNewFacets({
-      diamondAddress: L2_PINTO,
-      facetNames: [
-        "ApprovalFacet",
-        "ClaimFacet",
-        "ConvertFacet",
-        "PipelineConvertFacet",
-        "SiloFacet",
-        "SiloGettersFacet"
-      ],
-      libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
-      facetLibraries: {
-        ClaimFacet: ["LibSilo", "LibTokenSilo"],
-        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-        SiloFacet: ["LibSilo", "LibTokenSilo"]
-      },
-      object: !mock,
-      verbose: true,
-      account: owner
-    });
-  });
 };

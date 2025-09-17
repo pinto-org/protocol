@@ -3,7 +3,7 @@ const { resolveDependencies } = require("../scripts/resolveDependencies");
 const { decodeDiamondCutAction } = require("../scripts/diamond.js");
 const { getFacetBytecode, compareBytecode } = require("../test/hardhat/utils/bytecode");
 
-module.exports = function() {
+module.exports = function () {
   task("resolveUpgradeDependencies", "Resolves upgrade dependencies")
     .addOptionalParam(
       "facets",
