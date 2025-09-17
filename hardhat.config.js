@@ -862,13 +862,13 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
 );
 
 task(
-  "PI-12",
-  "Deploys Pinto improvement set 12, Misc. Improvements and convert up bonus"
+  "PI-13",
+  "Deploys Pinto improvement set 13, Misc. Improvements and convert up bonus"
 ).setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
-    // await hre.run("updateOracleTimeouts");
+    await hre.run("updateOracleTimeouts");
     owner = await impersonateSigner(L2_PCM);
     await mintEth(owner.address);
   } else {
@@ -924,8 +924,8 @@ task(
     object: !mock,
     verbose: true,
     account: owner,
-    initArgs: [10000000000],
-    initFacetName: "InitPI11"
+    initArgs: [10000000000, 100000000000], // 10_000, 100k twaDeltaB.
+    initFacetName: "InitPI13"
   });
 });
 
