@@ -20,15 +20,17 @@ import {SiloHelpers} from "./SiloHelpers.sol";
  */
 contract ConvertUpBlueprint is PerFunctionPausable {
     /**
-     * @notice Event emitted when a convert up order is complete
+     * @notice Event emitted when a convert up order is complete, or no longer executable due to remaining bdv being less than min convert per season
      * @param blueprintHash The hash of the blueprint
      * @param publisher The address of the publisher
-     * @param amountBdvConverted The total amount of BDV that was converted
+     * @param totalBdvConverted The total amount of BDV that was converted across all executions
+     * @param amountUnfulfilled The amount of beans that were not converted
      */
     event ConvertUpOrderComplete(
         bytes32 indexed blueprintHash,
         address indexed publisher,
-        uint256 amountBdvConverted
+        uint256 totalBdvConverted,
+        uint256 amountUnfulfilled
     );
 
     /**
@@ -270,7 +272,21 @@ contract ConvertUpBlueprint is PerFunctionPausable {
 
         // Emit completion event
         if (bdvRemaining == 0) {
-            emit ConvertUpOrderComplete(vars.orderHash, vars.account, vars.amountBdvConverted);
+            emit ConvertUpOrderComplete(
+                vars.orderHash,
+                vars.account,
+                params.convertUpParams.totalConvertBdv,
+                0
+            );
+        } else if (bdvRemaining < params.convertUpParams.minConvertBdvPerExecution) {
+            // If the min convert per season is greater than the amount unfulfilled, this order will
+            // never be able to execute again, so emit event as such
+            emit ConvertUpOrderComplete(
+                vars.orderHash,
+                vars.account,
+                params.convertUpParams.totalConvertBdv - bdvRemaining,
+                bdvRemaining
+            );
         }
     }
 

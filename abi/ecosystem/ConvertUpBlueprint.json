@@ -70,7 +70,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "amountBdvConverted",
+        "name": "totalBdvConverted",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountUnfulfilled",
         "type": "uint256"
       }
     ],
