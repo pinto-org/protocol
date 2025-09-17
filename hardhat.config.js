@@ -922,8 +922,8 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
 );
 
 task(
-  "PI-12",
-  "Deploys Pinto improvement set 12, Misc. Improvements and convert up bonus"
+  "PI-13",
+  "Deploys Pinto improvement set 13, Misc. Improvements and convert up bonus"
 ).setAction(async function () {
   const mock = true;
   let owner;
@@ -984,8 +984,8 @@ task(
     object: !mock,
     verbose: true,
     account: owner,
-    initArgs: [],
-    initFacetName: "InitPI11"
+    initArgs: [1000000000, 960000000000],
+    initFacetName: "InitPI13"
   });
 });
 
