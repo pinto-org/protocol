@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const glob = require("glob");
 
-module.exports = function() {
+module.exports = function () {
   task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets", async () => {
     // The path (relative to the root of `protocol` directory) where all modules sit.
     const modulesDir = path.join("contracts", "beanstalk", "facets");
@@ -43,6 +43,7 @@ module.exports = function() {
         files.push("contracts/libraries/Token/LibTransfer.sol");
         files.push("contracts/libraries/LibEvaluate.sol");
         files.push("contracts/libraries/Silo/LibFlood.sol");
+        files.push("contracts/libraries/Sun/LibWeather.sol");
       }
       files.forEach((file) => {
         const facetName = getFacetName(file);
@@ -104,9 +105,17 @@ module.exports = function() {
       if (module == "silo") {
         // Manually add in libraries that emit events
         files.push("contracts/libraries/LibIncentive.sol");
-        files.push("contracts/libraries/Silo/LibWhitelist.sol");
-        files.push("contracts/libraries/LibGauge.sol");
         files.push("contracts/libraries/Silo/LibGerminate.sol");
+        files.push("contracts/libraries/Minting/LibWellMinting.sol");
+        files.push("contracts/libraries/Silo/LibWhitelistedTokens.sol");
+        files.push("contracts/libraries/Silo/LibWhitelist.sol");
+        files.push("contracts/libraries/Silo/LibTokenSilo.sol");
+        files.push("contracts/libraries/LibGauge.sol");
+        files.push("contracts/libraries/LibShipping.sol");
+        files.push("contracts/libraries/Token/LibTransfer.sol");
+        files.push("contracts/libraries/LibEvaluate.sol");
+        files.push("contracts/libraries/Silo/LibFlood.sol");
+        files.push("contracts/libraries/Sun/LibWeather.sol");
       }
       files.forEach((file) => {
         const facetName = getFacetName(file);
