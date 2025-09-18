@@ -673,7 +673,7 @@ module.exports = function () {
       object: !mock,
       verbose: true,
       account: owner,
-      initArgs: [10000000, 100000000000],
+      initArgs: [1000000000, 1000000000000],
       initFacetName: "InitPI13"
     });
   });
