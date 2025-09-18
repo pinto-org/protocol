@@ -65,13 +65,16 @@ describe("Complex Weather", function () {
     .forEach(function (v) {
       const testStr = "Test #";
       describe(testStr.concat(v), function () {
+        let snapshotId;
+
         before(async function () {
           this.testData = {};
           columns.forEach((key, i) => (this.testData[key] = tests[v][i]));
           await mockBeanstalk.setUsdEthPrice(to18("0.001"));
           await mockBeanstalk.setYieldE(this.testData.startingWeather);
           await mockBeanstalk.setBeanToMaxLpGpPerBdvRatio(to18(this.testData.initialPercentToLp));
-          bean.connect(user).burn(await bean.balanceOf(user.address));
+          await bean.connect(user).burn(await bean.balanceOf(user.address));
+
           this.dsoil = this.testData.lastSoil;
           this.startSoil = this.testData.startingSoil;
           this.endSoil = this.testData.endingSoil;
@@ -79,12 +82,25 @@ describe("Complex Weather", function () {
           this.pods = this.testData.unharvestablePods;
           this.aboveQ = this.testData.aboveQ;
           this.L2SRState = this.testData.L2SR;
-          this.newPercentToLp = to18(this.testData.newPercentToLp);
 
           await bean.mint(user.address, this.testData.totalOutstandingBeans);
           await mockBeanstalk.setLastSowTimeE(this.testData.lastSowTime);
           await mockBeanstalk.setNextSowTimeE(this.testData.thisSowTime);
-          this.resultPromise = mockBeanstalk.calcCaseIdWithParams(
+        });
+
+        beforeEach(async function () {
+          // take a clean snapshot for each `it`
+          snapshotId = await network.provider.send("evm_snapshot");
+        });
+
+        afterEach(async function () {
+          // revert after each `it` so calls don't interfere
+          await network.provider.send("evm_revert", [snapshotId]);
+        });
+
+        // helper to build the txn promise fresh every time
+        const runCase = function () {
+          return mockBeanstalk.calcCaseIdWithParams(
             this.pods,
             this.dsoil, // lastDeltaSoil
             this.startSoil - this.endSoil, // beanSown
@@ -95,15 +111,16 @@ describe("Complex Weather", function () {
             this.aboveQ, // aboveQ
             this.L2SRState // L2SR
           );
-          await this.resultPromise;
-        });
+        };
+
         it("Checks New Weather", async function () {
+          await runCase.call(this); // execute tx in THIS test
           expect(await mockBeanstalk.getT()).to.eq(this.testData.newWeather);
         });
 
         it("Emits The Correct Case Weather", async function () {
-          if (this.testData.totalOutstandingBeans !== 0)
-            await expect(this.resultPromise)
+          if (this.testData.totalOutstandingBeans !== 0) {
+            await expect(runCase.call(this)) // pass the *fresh* tx promise
               .to.emit(beanstalk, "TemperatureChange")
               .withArgs(
                 await beanstalk.season(),
@@ -111,19 +128,22 @@ describe("Complex Weather", function () {
                 this.testData.newWeather - this.testData.startingWeather,
                 0
               );
+          }
         });
 
         it("Checks New Percent To LP", async function () {
+          await runCase.call(this);
           expect(await beanstalk.getBeanToMaxLpGpPerBdvRatio()).to.eq(
             to18(this.testData.newPercentToLp)
           );
         });
 
         it("Emits The Correct LP Case", async function () {
-          if (this.testData.totalOutstandingBeans !== 0)
-            await expect(this.resultPromise)
+          if (this.testData.totalOutstandingBeans !== 0) {
+            await expect(runCase.call(this))
               .to.emit(beanstalk, "BeanToMaxLpGpPerBdvRatioChange")
               .withArgs(await beanstalk.season(), this.testData.Code, to18(this.testData.bL));
+          }
         });
       });
     });
@@ -139,6 +159,10 @@ describe("Complex Weather", function () {
       await mockBeanstalk.setYieldE("10000000");
     });
 
+    // when soil sold out 1 second last season,
+    // and the soil sold out in 10 seconds this season,
+    // demand for soil is steady, but demand is
+    // increasing because its less than X mins into the Season.
     it("thisSowTime immediately", async function () {
       await mockBeanstalk.setLastSowTimeE("1");
       await mockBeanstalk.setNextSowTimeE("10");
@@ -149,6 +173,9 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(10);
     });
 
+    // when soil did not sell out last season,
+    // and the soil sold out in 10 seconds this season,
+    // demand for soil is increasing.
     it("lastSowTime max sow time decrease from max", async function () {
       await mockBeanstalk.setLastSowTimeE(MAX_UINT32);
       await mockBeanstalk.setNextSowTimeE("1000");
@@ -159,6 +186,8 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000);
     });
 
+    // when soil sold out faster this season than last season, but SOW_TIME_STEADY_LOWER + 1 faster
+    // demand for soil is increasing.
     it("lastSowTime max sow time decrease more than steady const", async function () {
       await mockBeanstalk.setLastSowTimeE(1000 + SOW_TIME_STEADY_LOWER + 1);
       await mockBeanstalk.setNextSowTimeE("1000");
@@ -169,6 +198,8 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000);
     });
 
+    // when soil sold out SOW_TIME_STEADY_LOWER - 1 seconds faster this season than last season,
+    // demand for soil is steady.
     it("lastSowTime max sow time decrease less than steady const", async function () {
       await mockBeanstalk.setLastSowTimeE(1000 + SOW_TIME_STEADY_LOWER - 1);
       await mockBeanstalk.setNextSowTimeE("1000");
@@ -179,19 +210,22 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000);
     });
 
+    // when soil sold out SOW_TIME_STEADY_UPPER slower this season than last season,
+    // demand for soil is decreasing.
     it("lastSowTime max sow time increase less than steady const", async function () {
       await mockBeanstalk.setLastSowTimeE("1000");
       await mockBeanstalk.setNextSowTimeE(1000 + SOW_TIME_STEADY_UPPER);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
-      expect(weather.temp).to.equal(7000000);
+      expect(weather.temp).to.equal(9000000);
       expect(weather.thisSowTime).to.equal(parseInt(MAX_UINT32));
       expect(weather.lastSowTime).to.equal(1000 + SOW_TIME_STEADY_UPPER);
     });
 
+    // when soil sold out SOW_TIME_STEADY_UPPER + 1 seconds slower this season than last season,
+    // demand for soil is decreasing.
     it("lastSowTime max sow time increase more than steady const", async function () {
       await mockBeanstalk.setLastSowTimeE("1000");
-      await mockBeanstalk.setLastSeasonAndThisSeasonBeanSown(to6("100"), to6("100"));
       await mockBeanstalk.setNextSowTimeE(1000 + SOW_TIME_STEADY_UPPER + 1);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
@@ -200,12 +234,14 @@ describe("Complex Weather", function () {
       expect(weather.lastSowTime).to.equal(1000 + SOW_TIME_STEADY_UPPER + 1);
     });
 
+    // when soil did not sell out this season, but sold out last season,
+    // demand for soil is decreasing.
     it("lastSowTime max sow time increase more than steady const to max", async function () {
       await mockBeanstalk.setLastSowTimeE("900");
       await mockBeanstalk.setNextSowTimeE(MAX_UINT32);
       await mockBeanstalk.calcCaseIdE(ethers.utils.parseEther("1"), "1");
       const weather = await beanstalk.weather();
-      expect(weather.temp).to.equal(7000000);
+      expect(weather.temp).to.equal(9000000);
       expect(weather.thisSowTime).to.equal(parseInt(MAX_UINT32));
       expect(weather.lastSowTime).to.equal(parseInt(MAX_UINT32));
     });
