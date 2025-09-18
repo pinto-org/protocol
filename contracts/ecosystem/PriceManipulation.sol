@@ -4,9 +4,11 @@ pragma solidity ^0.8.20;
 import {IMultiFlowPump} from "contracts/interfaces/basin/IMultiFlowPump.sol";
 import {Call, IWell} from "contracts/interfaces/basin/IWell.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {IWellFunction} from "contracts/interfaces/basin/IWellFunction.sol";
 import {ISiloedPinto} from "contracts/interfaces/ISiloedPinto.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IPriceManipulation} from "contracts/interfaces/IPriceManipulation.sol";
+import {IMorphoOracle} from "contracts/interfaces/IMorphoOracle.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 
 /**
@@ -14,7 +16,7 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
  * @author Beanstalk Farms
  * @notice Contract for checking Well deltaP values
  */
-contract PriceManipulation is IPriceManipulation {
+contract PriceManipulation is IMorphoOracle {
     uint256 internal constant PINTO_DECIMALS = 1e6;
     uint256 internal constant SLIPPAGE_PRECISION = 1e18;
     uint256 internal constant MILLION = 1e6;
@@ -42,7 +44,7 @@ contract PriceManipulation is IPriceManipulation {
      */
     function isValidSlippage(IWell well, uint256 slippageRatio) external returns (bool) {
         Call memory pump = well.pumps()[0];
-        Call memory wellFunction = well.wellFunction();
+        Call memory wellFunction = IWell(well).wellFunction();
 
         (, uint256 nonBeanIndex) = protocol.getNonBeanTokenAndIndexFromWell(address(well));
         uint256 beanIndex = nonBeanIndex == 0 ? 1 : 0;
@@ -51,7 +53,7 @@ contract PriceManipulation is IPriceManipulation {
         well.sync(address(protocol), 0);
 
         // Capped reserves are the current reserves capped with the data from the pump.
-        uint256[] memory currentReserves = well.getReserves();
+        uint256[] memory currentReserves = IWell(well).getReserves();
 
         uint256 currentPintoPerAsset = LibWell.calculateTokenBeanPriceFromReserves(
             address(well),
