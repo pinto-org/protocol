@@ -98,9 +98,8 @@ describe("Complex Weather", function () {
           await network.provider.send("evm_revert", [snapshotId]);
         });
 
-        // helper to build the txn promise fresh every time
-        const runCase = function () {
-          return mockBeanstalk.calcCaseIdWithParams(
+        it("Checks New Weather", async function () {
+          this.resultPromise = mockBeanstalk.calcCaseIdWithParams(
             this.pods,
             this.dsoil, // lastDeltaSoil
             this.startSoil - this.endSoil, // beanSown
@@ -111,16 +110,24 @@ describe("Complex Weather", function () {
             this.aboveQ, // aboveQ
             this.L2SRState // L2SR
           );
-        };
-
-        it("Checks New Weather", async function () {
-          await runCase.call(this); // execute tx in THIS test
+          await this.resultPromise;
           expect(await mockBeanstalk.getT()).to.eq(this.testData.newWeather);
         });
 
         it("Emits The Correct Case Weather", async function () {
           if (this.testData.totalOutstandingBeans !== 0) {
-            await expect(runCase.call(this)) // pass the *fresh* tx promise
+            this.resultPromise = mockBeanstalk.calcCaseIdWithParams(
+              this.pods,
+              this.dsoil, // lastDeltaSoil
+              this.startSoil - this.endSoil, // beanSown
+              this.endSoil, // endSoil
+              this.deltaB, // deltaB
+              this.testData.wasRaining,
+              this.testData.rainStalk,
+              this.aboveQ, // aboveQ
+              this.L2SRState // L2SR
+            );
+            await expect(this.resultPromise)
               .to.emit(beanstalk, "TemperatureChange")
               .withArgs(
                 await beanstalk.season(),
@@ -132,7 +139,18 @@ describe("Complex Weather", function () {
         });
 
         it("Checks New Percent To LP", async function () {
-          await runCase.call(this);
+          this.resultPromise = mockBeanstalk.calcCaseIdWithParams(
+            this.pods,
+            this.dsoil, // lastDeltaSoil
+            this.startSoil - this.endSoil, // beanSown
+            this.endSoil, // endSoil
+            this.deltaB, // deltaB
+            this.testData.wasRaining,
+            this.testData.rainStalk,
+            this.aboveQ, // aboveQ
+            this.L2SRState // L2SR
+          );
+          await this.resultPromise;
           expect(await beanstalk.getBeanToMaxLpGpPerBdvRatio()).to.eq(
             to18(this.testData.newPercentToLp)
           );
@@ -140,7 +158,18 @@ describe("Complex Weather", function () {
 
         it("Emits The Correct LP Case", async function () {
           if (this.testData.totalOutstandingBeans !== 0) {
-            await expect(runCase.call(this))
+            this.resultPromise = mockBeanstalk.calcCaseIdWithParams(
+              this.pods,
+              this.dsoil, // lastDeltaSoil
+              this.startSoil - this.endSoil, // beanSown
+              this.endSoil, // endSoil
+              this.deltaB, // deltaB
+              this.testData.wasRaining,
+              this.testData.rainStalk,
+              this.aboveQ, // aboveQ
+              this.L2SRState // L2SR
+            );
+            await expect(this.resultPromise)
               .to.emit(beanstalk, "BeanToMaxLpGpPerBdvRatioChange")
               .withArgs(await beanstalk.season(), this.testData.Code, to18(this.testData.bL));
           }
