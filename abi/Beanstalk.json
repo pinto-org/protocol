@@ -6533,11 +6533,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "T",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -6584,69 +6579,6 @@
       }
     ],
     "name": "Convert",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkLost",
-        "type": "uint256"
-      }
-    ],
-    "name": "ConvertDownPenalty",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkGained",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bdvCapacityUsed",
-        "type": "uint256"
-      }
-    ],
-    "name": "ConvertUpBonus",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "UpdatedGaugeData",
     "type": "event"
   },
   {
@@ -7123,25 +7055,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      }
-    ],
-    "name": "getPegCrossStem",
-    "outputs": [
-      {
-        "internalType": "int96",
-        "name": "",
-        "type": "int96"
       }
     ],
     "stateMutability": "view",
@@ -8279,177 +8192,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "value",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes4",
-            "name": "selector",
-            "type": "bytes4"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "indexed": false,
-        "internalType": "struct Gauge",
-        "name": "gauge",
-        "type": "tuple"
-      }
-    ],
-    "name": "AddedGauge",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      }
-    ],
-    "name": "Engaged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "EngagedData",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      }
-    ],
-    "name": "RemovedGauge",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "value",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes4",
-            "name": "selector",
-            "type": "bytes4"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "indexed": false,
-        "internalType": "struct Gauge",
-        "name": "gauge",
-        "type": "tuple"
-      }
-    ],
-    "name": "UpdatedGauge",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "UpdatedGaugeData",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      }
-    ],
-    "name": "UpdatedGaugeValue",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "uint256",
         "name": "season",
@@ -8482,61 +8224,18 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkLost",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkKept",
-        "type": "uint256"
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
       }
     ],
-    "name": "ConvertDownPenalty",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkGained",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newGrownStalk",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bdvCapacityUsed",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bdvConverted",
-        "type": "uint256"
-      }
-    ],
-    "name": "ConvertUpBonus",
+    "name": "UpdatedGaugeData",
     "type": "event"
   },
   {
@@ -9584,6 +9283,44 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "Engaged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum GaugeId",
+        "name": "gaugeId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "EngagedData",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "address",
@@ -10418,159 +10155,6 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "x",
-        "type": "uint256"
-      }
-    ],
-    "name": "PRBMathUD60x18__LogInputTooSmall",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "value",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes4",
-            "name": "selector",
-            "type": "bytes4"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct Gauge",
-        "name": "gauge",
-        "type": "tuple"
-      }
-    ],
-    "name": "addGauge",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "systemData",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "gaugeData",
-        "type": "bytes"
-      }
-    ],
-    "name": "convertDownPenaltyGauge",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "systemData",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "gaugeData",
-        "type": "bytes"
-      }
-    ],
-    "name": "convertUpBonusGauge",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "systemData",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "gaugeData",
-        "type": "bytes"
-      }
-    ],
-    "name": "cultivationFactor",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
         "name": "currentGaugePoints",
         "type": "uint256"
       },
@@ -10872,59 +10456,6 @@
       }
     ],
     "stateMutability": "pure",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      }
-    ],
-    "name": "removeGauge",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "enum GaugeId",
-        "name": "gaugeId",
-        "type": "uint8"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "value",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes4",
-            "name": "selector",
-            "type": "bytes4"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct Gauge",
-        "name": "gauge",
-        "type": "tuple"
-      }
-    ],
-    "name": "updateGauge",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

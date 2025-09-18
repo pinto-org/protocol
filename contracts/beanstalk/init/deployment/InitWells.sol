@@ -93,7 +93,7 @@ contract InitWells {
         // console.log("_well for %s: %s", name, _well);
 
         // Deploy proxy
-        address(
+        address wellProxy = address(
             new ERC1967Proxy{salt: salt}(
                 _well,
                 abi.encodeCall(IWellUpgradeable.init, (name, symbol))

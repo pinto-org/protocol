@@ -15,11 +15,6 @@
         "internalType": "address",
         "name": "_tractorHelpers",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_siloHelpers",
-        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -207,19 +202,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "siloHelpers",
-    "outputs": [
-      {
-        "internalType": "contract SiloHelpers",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "components": [
@@ -248,7 +230,7 @@
                     "type": "uint256"
                   }
                 ],
-                "internalType": "struct SowBlueprint.SowAmounts",
+                "internalType": "struct SowBlueprintv0.SowAmounts",
                 "name": "sowAmounts",
                 "type": "tuple"
               },
@@ -278,7 +260,7 @@
                 "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprint.SowParams",
+            "internalType": "struct SowBlueprintv0.SowParams",
             "name": "sowParams",
             "type": "tuple"
           },
@@ -300,17 +282,17 @@
                 "type": "int256"
               }
             ],
-            "internalType": "struct SowBlueprint.OperatorParams",
+            "internalType": "struct SowBlueprintv0.OperatorParams",
             "name": "opParams",
             "type": "tuple"
           }
         ],
-        "internalType": "struct SowBlueprint.SowBlueprintStruct",
+        "internalType": "struct SowBlueprintv0.SowBlueprintStruct",
         "name": "params",
         "type": "tuple"
       }
     ],
-    "name": "sowBlueprint",
+    "name": "sowBlueprintv0",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -383,7 +365,7 @@
                     "type": "uint256"
                   }
                 ],
-                "internalType": "struct SowBlueprint.SowAmounts",
+                "internalType": "struct SowBlueprintv0.SowAmounts",
                 "name": "sowAmounts",
                 "type": "tuple"
               },
@@ -413,7 +395,7 @@
                 "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprint.SowParams",
+            "internalType": "struct SowBlueprintv0.SowParams",
             "name": "sowParams",
             "type": "tuple"
           },
@@ -435,12 +417,12 @@
                 "type": "int256"
               }
             ],
-            "internalType": "struct SowBlueprint.OperatorParams",
+            "internalType": "struct SowBlueprintv0.OperatorParams",
             "name": "opParams",
             "type": "tuple"
           }
         ],
-        "internalType": "struct SowBlueprint.SowBlueprintStruct",
+        "internalType": "struct SowBlueprintv0.SowBlueprintStruct",
         "name": "params",
         "type": "tuple"
       },
@@ -515,7 +497,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
         "name": "plan",
         "type": "tuple"
       }
@@ -552,7 +534,7 @@
                     "type": "uint256"
                   }
                 ],
-                "internalType": "struct SowBlueprint.SowAmounts",
+                "internalType": "struct SowBlueprintv0.SowAmounts",
                 "name": "sowAmounts",
                 "type": "tuple"
               },
@@ -582,7 +564,7 @@
                 "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprint.SowParams",
+            "internalType": "struct SowBlueprintv0.SowParams",
             "name": "sowParams",
             "type": "tuple"
           },
@@ -604,12 +586,12 @@
                 "type": "int256"
               }
             ],
-            "internalType": "struct SowBlueprint.OperatorParams",
+            "internalType": "struct SowBlueprintv0.OperatorParams",
             "name": "opParams",
             "type": "tuple"
           }
         ],
-        "internalType": "struct SowBlueprint.SowBlueprintStruct[]",
+        "internalType": "struct SowBlueprintv0.SowBlueprintStruct[]",
         "name": "paramsArray",
         "type": "tuple[]"
       },
@@ -633,19 +615,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "version",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "pure",
     "type": "function"
   }
 ]

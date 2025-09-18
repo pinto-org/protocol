@@ -5,15 +5,15 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
-import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {SiloHelpers} from "./SiloHelpers.sol";
+import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
+import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 
 /**
- * @title SowBlueprint
- * @author FordPinto, Frijo
+ * @title SowBlueprintv0
+ * @author FordPinto
  * @notice Contract for sowing with Tractor, with a number of conditions
  */
-contract SowBlueprint is PerFunctionPausable {
+contract SowBlueprintv0 is PerFunctionPausable {
     /**
      * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
@@ -53,7 +53,7 @@ contract SowBlueprint is PerFunctionPausable {
         address tipAddress;
         address account;
         uint256 totalAmountToSow;
-        LibSiloHelpers.WithdrawalPlan withdrawalPlan;
+        LibTractorHelpers.WithdrawalPlan withdrawalPlan;
     }
 
     /**
@@ -112,7 +112,6 @@ contract SowBlueprint is PerFunctionPausable {
 
     IBeanstalk immutable beanstalk;
     TractorHelpers public immutable tractorHelpers;
-    SiloHelpers public immutable siloHelpers;
 
     // Default slippage ratio for LP token withdrawals (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -133,21 +132,19 @@ contract SowBlueprint is PerFunctionPausable {
     constructor(
         address _beanstalk,
         address _owner,
-        address _tractorHelpers,
-        address _siloHelpers
+        address _tractorHelpers
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
 
         // Use existing TractorHelpers contract instead of deploying a new one
         tractorHelpers = TractorHelpers(_tractorHelpers);
-        siloHelpers = SiloHelpers(_siloHelpers);
     }
 
     /**
      * @notice Sows beans using specified source tokens in order of preference
      * @param params The SowBlueprintStruct containing all parameters for the sow operation
      */
-    function sowBlueprint(
+    function sowBlueprintv0(
         SowBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
@@ -189,14 +186,11 @@ contract SowBlueprint is PerFunctionPausable {
         }
 
         // Execute the withdrawal plan
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
-
-        vars.beansWithdrawn = siloHelpers.withdrawBeansFromSources(
+        vars.beansWithdrawn = tractorHelpers.withdrawBeansFromSources(
             vars.account,
             params.sowParams.sourceTokenIndices,
             vars.totalBeansNeeded,
-            filterParams,
+            params.sowParams.maxGrownStalkPerBdv,
             slippageRatio,
             LibTransfer.To.INTERNAL,
             vars.withdrawalPlan
@@ -412,7 +406,7 @@ contract SowBlueprint is PerFunctionPausable {
             uint256 pintoLeftToSow,
             uint256 totalAmountToSow,
             uint256 totalBeansNeeded,
-            LibSiloHelpers.WithdrawalPlan memory plan
+            LibTractorHelpers.WithdrawalPlan memory plan
         )
     {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
@@ -440,14 +434,11 @@ contract SowBlueprint is PerFunctionPausable {
         }
 
         // Check if enough beans are available using getWithdrawalPlan
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
-
-        plan = siloHelpers.getWithdrawalPlanExcludingPlan(
+        plan = tractorHelpers.getWithdrawalPlanExcludingPlan(
             blueprintPublisher,
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,
-            filterParams,
+            params.sowParams.maxGrownStalkPerBdv,
             plan // Passed in plan is empty
         );
 
@@ -499,7 +490,7 @@ contract SowBlueprint is PerFunctionPausable {
                 uint256, // pintoLeftToSow
                 uint256, // totalAmountToSow
                 uint256, // totalBeansNeeded
-                LibSiloHelpers.WithdrawalPlan memory // plan
+                LibTractorHelpers.WithdrawalPlan memory // plan
             ) {
                 validOrderHashes[validCount] = orderHashes[i];
                 validCount++;
@@ -513,9 +504,5 @@ contract SowBlueprint is PerFunctionPausable {
         assembly {
             mstore(validOrderHashes, validCount)
         }
-    }
-
-    function version() public pure returns (string memory) {
-        return "1.1";
     }
 }
