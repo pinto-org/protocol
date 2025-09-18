@@ -712,7 +712,7 @@ contract TestHelper is
 
         console.log("calculateExpectedSoil: hourlyScaled =", hourlyScaled);
 
-        // 4. Scale by cultivationFactor
+        // 4. Scale by cultivationFactor (still applied for below-peg scenarios)
         expectedSoil = (hourlyScaled * cultivationFactor) / 100e6;
 
         console.log("calculateExpectedSoil: expectedSoil =", expectedSoil);
