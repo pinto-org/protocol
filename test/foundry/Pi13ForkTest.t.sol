@@ -20,7 +20,7 @@ import {IWell} from "contracts/interfaces/basin/IWell.sol";
  **/
 contract Pi13ForkTest is TestHelper {
     // address with substantial LP deposits to simulate conversions.
-    address farmer = address(0xaad938805E85f3404E3dbD5a501F9E43672037BB);
+    address farmer = address(0x7E6393DE00D7870127fC5786c5B7040a156E78A0);
     address well = 0x3e11226fe3d85142B734ABCe6e58918d5828d1b4;
     address constant BASE_USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     string constant CSV_PATH = "convert_up_data.csv";
@@ -360,6 +360,28 @@ contract Pi13ForkTest is TestHelper {
 
     /////////////////// GAUGE POINT FUNCTION ///////////////////
 
+    // verifies that the gauge points are normalized every season.
+    function test_forkBase_gaugePointsNormalized() public {
+        address[] memory lpGaugeTokens = bs.getWhitelistedLpTokens();
+        for (uint256 i = 0; i < 10; i++) {
+            stepSeason();
+            console.log("iteration", i);
+            uint256 totalGaugePoints = 0;
+            for (uint256 j = 0; j < lpGaugeTokens.length; j++) {
+                uint256 gaugePoints = bs.getGaugePoints(lpGaugeTokens[j]);
+                console.log("gaugePoints", lpGaugeTokens[j], gaugePoints);
+                totalGaugePoints += gaugePoints;
+            }
+            // due to normalizing, the error is minimized to `whitelistedLpTokens.length` units.
+            assertApproxEqAbs(
+                totalGaugePoints,
+                10000e18,
+                lpGaugeTokens.length,
+                "totalGaugePoints is not 10000e18"
+            );
+        }
+    }
+
     /////////////////// HELPER FUNCTIONS ///////////////////
 
     function getConvertUpData()
@@ -595,7 +617,6 @@ contract Pi13ForkTest is TestHelper {
                 stem = stemOfDeposit;
                 uint256 amountToBdvRatio = (amountOfDeposit * 1e18) / bdvOfDeposit;
                 amount = (amountToBdvRatio * effectiveCapacity) / 1e18;
-                console.log("amount", amount);
                 newRemainingCapacity = 0;
             } else {
                 stem = stemOfDeposit;

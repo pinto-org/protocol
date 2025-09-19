@@ -457,11 +457,6 @@ library LibGauge {
             return upperCap;
         }
 
-        uint256 lowerCap = upperCap / 10;
-
-        if (gaugePoints < lowerCap) {
-            return lowerCap;
-        }
         return gaugePoints;
     }
 }
