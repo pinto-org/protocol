@@ -212,7 +212,7 @@ contract Pi13ForkTest is TestHelper {
      * then a new order comes in that is below the bonus.
      */
     function test_forkBase_convertUp_oneOrder_at_bonus() public {
-        bool write = false;
+        bool write = true;
         if (write) {
             vm.writeFile(
                 CSV_PATH,
@@ -246,7 +246,7 @@ contract Pi13ForkTest is TestHelper {
                 convertedLastSeasonOrder2 = convertSomeAtBonus(
                     farmer,
                     targetMaxConvertCapacity,
-                    0.985e9
+                    0.9959e9
                 );
             }
 
