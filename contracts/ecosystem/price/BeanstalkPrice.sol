@@ -21,7 +21,7 @@ contract BeanstalkPrice is WellPrice {
      * Bean in all whitelisted liquidity pools.
      **/
     function price(ReservesType reservesType) external view returns (Prices memory p) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
+        address[] memory wells = beanstalk.getSiloTokens();
         return priceForWells(wells, reservesType);
     }
 
@@ -30,7 +30,7 @@ contract BeanstalkPrice is WellPrice {
      * Bean in all whitelisted liquidity pools.
      **/
     function price() external view returns (Prices memory p) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
+        address[] memory wells = beanstalk.getSiloTokens();
         return priceForWells(wells, ReservesType.CURRENT_RESERVES);
     }
 
