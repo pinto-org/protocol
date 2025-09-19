@@ -251,4 +251,6 @@ interface IBeanstalk {
         external
         view
         returns (WhitelistStatus[] memory _whitelistStatuses);
+
+    function getSiloTokens() external view returns (address[] memory);
 }
