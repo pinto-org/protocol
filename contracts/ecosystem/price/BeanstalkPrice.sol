@@ -42,8 +42,10 @@ contract BeanstalkPrice is WellPrice {
         address[] memory wells,
         ReservesType reservesType
     ) public view returns (Prices memory p) {
+        address bean = beanstalk.getBeanToken();
         p.ps = new P.Pool[](wells.length);
         for (uint256 i = 0; i < wells.length; i++) {
+            if (wells[i] == bean) continue;
             p.ps[i] = getWell(wells[i], reservesType);
         }
         for (uint256 i = 0; i < p.ps.length; i++) {
