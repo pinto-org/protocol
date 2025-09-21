@@ -5,7 +5,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
+import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
 import {TractorHelpers} from "./TractorHelpers.sol";
 import {IPriceManipulation} from "contracts/interfaces/IPriceManipulation.sol";
 

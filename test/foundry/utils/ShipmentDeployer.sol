@@ -9,7 +9,7 @@ import {MockPayback} from "contracts/mocks/MockPayback.sol";
 import {MockBudget} from "contracts/mocks/MockBudget.sol";
 import {Utils, console} from "test/foundry/utils/Utils.sol";
 import {C} from "contracts/C.sol";
-import {ShipmentPlanner, ShipmentPlan} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {ShipmentPlanner, ShipmentPlan} from "contracts/ecosystem/tractor/blueprints/ShipmentPlanner.sol";
 import {IShipmentPlanner} from "contracts/interfaces/IShipmentPlanner.sol";
 import {MockShipmentPlanner} from "contracts/mocks/MockShipmentPlanner.sol";
 
