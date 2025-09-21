@@ -650,7 +650,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
-        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBeansLeftToConvert(orderHash);
         console.log("Counter after first conversion: %s", counter);
         assertEq(
             counter,
@@ -679,7 +679,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
-        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBeansLeftToConvert(orderHash);
         console.log("Counter after second conversion: %s", counter);
         assertEq(
             counter,
@@ -696,7 +696,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter has been updated
-        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBeansLeftToConvert(orderHash);
         console.log("Counter after third conversion: %s", counter);
         assertEq(
             counter,
@@ -711,7 +711,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify counter is set to max
-        counter = convertUpBlueprint.getBdvLeftToConvert(orderHash);
+        counter = convertUpBlueprint.getBeansLeftToConvert(orderHash);
         console.log("Counter after fourth conversion: %s", counter);
         assertEq(counter, type(uint256).max, "Counter should be max uint256 after completion");
 
@@ -790,13 +790,13 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint
             .ConvertUpParams({
                 sourceTokenIndices: params.sourceTokenIndices,
-                totalConvertBdv: params.totalConvertBdv,
-                minConvertBdvPerExecution: params.minConvertBdvPerExecution,
-                maxConvertBdvPerExecution: params.maxConvertBdvPerExecution,
+                totalBeanAmountToConvert: params.totalConvertBdv,
+                minBeansConvertPerExecution: params.minConvertBdvPerExecution,
+                maxBeansConvertPerExecution: params.maxConvertBdvPerExecution,
                 minTimeBetweenConverts: params.minTimeBetweenConverts,
                 minConvertBonusCapacity: params.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,
-                minGrownStalkPerBdvBonus: params.minGrownStalkPerBdvBonus,
+                GrownStalkPerBdvBonusBid: params.minGrownStalkPerBdvBonus,
                 maxPriceToConvertUp: params.maxPriceToConvertUp,
                 minPriceToConvertUp: params.minPriceToConvertUp,
                 maxGrownStalkPerBdvPenalty: params.maxGrownStalkPerBdvPenalty,

@@ -70,13 +70,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "totalBdvConverted",
+        "name": "totalAmountConverted",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "amountUnfulfilled",
+        "name": "beansUnfulfilled",
         "type": "uint256"
       }
     ],
@@ -147,17 +147,17 @@
               },
               {
                 "internalType": "uint256",
-                "name": "totalConvertBdv",
+                "name": "totalBeanAmountToConvert",
                 "type": "uint256"
               },
               {
                 "internalType": "uint256",
-                "name": "minConvertBdvPerExecution",
+                "name": "minBeansConvertPerExecution",
                 "type": "uint256"
               },
               {
                 "internalType": "uint256",
-                "name": "maxConvertBdvPerExecution",
+                "name": "maxBeansConvertPerExecution",
                 "type": "uint256"
               },
               {
@@ -177,7 +177,7 @@
               },
               {
                 "internalType": "uint256",
-                "name": "minGrownStalkPerBdvBonus",
+                "name": "GrownStalkPerBdvBonusBid",
                 "type": "uint256"
               },
               {
@@ -270,7 +270,7 @@
         "type": "bytes32"
       }
     ],
-    "name": "getBdvLeftToConvert",
+    "name": "getBeansLeftToConvert",
     "outputs": [
       {
         "internalType": "uint256",
@@ -317,7 +317,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "bdvLeftToConvert",
+        "name": "beansLeftToConvert",
         "type": "uint256"
       }
     ],

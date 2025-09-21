@@ -23,14 +23,14 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @notice Event emitted when a convert up order is complete, or no longer executable due to remaining bdv being less than min convert per season
      * @param blueprintHash The hash of the blueprint
      * @param publisher The address of the publisher
-     * @param totalBdvConverted The total amount of BDV that was converted across all executions
-     * @param amountUnfulfilled The amount of beans that were not converted
+     * @param totalAmountConverted The total amount of beans that was converted across all executions
+     * @param beansUnfulfilled The amount of beans that were not converted
      */
     event ConvertUpOrderComplete(
         bytes32 indexed blueprintHash,
         address indexed publisher,
-        uint256 totalBdvConverted,
-        uint256 amountUnfulfilled
+        uint256 totalAmountConverted,
+        uint256 beansUnfulfilled
     );
 
     /**
@@ -38,18 +38,18 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @param orderHash Hash of the current blueprint order
      * @param account Address of the user's account (current Tractor user), not operator
      * @param tipAddress Address to send tip to
-     * @param bdvLeftToConvert Amount of BDV left to convert from the total
-     * @param currentBdvToConvert Amount of BDV to convert in this execution
-     * @param amountBdvConverted Amount of BDV actually converted
+     * @param beansLeftToConvert Amount of beans left to convert from the total
+     * @param beansToConvertThisExecution Amount of beans to convert in this execution
+     * @param amountBeansConverted Amount of beans actually converted
      * @param withdrawalPlan Plan for withdrawing tokens for conversion
      */
     struct ConvertUpLocalVars {
         bytes32 orderHash;
         address account;
         address tipAddress;
-        uint256 bdvLeftToConvert;
-        uint256 currentBdvToConvert;
-        uint256 amountBdvConverted;
+        uint256 beansLeftToConvert;
+        uint256 beansToConvertThisExecution;
+        uint256 amountBeansConverted;
         uint256 bonusStalkPerBdv;
         LibSiloHelpers.WithdrawalPlan withdrawalPlan;
     }
@@ -67,13 +67,13 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     /**
      * @notice Struct to hold convert up parameters
      * @param sourceTokenIndices Indices of source tokens to use for conversion
-     * @param totalConvertBdv Total amount to convert in BDV terms
-     * @param minConvertBdvPerExecution Minimum BDV to convert per execution
-     * @param maxConvertBdvPerExecution Maximum BDV to convert per execution
+     * @param totalConvertBeans Total beans to convert
+     * @param minBeansConvertedPerExecution Minimum beans to convert per execution
+     * @param maxConvertBeansPerExecution Maximum beans to convert per execution
      * @param minTimeBetweenConverts Minimum time (in seconds) between convert executions
      * @param minConvertBonusCapacity Minimum capacity required for convert bonus
-     * @param maxGrownStalkPerBdv Maximum grown stalk per BDV to withdraw from deposits
-     * @param minGrownStalkPerBdvBonus Threshold for considering a deposit to have a good stalk-to-BDV ratio
+     * @param maxGrownStalkPerBdv Maximum grown stalk per bdv to withdraw from deposits
+     * @param GrownStalkPerBdvBonusBid The minimum bid for grown stalk per bdv bonus to execute a convert.
      * @param maxPriceToConvertUp Maximum price at which to convert up (for MEV resistance)
      * @param minPriceToConvertUp Minimum price at which to convert up (for range targeting)
      * @param maxGrownStalkPerBdvPenalty Maximum grown stalk per BDV penalty to accept
@@ -84,15 +84,15 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         // Source tokens to withdraw from
         uint8[] sourceTokenIndices;
         // Conversion amounts
-        uint256 totalConvertBdv;
-        uint256 minConvertBdvPerExecution;
-        uint256 maxConvertBdvPerExecution;
+        uint256 totalBeanAmountToConvert;
+        uint256 minBeansConvertPerExecution;
+        uint256 maxBeansConvertPerExecution;
         // Time constraints
         uint256 minTimeBetweenConverts;
         // Bonus/capacity parameters
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 minGrownStalkPerBdvBonus;
+        uint256 GrownStalkPerBdvBonusBid;
         // Price constraints
         uint256 maxPriceToConvertUp;
         uint256 minPriceToConvertUp;
@@ -126,11 +126,11 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     /**
      * @notice Struct to hold order info
      * @param lastExecutedTimestamp Last timestamp when a blueprint was executed
-     * @param bdvLeftToConvert Amount of BDV left to convert from the total
+     * @param beansLeftToConvert Amount of Beans left to convert from the total
      */
     struct OrderInfo {
         uint256 lastExecutedTimestamp;
-        uint256 bdvLeftToConvert;
+        uint256 beansLeftToConvert;
     }
 
     // Combined state mapping for order info
@@ -150,7 +150,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     }
 
     /**
-     * @notice Converts tokens up to Bean using specified parameters
+     * @notice Converts tokens up to `Amount` using specified parameters
      * @param params The ConvertUpBlueprintStruct containing all parameters for the convert up operation
      */
     function convertUpBlueprint(
@@ -180,21 +180,21 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         }
 
         // Get current BDV left to convert
-        vars.bdvLeftToConvert = getBdvLeftToConvert(vars.orderHash);
+        vars.beansLeftToConvert = getBeansLeftToConvert(vars.orderHash);
 
-        // If bdvLeftToConvert is max, revert, as the order has already been completed
-        if (vars.bdvLeftToConvert == type(uint256).max) {
+        // If beansLeftToConvert is max, revert, as the order has already been completed
+        if (vars.beansLeftToConvert == type(uint256).max) {
             revert("Order has already been completed");
-        } else if (vars.bdvLeftToConvert == 0) {
-            // If bdvLeftToConvert is 0, initialize it with the total amount
-            vars.bdvLeftToConvert = params.convertUpParams.totalConvertBdv;
+        } else if (vars.beansLeftToConvert == 0) {
+            // If beansLeftToConvert is 0, initialize it with the total amount
+            vars.beansLeftToConvert = params.convertUpParams.totalBeanAmountToConvert;
         }
 
         // Determine current convert amount based on constraints
-        vars.currentBdvToConvert = determineConvertAmount(
-            vars.bdvLeftToConvert,
-            params.convertUpParams.minConvertBdvPerExecution,
-            params.convertUpParams.maxConvertBdvPerExecution
+        vars.beansToConvertThisExecution = determineConvertAmount(
+            vars.beansLeftToConvert,
+            params.convertUpParams.minBeansConvertPerExecution,
+            params.convertUpParams.maxBeansConvertPerExecution
         );
 
         // Apply slippage ratio if needed
@@ -232,7 +232,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         vars.withdrawalPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
             vars.account,
             params.convertUpParams.sourceTokenIndices,
-            vars.currentBdvToConvert,
+            vars.beansToConvertThisExecution,
             filterParams,
             emptyPlan
         );
@@ -240,22 +240,22 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         address beanToken = beanstalk.getBeanToken();
 
         // Execute the conversion using Beanstalk's convert function
-        vars.amountBdvConverted = executeConvertUp(
+        vars.amountBeansConverted = executeConvertUp(
             vars,
             beanToken,
             slippageRatio,
             params.convertUpParams.maxGrownStalkPerBdvPenalty
         );
 
-        require(vars.amountBdvConverted > 0, "No amount converted");
+        require(vars.amountBeansConverted > 0, "No amount converted");
 
         // Update the state
         // If all BDV has been converted, set to max to indicate completion
-        uint256 bdvRemaining = vars.bdvLeftToConvert - vars.amountBdvConverted;
-        if (bdvRemaining == 0) bdvRemaining = type(uint256).max;
+        uint256 beansRemaining = vars.beansLeftToConvert - vars.amountBeansConverted;
+        if (beansRemaining == 0) beansRemaining = type(uint256).max;
 
         // Update the BDV left to convert
-        updateBdvLeftToConvert(vars.orderHash, bdvRemaining);
+        updateBeansLeftToConvert(vars.orderHash, beansRemaining);
 
         // Tip the operator
         tractorHelpers.tip(
@@ -271,21 +271,21 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
 
         // Emit completion event
-        if (bdvRemaining == 0) {
+        if (beansRemaining == 0) {
             emit ConvertUpOrderComplete(
                 vars.orderHash,
                 vars.account,
-                params.convertUpParams.totalConvertBdv,
+                params.convertUpParams.totalBeanAmountToConvert,
                 0
             );
-        } else if (bdvRemaining < params.convertUpParams.minConvertBdvPerExecution) {
+        } else if (beansRemaining < params.convertUpParams.minBeansConvertPerExecution) {
             // If the min convert per season is greater than the amount unfulfilled, this order will
             // never be able to execute again, so emit event as such
             emit ConvertUpOrderComplete(
                 vars.orderHash,
                 vars.account,
-                params.convertUpParams.totalConvertBdv - bdvRemaining,
-                bdvRemaining
+                params.convertUpParams.totalBeanAmountToConvert - beansRemaining,
+                beansRemaining
             );
         }
     }
@@ -295,8 +295,8 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @param orderHash The hash of the order
      * @return The BDV left to convert
      */
-    function getBdvLeftToConvert(bytes32 orderHash) public view returns (uint256) {
-        return orderInfo[orderHash].bdvLeftToConvert;
+    function getBeansLeftToConvert(bytes32 orderHash) public view returns (uint256) {
+        return orderInfo[orderHash].beansLeftToConvert;
     }
 
     /**
@@ -313,8 +313,8 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @param orderHash The hash of the order
      * @param amount The new BDV left to convert
      */
-    function updateBdvLeftToConvert(bytes32 orderHash, uint256 amount) internal {
-        orderInfo[orderHash].bdvLeftToConvert = amount;
+    function updateBeansLeftToConvert(bytes32 orderHash, uint256 amount) internal {
+        orderInfo[orderHash].beansLeftToConvert = amount;
     }
 
     /**
@@ -409,12 +409,12 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         require(cup.sourceTokenIndices.length > 0, "Must provide at least one source token");
 
         // Amount validations
-        require(cup.totalConvertBdv > 0, "Total convert BDV must be > 0");
+        require(cup.totalBeanAmountToConvert > 0, "Total convert BDV must be > 0");
         require(
-            cup.minConvertBdvPerExecution <= cup.maxConvertBdvPerExecution,
+            cup.minBeansConvertPerExecution <= cup.maxBeansConvertPerExecution,
             "Min convert BDV per execution > max"
         );
-        require(cup.minConvertBdvPerExecution > 0, "Min convert BDV per execution must be > 0");
+        require(cup.minBeansConvertPerExecution > 0, "Min convert BDV per execution must be > 0");
 
         // Price validations
         require(
@@ -448,16 +448,16 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         }
 
         // Check convert bonus conditions
-        if (cup.minGrownStalkPerBdvBonus > 0 || cup.minConvertBonusCapacity > 0) {
+        if (cup.GrownStalkPerBdvBonusBid > 0 || cup.minConvertBonusCapacity > 0) {
             // Get current bonus amount and remaining capacity
             uint256 remainingCapacity;
             (bonusStalkPerBdv, remainingCapacity) = beanstalk
                 .getConvertStalkPerBdvBonusAndRemainingCapacity();
 
             // Check if bonus amount meets threshold
-            if (cup.minGrownStalkPerBdvBonus > 0) {
+            if (cup.GrownStalkPerBdvBonusBid > 0) {
                 require(
-                    bonusStalkPerBdv >= cup.minGrownStalkPerBdvBonus,
+                    bonusStalkPerBdv >= cup.GrownStalkPerBdvBonusBid,
                     "Convert bonus amount below threshold"
                 );
             }
@@ -474,26 +474,29 @@ contract ConvertUpBlueprint is PerFunctionPausable {
 
     /**
      * @notice Determines the amount to convert based on constraints
-     * @param bdvLeftToConvert Total BDV left to convert
-     * @param minConvertBdvPerExecution Minimum BDV per execution
-     * @param maxConvertBdvPerExecution Maximum BDV per execution
+     * @param beansLeftToConvert Total BDV left to convert
+     * @param minBeansConvertPerExecution Minimum BDV per execution
+     * @param maxBeansConvertPerExecution Maximum BDV per execution
      * @return The amount to convert in this execution
      */
     function determineConvertAmount(
-        uint256 bdvLeftToConvert,
-        uint256 minConvertBdvPerExecution,
-        uint256 maxConvertBdvPerExecution
+        uint256 beansLeftToConvert,
+        uint256 minBeansConvertPerExecution,
+        uint256 maxBeansConvertPerExecution
     ) internal pure returns (uint256) {
-        // If bdvLeftToConvert is less than minConvertBdvPerExecution, we can't convert
-        require(bdvLeftToConvert >= minConvertBdvPerExecution, "Not enough BDV left to convert");
+        // If beansLeftToConvert is less than minBeansConvertPerExecution, we can't convert
+        require(
+            beansLeftToConvert >= minBeansConvertPerExecution,
+            "Not enough BDV left to convert"
+        );
 
-        // If bdvLeftToConvert is less than maxConvertBdvPerExecution, use bdvLeftToConvert
-        if (bdvLeftToConvert < maxConvertBdvPerExecution) {
-            return bdvLeftToConvert;
+        // If beansLeftToConvert is less than maxBeansConvertPerExecution, use beansLeftToConvert
+        if (beansLeftToConvert < maxBeansConvertPerExecution) {
+            return beansLeftToConvert;
         }
 
-        // Otherwise, use maxConvertBdvPerExecution
-        return maxConvertBdvPerExecution;
+        // Otherwise, use maxBeansConvertPerExecution
+        return maxBeansConvertPerExecution;
     }
 
     function version() public pure returns (string memory) {
