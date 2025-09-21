@@ -11,9 +11,9 @@ import {LibChainlinkOracle} from "contracts/libraries/Oracle/LibChainlinkOracle.
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/blueprints/TractorHelpers.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/blueprints/SiloHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {AdvancedFarmCall} from "contracts/libraries/LibFarm.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
@@ -22,8 +22,8 @@ import {P} from "contracts/ecosystem/price/P.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
-import {SowBlueprint} from "contracts/ecosystem/SowBlueprint.sol";
-import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
+import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {PriceManipulation} from "contracts/ecosystem/tractor/blueprints/PriceManipulation.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {console} from "forge-std/console.sol";
 

@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {TestHelper} from "test/foundry/utils/TestHelper.sol";
-import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
+import {PriceManipulation} from "contracts/ecosystem/tractor/blueprints/PriceManipulation.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

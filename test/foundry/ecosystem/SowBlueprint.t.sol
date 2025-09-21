@@ -5,15 +5,15 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {SowBlueprint} from "contracts/ecosystem/SowBlueprint.sol";
-import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/blueprints/TractorHelpers.sol";
+import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {PriceManipulation} from "contracts/ecosystem/tractor/blueprints/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {OperatorWhitelist} from "contracts/ecosystem/tractor/blueprints/OperatorWhitelist.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/blueprints/SiloHelpers.sol";
 
 contract SowBlueprintTest is TractorTestHelper {
     address[] farmers;

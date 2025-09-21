@@ -11,7 +11,7 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/StdUtils.sol";
 import {BeanstalkPrice, WellPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {P} from "contracts/ecosystem/price/P.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {ShipmentPlanner} from "contracts/ecosystem/tractor/blueprints/ShipmentPlanner.sol";
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 interface IBeanstalkPrice {

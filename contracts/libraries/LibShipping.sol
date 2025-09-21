@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 import {ShipmentRecipient, ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
-import {ShipmentPlan} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {ShipmentPlan} from "contracts/ecosystem/tractor/blueprints/ShipmentPlanner.sol";
 
 /**
  * @title LibShipping

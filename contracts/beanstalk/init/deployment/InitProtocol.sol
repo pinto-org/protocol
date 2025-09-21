@@ -17,7 +17,7 @@ import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IDiamondCut} from "contracts/interfaces/IDiamondCut.sol";
 import {IDiamondLoupe} from "contracts/interfaces/IDiamondLoupe.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {ShipmentPlanner} from "contracts/ecosystem/tractor/blueprints/ShipmentPlanner.sol";
 import {LibGauge} from "contracts/libraries/LibGauge.sol";
 
 /**

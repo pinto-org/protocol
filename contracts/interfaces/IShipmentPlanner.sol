@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-import {ShipmentPlan} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {ShipmentPlan} from "contracts/ecosystem/tractor/blueprints/ShipmentPlanner.sol";
 
 interface IShipmentPlanner {
     function getFieldPlan(
