@@ -44,7 +44,7 @@ contract BeanstalkPrice is WellPrice {
     ) public view returns (Prices memory p) {
         p.ps = new P.Pool[](wells.length);
         for (uint256 i = 0; i < wells.length; i++) {
-            try IWell(wells[i]).getReserves() returns (uint256[] memory reserves) {
+            try IWell(wells[i]).getReserves() returns (uint256[] memory) {
                 p.ps[i] = getWell(wells[i], reservesType);
             } catch {
                 continue;

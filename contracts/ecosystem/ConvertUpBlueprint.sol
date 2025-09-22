@@ -76,6 +76,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @param GrownStalkPerBdvBonusBid The minimum bid for grown stalk per bdv bonus to execute a convert.
      * @param maxPriceToConvertUp Maximum price at which to convert up (for MEV resistance)
      * @param minPriceToConvertUp Minimum price at which to convert up (for range targeting)
+     * @param seedDifference The difference between the bean seeds and the well seeds needed to convert up. A value of `0` denotes N/A (do not check difference)
      * @param maxGrownStalkPerBdvPenalty Maximum grown stalk per BDV penalty to accept
      * @param slippageRatio Slippage tolerance ratio for the conversion
      * @param lowStalkDeposits How low stalk deposits are processed. See LibSiloHelpers.Mode for more details.
@@ -93,9 +94,10 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
         uint256 GrownStalkPerBdvBonusBid;
-        // Price constraints
+        // Price / seed constraints
         uint256 maxPriceToConvertUp;
         uint256 minPriceToConvertUp;
+        int256 seedDifference;
         // Penalty tolerance
         int256 maxGrownStalkPerBdvPenalty;
         // Execution parameters

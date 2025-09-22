@@ -45,15 +45,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
     struct BlueprintParams {
         address user;
         uint8[] sourceTokenIndices;
-        uint256 totalConvertBdv;
-        uint256 minConvertBdvPerExecution;
-        uint256 maxConvertBdvPerExecution;
+        uint256 totalBeanAmountToConvert;
+        uint256 minBeansConvertPerExecution;
+        uint256 maxBeansConvertPerExecution;
         uint256 minTimeBetweenConverts;
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 minGrownStalkPerBdvBonus;
+        uint256 GrownStalkPerBdvBonusBid;
         uint256 minPriceToConvertUp;
         uint256 maxPriceToConvertUp;
+        int256 seedDifference;
         int256 maxGrownStalkPerBdvPenalty;
         uint256 slippageRatio;
         int256 tipAmount;
@@ -190,15 +191,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -314,15 +316,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: 1, // this way we'll always convert whatever's left
-                maxConvertBdvPerExecution: 100e6,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: 1, // this way we'll always convert whatever's left
+                maxBeansConvertPerExecution: 100e6,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -536,15 +539,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.99e6,
                 maxPriceToConvertUp: 1.01e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -570,15 +574,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount / 4,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount / 4,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -624,15 +629,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: totalConvertBdv,
-                minConvertBdvPerExecution: maxPerExecution,
-                maxConvertBdvPerExecution: maxPerExecution,
+                totalBeanAmountToConvert: totalConvertBdv,
+                minBeansConvertPerExecution: maxPerExecution,
+                maxBeansConvertPerExecution: maxPerExecution,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: int256(tipAmount),
@@ -737,15 +743,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -790,15 +797,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint
             .ConvertUpParams({
                 sourceTokenIndices: params.sourceTokenIndices,
-                totalBeanAmountToConvert: params.totalConvertBdv,
-                minBeansConvertPerExecution: params.minConvertBdvPerExecution,
-                maxBeansConvertPerExecution: params.maxConvertBdvPerExecution,
+                totalBeanAmountToConvert: params.totalBeanAmountToConvert,
+                minBeansConvertPerExecution: params.minBeansConvertPerExecution,
+                maxBeansConvertPerExecution: params.maxBeansConvertPerExecution,
                 minTimeBetweenConverts: params.minTimeBetweenConverts,
                 minConvertBonusCapacity: params.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,
-                GrownStalkPerBdvBonusBid: params.minGrownStalkPerBdvBonus,
+                GrownStalkPerBdvBonusBid: params.GrownStalkPerBdvBonusBid,
                 maxPriceToConvertUp: params.maxPriceToConvertUp,
                 minPriceToConvertUp: params.minPriceToConvertUp,
+                seedDifference: params.seedDifference,
                 maxGrownStalkPerBdvPenalty: params.maxGrownStalkPerBdvPenalty,
                 slippageRatio: params.slippageRatio,
                 lowStalkDeposits: LibSiloHelpers.Mode.USE
@@ -943,15 +951,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0, // No minimum capacity requirement
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 6e16, // Higher than available 5e16
+                GrownStalkPerBdvBonusBid: 6e16, // Higher than available 5e16
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -971,15 +980,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 2000e6, // Higher than available 1000e6
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0, // No minimum stalk per BDV requirement
+                GrownStalkPerBdvBonusBid: 0, // No minimum stalk per BDV requirement
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -996,15 +1006,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 500e6, // Lower than available 1000e6
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 4e16, // Lower than available 5e16
+                GrownStalkPerBdvBonusBid: 4e16, // Lower than available 5e16
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18,
                 tipAmount: state.tipAmount,
@@ -1040,15 +1051,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0.01e18, // 1% slippage tolerance
                 tipAmount: state.tipAmount,
@@ -1113,15 +1125,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             BlueprintParams({
                 user: state.user,
                 sourceTokenIndices: sourceTokenIndices,
-                totalConvertBdv: state.convertAmount,
-                minConvertBdvPerExecution: state.convertAmount / 4,
-                maxConvertBdvPerExecution: state.convertAmount,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                minGrownStalkPerBdvBonus: 0,
+                GrownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
                 maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
                 slippageRatio: 0, // Should use DEFAULT_SLIPPAGE_RATIO (1%)
                 tipAmount: state.tipAmount,
@@ -1159,5 +1172,30 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             1,
             "User should have received exactly one Bean deposit from conversion"
         );
+    }
+
+    function test_SeedDifference() public {
+        setupConvertUpBlueprintTest();
+
+        // bean seeds = 2, lp seeds = 4.
+        // if length 
+        
+        (uint8[] memory tokenIndices, uint256[] memory seeds) = tractorHelpers
+            .getTokensAscendingSeedsWithDifference(true, -5e6);
+
+        console.log("Number of tokens returned: %s", tokenIndices.length);
+        for (uint256 i = 0; i < tokenIndices.length; i++) {
+            console.log("Token index: %s, Seeds: %s", tokenIndices[i], seeds[i]);
+        }
+        console.log("------------------");
+
+        // Test with seedDifference = 0 (no filtering)
+        console.log("Testing with seedDifference = 0");
+        (tokenIndices, seeds) = tractorHelpers.getTokensAscendingSeedsWithDifference(true, 0);
+
+        console.log("Number of tokens returned: %s", tokenIndices.length);
+        for (uint256 i = 0; i < tokenIndices.length; i++) {
+            console.log("Token index: %s, Seeds: %s", tokenIndices[i], seeds[i]);
+        }
     }
 }

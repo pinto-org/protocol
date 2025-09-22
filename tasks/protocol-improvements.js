@@ -617,7 +617,7 @@ module.exports = function () {
     const mock = true;
     let owner;
     if (mock) {
-      // await hre.run("updateOracleTimeouts");
+      await hre.run("updateOracleTimeouts");
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
     } else {

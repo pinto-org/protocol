@@ -7,22 +7,27 @@ import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellF
 import {BeanstalkPrice, P} from "./price/BeanstalkPrice.sol";
 import {ReservesType} from "./price/WellPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {Junction} from "./junction/Junction.sol";
 import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title TractorHelpers
  * @author FordPinto
  * @notice Helper contract for Silo operations. For use with Tractor.
  */
-contract TractorHelpers is Junction {
+contract TractorHelpers {
     IBeanstalk immutable beanstalk;
     BeanstalkPrice immutable beanstalkPrice;
 
     enum RewardType {
         ERC20,
         ERC1155
+    }
+
+    enum TokenSort {
+        ASC_SEEDS,
+        ASC_PRICE
     }
 
     event OperatorReward(
@@ -241,62 +246,6 @@ contract TractorHelpers is Junction {
 
     /**
      * @notice Returns all whitelisted tokens sorted by seed value (ascending)
-     * @param excludeBean If true, excludes the Bean token from the returned arrays
-     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
-     * @return seeds Array of corresponding seed values
-     */
-    function getTokensAscendingSeeds(
-        bool excludeBean
-    ) public view returns (uint8[] memory tokenIndices, uint256[] memory seeds) {
-        // Get whitelisted tokens with their status
-        IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
-        require(whitelistStatuses.length > 0, "No whitelisted tokens");
-
-        address beanToken = beanstalk.getBeanToken();
-
-        // Count active whitelisted tokens (not dewhitelisted)
-        uint256 whitelistedCount = 0;
-        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
-            if (whitelistStatuses[i].isWhitelisted) {
-                // Skip Bean token if excludeBean is true
-                if (excludeBean && whitelistStatuses[i].token == beanToken) {
-                    continue;
-                }
-                whitelistedCount++;
-            }
-        }
-
-        require(whitelistedCount > 0, "No active whitelisted tokens");
-
-        // Initialize arrays with the count of active whitelisted tokens
-        tokenIndices = new uint8[](whitelistedCount);
-        seeds = new uint256[](whitelistedCount);
-
-        // Populate arrays with only active whitelisted tokens
-        uint256 activeIndex = 0;
-        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
-            if (whitelistStatuses[i].isWhitelisted) {
-                // Skip Bean token if excludeBean is true
-                if (excludeBean && whitelistStatuses[i].token == beanToken) {
-                    continue;
-                }
-                // Keep the original index from whitelistStatuses for tokenIndices
-                tokenIndices[activeIndex] = uint8(i);
-                seeds[activeIndex] = beanstalk
-                    .tokenSettings(whitelistStatuses[i].token)
-                    .stalkEarnedPerSeason;
-                activeIndex++;
-            }
-        }
-
-        // Sort arrays by seed value (ascending)
-        (tokenIndices, seeds) = sortTokenIndices(tokenIndices, seeds);
-
-        return (tokenIndices, seeds);
-    }
-
-    /**
-     * @notice Returns all whitelisted tokens sorted by seed value (ascending)
      * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
      * @return seeds Array of corresponding seed values
      */
@@ -309,60 +258,29 @@ contract TractorHelpers is Junction {
     }
 
     /**
-     * @notice Returns all whitelisted tokens sorted by price (ascending)
+     * @notice Returns all whitelisted tokens sorted by seed value (ascending)
      * @param excludeBean If true, excludes the Bean token from the returned arrays
-     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by price (ascending)
-     * @return prices Array of corresponding prices
+     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
+     * @return seeds Array of corresponding seed values
      */
-    function getTokensAscendingPrice(
+    function getTokensAscendingSeeds(
         bool excludeBean
-    ) public view returns (uint8[] memory tokenIndices, uint256[] memory prices) {
-        // Get whitelisted tokens with their status
-        IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
-        require(whitelistStatuses.length > 0, "No whitelisted tokens");
+    ) public view returns (uint8[] memory tokenIndices, uint256[] memory seeds) {
+        return getTokensAscendingSeedsWithDifference(excludeBean, 0);
+    }
 
-        address beanToken = beanstalk.getBeanToken();
-
-        // Count active whitelisted tokens (not dewhitelisted)
-        uint256 whitelistedCount = 0;
-        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
-            if (whitelistStatuses[i].isWhitelisted) {
-                // Skip Bean token if excludeBean is true
-                if (excludeBean && whitelistStatuses[i].token == beanToken) {
-                    continue;
-                }
-                whitelistedCount++;
-            }
-        }
-
-        require(whitelistedCount > 0, "No active whitelisted tokens");
-
-        // Initialize arrays with the count of active whitelisted tokens
-        tokenIndices = new uint8[](whitelistedCount);
-        prices = new uint256[](whitelistedCount);
-
-        // Get price from BeanstalkPrice for both Bean and LP tokens
-        BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
-
-        // Populate arrays with only active whitelisted tokens
-        uint256 activeIndex = 0;
-        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
-            if (whitelistStatuses[i].isWhitelisted) {
-                // Skip Bean token if excludeBean is true
-                if (excludeBean && whitelistStatuses[i].token == beanToken) {
-                    continue;
-                }
-                // Keep the original index from whitelistStatuses for tokenIndices
-                tokenIndices[activeIndex] = uint8(i);
-                prices[activeIndex] = getTokenPrice(whitelistStatuses[i].token, p);
-                activeIndex++;
-            }
-        }
-
-        // Sort arrays by price (ascending)
-        (tokenIndices, prices) = sortTokenIndices(tokenIndices, prices);
-
-        return (tokenIndices, prices);
+    /**
+     * @notice Returns all whitelisted tokens sorted by seed value (ascending)
+     * @param excludeBean If true, excludes the Bean token from the returned arrays
+     * @param seedDifference if nonzero, checks whether the difference between the input token and pinto seeds exceed the difference.
+     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
+     * @return seeds Array of corresponding seed values
+     */
+    function getTokensAscendingSeedsWithDifference(
+        bool excludeBean,
+        int256 seedDifference
+    ) public view returns (uint8[] memory tokenIndices, uint256[] memory seeds) {
+        return getTokens(TokenSort.ASC_SEEDS, excludeBean, seedDifference);
     }
 
     /**
@@ -376,6 +294,110 @@ contract TractorHelpers is Junction {
         returns (uint8[] memory tokenIndices, uint256[] memory prices)
     {
         return getTokensAscendingPrice(false);
+    }
+
+    /**
+     * @notice Returns all whitelisted tokens sorted by price (ascending)
+     * @param excludeBean If true, excludes the Bean token from the returned arrays
+     * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by price (ascending)
+     * @return prices Array of corresponding prices
+     */
+    function getTokensAscendingPrice(
+        bool excludeBean
+    ) public view returns (uint8[] memory tokenIndices, uint256[] memory prices) {
+        return getTokens(TokenSort.ASC_PRICE, excludeBean, 0);
+    }
+
+    /**
+     * @dev internal function that gets the tokens
+     * given the sort type, whether we want to exclude beans, and the seed diff (if sort type is asc seeds)
+     */
+    function getTokens(
+        TokenSort sort,
+        bool excludeBean,
+        int256 seedDifference
+    ) internal view returns (uint8[] memory tokenIndices, uint256[] memory values) {
+        // Get whitelisted tokens with their status
+        IBeanstalk.WhitelistStatus[] memory ws = beanstalk.getWhitelistStatuses();
+        require(ws.length > 0, "No whitelisted tokens");
+
+        // Initialize arrays with the count of active whitelistStatus
+        tokenIndices = new uint8[](ws.length);
+        values = new uint256[](ws.length);
+
+        (tokenIndices, values) = getIndicesAndValues(
+            ws,
+            excludeBean,
+            seedDifference,
+            sort,
+            tokenIndices,
+            values
+        );
+
+        // Sort values if length greater than 1.
+        if (tokenIndices.length > 1) {
+            (tokenIndices, values) = sortTokenIndices(tokenIndices, values);
+        }
+    }
+
+    /**
+     * @dev contains internal logic to getIndicesAndValues
+     */
+    function getIndicesAndValues(
+        IBeanstalk.WhitelistStatus[] memory ws,
+        bool excludeBean,
+        int256 seedDifference, // only used if sort.ASC_SEEDS is enabled.
+        TokenSort sort,
+        uint8[] memory tokenIndices,
+        uint256[] memory values
+    ) internal view returns (uint8[] memory, uint256[] memory) {
+        // initialize variables, set based on `sort` type.
+        BeanstalkPrice.Prices memory p;
+        uint256 beanSeeds;
+
+        address beanToken = beanstalk.getBeanToken();
+
+        if (sort == TokenSort.ASC_PRICE) {
+            p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
+        } else if (sort == TokenSort.ASC_SEEDS && seedDifference != 0) {
+            beanSeeds = beanstalk.getSeedsForToken(beanToken);
+        }
+        // `tokenIndices` uses the original index from whitelistStatuses in order to
+        // determine what token to use. Thus, `activeIndex` is used to set the entry in the array,
+        // and `i` is used to denote the index of `whitelistStatuses`.
+        uint256 activeIndex = 0;
+        for (uint256 i; i < ws.length; i++) {
+            if (ws[i].isWhitelisted) {
+                // Skip Bean token if excludeBean is true
+                if (excludeBean && ws[i].token == beanToken) {
+                    continue;
+                }
+
+                if (sort == TokenSort.ASC_PRICE) {
+                    tokenIndices[activeIndex] = uint8(i);
+                    values[activeIndex] = getTokenPrice(ws[i].token, p);
+                } else if (sort == TokenSort.ASC_SEEDS) {
+                    uint256 tokenSeeds = beanstalk.getSeedsForToken(ws[i].token);
+                    if (
+                        seedDifference != 0 &&
+                        !verifySeedDifferences(tokenSeeds, beanSeeds, seedDifference)
+                    ) {
+                        continue;
+                    }
+                    tokenIndices[activeIndex] = uint8(i);
+                    values[activeIndex] = tokenSeeds;
+                }
+
+                activeIndex++;
+            }
+        }
+
+        assembly {
+            mstore(tokenIndices, activeIndex)
+            mstore(values, activeIndex)
+        }
+
+        return (tokenIndices, values);
     }
 
     /**
@@ -545,5 +567,34 @@ contract TractorHelpers is Junction {
             addresses[i] = whitelistStatuses[i].token;
         }
         return addresses;
+    }
+
+    /**
+     * @notice Verifies if the difference between the token seeds and the bean seeds exceeds the seed difference
+     * @param tokenSeeds The seeds of the token
+     * @param beanSeeds The seeds of the bean
+     * @param seedDifference The seed difference
+     * @return true if the difference exceeds the seed difference, false otherwise
+     * @dev `verifySeedDifferences` should only be called when `seedDifference` is nonZero
+     */
+    function verifySeedDifferences(
+        uint256 tokenSeeds,
+        uint256 beanSeeds,
+        int256 seedDifference
+    ) internal pure returns (bool) {
+        if (seedDifference > 0) {
+            // bean seeds needs to be greater than the token seeds + seed difference
+            // to be valid
+            if (beanSeeds < tokenSeeds + uint256(seedDifference)) {
+                return false;
+            }
+        } else {
+            // if the difference is negative, the bean seeds
+            // can be UP TO `seedDifference` less than the token seeds.
+            if (beanSeeds + uint256(-seedDifference) < tokenSeeds) {
+                return false;
+            }
+        }
+        return true;
     }
 }
