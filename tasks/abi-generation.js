@@ -72,9 +72,37 @@ function generateDiamondABI(outputFileName, includeMocks = false) {
     });
   }
 
-  // Remove duplicates and write file
-  const names = abi.map((a) => a.name);
-  const filteredAbi = abi.filter((item, pos) => names.indexOf(item.name) === pos);
+  // Remove duplicates based on complete signature and write file
+  const seen = new Set();
+  const filteredAbi = abi.filter((item) => {
+    // Create a unique identifier for each ABI entry
+    let identifier;
+
+    if (item.type === 'function') {
+      // For functions, use name + input types to handle overloads properly
+      const inputTypes = item.inputs ? item.inputs.map(input => input.type).join(',') : '';
+      identifier = `${item.type}-${item.name}(${inputTypes})`;
+    } else if (item.type === 'event') {
+      // For events, use name + input types (events can also be overloaded)
+      const inputTypes = item.inputs ? item.inputs.map(input => input.type).join(',') : '';
+      identifier = `${item.type}-${item.name}(${inputTypes})`;
+    } else if (item.type === 'error') {
+      // For errors, use name + input types
+      const inputTypes = item.inputs ? item.inputs.map(input => input.type).join(',') : '';
+      identifier = `${item.type}-${item.name}(${inputTypes})`;
+    } else {
+      // For other types (constructor, fallback, receive), use full JSON string
+      identifier = JSON.stringify(item);
+    }
+
+    if (seen.has(identifier)) {
+      console.log(`Skipping duplicate: ${identifier}`);
+      return false;
+    }
+
+    seen.add(identifier);
+    return true;
+  });
 
   fs.writeFileSync(`./abi/${outputFileName}`, JSON.stringify(filteredAbi, null, 2));
 
@@ -114,7 +142,7 @@ module.exports = function () {
   });
 
   task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
-    const ecosystemContracts = ["SiloHelpers", "SowBlueprintv0"];
+    const ecosystemContracts = ["SiloHelpers", "SowBlueprint", "ConvertUpBlueprint"];
     await generateEcosystemABIs(ecosystemContracts);
   });
 };

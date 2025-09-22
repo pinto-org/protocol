@@ -5,11 +5,10 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {SowBlueprint} from "contracts/ecosystem/SowBlueprint.sol";
 import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
 
-contract TractorHelper is TestHelper {
+contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprint internal sowBlueprint;
@@ -37,7 +36,7 @@ contract TractorHelper is TestHelper {
         address account,
         bytes memory pipeCallData,
         address beanstalkAddress
-    ) internal view returns (IMockFBeanstalk.Requisition memory) {
+    ) internal returns (IMockFBeanstalk.Requisition memory) {
         // Create the blueprint
         IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
             publisher: account,
@@ -77,7 +76,7 @@ contract TractorHelper is TestHelper {
     }
 
     // Helper function to sign blueprints
-    function signBlueprint(bytes32 hash, uint256 pk) internal pure returns (bytes memory) {
+    function signBlueprint(bytes32 hash, uint256 pk) internal returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, hash);
         return abi.encodePacked(r, s, v);
     }
@@ -216,7 +215,7 @@ contract TractorHelper is TestHelper {
         // Create array with single index for the token based on source mode
         uint8[] memory sourceTokenIndices = new uint8[](1);
         if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
-            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+            sourceTokenIndices[0] = TractorHelpers(tractorHelpersAddress).getTokenIndex(
                 IMockFBeanstalk(bsAddress).getBeanToken()
             );
         } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {

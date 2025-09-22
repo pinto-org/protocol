@@ -11,6 +11,16 @@ require("@nomiclabs/hardhat-etherscan");
 // Import task modules
 require("./tasks")();
 
+// used in the UI to run the latest upgrade
+task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
+  // compile contracts.
+  await hre.run("compile");
+  // deploy PI-13
+  await hre.run("PI-13");
+  // deploy convert up blueprint
+  await hre.run("deployConvertUpBlueprint");
+});
+
 //////////////////////// CONFIGURATION ////////////////////////
 
 module.exports = {

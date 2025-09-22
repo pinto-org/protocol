@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
-import {WellPrice, P, C, ReservesType} from "./WellPrice.sol";
+import {IWell, WellPrice, P, C, ReservesType} from "./WellPrice.sol";
 
 contract BeanstalkPrice is WellPrice {
     using LibRedundantMath256 for uint256;
@@ -21,7 +21,7 @@ contract BeanstalkPrice is WellPrice {
      * Bean in all whitelisted liquidity pools.
      **/
     function price(ReservesType reservesType) external view returns (Prices memory p) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
+        address[] memory wells = beanstalk.getSiloTokens();
         return priceForWells(wells, reservesType);
     }
 
@@ -30,7 +30,7 @@ contract BeanstalkPrice is WellPrice {
      * Bean in all whitelisted liquidity pools.
      **/
     function price() external view returns (Prices memory p) {
-        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
+        address[] memory wells = beanstalk.getSiloTokens();
         return priceForWells(wells, ReservesType.CURRENT_RESERVES);
     }
 
@@ -44,7 +44,11 @@ contract BeanstalkPrice is WellPrice {
     ) public view returns (Prices memory p) {
         p.ps = new P.Pool[](wells.length);
         for (uint256 i = 0; i < wells.length; i++) {
-            p.ps[i] = getWell(wells[i], reservesType);
+            try IWell(wells[i]).getReserves() returns (uint256[] memory) {
+                p.ps[i] = getWell(wells[i], reservesType);
+            } catch {
+                continue;
+            }
         }
         for (uint256 i = 0; i < p.ps.length; i++) {
             p.price += p.ps[i].price.mul(p.ps[i].liquidity);

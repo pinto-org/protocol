@@ -617,7 +617,7 @@ module.exports = function () {
     const mock = true;
     let owner;
     if (mock) {
-      // await hre.run("updateOracleTimeouts");
+      await hre.run("updateOracleTimeouts");
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
     } else {
@@ -673,7 +673,7 @@ module.exports = function () {
       object: !mock,
       verbose: true,
       account: owner,
-      initArgs: [],
+      initArgs: [1000000000, 1000000000000],
       initFacetName: "InitPI13"
     });
   });
