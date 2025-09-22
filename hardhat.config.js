@@ -30,7 +30,9 @@ const {
   PINTO_WSOL_WELL_BASE,
   nameToAddressMap,
   addressToNameMap,
-  addressToBalanceSlotMap
+  addressToBalanceSlotMap,
+  STABLE_2_BASE,
+  ZERO_ADDRESS
 } = require("./test/hardhat/utils/constants.js");
 const { task } = require("hardhat/config");
 const { upgradeWithNewFacets, decodeDiamondCutAction } = require("./scripts/diamond.js");
@@ -988,6 +990,50 @@ task(
     initFacetName: "InitPI11"
   });
 });
+
+task("upgrade-wells", "Upgrades wells to new well function and pump targets")
+  .addParam("wells", "Comma-separated list of well addresses to upgrade")
+  .addOptionalParam("newfunction", "Address of the new well function target", ZERO_ADDRESS)
+  .addOptionalParam("newpump", "Address of the new pump target", ZERO_ADDRESS)
+  .setAction(async function (taskArgs) {
+    let owner;
+    let mock = true;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+
+    // Parse wells array from comma-separated string
+    const wellsToUpgrade = taskArgs.wells.split(",").map(well => well.trim());
+    const newWellFunctionTarget = taskArgs.newfunction;
+    const newPumpTarget = taskArgs.newpump;
+
+    // Validate that at least one target is not zero address
+    if (newWellFunctionTarget === ZERO_ADDRESS && newPumpTarget === ZERO_ADDRESS) {
+      throw new Error("At least one of newfunction or newpump must be specified (not zero address)");
+    }
+
+    console.log("Wells to upgrade:", wellsToUpgrade);
+    if (newWellFunctionTarget !== ZERO_ADDRESS) {
+      console.log("New well function target:", newWellFunctionTarget);
+    }
+    if (newPumpTarget !== ZERO_ADDRESS) {
+      console.log("New pump target:", newPumpTarget);
+    }
+
+    // upgrade facets
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [],
+      initFacetName: "InitUpgradeWell",
+      initArgs: [wellsToUpgrade, newWellFunctionTarget, newPumpTarget],
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
 
 task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
   const mock = true;

@@ -19,4 +19,6 @@ interface IWellUpgradeable is IWell {
     function upgradeTo(address newImplementation) external;
 
     function upgradeToAndCall(address newImplementation, bytes memory data) external;
+
+    function getImplementation() external view returns (address);
 }
