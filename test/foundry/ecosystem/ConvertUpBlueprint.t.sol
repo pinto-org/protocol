@@ -1178,8 +1178,8 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         setupConvertUpBlueprintTest();
 
         // bean seeds = 2, lp seeds = 4.
-        // if length 
-        
+        // if length
+
         (uint8[] memory tokenIndices, uint256[] memory seeds) = tractorHelpers
             .getTokensAscendingSeedsWithDifference(true, -5e6);
 
