@@ -40,8 +40,8 @@ contract InitUpgradeWell {
             (
                 IERC20[] memory tokens,
                 Call memory wellFunction,
-                Call[] memory pumps,
-                , // well data
+                Call[] memory pumps, // well data
+                ,
                 address aquifer
             ) = IWell(wellToUpgrade).well();
 
