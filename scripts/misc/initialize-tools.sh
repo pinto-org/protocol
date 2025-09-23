@@ -13,6 +13,9 @@ set -o pipefail
 # Supported platforms: macOS (Intel/ARM), Linux (Ubuntu/Debian/Fedora/Arch/SUSE)
 # Tools installed: Node.js, Rust, Foundry
 #
+# To make Executable: chmod +x scripts/misc/initialize-tools.sh
+#
+# Dry Run: ./scripts/misc/initialize-tools.sh --dry-run
 # Usage: ./scripts/misc/initialize-tools.sh [OPTIONS]
 # =============================================================================
 
