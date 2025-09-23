@@ -13,7 +13,7 @@ set -o pipefail
 # Supported platforms: macOS (Intel/ARM), Linux (Ubuntu/Debian/Fedora/Arch/SUSE)
 # Tools installed: Node.js, Rust, Foundry
 #
-# Usage: ./scripts/initialize-tools.sh [OPTIONS]
+# Usage: ./scripts/misc/initialize-tools.sh [OPTIONS]
 # =============================================================================
 
 # Script configuration
