@@ -379,6 +379,130 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         );
     }
 
+    function test_ConvertUpBlueprint_SeedDifferenceStrategy() public {
+        deployExtraWells(true, true);
+
+        addLiquidityToWell(
+            BEAN_USDC_WELL,
+            10_000e6, // 10,000 Beans
+            10_000e6 // 10,000 USDC
+        );
+
+        whitelistLPWell(BEAN_USDC_WELL, USDC_USD_CHAINLINK_PRICE_AGGREGATOR);
+
+        // Let a few seasons pass so Oracle gets setup
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        TestState memory state = setupConvertUpBlueprintTest();
+
+        // Mint and deposit 500e6 USDC
+        mintAndDepositBeanUSDC(state.user, 500e6);
+
+        // Get initial deposit amounts
+        (uint256 initialBeanEthAmount, uint256 initialBeanUsdcAmount) = getWellDepositAmounts(
+            state.user
+        );
+
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = 1; // BEAN-USDC Well
+
+        // Check that user has no Bean deposits before conversion
+        uint256[] memory initialBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+        assertEq(
+            initialBeanDeposits.length,
+            0,
+            "User should not have Bean deposits before conversion"
+        );
+
+        state.convertAmount = 800e6;
+
+        // Log token balances before conversion
+        logTokenBalances(state.user);
+
+        (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: 1, // this way we'll always convert whatever's left
+                maxBeansConvertPerExecution: 100e6,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusBid: 0,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                seedDifference: 1,
+                maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        address[] memory whitelistedTokens = bs.getWhitelistedTokens();
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            console.log("Token index: %s, Token: %s", i, whitelistedTokens[i]);
+            console.log("Seeds: %s", bs.getSeedsForToken(whitelistedTokens[i]));
+        }
+
+        // Mock the price to be within the acceptable range
+        mockPrice(0.95e6); // Price of 0.95
+
+        // Execute the conversion
+        vm.expectRevert("Convert Up Blueprint: Invalid Seed difference.");
+        executeRequisition(state.operator, req, address(bs));
+
+        sourceTokenIndices = new uint8[](3);
+        sourceTokenIndices[0] = 1;
+        sourceTokenIndices[1] = 2;
+        sourceTokenIndices[2] = 3;
+
+        (req, ) = setupConvertUpBlueprintBlueprint(
+            BlueprintParams({
+                user: state.user,
+                sourceTokenIndices: sourceTokenIndices,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: 1, // this way we'll always convert whatever's left
+                maxBeansConvertPerExecution: 100e6,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusBid: 0,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                seedDifference: 99999,
+                maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
+                slippageRatio: 0.01e18,
+                tipAmount: state.tipAmount,
+                tipAddress: state.operator
+            })
+        );
+
+        // Execute the conversion
+        executeRequisition(state.operator, req, address(bs));
+
+        // Log token balances after conversion
+        logTokenBalances(state.user);
+
+        // Verify conversion worked by checking for Bean deposits
+        uint256[] memory finalBeanDeposits = bs.getTokenDepositIdsForAccount(
+            state.user,
+            state.beanToken
+        );
+
+        // Verify the user received exactly one deposit
+        assertEq(
+            finalBeanDeposits.length,
+            1,
+            "User should have received exactly one Bean deposit from conversion"
+        );
+    }
+
     /**
      * @notice Helper function to get a human-readable token name
      * @param tokenAddress The address of the token

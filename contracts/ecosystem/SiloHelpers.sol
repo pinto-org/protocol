@@ -184,18 +184,43 @@ contract SiloHelpers {
         vars.beanToken = beanstalk.getBeanToken();
         vars.remainingBeansNeeded = targetAmount;
 
-        // Handle strategy cases when array length is 1
-        if (tokenIndices.length == 1) {
-            if (tokenIndices[0] == LOWEST_PRICE_STRATEGY) {
-                // Use ascending price strategy
-                (tokenIndices, ) = tractorHelpers.getTokensAscendingPrice(filterParams.excludeBean);
-            } else if (tokenIndices[0] == LOWEST_SEED_STRATEGY) {
-                // Use ascending seeds strategy
-                (tokenIndices, ) = tractorHelpers.getTokensAscendingSeedsWithDifference(
-                    filterParams.excludeBean,
-                    filterParams.seedDifference
+        // Handle strategy cases when firsrt element is a strategy
+        if (tokenIndices[0] == LOWEST_PRICE_STRATEGY) {
+            // Use ascending price strategy
+            (tokenIndices, ) = tractorHelpers.getTokensAscendingPrice(filterParams.excludeBean);
+        } else if (tokenIndices[0] == LOWEST_SEED_STRATEGY) {
+            // Use ascending seeds strategy
+            (tokenIndices, ) = tractorHelpers.getTokensAscendingSeedsWithDifference(
+                filterParams.excludeBean,
+                filterParams.seedDifference
+            );
+        } else if (filterParams.seedDifference != 0) {
+            // if the seed difference is not 0, we need to filter the tokens based on the seed difference
+
+            uint256 beanSeeds = beanstalk.getSeedsForToken(vars.beanToken);
+            uint8[] memory filteredTokenIndices = new uint8[](tokenIndices.length);
+            uint8 index = 0;
+            for (uint256 i = 0; i < tokenIndices.length; i++) {
+                uint256 tokenSeeds = beanstalk.getSeedsForToken(
+                    vars.whitelistedTokens[tokenIndices[i]]
                 );
+                if (
+                    tractorHelpers.checkForSeedDifference(
+                        tokenSeeds,
+                        beanSeeds,
+                        filterParams.seedDifference
+                    )
+                ) {
+                    filteredTokenIndices[index] = tokenIndices[i];
+                    index++;
+                }
             }
+            // if index is 0, then all tokens failed the seed difference check.
+            require(index > 0, "Convert Up Blueprint: Invalid Seed difference.");
+            assembly {
+                mstore(filteredTokenIndices, index)
+            }
+            tokenIndices = filteredTokenIndices;
         }
 
         vars.validSourceTokens = new address[](tokenIndices.length);

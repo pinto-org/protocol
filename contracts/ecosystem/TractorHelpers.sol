@@ -379,7 +379,7 @@ contract TractorHelpers {
                     uint256 tokenSeeds = beanstalk.getSeedsForToken(ws[i].token);
                     if (
                         seedDifference != 0 &&
-                        !verifySeedDifferences(tokenSeeds, beanSeeds, seedDifference)
+                        !checkForSeedDifference(tokenSeeds, beanSeeds, seedDifference)
                     ) {
                         continue;
                     }
@@ -574,13 +574,13 @@ contract TractorHelpers {
      * @param beanSeeds The seeds of the bean
      * @param seedDifference The seed difference
      * @return true if the difference exceeds the seed difference, false otherwise
-     * @dev `verifySeedDifferences` should only be called when `seedDifference` is nonZero
+     * @dev `checkForSeedDifference` should only be called when `seedDifference` is nonZero
      */
-    function verifySeedDifferences(
+    function checkForSeedDifference(
         uint256 tokenSeeds,
         uint256 beanSeeds,
         int256 seedDifference
-    ) internal pure returns (bool) {
+    ) public pure returns (bool) {
         if (seedDifference > 0) {
             // bean seeds needs to be greater than the token seeds + seed difference
             // to be valid

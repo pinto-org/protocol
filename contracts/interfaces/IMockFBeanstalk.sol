@@ -1959,4 +1959,6 @@ interface IMockFBeanstalk {
     function mowAll(address account) external;
 
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
+
+    function getSeedsForToken(address token) external view returns (uint256 seeds);
 }
