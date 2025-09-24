@@ -51,7 +51,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         uint256 minTimeBetweenConverts;
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 GrownStalkPerBdvBonusBid;
+        uint256 grownStalkPerBdvBonusBid;
         uint256 minPriceToConvertUp;
         uint256 maxPriceToConvertUp;
         int256 seedDifference;
@@ -197,7 +197,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -322,7 +322,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -545,7 +545,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.99e6,
                 maxPriceToConvertUp: 1.01e6,
                 seedDifference: 0,
@@ -580,7 +580,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -635,7 +635,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -749,7 +749,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -803,7 +803,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: params.minTimeBetweenConverts,
                 minConvertBonusCapacity: params.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,
-                GrownStalkPerBdvBonusBid: params.GrownStalkPerBdvBonusBid,
+                grownStalkPerBdvBonusBid: params.grownStalkPerBdvBonusBid,
                 maxPriceToConvertUp: params.maxPriceToConvertUp,
                 minPriceToConvertUp: params.minPriceToConvertUp,
                 seedDifference: params.seedDifference,
@@ -957,7 +957,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0, // No minimum capacity requirement
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 6e16, // Higher than available 5e16
+                grownStalkPerBdvBonusBid: 6e16, // Higher than available 5e16
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -986,7 +986,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 2000e6, // Higher than available 1000e6
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0, // No minimum stalk per BDV requirement
+                grownStalkPerBdvBonusBid: 0, // No minimum stalk per BDV requirement
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -1012,7 +1012,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 500e6, // Lower than available 1000e6
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 4e16, // Lower than available 5e16
+                grownStalkPerBdvBonusBid: 4e16, // Lower than available 5e16
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -1057,7 +1057,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,
@@ -1131,7 +1131,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 minTimeBetweenConverts: 300,
                 minConvertBonusCapacity: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                GrownStalkPerBdvBonusBid: 0,
+                grownStalkPerBdvBonusBid: 0,
                 minPriceToConvertUp: 0.94e6,
                 maxPriceToConvertUp: 0.99e6,
                 seedDifference: 0,

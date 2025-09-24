@@ -32,6 +32,7 @@ function generateDiamondABI(outputFileName, includeMocks = false) {
       files.push("contracts/libraries/LibEvaluate.sol");
       files.push("contracts/libraries/Silo/LibFlood.sol");
       files.push("contracts/libraries/Sun/LibWeather.sol");
+      files.push("contracts/libraries/Convert/LibConvert.sol");
     }
 
     files.forEach((file) => {
@@ -78,17 +79,17 @@ function generateDiamondABI(outputFileName, includeMocks = false) {
     // Create a unique identifier for each ABI entry
     let identifier;
 
-    if (item.type === 'function') {
+    if (item.type === "function") {
       // For functions, use name + input types to handle overloads properly
-      const inputTypes = item.inputs ? item.inputs.map(input => input.type).join(',') : '';
+      const inputTypes = item.inputs ? item.inputs.map((input) => input.type).join(",") : "";
       identifier = `${item.type}-${item.name}(${inputTypes})`;
-    } else if (item.type === 'event') {
+    } else if (item.type === "event") {
       // For events, use name + input types (events can also be overloaded)
-      const inputTypes = item.inputs ? item.inputs.map(input => input.type).join(',') : '';
+      const inputTypes = item.inputs ? item.inputs.map((input) => input.type).join(",") : "";
       identifier = `${item.type}-${item.name}(${inputTypes})`;
-    } else if (item.type === 'error') {
+    } else if (item.type === "error") {
       // For errors, use name + input types
-      const inputTypes = item.inputs ? item.inputs.map(input => input.type).join(',') : '';
+      const inputTypes = item.inputs ? item.inputs.map((input) => input.type).join(",") : "";
       identifier = `${item.type}-${item.name}(${inputTypes})`;
     } else {
       // For other types (constructor, fallback, receive), use full JSON string

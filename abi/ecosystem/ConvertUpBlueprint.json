@@ -177,7 +177,7 @@
               },
               {
                 "internalType": "uint256",
-                "name": "GrownStalkPerBdvBonusBid",
+                "name": "grownStalkPerBdvBonusBid",
                 "type": "uint256"
               },
               {
@@ -189,6 +189,11 @@
                 "internalType": "uint256",
                 "name": "minPriceToConvertUp",
                 "type": "uint256"
+              },
+              {
+                "internalType": "int256",
+                "name": "seedDifference",
+                "type": "int256"
               },
               {
                 "internalType": "int256",

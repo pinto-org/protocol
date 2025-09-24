@@ -73,7 +73,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      * @param minTimeBetweenConverts Minimum time (in seconds) between convert executions
      * @param minConvertBonusCapacity Minimum capacity required for convert bonus
      * @param maxGrownStalkPerBdv Maximum grown stalk per bdv to withdraw from deposits
-     * @param GrownStalkPerBdvBonusBid The minimum bid for grown stalk per bdv bonus to execute a convert.
+     * @param grownStalkPerBdvBonusBid The minimum bid for grown stalk per bdv bonus to execute a convert.
      * @param maxPriceToConvertUp Maximum price at which to convert up (for MEV resistance)
      * @param minPriceToConvertUp Minimum price at which to convert up (for range targeting)
      * @param seedDifference The difference between the bean seeds and the well seeds needed to convert up. A value of `0` denotes N/A (do not check difference)
@@ -93,7 +93,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         // Bonus/capacity parameters
         uint256 minConvertBonusCapacity;
         uint256 maxGrownStalkPerBdv;
-        uint256 GrownStalkPerBdvBonusBid;
+        uint256 grownStalkPerBdvBonusBid;
         // Price / seed constraints
         uint256 maxPriceToConvertUp;
         uint256 minPriceToConvertUp;
@@ -450,16 +450,16 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         }
 
         // Check convert bonus conditions
-        if (cup.GrownStalkPerBdvBonusBid > 0 || cup.minConvertBonusCapacity > 0) {
+        if (cup.grownStalkPerBdvBonusBid > 0 || cup.minConvertBonusCapacity > 0) {
             // Get current bonus amount and remaining capacity
             uint256 remainingCapacity;
             (bonusStalkPerBdv, remainingCapacity) = beanstalk
                 .getConvertStalkPerBdvBonusAndRemainingCapacity();
 
             // Check if bonus amount meets threshold
-            if (cup.GrownStalkPerBdvBonusBid > 0) {
+            if (cup.grownStalkPerBdvBonusBid > 0) {
                 require(
-                    bonusStalkPerBdv >= cup.GrownStalkPerBdvBonusBid,
+                    bonusStalkPerBdv >= cup.grownStalkPerBdvBonusBid,
                     "Convert bonus amount below threshold"
                 );
             }
