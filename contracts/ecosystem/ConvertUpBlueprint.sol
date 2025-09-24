@@ -229,6 +229,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         // then the remaining deposits.
         filterParams.lowGrownStalkPerBdv = vars.bonusStalkPerBdv;
         filterParams.lowStalkDeposits = params.convertUpParams.lowStalkDeposits;
+        filterParams.seedDifference = params.convertUpParams.seedDifference;
 
         // Get withdrawal plan for the tokens to convert
         vars.withdrawalPlan = siloHelpers.getWithdrawalPlanExcludingPlan(

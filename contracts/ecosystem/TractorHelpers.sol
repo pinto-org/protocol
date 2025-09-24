@@ -266,12 +266,11 @@ contract TractorHelpers {
     function getTokensAscendingSeeds(
         bool excludeBean
     ) public view returns (uint8[] memory tokenIndices, uint256[] memory seeds) {
-        return getTokensAscendingSeedsWithDifference(excludeBean, 0);
+        return getTokens(TokenSort.ASC_SEEDS, excludeBean, 0);
     }
 
     /**
-     * @notice Returns all whitelisted tokens sorted by seed value (ascending)
-     * @param excludeBean If true, excludes the Bean token from the returned arrays
+     * @notice Returns all whitelisted tokens sorted by seed value (ascending), dependent on seedDifference
      * @param seedDifference if nonzero, checks whether the difference between the input token and pinto seeds exceed the difference.
      * @return tokenIndices Array of token indices in the whitelisted tokens array, sorted by seed value (ascending)
      * @return seeds Array of corresponding seed values

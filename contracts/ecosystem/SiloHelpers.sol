@@ -191,7 +191,10 @@ contract SiloHelpers {
                 (tokenIndices, ) = tractorHelpers.getTokensAscendingPrice(filterParams.excludeBean);
             } else if (tokenIndices[0] == LOWEST_SEED_STRATEGY) {
                 // Use ascending seeds strategy
-                (tokenIndices, ) = tractorHelpers.getTokensAscendingSeeds(filterParams.excludeBean);
+                (tokenIndices, ) = tractorHelpers.getTokensAscendingSeedsWithDifference(
+                    filterParams.excludeBean,
+                    filterParams.seedDifference
+                );
             }
         }
 

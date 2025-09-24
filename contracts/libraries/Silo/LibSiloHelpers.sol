@@ -42,6 +42,7 @@ library LibSiloHelpers {
         Mode lowStalkDeposits;
         uint256 lowGrownStalkPerBdv;
         int96 maxStem;
+        int256 seedDifference;
     }
 
     // Struct to hold variables for the combineWithdrawalPlans function
@@ -215,11 +216,12 @@ library LibSiloHelpers {
             FilterParams({
                 maxGrownStalkPerBdv: uint256(int256(type(int96).max)), // any amount of grown stalk per bdv is allowed. Maximum set at int96, as this is used to derive the minStem.
                 minStem: type(int96).min, // include all stems
-                lowGrownStalkPerBdv: 0, // no minimum grown stalk per bdv
-                maxStem: type(int96).max, // include all stems
                 excludeGerminatingDeposits: false, // no germinating deposits are excluded
                 excludeBean: false, // beans are included in the set of deposits.
-                lowStalkDeposits: Mode.USE // the contract will use the smallest stalk deposits normally
+                lowStalkDeposits: Mode.USE, // the contract will use the smallest stalk deposits normally
+                lowGrownStalkPerBdv: 0, // no minimum grown stalk per bdv
+                maxStem: type(int96).max, // include all stems
+                seedDifference: 0 // no seed difference filter by default
             });
     }
 
