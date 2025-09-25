@@ -65,7 +65,12 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      * @param plotIndexes The indices of the plots that were combined
      * @param totalPods The total number of pods in the final combined plot
      */
-    event PlotCombined(address indexed account, uint256 fieldId, uint256[] plotIndexes, uint256 totalPods);
+    event PlotCombined(
+        address indexed account,
+        uint256 fieldId,
+        uint256[] plotIndexes,
+        uint256 totalPods
+    );
 
     //////////////////// SOW ////////////////////
 
