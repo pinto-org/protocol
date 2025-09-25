@@ -58,6 +58,15 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      */
     event Harvest(address indexed account, uint256 fieldId, uint256[] plots, uint256 beans);
 
+    /**
+     * @notice Emitted when `account` combines multiple plot indexes into a single plot.
+     * @param account The account that owns the plots
+     * @param fieldId The field ID where the merging occurred
+     * @param plotIndexes The indices of the plots that were combined
+     * @param totalPods The total number of pods in the final combined plot
+     */
+    event PlotCombined(address indexed account, uint256 fieldId, uint256[] plotIndexes, uint256 totalPods);
+
     //////////////////// SOW ////////////////////
 
     /**
@@ -552,5 +561,6 @@ contract FieldFacet is Invariable, ReentrancyGuard {
 
         // update first plot with combined pods
         s.accts[account].fields[fieldId].plots[plotIndexes[0]] = totalPods;
+        emit PlotCombined(account, fieldId, plotIndexes, totalPods);
     }
 }
