@@ -499,7 +499,11 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         assertEq(plotIndexesAfterCombine[0], 0, "plot index should be 0");
 
         // assert piIndex for combined plot is correct
-        assertEq(bs.getPiIndexFromAccount(state.user, bs.activeField(), 0), 0, "piIndex should be 0");
+        assertEq(
+            bs.getPiIndexFromAccount(state.user, bs.activeField(), 0),
+            0,
+            "piIndex should be 0"
+        );
     }
 
     function test_mergeAdjacentPlotsMultiple() public {
@@ -577,8 +581,16 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             "final plot index"
         );
         // assert piIndex for both final plots are correct
-        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, 0), 0, "first piIndex should be 0");
-        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, 5000500000), 1, "second piIndex should be 1");
+        assertEq(
+            bs.getPiIndexFromAccount(farmers[0], activeField, 0),
+            0,
+            "first piIndex should be 0"
+        );
+        assertEq(
+            bs.getPiIndexFromAccount(farmers[0], activeField, 5000500000),
+            1,
+            "second piIndex should be 1"
+        );
 
         // get total pods from account 1
         uint256 totalPodsAfter = getTotalPodsFromAccount(farmers[0]);
