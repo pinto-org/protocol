@@ -46,7 +46,7 @@ module.exports = function () {
         const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
         await mintEth(deployer.address);
 
-        const BEANSTALK_PRICE = "0xd0fd333f7b30c7925debd81b7b7a4dfe106c3a5e";
+        const BEANSTALK_PRICE = await hre.run("deployBeanstalkPrice");
 
         // Deploy LibSiloHelpers library first
         console.log("Deploying LibSiloHelpers library...");
@@ -110,6 +110,7 @@ module.exports = function () {
         await convertUpBlueprint.deployed();
 
         console.log("\n=== Deployment Summary ===");
+        console.log("BeanstalkPrice:", BEANSTALK_PRICE);
         console.log("PriceManipulation:", priceManipulationContract.address);
         console.log("SiloHelpers:", siloHelpersContract.address);
         console.log("TractorHelpers:", tractorHelpersContract.address);
@@ -256,6 +257,18 @@ module.exports = function () {
         console.error("\x1b[31mError during deployment:\x1b[0m", error);
         process.exit(1);
       }
+    }
+  );
+
+  task("deployBeanstalkPrice", "Deploys the BeanstalkPrice contract").setAction(
+    async (args, { network, ethers }) => {
+      const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+      await mintEth(deployer.address);
+      const beanstalkPrice = await ethers.getContractFactory("BeanstalkPrice");
+      const beanstalkPriceContract = await beanstalkPrice.deploy(L2_PINTO);
+      await beanstalkPriceContract.deployed();
+      console.log("BeanstalkPrice deployed to:", beanstalkPriceContract.address);
+      return beanstalkPriceContract.address;
     }
   );
 
