@@ -1120,6 +1120,12 @@ interface IMockFBeanstalk {
         uint256 fieldId
     ) external view returns (uint256);
 
+    function getPiIndexFromAccount(
+        address account,
+        uint256 fieldId,
+        uint256 index
+    ) external view returns (uint256);
+
     function getPlotMerkleRoot() external pure returns (bytes32);
 
     function getPlotsFromAccount(
