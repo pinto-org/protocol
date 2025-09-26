@@ -13,12 +13,19 @@ require("./tasks")();
 
 // used in the UI to run the latest upgrade
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
+  const order = true;
   // compile contracts.
   await hre.run("compile");
   // deploy PI-13
   await hre.run("PI-13");
   // deploy convert up blueprint
+  // dev: should be deployed to : 0x53B7cF2a4A18062aFF4fA71Bb300F6eA2d3702E2 for testing purposes.
   await hre.run("deployConvertUpBlueprint");
+  if (order) {
+    await hre.run("create-mock-convert-up-orders", {
+      execute: true
+    });
+  }
 });
 
 //////////////////////// CONFIGURATION ////////////////////////

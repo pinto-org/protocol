@@ -22,6 +22,7 @@ async function addLiquidityAndTransfer(
   verbose = true,
   deposit
 ) {
+  await mintEth(account.address);
   const pinto = await ethers.getContractAt("BeanstalkERC20", PINTO);
 
   console.log(`-----------------------------------`);
@@ -55,12 +56,15 @@ async function addLiquidityAndTransfer(
   console.log(`Approving tokens for ${wellAddress}`);
   // log balance of account
   const tokenName = addressToNameMap[wellTokens[1]];
+  console.log(`Token name: ${tokenName}`);
   // approve tokens for well
   await nonPintoToken.connect(account).approve(well.address, MAX_UINT256);
   await pinto.connect(account).approve(well.address, MAX_UINT256);
+  console.log("done done");
 
   // add liquidity to well, send to receiver:
   console.log(`Adding liquidity to ${well.address} and performing an update to the well pump.`);
+  console.log(`Pinto amount: ${pintoAmount}`, `Non pinto amount: ${nonPintoAmount}`);
   const minAmount = 0;
   await well
     .connect(account)

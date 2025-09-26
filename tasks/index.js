@@ -9,4 +9,5 @@ module.exports = function () {
   require("./utilities")();
   require("./verification")();
   require("./abi-generation")();
+  require("./tractor")();
 };

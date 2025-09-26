@@ -5,7 +5,7 @@ pragma abicoder v2;
 import {TestHelper, IMockFBeanstalk, MockToken, C, IWell} from "test/foundry/utils/TestHelper.sol";
 import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 import {MockLiquidityWeight} from "contracts/mocks/MockLiquidityWeight.sol";
-import {GaugePriceThreshold} from "contracts/ecosystem/GaugePriceThreshold.sol";
+import {GaugePriceThreshold} from "contracts/ecosystem/gaugePoints/GaugePriceThreshold.sol";
 
 /**
  * @notice Tests the functionality of the gauge.

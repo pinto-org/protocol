@@ -40,6 +40,11 @@ const addressAllowanceSlotMap = {
   "0x1C61629598e4a901136a81BC138E5828dc150d67": 6
 };
 
+const tractorToAddressMap = {
+  SowBlueprint: "0xbb0a41927895F8ca2b4ECCc659ba158735fCF28B",
+  ConvertUpBlueprint: "0x53B7cF2a4A18062aFF4fA71Bb300F6eA2d3702E2"
+};
+
 // Wells
 const PINTO_WETH_WELL_BASE = "0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3";
 const PINTO_CBETH_WELL_BASE = "0x3e111115A82dF6190e36ADf0d552880663A4dBF1";
@@ -111,6 +116,10 @@ module.exports = {
   LSD_CHAINLINK_ORACLE: "0xCCCCCC35b53c8a16404Ae414AFa31F30A5B35626",
   SHIPMENT_PLANNER: "0x555555987d98079b9f43CDcDBD52DbB24FfEEef5",
 
+  // Tractor:
+  SOW_BLUEPRINT: tractorToAddressMap["SowBlueprint"],
+  CONVERT_UP_BLUEPRINT: tractorToAddressMap["ConvertUpBlueprint"],
+
   //////////////////////// BASE ////////////////////////
   // Pinto
   L2_PINTO: "0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f",
@@ -156,6 +165,7 @@ module.exports = {
   nameToAddressMap,
   addressToBalanceSlotMap,
   addressAllowanceSlotMap,
+  tractorToAddressMap,
 
   wellToNonPintoTokenMap: {
     [PINTO_WETH_WELL_BASE]: nameToAddressMap["WETH"],

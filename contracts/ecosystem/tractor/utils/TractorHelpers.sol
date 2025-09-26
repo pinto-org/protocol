@@ -2,12 +2,12 @@
 pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
+import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
-import {BeanstalkPrice, P} from "./price/BeanstalkPrice.sol";
-import {ReservesType} from "./price/WellPrice.sol";
+import {BeanstalkPrice, P} from "../../price/BeanstalkPrice.sol";
+import {ReservesType} from "../../price/WellPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {IOperatorWhitelist} from "./OperatorWhitelist.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {console} from "forge-std/console.sol";
 
