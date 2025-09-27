@@ -663,6 +663,7 @@ contract FieldTest is TestHelper {
      */
     function test_mergeAdjacentPlotsSimple() public {
         uint256 activeField = bs.activeField();
+        mintTokensToUser(farmers[0], BEAN, 1000e6);
         uint256[] memory plotIndexes = setUpMultipleConsecutiveAccountPlots(farmers[0], 1000e6, 10);
         IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(farmers[0], bs.activeField());
         uint256 totalPodsBeforeCombine = 0;

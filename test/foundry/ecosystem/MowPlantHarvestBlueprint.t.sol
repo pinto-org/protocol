@@ -25,6 +25,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
     event Harvest(address indexed account, uint256 fieldId, uint256[] plots, uint256 beans);
 
     uint256 STALK_DECIMALS = 1e10;
+    int256 DEFAULT_TIP_AMOUNT = 10e6; // 10 BEAN
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
 
     struct TestState {
@@ -77,11 +78,17 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         advanceSeason();
     }
 
-    // Break out the setup into a separate function
+    /**
+     * @notice Setup the test state for the MowPlantHarvestBlueprint test
+     * @param setupPlant If true, setup the conditions for planting
+     * @param setupHarvest If true, setup the conditions for harvesting
+     * @param abovePeg If true, setup the conditions for above peg
+     * @return TestState The test state
+     */
     function setupMowPlantHarvestBlueprintTest(
-        bool setupPlant, // if setupPlant, set up conditions for planting
-        bool setupHarvest, // if setupHarvest, set up conditions for harvesting
-        bool abovePeg // if above peg, set up conditions for above peg
+        bool setupPlant,
+        bool setupHarvest,
+        bool abovePeg
     ) internal returns (TestState memory) {
         // Create test state
         TestState memory state;
@@ -91,58 +98,32 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         state.initialUserBeanBalance = IERC20(state.beanToken).balanceOf(state.user);
         state.initialOperatorBeanBalance = bs.getInternalBalance(state.operator, state.beanToken);
         state.mintAmount = 110000e6; // 100k for deposit, 10k for sow
-        state.mowTipAmount = 10e6; // 10 BEAN
-        state.plantTipAmount = 10e6; // 10 BEAN
-        state.harvestTipAmount = 10e6; // 10 BEAN
+        state.mowTipAmount = DEFAULT_TIP_AMOUNT; // 10 BEAN
+        state.plantTipAmount = DEFAULT_TIP_AMOUNT;
+        state.harvestTipAmount = DEFAULT_TIP_AMOUNT;
 
         // Mint 2x the amount to ensure we have enough for all test cases
         mintTokensToUser(state.user, state.beanToken, state.mintAmount);
         // Mint some to farmer 2 for plot tests
         mintTokensToUser(farmers[1], state.beanToken, 10000000e6);
 
-        vm.prank(state.user);
+        // Deposit beans for user
+        vm.startPrank(state.user);
         IERC20(state.beanToken).approve(address(bs), type(uint256).max);
-
-        vm.prank(state.user);
         bs.deposit(state.beanToken, state.mintAmount - 10000e6, uint8(LibTransfer.From.EXTERNAL));
+        vm.stopPrank();
 
         // For farmer 1, deposit 1000e6 beans, and mint them 1000e6 beans
         mintTokensToUser(farmers[1], state.beanToken, 1000e6);
         vm.prank(farmers[1]);
         bs.deposit(state.beanToken, 1000e6, uint8(LibTransfer.From.EXTERNAL));
 
-        // Add liquidity to manipulate deltaB
-        addLiquidityToWell(
-            BEAN_ETH_WELL,
-            abovePeg ? 10000e6 : 10010e6, // 10,000 Beans if above peg, 10,010 Beans if below peg
-            abovePeg ? 11 ether : 10 ether // 11 eth if above peg, 10 ether. if below peg
-        );
-        addLiquidityToWell(
-            BEAN_WSTETH_WELL,
-            abovePeg ? 10000e6 : 10010e6, // 10,010 Beans if above peg, 10,000 Beans if below peg
-            abovePeg ? 11 ether : 10 ether // 11 eth if above peg, 10 ether. if below peg
-        );
+        // Set liquidity in the whitelisted wells to manipulate deltaB
+        setPegConditions(abovePeg);
 
-        if (setupPlant) {
-            // advance season 2 times to get rid of germination
-            advanceSeason();
-            advanceSeason();
-        }
+        if (setupPlant) skipGermination();
 
-        if (setupHarvest) {
-            // set soil to 1000e6
-            bs.setSoilE(1000e6);
-            // sow 1000e6 beans 2 times of 500e6 each
-            vm.prank(state.user);
-            bs.sow(500e6, 0, uint8(LibTransfer.From.EXTERNAL));
-            vm.prank(state.user);
-            bs.sow(500e6, 0, uint8(LibTransfer.From.EXTERNAL));
-            // print users plots
-            IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(
-                state.user,
-                bs.activeField()
-            );
-        }
+        if (setupHarvest) setHarvestConditions(state.user);
 
         return state;
     }
@@ -446,5 +427,43 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         warpToNextSeasonTimestamp();
         bs.sunrise();
         updateAllChainlinkOraclesWithPreviousData();
+    }
+
+    /**
+     * @notice Set the peg conditions for the whitelisted wells
+     * @param abovePeg If true, set the conditions for above peg
+     */
+    function setPegConditions(bool abovePeg) internal {
+        addLiquidityToWell(
+            BEAN_ETH_WELL,
+            abovePeg ? 10000e6 : 10010e6, // 10,000 Beans if above peg, 10,010 Beans if below peg
+            abovePeg ? 11 ether : 10 ether // 11 eth if above peg, 10 ether. if below peg
+        );
+        addLiquidityToWell(
+            BEAN_WSTETH_WELL,
+            abovePeg ? 10000e6 : 10010e6, // 10,010 Beans if above peg, 10,000 Beans if below peg
+            abovePeg ? 11 ether : 10 ether // 11 eth if above peg, 10 ether. if below peg
+        );
+    }
+
+    /**
+     * @notice Sows beans so that the tractor user can harvest later
+     */
+    function setHarvestConditions(address account) internal {
+        // set soil to 1000e6
+        bs.setSoilE(1000e6);
+        // sow 1000e6 beans 2 times of 500e6 each
+        vm.prank(account);
+        bs.sow(500e6, 0, uint8(LibTransfer.From.EXTERNAL));
+        vm.prank(account);
+        bs.sow(500e6, 0, uint8(LibTransfer.From.EXTERNAL));
+    }
+
+    /**
+     * @notice Skip the germination process by advancing season 2 times
+     */
+    function skipGermination() internal {
+        advanceSeason();
+        advanceSeason();
     }
 }
