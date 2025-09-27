@@ -81,7 +81,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         address account;
         address tipAddress;
         address beanToken;
-        uint256 totalBeanTip;
+        int256 totalBeanTip;
         uint256 totalClaimableStalk;
         uint256 totalPlantableBeans;
         uint256 totalHarvestablePods;
@@ -144,13 +144,13 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // Execute operations in order: mow first (if needed), then plant, then harvest
         if (vars.shouldMow) {
             beanstalk.mowAll(vars.account);
-            vars.totalBeanTip += uint256(params.opParams.mowTipAmount);
+            vars.totalBeanTip += params.opParams.mowTipAmount;
         }
 
         // Plant if the conditions are met
         if (vars.shouldPlant) {
             beanstalk.plant();
-            vars.totalBeanTip += uint256(params.opParams.plantTipAmount);
+            vars.totalBeanTip += params.opParams.plantTipAmount;
         }
 
         // Harvest if the conditions are met
@@ -162,7 +162,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             );
             // pull from the harvest destination and deposit into silo
             beanstalk.deposit(vars.beanToken, harvestedBeans, LibTransfer.From.INTERNAL);
-            vars.totalBeanTip += uint256(params.opParams.harvestTipAmount);
+            vars.totalBeanTip += params.opParams.harvestTipAmount;
         }
 
         // Enforce the withdrawal plan and tip the total bean amount
@@ -351,14 +351,14 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         if (params.opParams.mowTipAmount >= 0) {
             require(
                 params.mowPlantHarvestParams.minPlantAmount > uint256(params.opParams.mowTipAmount),
-                "Min plant amount must be greater than mow tip amount"
+                "Min plant amount must be greater than plant tip amount"
             );
         }
         if (params.opParams.plantTipAmount >= 0) {
             require(
                 params.mowPlantHarvestParams.minHarvestAmount >
                     uint256(params.opParams.plantTipAmount),
-                "Min harvest amount must be greater than plant tip amount"
+                "Min harvest amount must be greater than harvest tip amount"
             );
         }
     }
@@ -379,7 +379,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         address tipAddress,
         address beanToken,
         uint8[] memory sourceTokenIndices,
-        uint256 totalBeanTip,
+        int256 totalBeanTip,
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio,
         LibTractorHelpers.WithdrawalPlan memory plan
@@ -389,7 +389,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             .getWithdrawalPlanExcludingPlan(
                 account,
                 sourceTokenIndices,
-                totalBeanTip,
+                uint256(totalBeanTip),
                 maxGrownStalkPerBdv,
                 plan // passed in plan is empty
             );
@@ -398,7 +398,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         tractorHelpers.withdrawBeansFromSources(
             account,
             sourceTokenIndices,
-            totalBeanTip,
+            uint256(totalBeanTip),
             maxGrownStalkPerBdv,
             slippageRatio,
             LibTransfer.To.INTERNAL,
@@ -410,7 +410,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             beanToken,
             account,
             tipAddress,
-            int256(totalBeanTip),
+            totalBeanTip,
             LibTransfer.From.INTERNAL,
             LibTransfer.To.INTERNAL
         );

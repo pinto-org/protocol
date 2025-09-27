@@ -64,6 +64,14 @@ contract TractorHelper is TestHelper {
             });
     }
 
+    function publishAccountRequisition(
+        address account,
+        IMockFBeanstalk.Requisition memory req
+    ) internal {
+        vm.prank(account);
+        bs.publishRequisition(req);
+    }
+
     function executeRequisition(
         address user,
         IMockFBeanstalk.Requisition memory req,
@@ -196,8 +204,7 @@ contract TractorHelper is TestHelper {
         );
 
         // Publish the requisition
-        vm.prank(account);
-        bs.publishRequisition(req);
+        publishAccountRequisition(account, req);
 
         return (req, params);
     }
@@ -289,7 +296,9 @@ contract TractorHelper is TestHelper {
         uint256 minPlantAmount,
         uint256 minHarvestAmount,
         address tipAddress,
-        int256 operatorTipAmount,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount,
         uint256 maxGrownStalkPerBdv
     )
         internal
@@ -306,7 +315,9 @@ contract TractorHelper is TestHelper {
             minPlantAmount,
             minHarvestAmount,
             tipAddress,
-            operatorTipAmount,
+            mowTipAmount,
+            plantTipAmount,
+            harvestTipAmount,
             maxGrownStalkPerBdv
         );
 
@@ -321,8 +332,7 @@ contract TractorHelper is TestHelper {
         );
 
         // publish requisition
-        vm.prank(account);
-        bs.publishRequisition(req);
+        publishAccountRequisition(account, req);
 
         return (req, params);
     }
@@ -335,7 +345,9 @@ contract TractorHelper is TestHelper {
         uint256 minPlantAmount,
         uint256 minHarvestAmount,
         address tipAddress,
-        int256 operatorTipAmount,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount,
         uint256 maxGrownStalkPerBdv
     ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {
         // Create default whitelisted operators array with msg.sender
@@ -373,13 +385,22 @@ contract TractorHelper is TestHelper {
         BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOps,
             tipAddress: tipAddress,
-            operatorTipAmount: operatorTipAmount
+            operatorTipAmount: 0 // plain operator tip amount is not used in this blueprint
         });
+
+        // Create OperatorParamsExtended struct
+        MowPlantHarvestBlueprint.OperatorParamsExtended
+            memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
+                opParamsBase: opParams,
+                mowTipAmount: mowTipAmount,
+                plantTipAmount: plantTipAmount,
+                harvestTipAmount: harvestTipAmount
+            });
 
         return
             MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
                 mowPlantHarvestParams: mowPlantHarvestParams,
-                opParams: opParams
+                opParams: opParamsExtended
             });
     }
 

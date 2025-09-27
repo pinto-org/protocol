@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -653,5 +654,165 @@ contract FieldTest is TestHelper {
         vm.prank(farmers[1]);
         vm.expectRevert("Field: Insufficient approval.");
         bs.transferPlots(farmers[0], farmers[1], activeField, indexes, starts, ends);
+    }
+
+    /////////// Merge plots ///////////
+
+    /**
+     * @notice  Tests merging of plots from a farmer with 10 sows of 100 beans each at 1% temp
+     */
+    function test_mergeAdjacentPlotsSimple() public {
+        uint256 activeField = bs.activeField();
+        uint256[] memory plotIndexes = setUpMultipleConsecutiveAccountPlots(farmers[0], 1000e6, 10);
+        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(farmers[0], bs.activeField());
+        uint256 totalPodsBeforeCombine = 0;
+        for (uint256 i = 0; i < plots.length; i++) {
+            totalPodsBeforeCombine += plots[i].pods;
+        }
+        assertEq(plots.length, 10);
+        // combine all plots into one
+        bs.combinePlots(farmers[0], activeField, plotIndexes);
+
+        // assert user has 1 plot
+        plots = bs.getPlotsFromAccount(farmers[0], activeField);
+        assertEq(plots.length, 1);
+        assertEq(plots[0].index, 0);
+        assertEq(plots[0].pods, totalPodsBeforeCombine);
+
+        // assert plot indexes length is 1
+        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 1);
+
+        // assert plot indexes is 0
+        uint256[] memory plotIndexesAfterCombine = bs.getPlotIndexesFromAccount(
+            farmers[0],
+            activeField
+        );
+        assertEq(plotIndexesAfterCombine.length, 1);
+        assertEq(plotIndexesAfterCombine[0], 0);
+
+        // assert piIndex for combined plot is correct
+        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, 0), 0);
+    }
+
+    /**
+     * @notice Tests merging 2 sets of multiple non-adjacent plots
+     */
+    function test_mergeAdjacentPlotsMultiple() public {
+        // setup non-adjacent plots for farmer 1
+        uint256 sowAmount = 1000e6;
+        uint256 firstAccountSows = 3; // plots 1-3 for farmer 0
+        uint256 lastAccountSows = 2; // plots 5-6 for farmer 0
+        uint256 gapSows = 2; // plots 3-5 for farmer 1
+        uint256[] memory account1PlotIndexes = setUpNonAdjacentPlots(
+            farmers[0],
+            farmers[1],
+            sowAmount,
+            firstAccountSows,
+            lastAccountSows,
+            gapSows
+        );
+        uint256 totalPodsBefore = getTotalPodsFromAccount(farmers[0]);
+
+        // try to combine plots, expect revert since plots are not adjacent
+        uint256 activeField = bs.activeField();
+        vm.expectRevert("Field: Plots to combine not adjacent");
+        bs.combinePlots(farmers[0], activeField, account1PlotIndexes);
+
+        // merge adjacent plots in pairs (indexes 1-3)
+        uint256[] memory adjacentPlotIndexes = new uint256[](3);
+        adjacentPlotIndexes[0] = account1PlotIndexes[0];
+        adjacentPlotIndexes[1] = account1PlotIndexes[1];
+        adjacentPlotIndexes[2] = account1PlotIndexes[2];
+        bs.combinePlots(farmers[0], activeField, adjacentPlotIndexes);
+        // assert user has 3 plots (1 from the 3 merged, 2 from the original)
+        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 3);
+        // assert first plot index is 0 after merge
+        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[0], 0);
+        // assert piIndex for first combined plot is correct
+        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, 0), 0);
+
+        // plots for farmer 2 should remain unchanged in the middle of the queue
+        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[1], activeField), 2);
+
+        // merge adjacent plots in pairs (indexes 5-6)
+        adjacentPlotIndexes = new uint256[](2);
+        adjacentPlotIndexes[0] = account1PlotIndexes[3];
+        adjacentPlotIndexes[1] = account1PlotIndexes[4];
+        bs.combinePlots(farmers[0], activeField, adjacentPlotIndexes);
+        // assert user has 2 plots (1 from the 2 merged, 1 from the 3 original merged)
+        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 2);
+        // assert first plot index remains the same after 2nd merge
+        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[0], 0);
+        // final plot should start from the next to last previous plot index
+        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[1], 5000500000);
+        // assert piIndex for both final plots are correct
+        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, 0), 0);
+        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, 5000500000), 1);
+
+        // get total pods from account 1
+        uint256 totalPodsAfter = getTotalPodsFromAccount(farmers[0]);
+        // assert total pods after merge is the same as before merge
+        assertEq(totalPodsAfter, totalPodsBefore);
+    }
+
+    /**
+     * @dev Creates multiple consecutive plots for an account of size totalSoil/sowCount
+     */
+    function setUpMultipleConsecutiveAccountPlots(
+        address account,
+        uint256 totalSoil,
+        uint256 sowCount
+    ) internal returns (uint256[] memory plotIndexes) {
+        // set soil to totalSoil
+        bs.setSoilE(totalSoil);
+        // sow totalSoil beans sowCount times of totalSoil/sowCount each
+        uint256 sowAmount = totalSoil / sowCount;
+        for (uint256 i = 0; i < sowCount; i++) {
+            vm.prank(account);
+            bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+        }
+        plotIndexes = bs.getPlotIndexesFromAccount(account, bs.activeField());
+        return plotIndexes;
+    }
+
+    /**
+     * @dev Creates non-adjacent plots by having account1 sow, then account2 sow in between
+     */
+    function setUpNonAdjacentPlots(
+        address account1,
+        address account2,
+        uint256 sowAmount,
+        uint256 firstAccountSows,
+        uint256 lastAccountSows,
+        uint256 gapSows
+    ) internal returns (uint256[] memory plotIndexes) {
+        // Account1 sows 3 consecutive plots
+        setSoilAndSow(account1, firstAccountSows, sowAmount);
+        // Account2 sows 2 plots to create gaps in account1's sequence
+        setSoilAndSow(account2, gapSows, sowAmount);
+        // Account1 sows 2 more plots (now non-adjacent to first 3)
+        setSoilAndSow(account1, lastAccountSows, sowAmount);
+        // Get plot indexes
+        plotIndexes = bs.getPlotIndexesFromAccount(account1, bs.activeField());
+        return plotIndexes;
+    }
+
+    function getTotalPodsFromAccount(address account) internal view returns (uint256 totalPods) {
+        uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, bs.activeField());
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            totalPods += bs.plot(account, bs.activeField(), plotIndexes[i]);
+        }
+        return totalPods;
+    }
+
+    function setSoilAndSow(address account, uint256 iterations, uint256 sowAmount) internal {
+        mintTokensToUser(account, BEAN, sowAmount * iterations);
+        vm.prank(account);
+        IERC20(BEAN).approve(address(bs), type(uint256).max);
+        bs.setSoilE(sowAmount * iterations);
+        for (uint256 i = 0; i < iterations; i++) {
+            vm.prank(account);
+            bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+        }
     }
 }
