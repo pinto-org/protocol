@@ -3,14 +3,14 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {TractorHelpers} from "./TractorHelpers.sol";
-import {PerFunctionPausable} from "./PerFunctionPausable.sol";
-import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
+import {TractorHelpers} from "../utils/TractorHelpers.sol";
+import {PerFunctionPausable} from "../utils/PerFunctionPausable.sol";
+import {BeanstalkPrice} from "../../price/BeanstalkPrice.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
-import {ReservesType} from "./price/WellPrice.sol";
-import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
-import {SiloHelpers} from "./SiloHelpers.sol";
+import {ReservesType} from "../../price/WellPrice.sol";
+import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
+import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title ConvertUpBlueprint

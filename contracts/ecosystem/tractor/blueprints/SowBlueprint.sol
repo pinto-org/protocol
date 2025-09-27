@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {TractorHelpers} from "./TractorHelpers.sol";
-import {PerFunctionPausable} from "./PerFunctionPausable.sol";
+import {TractorHelpers} from "../utils/TractorHelpers.sol";
+import {PerFunctionPausable} from "../utils/PerFunctionPausable.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {SiloHelpers} from "./SiloHelpers.sol";
+import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title SowBlueprint

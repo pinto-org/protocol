@@ -3,10 +3,10 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
-import {SowBlueprint} from "contracts/ecosystem/SowBlueprint.sol";
-import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
+import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 
 contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
