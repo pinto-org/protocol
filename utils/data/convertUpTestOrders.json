@@ -23,7 +23,7 @@
             "slippageRatio": "10000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "1000000000000000000"
@@ -53,7 +53,7 @@
             "slippageRatio": "15000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2000000000000000000"
@@ -77,7 +77,7 @@
             "slippageRatio": "12000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "1500000000000000000"
@@ -107,7 +107,7 @@
             "slippageRatio": "20000000000000000",
             "lowStalkDeposits": 2
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "3000000000000000000"
@@ -131,7 +131,7 @@
             "slippageRatio": "18000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2500000000000000000"
@@ -155,7 +155,7 @@
             "slippageRatio": "16000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2000000000000000000"
@@ -185,9 +185,9 @@
             "slippageRatio": "25000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
-            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "tipAddress": "0x0000000000000000000000000000000000000001",
             "operatorTipAmount": "4000000000000000000"
           }
         },
@@ -209,7 +209,7 @@
             "slippageRatio": "22000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "3500000000000000000"
@@ -233,7 +233,7 @@
             "slippageRatio": "20000000000000000",
             "lowStalkDeposits": 2
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "3000000000000000000"
@@ -257,7 +257,7 @@
             "slippageRatio": "18000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2500000000000000000"
@@ -281,7 +281,7 @@
             "slippageRatio": "16000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2000000000000000000"
@@ -311,7 +311,7 @@
             "slippageRatio": "30000000000000000",
             "lowStalkDeposits": 2
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "5000000000000000000"
@@ -335,7 +335,7 @@
             "slippageRatio": "28000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "4500000000000000000"
@@ -359,7 +359,7 @@
             "slippageRatio": "26000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "4000000000000000000"
@@ -383,7 +383,7 @@
             "slippageRatio": "24000000000000000",
             "lowStalkDeposits": 2
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "3500000000000000000"
@@ -407,7 +407,7 @@
             "slippageRatio": "22000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "3000000000000000000"
@@ -431,7 +431,7 @@
             "slippageRatio": "20000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2500000000000000000"
@@ -455,7 +455,7 @@
             "slippageRatio": "18000000000000000",
             "lowStalkDeposits": 1
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "2000000000000000000"
@@ -479,7 +479,7 @@
             "slippageRatio": "16000000000000000",
             "lowStalkDeposits": 2
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "1500000000000000000"
@@ -503,7 +503,7 @@
             "slippageRatio": "14000000000000000",
             "lowStalkDeposits": 0
           },
-          "operatorParams": {
+          "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
             "operatorTipAmount": "1000000000000000000"

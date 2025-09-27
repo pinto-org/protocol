@@ -142,7 +142,7 @@ async function createTractorData(blueprintName, blueprintStructData, hre) {
   const advancedFarmCall = [
     {
       callData: advancedPipeFunctionCalldata,
-      clipboard: "0x0000"
+      clipboard: "0x"
     }
   ];
   const advancedFarmFunctionCalldata = farmFacetInterface.encodeFunctionData("advancedFarm", [
@@ -230,7 +230,6 @@ async function signBlueprint(blueprintData, options = {}) {
     chainId,
     beanstalkAddress
   );
-  console.log(`Blueprint hash: ${blueprintHash}`);
 
   // EIP-712 signing
   const domain = {
@@ -303,14 +302,11 @@ async function setupAddressWithLPTokens(address, amount, hre, wellAddresses, ver
       const beanAmount = BigInt(amount);
 
       const reserve0Normalized = parseFloat(ethers.utils.formatUnits(reserves[0], token0Decimals));
-      console.log(`Reserve 0 normalized: ${reserve0Normalized}`);
       const reserve1Normalized = parseFloat(ethers.utils.formatUnits(reserves[1], token1Decimals));
-      console.log(`Reserve 1 normalized: ${reserve1Normalized}`);
       let token1Amount = (Number(beanAmount) * reserve1Normalized) / reserve0Normalized;
       // Truncate to token1Decimals precision
       token1Amount =
         Math.floor(token1Amount * Math.pow(10, token1Decimals)) / Math.pow(10, token1Decimals);
-      console.log(`Token 1 amount: ${token1Amount}`);
 
       // Use the addLiquidity task to handle minting and liquidity addition
 
@@ -530,11 +526,7 @@ module.exports = function () {
           mock: true
         });
         log(verbose, `✓ Blueprint signed with hash: ${requisition.blueprintHash}`);
-
-        if (taskArgs.output) {
-          fs.writeFileSync(taskArgs.output, JSON.stringify(requisition, null, 2));
-          log(verbose, `📁 Saved to: ${taskArgs.output}`);
-        } else if (verbose) {
+        if (verbose) {
           console.log("\n📄 Requisition JSON:");
           console.log(JSON.stringify(requisition, null, 2));
         }
@@ -836,9 +828,9 @@ module.exports = function () {
                 lowStalkDeposits: order.convertUpParams.lowStalkDeposits
               },
               opParams: {
-                whitelistedOperators: order.operatorParams.whitelistedOperators,
-                tipAddress: order.operatorParams.tipAddress,
-                operatorTipAmount: order.operatorParams.operatorTipAmount
+                whitelistedOperators: order.opParams.whitelistedOperators,
+                tipAddress: order.opParams.tipAddress,
+                operatorTipAmount: order.opParams.operatorTipAmount
               }
             };
 
@@ -868,15 +860,6 @@ module.exports = function () {
                   verbose,
                   `✓ Published requisition ${order.orderId} - TX: ${publishReceipt.transactionHash}`
                 );
-
-                // Save the requisition to file for later execution
-                const requisitionsDir = "./tasks/requisition";
-                if (!fs.existsSync(requisitionsDir)) {
-                  fs.mkdirSync(requisitionsDir, { recursive: true });
-                }
-                const requisitionFile = `${requisitionsDir}/convertUp-order-${order.orderId}-${Date.now()}.json`;
-                fs.writeFileSync(requisitionFile, JSON.stringify(requisition, null, 2));
-                log(verbose, `📁 Saved requisition to: ${requisitionFile}`);
               } catch (error) {
                 console.error(`❌ Failed to execute order ${order.orderId}: ${error.message}`);
               }
@@ -919,5 +902,14 @@ module.exports = function () {
         console.error(`❌ Error setting up test orders: ${error.message}`);
         throw error;
       }
+    });
+
+  task("execute-convert-up-orders", "Execute ConvertUpBlueprint orders")
+    .addParam("orderId", "Order ID to execute")
+    .setAction(async (taskArgs, hre) => {
+      const { ethers } = hre;
+      const orderId = taskArgs.orderId;
+      const order = config.addresses[orderId];
+      await executeConvertUpOrder(order, hre);
     });
 };
