@@ -348,16 +348,17 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Blueprint specific validations
         // Validate that minPlantAmount and minHarvestAmount result in profit after their respective tips
-        if (params.opParams.mowTipAmount >= 0) {
+        if (params.opParams.plantTipAmount >= 0) {
             require(
-                params.mowPlantHarvestParams.minPlantAmount > uint256(params.opParams.mowTipAmount),
+                params.mowPlantHarvestParams.minPlantAmount >
+                    uint256(params.opParams.plantTipAmount),
                 "Min plant amount must be greater than plant tip amount"
             );
         }
-        if (params.opParams.plantTipAmount >= 0) {
+        if (params.opParams.harvestTipAmount >= 0) {
             require(
                 params.mowPlantHarvestParams.minHarvestAmount >
-                    uint256(params.opParams.plantTipAmount),
+                    uint256(params.opParams.harvestTipAmount),
                 "Min harvest amount must be greater than harvest tip amount"
             );
         }
