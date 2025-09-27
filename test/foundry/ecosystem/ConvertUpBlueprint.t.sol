@@ -749,32 +749,39 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
         // Create blueprint once and reuse it
-        (IMockFBeanstalk.Requisition memory req, ) = setupConvertUpBlueprintBlueprint(
-            BlueprintParams({
-                user: state.user,
-                sourceTokenIndices: sourceTokenIndices,
-                totalBeanAmountToConvert: totalConvertBdv,
-                minBeansConvertPerExecution: maxPerExecution,
-                maxBeansConvertPerExecution: maxPerExecution,
-                minTimeBetweenConverts: 300,
-                minConvertBonusCapacity: 0,
-                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-                grownStalkPerBdvBonusBid: 0,
-                minPriceToConvertUp: 0.94e6,
-                maxPriceToConvertUp: 0.99e6,
-                seedDifference: 0,
-                maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
-                slippageRatio: 0.01e18,
-                tipAmount: int256(tipAmount),
-                tipAddress: state.operator
-            })
-        );
+        (
+            IMockFBeanstalk.Requisition memory req,
+            ConvertUpBlueprint.ConvertUpBlueprintStruct memory params
+        ) = setupConvertUpBlueprintBlueprint(
+                BlueprintParams({
+                    user: state.user,
+                    sourceTokenIndices: sourceTokenIndices,
+                    totalBeanAmountToConvert: totalConvertBdv,
+                    minBeansConvertPerExecution: maxPerExecution,
+                    maxBeansConvertPerExecution: maxPerExecution,
+                    minTimeBetweenConverts: 300,
+                    minConvertBonusCapacity: 0,
+                    maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                    grownStalkPerBdvBonusBid: 0,
+                    minPriceToConvertUp: 0.94e6,
+                    maxPriceToConvertUp: 0.99e6,
+                    seedDifference: 0,
+                    maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
+                    slippageRatio: 0.01e18,
+                    tipAmount: int256(tipAmount),
+                    tipAddress: state.operator
+                })
+            );
 
         // Mock the price
         mockPrice(0.95e6);
 
         // Get the blueprint hash from the mock beanstalk contract
         bytes32 orderHash = req.blueprintHash;
+
+        // call `validateParamsAndReturnBeanstalkState` and `validateParamsAndReturnBeanstalkStateArray` and verify
+        // it returns valid:
+        checkForConvertUpValidBeanstalkState(state.user, params, orderHash);
 
         // First conversion - should succeed and use up to the max per execution
         executeRequisition(state.operator, req, address(bs));
@@ -1321,5 +1328,37 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         for (uint256 i = 0; i < tokenIndices.length; i++) {
             console.log("Token index: %s, Seeds: %s", tokenIndices[i], seeds[i]);
         }
+    }
+
+    function checkForConvertUpValidBeanstalkState(
+        address user,
+        ConvertUpBlueprint.ConvertUpBlueprintStruct memory params,
+        bytes32 orderHash
+    ) public {
+        (
+            uint256 bonusStalkPerBdv,
+            uint256 beansLeftToConvert,
+            uint256 beansToConvertThisExecution,
+            LibSiloHelpers.WithdrawalPlan memory withdrawalPlan
+        ) = convertUpBlueprint.validateParamsAndReturnBeanstalkState(params, orderHash, user);
+        console.log("bonusStalkPerBdv: %s", bonusStalkPerBdv);
+        console.log("beansLeftToConvert: %s", beansLeftToConvert);
+        console.log("beansToConvertThisExecution: %s", beansToConvertThisExecution);
+        ConvertUpBlueprint.ConvertUpBlueprintStruct[]
+            memory paramsArray = new ConvertUpBlueprint.ConvertUpBlueprintStruct[](1);
+        paramsArray[0] = params;
+        bytes32[] memory orderHashes = new bytes32[](1);
+        orderHashes[0] = orderHash;
+        address[] memory blueprintPublishers = new address[](1);
+        blueprintPublishers[0] = user;
+        bytes32[] memory validOrderHashes = convertUpBlueprint
+            .validateParamsAndReturnBeanstalkStateArray(
+                paramsArray,
+                orderHashes,
+                blueprintPublishers
+            );
+        console.log("validOrderHashes: %s", validOrderHashes.length);
+        console.log("validOrderHashes: %s");
+        console.logBytes32(validOrderHashes[0]);
     }
 }

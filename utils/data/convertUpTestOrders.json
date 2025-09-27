@@ -8,14 +8,17 @@
         {
           "orderId": 1,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "1000000000000000000000",
-            "minBeansConvertPerExecution": "100000000000000000000",
-            "maxBeansConvertPerExecution": "500000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "1000000000",
+            "minBeansConvertPerExecution": "100000000",
+            "maxBeansConvertPerExecution": "500000000",
             "minTimeBetweenConverts": 300,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "1000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "1000000000",
             "minPriceToConvertUp": "940000",
             "maxPriceToConvertUp": "990000",
             "seedDifference": "0",
@@ -26,7 +29,7 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "1000000000000000000"
+            "operatorTipAmount": "1000000"
           }
         }
       ]
@@ -38,14 +41,16 @@
         {
           "orderId": 2,
           "convertUpParams": {
-            "sourceTokenIndices": [1],
-            "totalBeanAmountToConvert": "2000000000000000000000",
-            "minBeansConvertPerExecution": "200000000000000000000",
-            "maxBeansConvertPerExecution": "1000000000000000000000",
+            "sourceTokenIndices": [
+              1
+            ],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "200000000",
+            "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "2500000000",
             "minPriceToConvertUp": "950000",
             "maxPriceToConvertUp": "995000",
             "seedDifference": "0",
@@ -56,20 +61,22 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2000000000000000000"
+            "operatorTipAmount": "2000000"
           }
         },
         {
           "orderId": 3,
           "convertUpParams": {
-            "sourceTokenIndices": [1],
-            "totalBeanAmountToConvert": "1500000000000000000000",
-            "minBeansConvertPerExecution": "150000000000000000000",
-            "maxBeansConvertPerExecution": "750000000000000000000",
+            "sourceTokenIndices": [
+              1
+            ],
+            "totalBeanAmountToConvert": "1500000000",
+            "minBeansConvertPerExecution": "150000000",
+            "maxBeansConvertPerExecution": "750000000",
             "minTimeBetweenConverts": 450,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "1500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "500000000",
             "minPriceToConvertUp": "945000",
             "maxPriceToConvertUp": "985000",
             "seedDifference": "0",
@@ -80,7 +87,7 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "1500000000000000000"
+            "operatorTipAmount": "1500000"
           }
         }
       ]
@@ -92,14 +99,18 @@
         {
           "orderId": 4,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2, 3],
-            "totalBeanAmountToConvert": "3000000000000000000000",
-            "minBeansConvertPerExecution": "300000000000000000000",
-            "maxBeansConvertPerExecution": "1500000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2,
+              3
+            ],
+            "totalBeanAmountToConvert": "3000000000",
+            "minBeansConvertPerExecution": "300000000",
+            "maxBeansConvertPerExecution": "1500000000",
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "3000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "800000000",
             "minPriceToConvertUp": "930000",
             "maxPriceToConvertUp": "980000",
             "seedDifference": "0",
@@ -110,20 +121,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "3000000000000000000"
+            "operatorTipAmount": "3000000"
           }
         },
         {
           "orderId": 5,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "2500000000000000000000",
-            "minBeansConvertPerExecution": "250000000000000000000",
-            "maxBeansConvertPerExecution": "1250000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "2500000000",
+            "minBeansConvertPerExecution": "250000000",
+            "maxBeansConvertPerExecution": "1250000000",
             "minTimeBetweenConverts": 750,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "1000000000",
             "minPriceToConvertUp": "940000",
             "maxPriceToConvertUp": "990000",
             "seedDifference": "0",
@@ -134,20 +148,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2500000000000000000"
+            "operatorTipAmount": "2500000"
           }
         },
         {
           "orderId": 6,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "2000000000000000000000",
-            "minBeansConvertPerExecution": "200000000000000000000",
-            "maxBeansConvertPerExecution": "1000000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "200000000",
+            "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "1200000000",
             "minPriceToConvertUp": "935000",
             "maxPriceToConvertUp": "975000",
             "seedDifference": "0",
@@ -158,7 +175,7 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2000000000000000000"
+            "operatorTipAmount": "2000000"
           }
         }
       ]
@@ -170,14 +187,16 @@
         {
           "orderId": 7,
           "convertUpParams": {
-            "sourceTokenIndices": [0],
-            "totalBeanAmountToConvert": "4000000000000000000000",
-            "minBeansConvertPerExecution": "400000000000000000000",
-            "maxBeansConvertPerExecution": "2000000000000000000000",
+            "sourceTokenIndices": [
+              0
+            ],
+            "totalBeanAmountToConvert": "4000000000",
+            "minBeansConvertPerExecution": "400000000",
+            "maxBeansConvertPerExecution": "2000000000",
             "minTimeBetweenConverts": 1200,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "4000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "1500000000",
             "minPriceToConvertUp": "925000",
             "maxPriceToConvertUp": "970000",
             "seedDifference": "0",
@@ -188,20 +207,22 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000001",
-            "operatorTipAmount": "4000000000000000000"
+            "operatorTipAmount": "4000000"
           }
         },
         {
           "orderId": 8,
           "convertUpParams": {
-            "sourceTokenIndices": [1],
-            "totalBeanAmountToConvert": "3500000000000000000000",
-            "minBeansConvertPerExecution": "350000000000000000000",
-            "maxBeansConvertPerExecution": "1750000000000000000000",
+            "sourceTokenIndices": [
+              1
+            ],
+            "totalBeanAmountToConvert": "3500000000",
+            "minBeansConvertPerExecution": "350000000",
+            "maxBeansConvertPerExecution": "1750000000",
             "minTimeBetweenConverts": 1050,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "3500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "1800000000",
             "minPriceToConvertUp": "920000",
             "maxPriceToConvertUp": "965000",
             "seedDifference": "0",
@@ -212,20 +233,22 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "3500000000000000000"
+            "operatorTipAmount": "3500000"
           }
         },
         {
           "orderId": 9,
           "convertUpParams": {
-            "sourceTokenIndices": [2],
-            "totalBeanAmountToConvert": "3000000000000000000000",
-            "minBeansConvertPerExecution": "300000000000000000000",
-            "maxBeansConvertPerExecution": "1500000000000000000000",
+            "sourceTokenIndices": [
+              2
+            ],
+            "totalBeanAmountToConvert": "3000000000",
+            "minBeansConvertPerExecution": "300000000",
+            "maxBeansConvertPerExecution": "1500000000",
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "3000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "2200000000",
             "minPriceToConvertUp": "915000",
             "maxPriceToConvertUp": "960000",
             "seedDifference": "0",
@@ -236,20 +259,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "3000000000000000000"
+            "operatorTipAmount": "3000000"
           }
         },
         {
           "orderId": 10,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "2500000000000000000000",
-            "minBeansConvertPerExecution": "250000000000000000000",
-            "maxBeansConvertPerExecution": "1250000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "2500000000",
+            "minBeansConvertPerExecution": "250000000",
+            "maxBeansConvertPerExecution": "1250000000",
             "minTimeBetweenConverts": 750,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "2500000000",
             "minPriceToConvertUp": "910000",
             "maxPriceToConvertUp": "955000",
             "seedDifference": "0",
@@ -260,20 +286,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2500000000000000000"
+            "operatorTipAmount": "2500000"
           }
         },
         {
           "orderId": 11,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "2000000000000000000000",
-            "minBeansConvertPerExecution": "200000000000000000000",
-            "maxBeansConvertPerExecution": "1000000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "200000000",
+            "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "3000000000",
             "minPriceToConvertUp": "905000",
             "maxPriceToConvertUp": "950000",
             "seedDifference": "0",
@@ -284,7 +313,7 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2000000000000000000"
+            "operatorTipAmount": "2000000"
           }
         }
       ]
@@ -296,14 +325,18 @@
         {
           "orderId": 12,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2, 3],
-            "totalBeanAmountToConvert": "5000000000000000000000",
-            "minBeansConvertPerExecution": "500000000000000000000",
-            "maxBeansConvertPerExecution": "2500000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2,
+              3
+            ],
+            "totalBeanAmountToConvert": "5000000000",
+            "minBeansConvertPerExecution": "500000000",
+            "maxBeansConvertPerExecution": "2500000000",
             "minTimeBetweenConverts": 1500,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "5000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "3500000000",
             "minPriceToConvertUp": "900000",
             "maxPriceToConvertUp": "945000",
             "seedDifference": "0",
@@ -314,20 +347,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "5000000000000000000"
+            "operatorTipAmount": "5000000"
           }
         },
         {
           "orderId": 13,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "4500000000000000000000",
-            "minBeansConvertPerExecution": "450000000000000000000",
-            "maxBeansConvertPerExecution": "2250000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "4500000000",
+            "minBeansConvertPerExecution": "450000000",
+            "maxBeansConvertPerExecution": "2250000000",
             "minTimeBetweenConverts": 1350,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "4500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "4000000000",
             "minPriceToConvertUp": "895000",
             "maxPriceToConvertUp": "940000",
             "seedDifference": "0",
@@ -338,20 +374,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "4500000000000000000"
+            "operatorTipAmount": "4500000"
           }
         },
         {
           "orderId": 14,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "4000000000000000000000",
-            "minBeansConvertPerExecution": "400000000000000000000",
-            "maxBeansConvertPerExecution": "2000000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "4000000000",
+            "minBeansConvertPerExecution": "400000000",
+            "maxBeansConvertPerExecution": "2000000000",
             "minTimeBetweenConverts": 1200,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "4000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "4500000000",
             "minPriceToConvertUp": "890000",
             "maxPriceToConvertUp": "935000",
             "seedDifference": "0",
@@ -362,20 +401,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "4000000000000000000"
+            "operatorTipAmount": "4000000"
           }
         },
         {
           "orderId": 15,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "3500000000000000000000",
-            "minBeansConvertPerExecution": "350000000000000000000",
-            "maxBeansConvertPerExecution": "1750000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "3500000000",
+            "minBeansConvertPerExecution": "350000000",
+            "maxBeansConvertPerExecution": "1750000000",
             "minTimeBetweenConverts": 1050,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "3500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "5000000000",
             "minPriceToConvertUp": "885000",
             "maxPriceToConvertUp": "930000",
             "seedDifference": "0",
@@ -386,20 +428,22 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "3500000000000000000"
+            "operatorTipAmount": "3500000"
           }
         },
         {
           "orderId": 16,
           "convertUpParams": {
-            "sourceTokenIndices": [0],
-            "totalBeanAmountToConvert": "3000000000000000000000",
-            "minBeansConvertPerExecution": "300000000000000000000",
-            "maxBeansConvertPerExecution": "1500000000000000000000",
+            "sourceTokenIndices": [
+              0
+            ],
+            "totalBeanAmountToConvert": "3000000000",
+            "minBeansConvertPerExecution": "300000000",
+            "maxBeansConvertPerExecution": "1500000000",
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "3000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "6000000000",
             "minPriceToConvertUp": "880000",
             "maxPriceToConvertUp": "925000",
             "seedDifference": "0",
@@ -410,20 +454,22 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "3000000000000000000"
+            "operatorTipAmount": "3000000"
           }
         },
         {
           "orderId": 17,
           "convertUpParams": {
-            "sourceTokenIndices": [1],
-            "totalBeanAmountToConvert": "2500000000000000000000",
-            "minBeansConvertPerExecution": "250000000000000000000",
-            "maxBeansConvertPerExecution": "1250000000000000000000",
+            "sourceTokenIndices": [
+              1
+            ],
+            "totalBeanAmountToConvert": "2500000000",
+            "minBeansConvertPerExecution": "250000000",
+            "maxBeansConvertPerExecution": "1250000000",
             "minTimeBetweenConverts": 750,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "7000000000",
             "minPriceToConvertUp": "875000",
             "maxPriceToConvertUp": "920000",
             "seedDifference": "0",
@@ -434,20 +480,22 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2500000000000000000"
+            "operatorTipAmount": "2500000"
           }
         },
         {
           "orderId": 18,
           "convertUpParams": {
-            "sourceTokenIndices": [2],
-            "totalBeanAmountToConvert": "2000000000000000000000",
-            "minBeansConvertPerExecution": "200000000000000000000",
-            "maxBeansConvertPerExecution": "1000000000000000000000",
+            "sourceTokenIndices": [
+              2
+            ],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "200000000",
+            "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "2000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "7500000000",
             "minPriceToConvertUp": "870000",
             "maxPriceToConvertUp": "915000",
             "seedDifference": "0",
@@ -458,20 +506,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "2000000000000000000"
+            "operatorTipAmount": "2000000"
           }
         },
         {
           "orderId": 19,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "1500000000000000000000",
-            "minBeansConvertPerExecution": "150000000000000000000",
-            "maxBeansConvertPerExecution": "750000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "1500000000",
+            "minBeansConvertPerExecution": "150000000",
+            "maxBeansConvertPerExecution": "750000000",
             "minTimeBetweenConverts": 450,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "1500000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "8000000000",
             "minPriceToConvertUp": "865000",
             "maxPriceToConvertUp": "910000",
             "seedDifference": "0",
@@ -482,20 +533,23 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "1500000000000000000"
+            "operatorTipAmount": "1500000"
           }
         },
         {
           "orderId": 20,
           "convertUpParams": {
-            "sourceTokenIndices": [1, 2],
-            "totalBeanAmountToConvert": "1000000000000000000000",
-            "minBeansConvertPerExecution": "100000000000000000000",
-            "maxBeansConvertPerExecution": "500000000000000000000",
+            "sourceTokenIndices": [
+              1,
+              2
+            ],
+            "totalBeanAmountToConvert": "1000000000",
+            "minBeansConvertPerExecution": "100000000",
+            "maxBeansConvertPerExecution": "500000000",
             "minTimeBetweenConverts": 300,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "1000000000000000000000",
-            "grownStalkPerBdvBonusBid": "0",
+            "grownStalkPerBdvBonusBid": "9000000000",
             "minPriceToConvertUp": "860000",
             "maxPriceToConvertUp": "905000",
             "seedDifference": "0",
@@ -506,7 +560,7 @@
           "opParams": {
             "whitelistedOperators": [],
             "tipAddress": "0x0000000000000000000000000000000000000000",
-            "operatorTipAmount": "1000000000000000000"
+            "operatorTipAmount": "1000000"
           }
         }
       ]
@@ -515,7 +569,13 @@
   "metadata": {
     "totalOrders": 20,
     "totalAddresses": 5,
-    "distribution": [1, 2, 3, 5, 9],
+    "distribution": [
+      1,
+      2,
+      3,
+      5,
+      9
+    ],
     "privateKeyBase": "0x1234",
     "addressDerivation": "privateKey + index",
     "generatedAddresses": {
@@ -526,7 +586,7 @@
       "0x3189b1381Ba3913f3b62A45e89C6d373C6BC4043": "Generated from privateKey 0x1239 (0x1234 + 5)"
     },
     "notes": [
-      "All amounts are in wei (18 decimals for most values)",
+      "Bean amounts are in 6 decimals (Bean token format)",
       "Prices are in 6 decimals (USDC format)",
       "Time values are in seconds",
       "sourceTokenIndices correspond to whitelisted LP tokens",

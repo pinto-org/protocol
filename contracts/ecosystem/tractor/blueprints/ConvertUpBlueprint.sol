@@ -11,6 +11,7 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "../../price/WellPrice.sol";
 import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
 import {SiloHelpers} from "../utils/SiloHelpers.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertUpBlueprint
@@ -165,7 +166,13 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         vars.account = beanstalk.tractorUser();
 
         // Get order hash and validate convert parameters
-        (vars.orderHash, vars.bonusStalkPerBdv) = validateParams(params.convertUpParams);
+        vars.orderHash = beanstalk.getCurrentBlueprintHash();
+        require(
+            vars.orderHash != bytes32(0),
+            "No active blueprint, function must run from Tractor"
+        );
+
+        vars.bonusStalkPerBdv = validateParams(params.convertUpParams, vars.orderHash);
 
         // Check if the executing operator (msg.sender) is whitelisted
         require(
@@ -294,6 +301,113 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     }
 
     /**
+     * @notice Validates the convert up parameters, and returns the beanstalk state
+     * @param params The ConvertUpBlueprintStruct containing all parameters for the convert up operation
+     * @return bonusStalkPerBdv The bonus stalk per bdv
+     * @return beansLeftToConvert The total amount requested to be converted (considers stored value)
+     * @return beansToConvertThisExecution the total amount to convert, adjusted based on constraints
+     * @return withdrawalPlan The withdrawal plan to check if enough beans are available
+     */
+    function validateParamsAndReturnBeanstalkState(
+        ConvertUpBlueprintStruct calldata params,
+        bytes32 orderHash,
+        address blueprintPublisher
+    )
+        public
+        view
+        returns (
+            uint256 bonusStalkPerBdv,
+            uint256 beansLeftToConvert,
+            uint256 beansToConvertThisExecution,
+            LibSiloHelpers.WithdrawalPlan memory withdrawalPlan
+        )
+    {
+        bonusStalkPerBdv = validateParams(params.convertUpParams, orderHash);
+        beansLeftToConvert = getBeansLeftToConvert(orderHash);
+        // If the beansLeftToConvert is 0, then it has not been initialized yet,
+        // thus, the amount left to convert is the total amount to convert
+        if (beansLeftToConvert == 0) {
+            beansLeftToConvert = params.convertUpParams.totalBeanAmountToConvert;
+        }
+
+        beansToConvertThisExecution = determineConvertAmount(
+            beansLeftToConvert,
+            params.convertUpParams.minBeansConvertPerExecution,
+            params.convertUpParams.maxBeansConvertPerExecution
+        );
+
+        // Apply slippage ratio if needed
+        uint256 slippageRatio = params.convertUpParams.slippageRatio;
+        if (slippageRatio == 0) {
+            slippageRatio = DEFAULT_SLIPPAGE_RATIO;
+        }
+
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxGrownStalkPerBdv = params.convertUpParams.maxGrownStalkPerBdv;
+
+        // for conversions, beans and germinating deposits are excluded
+        filterParams.excludeBean = true;
+        filterParams.excludeGerminatingDeposits = true;
+        // a bonus for a deposit is capped at their current stalk grown.
+        // the contract will attempt to withdraw deposits that have this amount,
+        // then the remaining deposits.
+        filterParams.lowGrownStalkPerBdv = bonusStalkPerBdv;
+        filterParams.lowStalkDeposits = params.convertUpParams.lowStalkDeposits;
+        filterParams.seedDifference = params.convertUpParams.seedDifference;
+
+        // verify that a user has enough beans to execute this convert.
+        uint256 tipAmount = params.opParams.operatorTipAmount > 0
+            ? uint256(params.opParams.operatorTipAmount)
+            : 0;
+        withdrawalPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
+            blueprintPublisher,
+            params.convertUpParams.sourceTokenIndices,
+            beansToConvertThisExecution + tipAmount,
+            filterParams,
+            emptyPlan
+        );
+    }
+
+    /**
+     * @notice Validates multiple convert up parameters and returns an array of valid order hashes
+     * @param paramsArray Array of ConvertUpBlueprintStruct containing all parameters for the convert up operations
+     * @param orderHashes Array of order hashes to validate
+     * @param blueprintPublishers Array of blueprint publishers to validate
+     * @return validOrderHashes Array of valid order hashes that passed validation
+     */
+    function validateParamsAndReturnBeanstalkStateArray(
+        ConvertUpBlueprintStruct[] calldata paramsArray,
+        bytes32[] calldata orderHashes,
+        address[] calldata blueprintPublishers
+    ) external view returns (bytes32[] memory validOrderHashes) {
+        uint256 length = paramsArray.length;
+        validOrderHashes = new bytes32[](length);
+        uint256 validCount = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            try
+                this.validateParamsAndReturnBeanstalkState(
+                    paramsArray[i],
+                    orderHashes[i],
+                    blueprintPublishers[i]
+                )
+            returns (
+                uint256, // bonusStalkPerBdv
+                uint256, // beansLeftToConvert
+                uint256, // beansToConvertThisExecution
+                LibSiloHelpers.WithdrawalPlan memory // withdrawalPlan
+            ) {
+                validOrderHashes[validCount] = orderHashes[i];
+                validCount++;
+            } catch {
+                // Skip invalid parameters
+                continue;
+            }
+        }
+    }
+
+    /**
      * @notice Gets the BDV left to convert for an order
      * @param orderHash The hash of the order
      * @return The BDV left to convert
@@ -404,10 +518,13 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     /**
      * @notice Validates the parameters for the convert up operation
      * @param cup The ConvertUpParams containing all parameters for the convert up operation
+     * @param orderHash The hash of the order
+     * @return bonusStalkPerBdv The bonus stalk per bdv
      */
     function validateParams(
-        ConvertUpParams memory cup
-    ) internal view returns (bytes32 orderHash, uint256 bonusStalkPerBdv) {
+        ConvertUpParams memory cup,
+        bytes32 orderHash
+    ) internal view returns (uint256 bonusStalkPerBdv) {
         // Source tokens validation
         require(cup.sourceTokenIndices.length > 0, "Must provide at least one source token");
 
@@ -436,10 +553,6 @@ contract ConvertUpBlueprint is PerFunctionPausable {
 
         // Time constraint validation
         require(cup.minTimeBetweenConverts > 0, "Min time between converts must be > 0");
-
-        // Check if blueprint is active
-        orderHash = beanstalk.getCurrentBlueprintHash();
-        require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
 
         // Time between conversions check
         uint256 lastExecution = getLastExecutedTimestamp(orderHash);
@@ -490,7 +603,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         // If beansLeftToConvert is less than minBeansConvertPerExecution, we can't convert
         require(
             beansLeftToConvert >= minBeansConvertPerExecution,
-            "Not enough BDV left to convert"
+            "Not enough BDV left to Convert"
         );
 
         // If beansLeftToConvert is less than maxBeansConvertPerExecution, use beansLeftToConvert
