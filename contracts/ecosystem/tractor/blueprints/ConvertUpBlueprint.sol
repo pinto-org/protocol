@@ -11,7 +11,6 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "../../price/WellPrice.sol";
 import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
 import {SiloHelpers} from "../utils/SiloHelpers.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title ConvertUpBlueprint
