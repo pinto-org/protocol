@@ -8,10 +8,7 @@
         {
           "orderId": 1,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "1000000000",
             "minBeansConvertPerExecution": "100000000",
             "maxBeansConvertPerExecution": "500000000",
@@ -41,9 +38,7 @@
         {
           "orderId": 2,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "2000000000",
             "minBeansConvertPerExecution": "200000000",
             "maxBeansConvertPerExecution": "1000000000",
@@ -67,9 +62,7 @@
         {
           "orderId": 3,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "1500000000",
             "minBeansConvertPerExecution": "150000000",
             "maxBeansConvertPerExecution": "750000000",
@@ -99,11 +92,7 @@
         {
           "orderId": 4,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2,
-              3
-            ],
+            "sourceTokenIndices": [2, 3, 4],
             "totalBeanAmountToConvert": "3000000000",
             "minBeansConvertPerExecution": "300000000",
             "maxBeansConvertPerExecution": "1500000000",
@@ -127,10 +116,7 @@
         {
           "orderId": 5,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "2500000000",
             "minBeansConvertPerExecution": "250000000",
             "maxBeansConvertPerExecution": "1250000000",
@@ -154,10 +140,7 @@
         {
           "orderId": 6,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "2000000000",
             "minBeansConvertPerExecution": "200000000",
             "maxBeansConvertPerExecution": "1000000000",
@@ -187,9 +170,7 @@
         {
           "orderId": 7,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              0
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "4000000000",
             "minBeansConvertPerExecution": "400000000",
             "maxBeansConvertPerExecution": "2000000000",
@@ -213,9 +194,7 @@
         {
           "orderId": 8,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "3500000000",
             "minBeansConvertPerExecution": "350000000",
             "maxBeansConvertPerExecution": "1750000000",
@@ -239,9 +218,7 @@
         {
           "orderId": 9,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              2
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "3000000000",
             "minBeansConvertPerExecution": "300000000",
             "maxBeansConvertPerExecution": "1500000000",
@@ -265,10 +242,7 @@
         {
           "orderId": 10,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "2500000000",
             "minBeansConvertPerExecution": "250000000",
             "maxBeansConvertPerExecution": "1250000000",
@@ -292,10 +266,7 @@
         {
           "orderId": 11,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "2000000000",
             "minBeansConvertPerExecution": "200000000",
             "maxBeansConvertPerExecution": "1000000000",
@@ -325,11 +296,7 @@
         {
           "orderId": 12,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2,
-              3
-            ],
+            "sourceTokenIndices": [2, 3, 4],
             "totalBeanAmountToConvert": "5000000000",
             "minBeansConvertPerExecution": "500000000",
             "maxBeansConvertPerExecution": "2500000000",
@@ -353,10 +320,7 @@
         {
           "orderId": 13,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "4500000000",
             "minBeansConvertPerExecution": "450000000",
             "maxBeansConvertPerExecution": "2250000000",
@@ -380,10 +344,7 @@
         {
           "orderId": 14,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "4000000000",
             "minBeansConvertPerExecution": "400000000",
             "maxBeansConvertPerExecution": "2000000000",
@@ -407,10 +368,7 @@
         {
           "orderId": 15,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "3500000000",
             "minBeansConvertPerExecution": "350000000",
             "maxBeansConvertPerExecution": "1750000000",
@@ -434,9 +392,7 @@
         {
           "orderId": 16,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              0
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "3000000000",
             "minBeansConvertPerExecution": "300000000",
             "maxBeansConvertPerExecution": "1500000000",
@@ -460,9 +416,7 @@
         {
           "orderId": 17,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "2500000000",
             "minBeansConvertPerExecution": "250000000",
             "maxBeansConvertPerExecution": "1250000000",
@@ -486,9 +440,7 @@
         {
           "orderId": 18,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              2
-            ],
+            "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "2000000000",
             "minBeansConvertPerExecution": "200000000",
             "maxBeansConvertPerExecution": "1000000000",
@@ -512,10 +464,7 @@
         {
           "orderId": 19,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "1500000000",
             "minBeansConvertPerExecution": "150000000",
             "maxBeansConvertPerExecution": "750000000",
@@ -539,10 +488,7 @@
         {
           "orderId": 20,
           "convertUpParams": {
-            "sourceTokenIndices": [
-              1,
-              2
-            ],
+            "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "1000000000",
             "minBeansConvertPerExecution": "100000000",
             "maxBeansConvertPerExecution": "500000000",
@@ -569,13 +515,7 @@
   "metadata": {
     "totalOrders": 20,
     "totalAddresses": 5,
-    "distribution": [
-      1,
-      2,
-      3,
-      5,
-      9
-    ],
+    "distribution": [1, 2, 3, 5, 9],
     "privateKeyBase": "0x1234",
     "addressDerivation": "privateKey + index",
     "generatedAddresses": {
