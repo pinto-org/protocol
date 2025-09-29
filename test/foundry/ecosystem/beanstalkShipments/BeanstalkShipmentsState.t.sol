@@ -21,7 +21,7 @@ import {ShipmentRecipient, ShipmentRoute} from "contracts/beanstalk/storage/Syst
  * 3. Run the test: `forge test --match-contract BeanstalkShipmentsStateTest --fork-url http://localhost:8545`
  * Alternatively, the tests need to be ran using a fork after the deployment is done.
  */
-contract BeanstalkShipmentsStateTest is TestHelper {
+contract Skip_BeanstalkShipmentsStateTest is TestHelper {
     // Contracts
     address constant SHIPMENT_PLANNER = address(0x1152691C30aAd82eB9baE7e32d662B19391e34Db);
     address constant SILO_PAYBACK = address(0x9E449a18155D4B03C2E08A4E28b2BcAE580efC4E);

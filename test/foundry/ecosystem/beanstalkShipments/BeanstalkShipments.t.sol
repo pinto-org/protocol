@@ -24,7 +24,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
  * 3. Run the test: `forge test --match-contract BeanstalkShipmentsTest --fork-url http://localhost:8545`
  * Alternatively, the tests need to be ran using a fork after the deployment is done.
  */
-contract BeanstalkShipmentsTest is TestHelper {
+contract Skip_BeanstalkShipmentsTest is TestHelper {
     // Contracts
     address constant SHIPMENT_PLANNER = address(0x1152691C30aAd82eB9baE7e32d662B19391e34Db);
     address constant SILO_PAYBACK = address(0x9E449a18155D4B03C2E08A4E28b2BcAE580efC4E);
