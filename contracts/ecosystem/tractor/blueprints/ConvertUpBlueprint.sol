@@ -280,7 +280,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
 
         // Emit completion event
-        if (beansRemaining == 0) {
+        if (beansRemaining == type(uint256).max) {
             emit ConvertUpOrderComplete(
                 vars.orderHash,
                 vars.account,
