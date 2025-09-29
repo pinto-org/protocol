@@ -22,7 +22,7 @@ import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
  * We rewrite transfer and mint functions to allow the balance transfer function be overwritten as well.
  * Merged from multiple contracts: Fertilizer.sol, Internalizer.sol, Fertilizer1155.sol from the beanstalk protocol.
  */
-contract BeanstalkFertilizer is
+abstract contract BeanstalkFertilizer is
     ERC1155Upgradeable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -87,7 +87,7 @@ contract BeanstalkFertilizer is
     // Storage
     mapping(uint256 id => mapping(address account => Balance)) internal _balances;
     SystemFertilizer public fert;
-    IERC20 public pinto;
+    IERC20 public pintoToken;
     address public contractDistributor;
 
     /// @dev gap for future upgrades
@@ -95,11 +95,11 @@ contract BeanstalkFertilizer is
 
     /**
      * @notice Initializes the contract, sets global fertilizer state, and batch mints all fertilizers.
-     * @param _pinto The address of the Pinto ERC20 token.
+     * @param _pintoToken The address of the Pinto ERC20 token.
      * @param initSystemFert The initialglobal fertilizer state data.
      */
     function initialize(
-        address _pinto,
+        address _pintoToken,
         address _pintoProtocol,
         address _contractDistributor,
         InitSystemFertilizer calldata initSystemFert
@@ -110,12 +110,12 @@ contract BeanstalkFertilizer is
         __ReentrancyGuard_init();
 
         // State Inits
-        pinto = IERC20(_pinto);
+        pintoToken = IERC20(_pintoToken);
         pintoProtocol = IBeanstalk(_pintoProtocol);
         contractDistributor = _contractDistributor;
         setFertilizerState(initSystemFert);
-        // approve the pinto protocol to spend the incoming pinto tokens for claims
-        pinto.approve(address(pintoProtocol), type(uint256).max);
+        // approve the pinto protocol to spend the incoming pintoToken tokens for claims
+        pintoToken.approve(address(pintoProtocol), type(uint256).max);
         // Minting will happen after deployment due to potential gas limit issues
     }
 
@@ -300,7 +300,7 @@ contract BeanstalkFertilizer is
     }
 
     /**
-     * @notice Updates the reward state for both the sender and recipient and transfers pinto rewards.
+     * @notice Updates the reward state for both the sender and recipient and transfers pinto token rewards.
      * Following the 1155 design from OpenZeppelin Contracts < 5.x.
      * @param from - the account to transfer from
      * @param to - the account to transfer to
@@ -337,7 +337,7 @@ contract BeanstalkFertilizer is
             // Transfer the rewards to the caller,
             // note: pintos are streamed to the contract's external balance during the gm call
             pintoProtocol.transferToken(
-                pinto,
+                pintoToken,
                 account,
                 amount,
                 LibTransfer.From.EXTERNAL,
@@ -457,7 +457,7 @@ contract BeanstalkFertilizer is
     }
 
     /**
-     * @notice Returns the total pinto needed to repay the barn
+     * @notice Returns the total pinto tokens needed to repay the barn
      */
     function totalUnfertilizedBeans() public view returns (uint256 beans) {
         return fert.unfertilizedIndex - fert.fertilizedIndex;

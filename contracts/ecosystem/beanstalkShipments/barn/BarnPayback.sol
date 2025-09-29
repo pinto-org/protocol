@@ -155,13 +155,13 @@ contract BarnPayback is BeanstalkFertilizer {
         if (amount > 0) {
             fert.fertilizedPaidIndex += amount;
             // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
-            pintoProtocol.transferToken(pinto, account, amount, LibTransfer.From.EXTERNAL, mode);
+            pintoProtocol.transferToken(pintoToken, account, amount, LibTransfer.From.EXTERNAL, mode);
         }
     }
 
     /**
-     * @notice Called by the ShipmentPlanner contract to determine how many pinto to send to the barn payback contract
-     * @return The amount of pinto remaining to be sent to the barn payback contract
+     * @notice Called by the ShipmentPlanner contract to determine how many pinto tokens to send to the barn payback contract
+     * @return The amount of pinto tokens remaining to be sent to the barn payback contract
      */
     function barnRemaining() external view returns (uint256) {
         return totalUnfertilizedBeans();
