@@ -9,15 +9,19 @@ interface IShipmentPlanner {
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan);
 
-    function getSiloPlan(bytes memory) external pure returns (ShipmentPlan memory shipmentPlan);
+    function getSiloPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
 
     function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
 
     function getPaybackFieldPlan(
         bytes memory data
-    ) external pure returns (ShipmentPlan memory shipmentPlan);
+    ) external view returns (ShipmentPlan memory shipmentPlan);
 
-    function getPaybackPlan(
+    function getPaybackSiloPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackBarnPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan);
 }
