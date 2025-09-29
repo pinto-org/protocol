@@ -28,11 +28,9 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
  *   Once their address is replicated they can just call claimDirect() and receive their assets.
  *
  * 2. Send a cross chain message from Ethereum L1 using the cross chain messenger that when
- *    received, calls claimFromMessage and receive their assets in an address of their choice
+ *    received, will whitelist an receiver address that will be able to claim the assets of the caller on the L2.
  *
  * 3. If an account has just delegated its code to a contract, they can just call claimDirect() and receive their assets.
- *
- * note: For contract account that have migrated to Arbitrum, no action is needed as their assets will be minted to them directly.
  */
 contract ContractPaybackDistributor is
     ReentrancyGuard,
@@ -144,19 +142,18 @@ contract ContractPaybackDistributor is
     }
 
     /**
-     * @notice Receives a message from the L1 messenger and distrubutes all assets to a receiver.
+     * @notice Allows a contract account to set a receiver for their assets on the L2.
      * @param caller The address of the caller on the L1. (The encoded msg.sender in the message)
-     * @param receiver The address to transfer all the assets to.
+     * @param receiver The address that will be able to claim the assets of the caller on the L2.
      */
-    function claimFromL1Message(
+    function setReceiverFromL1Message(
         address caller,
-        address receiver,
-        LibTransfer.To siloPaybackToMode
+        address receiver
     ) public nonReentrant onlyL1Messenger onlyWhitelistedCaller(caller) isValidReceiver(receiver) {
-        AccountData storage account = accounts[caller];
-        require(!account.claimed, "ContractPaybackDistributor: Caller already claimed");
-        account.claimed = true;
-        _transferAllAssetsForAccount(caller, receiver, siloPaybackToMode);
+        AccountData storage callerData = accounts[caller];
+        require(!callerData.claimed, "ContractPaybackDistributor: Caller already claimed");
+        accounts[receiver] = callerData;
+        callerData.claimed = true;
     }
 
     /**

@@ -200,17 +200,18 @@ contract ContractDistributionTest is TestHelper {
 
     /**
      * @notice Test that the contract accounts can claim their rewards from sending an L1 message
-     * - Only the OP stack messenger at 0x42...7 can call the claimFromL1Message function
+     * - Only the OP stack messenger at 0x42...7 can call the setReceiverFromL1Message function
      * - The call is successful only if the xDomainMessageSender is the L1 sender
+     * - After delegation, the receiver must call claimDirect to get the assets
      */
     function test_contractDistributionFromL1Message() public {
-        // try to claim from non-L1 messenger, expect revert
+        // try to set receiver from non-L1 messenger, expect revert
         vm.startPrank(address(contractAccount1));
         vm.expectRevert("ContractPaybackDistributor: Caller not L1 messenger");
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
+        contractPaybackDistributor.setReceiverFromL1Message(contractAccount1, receiver1);
         vm.stopPrank();
 
-        // try to claim from non-L1 sender, expect revert
+        // try to set receiver from non-L1 sender, expect revert
         vm.startPrank(address(L1_MESSENGER));
         vm.mockCall(
             address(L1_MESSENGER),
@@ -218,10 +219,10 @@ contract ContractDistributionTest is TestHelper {
             abi.encode(makeAddr("nonL1Sender"))
         );
         vm.expectRevert("ContractPaybackDistributor: Bad origin");
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
+        contractPaybackDistributor.setReceiverFromL1Message(contractAccount1, receiver1);
         vm.stopPrank();
 
-        // claim using the L1 message. Mock that the call was initiated by the L1 sender contract
+        // delegate using the L1 message. Mock that the call was initiated by the L1 sender contract
         // on behalf of contractAccount1
         vm.startPrank(address(L1_MESSENGER));
         vm.mockCall(
@@ -229,7 +230,12 @@ contract ContractDistributionTest is TestHelper {
             abi.encodeWithSelector(L1_MESSENGER.xDomainMessageSender.selector),
             abi.encode(L1_SENDER)
         );
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
+        contractPaybackDistributor.setReceiverFromL1Message(contractAccount1, receiver1);
+        vm.stopPrank();
+
+        // now receiver1 can claim the assets directly
+        vm.startPrank(receiver1);
+        contractPaybackDistributor.claimDirect(receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // assert the receiver address holds all the assets for receiver1
@@ -257,7 +263,7 @@ contract ContractDistributionTest is TestHelper {
             "distributor fertilizer balance"
         );
 
-        // try to claim again from contractAccount1
+        // try to delegate again from contractAccount1
         vm.startPrank(address(L1_MESSENGER));
         vm.mockCall(
             address(L1_MESSENGER),
@@ -265,11 +271,17 @@ contract ContractDistributionTest is TestHelper {
             abi.encode(L1_SENDER)
         );
         vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
+        contractPaybackDistributor.setReceiverFromL1Message(contractAccount1, receiver1);
         vm.stopPrank();
 
         // try to claim again for same account directly, expect revert
         vm.startPrank(address(contractAccount1));
+        vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
+        contractPaybackDistributor.claimDirect(receiver1, LibTransfer.To.EXTERNAL);
+        vm.stopPrank();
+
+        // try to claim again from receiver1, expect revert
+        vm.startPrank(receiver1);
         vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
         contractPaybackDistributor.claimDirect(receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
