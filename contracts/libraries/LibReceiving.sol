@@ -53,9 +53,19 @@ library LibReceiving {
         } else if (recipient == ShipmentRecipient.EXTERNAL_BALANCE) {
             externalBalanceReceive(shipmentAmount, data);
         } else if (recipient == ShipmentRecipient.BARN_PAYBACK) {
-            barnPaybackReceive(shipmentAmount, data);
+            externalBalanceReceiveWithCall(
+                shipmentAmount,
+                data,
+                IBarnPayback.barnPaybackReceive.selector,
+                recipient
+            );
         } else if (recipient == ShipmentRecipient.SILO_PAYBACK) {
-            siloPaybackReceive(shipmentAmount, data);
+            externalBalanceReceiveWithCall(
+                shipmentAmount,
+                data,
+                ISiloPayback.siloPaybackReceive.selector,
+                recipient
+            );
         }
         // New receiveShipment enum values should have a corresponding function call here.
     }
@@ -145,55 +155,35 @@ library LibReceiving {
     }
 
     /**
-     * @notice Receive Bean at the Barn Payback contract.
-     * When the Barn Payback contract receives Bean, it needs to update the amount of sprouts that become rinsible.
+     * @notice Receive bean at the target contract and perfroms an external call to update target contract state.
+     * @dev Does not revert on failure to prevent sunrise from failing but skips transfer if call fails.
      * @param shipmentAmount Amount of Bean to receive.
-     * @param data ABI encoded address of the barn payback contract.
+     * @param shipmentData ABI encoded address of the target contract.
+     * @param selector The selector of the function to call on the target contract.
+     * @param recipient The recipient of the shipment for event emission.
      */
-    function barnPaybackReceive(uint256 shipmentAmount, bytes memory data) private {
+    function externalBalanceReceiveWithCall(
+        uint256 shipmentAmount,
+        bytes memory shipmentData,
+        bytes4 selector,
+        ShipmentRecipient recipient
+    ) private {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        // barn payback is the second parameter in the data
-        (, address barnPaybackContract) = abi.decode(data, (address, address));
+        // target is always the first parameter in the data
+        address target = abi.decode(shipmentData, (address));
 
-        // send and update the state of the barn payback contract to account for the newly received beans
-        // Do not revert on failure to prevent sunrise from failing
-        try IBarnPayback(barnPaybackContract).barnPaybackReceive(shipmentAmount) {
+        // send and update the state of the target contract to account for the newly received beans
+        (bool success, ) = target.call(abi.encodeWithSelector(selector, shipmentAmount));
+        if (success) {
+            // transfer the shipment amount to the target contract
             LibTransfer.sendToken(
                 IERC20(s.sys.bean),
                 shipmentAmount,
-                barnPaybackContract,
+                target,
                 LibTransfer.To.EXTERNAL
             );
             // Confirm successful receipt.
-            emit Receipt(ShipmentRecipient.BARN_PAYBACK, shipmentAmount, data);
-        } catch {}
-    }
-
-    /**
-     * @notice Receive Bean at the Silo Payback contract.
-     * When the Silo Payback contract receives Bean, it needs to update:
-     * - the total beans that have been sent to beanstalk unripe
-     * - the reward accumulators for the unripe bdv tokens
-     * @param shipmentAmount Amount of Bean to receive.
-     * @param data ABI encoded address of the silo payback contract.
-     */
-    function siloPaybackReceive(uint256 shipmentAmount, bytes memory data) private {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        // silo payback is the first parameter in the data
-        (address siloPaybackContract, ) = abi.decode(data, (address, address));
-
-        // update the state of the silo payback contract to account for the newly received beans
-        // Do not revert on failure to prevent sunrise from failing
-        try ISiloPayback(siloPaybackContract).siloPaybackReceive(shipmentAmount) {
-            // transfer the shipment amount to the silo payback contract
-            LibTransfer.sendToken(
-                IERC20(s.sys.bean),
-                shipmentAmount,
-                siloPaybackContract,
-                LibTransfer.To.EXTERNAL
-            );
-            // Confirm successful receipt.
-            emit Receipt(ShipmentRecipient.SILO_PAYBACK, shipmentAmount, data);
-        } catch {}
+            emit Receipt(recipient, shipmentAmount, shipmentData);
+        }
     }
 }

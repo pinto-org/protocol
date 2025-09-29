@@ -177,7 +177,7 @@ contract BeanstalkShipmentsStateTest is TestHelper {
         );
         assertEq(
             routes[5].data,
-            abi.encode(SILO_PAYBACK, BARN_PAYBACK),
+            abi.encode(BARN_PAYBACK, SILO_PAYBACK),
             "Payback barn data mismatch"
         );
     }
