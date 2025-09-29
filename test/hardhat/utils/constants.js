@@ -42,7 +42,7 @@ const addressAllowanceSlotMap = {
 
 const tractorToAddressMap = {
   SowBlueprint: "0xbb0a41927895F8ca2b4ECCc659ba158735fCF28B",
-  ConvertUpBlueprint: "0x17C0FE752979b613b21ddD30bc75037C23280cB0"
+  ConvertUpBlueprint: "0x53B7cF2a4A18062aFF4fA71Bb300F6eA2d3702E2"
 };
 
 // Wells
