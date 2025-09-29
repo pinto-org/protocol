@@ -12,7 +12,7 @@ import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
 /**
  * @title SiloPayback
  * @notice SiloPayback is an ERC20 representation of Unripe BDV in Beanstalk calculated as if Beanstalk was fully recapitalized.
- * It facilitates the payback of unripe holders by allowing them to claim pinto rewards after the 1 billion supply threshold.
+ * It facilitates the payback of unripe holders by allowing them to claim pintoToken rewards after the 1 billion supply threshold.
  * Tokens are initially distributed and yield gets continuously accrued every time new Pinto supply is minted,
  * until all unripe tokens are worth exactly 1 Pinto underlying.
  */
@@ -40,11 +40,11 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
         uint256 bdv;
     }
 
-    IERC20 public pinto;
+    IERC20 public pintoToken;
 
     /// @dev Tracks total distributed bdv tokens. After initial mint, no more tokens can be distributed.
     uint128 public totalDistributed;
-    /// @dev Tracks total received pinto from shipments.
+    /// @dev Tracks total received pintoToken from shipments.
     uint128 public totalReceived;
 
     // Rewards
@@ -65,7 +65,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
 
     // Modifiers
     modifier onlyPintoProtocol() {
-        require(msg.sender == address(pintoProtocol), "SiloPayback: only pinto protocol");
+        require(msg.sender == address(pintoProtocol), "SiloPayback: only pintoToken protocol");
         _;
     }
 
@@ -74,20 +74,20 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
         _disableInitializers();
     }
 
-    function initialize(address _pinto, address _pintoProtocol) public initializer {
+    function initialize(address _pintoToken, address _pintoProtocol) public initializer {
         __ERC20_init("UnripeBdvToken", "urBDV");
         __Ownable_init(msg.sender);
-        pinto = IERC20(_pinto);
+        pintoToken = IERC20(_pintoToken);
         pintoProtocol = IBeanstalk(_pintoProtocol);
         // Approve the Pinto Diamond to spend pinto tokens for transfers
-        pinto.approve(_pintoProtocol, type(uint256).max);
+        pintoToken.approve(_pintoProtocol, type(uint256).max);
     }
 
     /**
      * @notice Distribute unripe bdv tokens to the old beanstalk participants.
      * Called in batches after deployment to make sure we don't run out of gas.
      * @dev After distribution is complete "totalDistributed" will reflect the required pinto
-     * amount to pay off unripe.
+     * token amount to pay off unripe.
      * @param unripeReceipts Array of UnripeBdvTokenData
      */
     function batchMint(UnripeBdvTokenData[] memory unripeReceipts) external onlyOwner {
@@ -132,7 +132,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
 
         // Transfer the rewards to the recipient
         pintoProtocol.transferToken(
-            pinto,
+            pintoToken,
             recipient,
             rewardsToClaim,
             LibTransfer.From.EXTERNAL,
@@ -201,8 +201,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     }
 
     /**
-     * @notice Returns the remaining amount of pinto required to pay off the unripe bdv tokens
-     * Called by the shipment planner to calculate the amount of pinto to ship as underlying rewards.
+     * @notice Returns the remaining amount of pintoToken required to pay off the unripe bdv tokens
+     * Called by the shipment planner to calculate the amount of pintoToken to ship as underlying rewards.
      * When rewards per token reach 1 then all unripe bdv tokens will be paid off.
      */
     function siloRemaining() public view returns (uint256) {
