@@ -42,9 +42,14 @@ contract ShipmentPlanner is IShipmentPlanner {
     uint256 constant FIELD_POINTS = 48_500_000_000_000_000; // 48.5%
     uint256 constant SILO_POINTS = 48_500_000_000_000_000; // 48.5%
     uint256 constant BUDGET_POINTS = 3_000_000_000_000_000; // 3%
+    // Individual payback points
     uint256 constant PAYBACK_FIELD_POINTS = 1_000_000_000_000_000; // 1%
     uint256 constant PAYBACK_SILO_POINTS = 1_000_000_000_000_000; // 1%
     uint256 constant PAYBACK_BARN_POINTS = 1_000_000_000_000_000; // 1%
+    // Payback points with inactive routes
+    uint256 constant PAYBACK_SILO_POINTS_NO_BARN = 1_500_000_000_000_000; // 1.5%
+    uint256 constant PAYBACK_FIELD_POINTS_NO_BARN = 1_500_000_000_000_000; // 1.5%
+    uint256 constant PAYBACK_FIELD_POINTS_ONLY_FIELD = 3_000_000_000_000_000; // 3%
 
     uint256 constant SUPPLY_BUDGET_FLIP = 1_000_000_000e6;
 
@@ -119,11 +124,11 @@ contract ShipmentPlanner is IShipmentPlanner {
         uint256 maxCap;
         // silo is second thing to be paid off so if remaining is 0 then all points go to field
         if (siloRemaining == 0) {
-            points = PAYBACK_FIELD_POINTS + PAYBACK_SILO_POINTS + PAYBACK_BARN_POINTS;
+            points = PAYBACK_FIELD_POINTS_ONLY_FIELD;
             maxCap = (beanstalk.time().standardMintedBeans * 3) / 100; // 3%
         } else if (barnRemaining == 0) {
             // if barn remaining is 0 then 1.5% of all mints goes to silo and 1.5% goes to the field
-            points = PAYBACK_FIELD_POINTS + (PAYBACK_SILO_POINTS + PAYBACK_BARN_POINTS) / 4;
+            points = PAYBACK_FIELD_POINTS_NO_BARN;
             maxCap = (beanstalk.time().standardMintedBeans * 15) / 1000; // 1.5%
         } else {
             // else, all are active and 1% of all mints goes to field, 1% goes to silo, 1% goes to fert
@@ -161,7 +166,7 @@ contract ShipmentPlanner is IShipmentPlanner {
         // the points that should go to the silo to 1,5% (finalAllocation = 1,5% to silo, 1,5% to field)
         if (barnRemaining == 0) {
             // half of the paid off fert points go to silo
-            points = PAYBACK_SILO_POINTS + (PAYBACK_BARN_POINTS / 2); // 1.5%
+            points = PAYBACK_SILO_POINTS_NO_BARN; // 1.5%
             maxCap = (beanstalk.time().standardMintedBeans * 15) / 1000; // 1.5%
         } else {
             // if silo is not paid off and fert is not paid off then just assign the regular 1% points
