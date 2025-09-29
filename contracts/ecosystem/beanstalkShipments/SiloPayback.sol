@@ -20,6 +20,21 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     /// @dev precision used for reward calculations
     uint256 public constant PRECISION = 1e18;
 
+    /**
+     * @notice User reward data
+     * @param userRewardPerTokenPaid Per-user checkpoint of rewardPerTokenStored at the last reward update to prevent double claiming
+     * @param rewards Per-user accumulated rewards ready to claim (updated on transfers/claims)
+     */
+    struct UserRewardData {
+        mapping(address account => uint256) userRewardPerTokenPaid;
+        mapping(address account => uint256) rewards;
+    }
+
+    /**
+     * @notice Unripe bdv token data for minting
+     * @param receipient The address of the recipient
+     * @param bdv The amount of bdv tokens to mint
+     */
     struct UnripeBdvTokenData {
         address receipient;
         uint256 bdv;
@@ -35,10 +50,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     // Rewards
     /// @dev Global accumulator tracking total rewards per token since contract inception (scaled by 1e18)
     uint256 public rewardPerTokenStored;
-    /// @dev Per-user checkpoint of rewardPerTokenStored at their last reward update to prevent double claiming
-    mapping(address => uint256) public userRewardPerTokenPaid;
-    /// @dev Per-user accumulated rewards ready to claim (updated on transfers/claims)
-    mapping(address => uint256) public rewards;
+    // User specific reward data
+    UserRewardData internal userRewardData;
 
     // Events
     event SiloPaybackRewardsClaimed(
@@ -115,7 +128,7 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
         // Update the reward state for the account
         uint256 rewardsToClaim = _updateReward(account);
         require(rewardsToClaim > 0, "SiloPayback: no rewards to claim");
-        rewards[account] = 0;
+        userRewardData.rewards[account] = 0;
 
         // Transfer the rewards to the recipient
         pintoProtocol.transferToken(
@@ -136,8 +149,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     function _updateReward(address account) internal returns (uint256) {
         if (account == address(0)) return 0;
         uint256 earnedRewards = earned(account);
-        rewards[account] = earnedRewards;
-        userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        userRewardData.rewards[account] = earnedRewards;
+        userRewardData.userRewardPerTokenPaid[account] = rewardPerTokenStored;
         return earnedRewards;
     }
 
@@ -183,8 +196,8 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     function earned(address account) public view returns (uint256) {
         return
             ((getBalanceCombined(account) *
-                (rewardPerTokenStored - userRewardPerTokenPaid[account])) / PRECISION) +
-            rewards[account];
+                (rewardPerTokenStored - userRewardData.userRewardPerTokenPaid[account])) /
+                PRECISION) + userRewardData.rewards[account];
     }
 
     /**
@@ -225,6 +238,26 @@ contract SiloPayback is Initializable, ERC20Upgradeable, OwnableUpgradeable, Tra
     function protocolUpdate(address from, address to, uint256 amount) external onlyPintoProtocol {
         _updateReward(from);
         _updateReward(to);
+    }
+
+    /////////////////// Getters ///////////////////
+
+    /**
+     * @notice Get the user's accumulated rewards ready to claim
+     * @param account The account to get rewards for
+     * @return The accumulated rewards for the account in underlying token decimals
+     */
+    function rewards(address account) public view returns (uint256) {
+        return userRewardData.rewards[account];
+    }
+
+    /**
+     * @notice Get the user's checkpoint of rewardPerTokenStored
+     * @param account The account to get the checkpoint for
+     * @return The user's reward per token paid checkpoint multiplied by 1e18
+     */
+    function userRewardPerTokenPaid(address account) public view returns (uint256) {
+        return userRewardData.userRewardPerTokenPaid[account];
     }
 
     /**
