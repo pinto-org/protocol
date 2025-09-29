@@ -8,12 +8,16 @@ import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import "forge-std/console.sol";
 
 contract TractorHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprintv0 internal sowBlueprintv0;
     MowPlantHarvestBlueprint internal mowPlantHarvestBlueprint;
+
+    uint256 public constant DEFAULT_FIELD_ID = 0;
+    uint256 public constant PAYBACK_FIELD_ID = 1;
 
     enum SourceMode {
         PURE_PINTO,
@@ -369,39 +373,58 @@ contract TractorHelper is TestHelper {
             sourceTokenIndices[0] = type(uint8).max - 1;
         }
 
+        // create per-field-id harvest configs
+        MowPlantHarvestBlueprint.FieldHarvestConfig[]
+            memory fieldHarvestConfigs = createFieldHarvestConfigs(minHarvestAmount);
+
         // Create MowPlantHarvestParams struct
         MowPlantHarvestBlueprint.MowPlantHarvestParams
             memory mowPlantHarvestParams = MowPlantHarvestBlueprint.MowPlantHarvestParams({
                 minMowAmount: minMowAmount,
                 mintwaDeltaB: mintwaDeltaB,
                 minPlantAmount: minPlantAmount,
-                minHarvestAmount: minHarvestAmount,
+                fieldHarvestConfigs: fieldHarvestConfigs,
                 sourceTokenIndices: sourceTokenIndices,
                 maxGrownStalkPerBdv: maxGrownStalkPerBdv,
                 slippageRatio: 0.01e18 // 1%
             });
 
-        // Create OperatorParams struct
-        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
-            whitelistedOperators: whitelistedOps,
-            tipAddress: tipAddress,
-            operatorTipAmount: 0 // plain operator tip amount is not used in this blueprint
-        });
-
-        // Create OperatorParamsExtended struct
+        // create OperatorParamsExtended struct
         MowPlantHarvestBlueprint.OperatorParamsExtended
-            memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
-                opParamsBase: opParams,
-                mowTipAmount: mowTipAmount,
-                plantTipAmount: plantTipAmount,
-                harvestTipAmount: harvestTipAmount
-            });
+            memory opParamsExtended = createOperatorParamsExtended(
+                whitelistedOps,
+                tipAddress,
+                mowTipAmount,
+                plantTipAmount,
+                harvestTipAmount
+            );
 
         return
             MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
                 mowPlantHarvestParams: mowPlantHarvestParams,
                 opParams: opParamsExtended
             });
+    }
+
+    function createFieldHarvestConfigs(
+        uint256 minHarvestAmount
+    )
+        internal
+        view
+        returns (MowPlantHarvestBlueprint.FieldHarvestConfig[] memory fieldHarvestConfigs)
+    {
+        fieldHarvestConfigs = new MowPlantHarvestBlueprint.FieldHarvestConfig[](2);
+        // default field id
+        fieldHarvestConfigs[0] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+            fieldId: DEFAULT_FIELD_ID,
+            minHarvestAmount: minHarvestAmount
+        });
+        // expected payback field id
+        fieldHarvestConfigs[1] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+            fieldId: PAYBACK_FIELD_ID,
+            minHarvestAmount: minHarvestAmount
+        });
+        return fieldHarvestConfigs;
     }
 
     function createMowPlantHarvestBlueprintCallData(
@@ -428,5 +451,31 @@ contract TractorHelper is TestHelper {
 
         // return the encoded farm call
         return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    }
+
+    function createOperatorParamsExtended(
+        address[] memory whitelistedOps,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount
+    ) internal view returns (MowPlantHarvestBlueprint.OperatorParamsExtended memory) {
+        // create OperatorParams struct
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
+            whitelistedOperators: whitelistedOps,
+            tipAddress: tipAddress,
+            operatorTipAmount: 0 // plain operator tip amount is not used in this blueprint
+        });
+
+        // create OperatorParamsExtended struct
+        MowPlantHarvestBlueprint.OperatorParamsExtended
+            memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
+                opParamsBase: opParams,
+                mowTipAmount: mowTipAmount,
+                plantTipAmount: plantTipAmount,
+                harvestTipAmount: harvestTipAmount
+            });
+
+        return opParamsExtended;
     }
 }

@@ -43,7 +43,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param totalHarvestAmount The total harvestable pods for this field
      * @param harvestablePlots The harvestable plot indexes for the user
      */
-    struct UserFieldHarvestParams {
+    struct UserFieldHarvestResults {
         uint256 fieldId;
         uint256 totalHarvestablePods;
         uint256[] harvestablePlots;
@@ -56,6 +56,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * is close to starting the next season above the value target
      * @param minPlantAmount The earned beans threshold to plant
      * @param fieldHarvestConfigs Array of field-specific harvest configurations
+     * note: fieldHarvestConfigs should be sorted by fieldId to save gas
      * -----------------------------------------------------------
      * @param sourceTokenIndices Indices of source tokens to withdraw from
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV allowed
@@ -108,8 +109,9 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256 totalPlantableBeans;
         bool shouldMow;
         bool shouldPlant;
+        bool shouldHarvest;
         IBeanstalk.Season seasonInfo;
-        UserFieldHarvestParams[] userFieldHarvestParams;
+        UserFieldHarvestResults[] userFieldHarvestResults;
         LibTractorHelpers.WithdrawalPlan plan;
     }
 
@@ -121,7 +123,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
     /**
      * @notice Main entry point for the mow, plant and harvest blueprint
-     * @param params The parameters for the mow, plant and harvest operation
+     * @param params User-controlled parameters for automating mowing, planting and harvesting
      */
     function mowPlantHarvestBlueprint(
         MowPlantHarvestBlueprintStruct calldata params
@@ -137,11 +139,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         vars.seasonInfo = beanstalk.time();
 
         // get the user state from the protocol and validate against params
-        (vars.shouldMow, vars.shouldPlant, vars.userFieldHarvestParams) = _getAndValidateUserState(
-            vars.account,
-            vars.seasonInfo.timestamp,
-            params
-        );
+        (
+            vars.shouldMow,
+            vars.shouldPlant,
+            vars.shouldHarvest,
+            vars.userFieldHarvestResults
+        ) = _getAndValidateUserState(vars.account, vars.seasonInfo.timestamp, params);
 
         // validate blueprint
         _validateBlueprint(vars.orderHash, vars.seasonInfo.current);
@@ -158,7 +161,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // Mow, Plant and Harvest
         // Check if user should harvest or plant
         // In the case a harvest or plant is executed, mow by default
-        if (vars.shouldPlant || vars.userFieldHarvestParams.length > 0) vars.shouldMow = true;
+        if (vars.shouldPlant || vars.shouldHarvest) vars.shouldMow = true;
 
         // Execute operations in order: mow first (if needed), then plant, then harvest
         if (vars.shouldMow) {
@@ -173,20 +176,20 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         // Harvest in all configured fields if the conditions are met
-        if (vars.userFieldHarvestParams.length > 0) {
-            for (uint256 i = 0; i < vars.userFieldHarvestParams.length; i++) {
+        if (vars.shouldHarvest) {
+            for (uint256 i = 0; i < vars.userFieldHarvestResults.length; i++) {
                 // skip harvests that do not meet the minimum harvest amount
                 if (
-                    vars.userFieldHarvestParams[i].totalHarvestablePods <
+                    vars.userFieldHarvestResults[i].totalHarvestablePods <
                     params.mowPlantHarvestParams.fieldHarvestConfigs[i].minHarvestAmount
                 ) continue;
                 // harvest the pods to the user's internal balance
                 uint256 harvestedBeans = beanstalk.harvest(
-                    vars.userFieldHarvestParams[i].fieldId,
-                    vars.userFieldHarvestParams[i].harvestablePlots,
+                    vars.userFieldHarvestResults[i].fieldId,
+                    vars.userFieldHarvestResults[i].harvestablePlots,
                     LibTransfer.To.INTERNAL
                 );
-                // deposit the harvested beans into silo
+                // deposit the harvested beans into the silo
                 beanstalk.deposit(vars.beanToken, harvestedBeans, LibTransfer.From.INTERNAL);
             }
             // tip for harvesting includes all specified fields
@@ -215,7 +218,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param params The parameters for the mow, plant and harvest operation
      * @return shouldMow True if the user should mow
      * @return shouldPlant True if the user should plant
-     * @return userFieldHarvestParams An array of structs containing the total harvestable pods
+     * @return shouldHarvest True if the user should harvest in at least one field id
+     * @return userFieldHarvestResults An array of structs containing the total harvestable pods
      * and plots for the user for each field id specified in the blueprint config
      */
     function _getAndValidateUserState(
@@ -228,14 +232,15 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         returns (
             bool shouldMow,
             bool shouldPlant,
-            UserFieldHarvestParams[] memory userFieldHarvestParams
+            bool shouldHarvest,
+            UserFieldHarvestResults[] memory userFieldHarvestResults
         )
     {
         // get user state
         (
             uint256 totalClaimableStalk,
             uint256 totalPlantableBeans,
-            UserFieldHarvestParams[] memory userFieldHarvestParams
+            UserFieldHarvestResults[] memory userFieldHarvestResults
         ) = _getUserState(account, params.mowPlantHarvestParams.fieldHarvestConfigs);
 
         // validate params - only revert if none of the conditions are met
@@ -246,13 +251,17 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             previousSeasonTimestamp
         );
         shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
+        shouldHarvest = _checkHarvestConditions(
+            userFieldHarvestResults,
+            params.mowPlantHarvestParams.fieldHarvestConfigs
+        );
 
         require(
-            shouldMow || shouldPlant || userFieldHarvestParams.length > 0,
+            shouldMow || shouldPlant || shouldHarvest,
             "MowPlantHarvestBlueprint: None of the order conditions are met"
         );
 
-        return (shouldMow, shouldPlant, userFieldHarvestParams);
+        return (shouldMow, shouldPlant, shouldHarvest, userFieldHarvestResults);
     }
 
     /**
@@ -277,6 +286,26 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
+     * @notice Checks harvest conditions to trigger a harvest operation
+     * @dev Harvests should happen when:
+     * - The user has enough harvestable pods in at least one field id
+     * as specified by `fieldHarvestConfigs.minHarvestAmount`
+     * @return bool True if the user should harvest, false otherwise
+     */
+    function _checkHarvestConditions(
+        UserFieldHarvestResults[] memory userFieldHarvestResults,
+        FieldHarvestConfig[] memory fieldHarvestConfigs
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < userFieldHarvestResults.length; i++) {
+            if (
+                userFieldHarvestResults[i].totalHarvestablePods >=
+                fieldHarvestConfigs[i].minHarvestAmount
+            ) return true;
+        }
+        return false;
+    }
+
+    /**
      * @notice helper function to get the user state to compare against parameters
      * @dev Increasing the total claimable stalk when planting or harvesting does not really matter
      * since we mow by default if we plant or harvest
@@ -290,7 +319,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         returns (
             uint256 totalClaimableStalk,
             uint256 totalPlantableBeans,
-            UserFieldHarvestParams[] memory userFieldHarvestParams
+            UserFieldHarvestResults[] memory userFieldHarvestResults
         )
     {
         address[] memory whitelistedTokens = beanstalk.getWhitelistedTokens();
@@ -307,36 +336,36 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // check if user has plantable beans
         totalPlantableBeans = beanstalk.balanceOfEarnedBeans(account);
 
-        // for every field id, check if user has harvestable beans
-        // and for each one that meets the minimum harvest amount, add it to the user field harvest params
+        // for every field id, check if user has harvestable beans and append results
+        userFieldHarvestResults = new UserFieldHarvestResults[](fieldHarvestConfigs.length);
         for (uint256 i = 0; i < fieldHarvestConfigs.length; i++) {
-            userFieldHarvestParams[i] = _userHarvestablePods(
+            userFieldHarvestResults[i] = _userHarvestablePods(
                 account,
                 fieldHarvestConfigs[i].fieldId
             );
         }
 
-        return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestParams);
+        return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestResults);
     }
 
     /**
      * @notice Helper function to get the total harvestable pods and plots for a user for a given field
      * @param account The address of the user
      * @param fieldId The field ID to check for harvestable pods
-     * @return userFieldHarvestParams A struct containing the total harvestable pods and plots for the given field
+     * @return userFieldHarvestResults A struct containing the total harvestable pods and plots for the given field
      */
     function _userHarvestablePods(
         address account,
         uint256 fieldId
-    ) internal view returns (UserFieldHarvestParams memory userFieldHarvestParams) {
+    ) internal view returns (UserFieldHarvestResults memory userFieldHarvestResults) {
         // get field info and plot count directly
         uint256[] memory plotIndexes = beanstalk.getPlotIndexesFromAccount(account, fieldId);
         uint256 harvestableIndex = beanstalk.harvestableIndex(fieldId);
 
-        if (plotIndexes.length == 0) return userFieldHarvestParams;
+        if (plotIndexes.length == 0) return userFieldHarvestResults;
 
         // initialize array with full length and init field id
-        userFieldHarvestParams.fieldId = fieldId;
+        userFieldHarvestResults.fieldId = fieldId;
         uint256[] memory harvestablePlots = new uint256[](plotIndexes.length);
         uint256 harvestableCount;
 
@@ -348,12 +377,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             if (startIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
                 harvestablePlots[harvestableCount] = startIndex;
-                userFieldHarvestParams.totalHarvestablePods += plotPods;
+                userFieldHarvestResults.totalHarvestablePods += plotPods;
                 harvestableCount++;
             } else if (startIndex < harvestableIndex) {
                 // Partially harvestable
                 harvestablePlots[harvestableCount] = startIndex;
-                userFieldHarvestParams.totalHarvestablePods += harvestableIndex - startIndex;
+                userFieldHarvestResults.totalHarvestablePods += harvestableIndex - startIndex;
                 harvestableCount++;
             }
         }
@@ -363,7 +392,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             mstore(harvestablePlots, harvestableCount)
         }
         // assign the harvestable plots to the user field harvest params
-        userFieldHarvestParams.harvestablePlots = harvestablePlots;
+        userFieldHarvestResults.harvestablePlots = harvestablePlots;
     }
 
     /**

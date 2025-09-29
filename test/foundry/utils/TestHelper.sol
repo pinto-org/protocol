@@ -810,14 +810,15 @@ contract TestHelper is
      * @return userHarvestablePlots The harvestable plot ids for the user
      */
     function _userHarvestablePods(
-        address account
+        address account,
+        uint256 fieldId
     )
         internal
         view
         returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
     {
         // get field info and plot count directly
-        uint256 activeField = bs.activeField();
+        uint256 activeField = fieldId;
         uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, activeField);
         uint256 harvestableIndex = bs.harvestableIndex(activeField);
 
