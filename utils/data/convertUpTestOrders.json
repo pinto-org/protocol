@@ -10,7 +10,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "1000000000",
-            "minBeansConvertPerExecution": "100000000",
+            "minBeansConvertPerExecution": "10000000",
             "maxBeansConvertPerExecution": "500000000",
             "minTimeBetweenConverts": 300,
             "minConvertBonusCapacity": "0",
@@ -40,7 +40,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "2000000000",
-            "minBeansConvertPerExecution": "200000000",
+            "minBeansConvertPerExecution": "20000000",
             "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
@@ -64,7 +64,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "1500000000",
-            "minBeansConvertPerExecution": "150000000",
+            "minBeansConvertPerExecution": "15000000",
             "maxBeansConvertPerExecution": "750000000",
             "minTimeBetweenConverts": 450,
             "minConvertBonusCapacity": "0",
@@ -94,7 +94,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2, 3, 4],
             "totalBeanAmountToConvert": "3000000000",
-            "minBeansConvertPerExecution": "300000000",
+            "minBeansConvertPerExecution": "30000000",
             "maxBeansConvertPerExecution": "1500000000",
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
@@ -142,7 +142,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "2000000000",
-            "minBeansConvertPerExecution": "200000000",
+            "minBeansConvertPerExecution": "20000000",
             "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
@@ -220,7 +220,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "3000000000",
-            "minBeansConvertPerExecution": "300000000",
+            "minBeansConvertPerExecution": "30000000",
             "maxBeansConvertPerExecution": "1500000000",
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
@@ -268,7 +268,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "2000000000",
-            "minBeansConvertPerExecution": "200000000",
+            "minBeansConvertPerExecution": "20000000",
             "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
@@ -394,7 +394,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "3000000000",
-            "minBeansConvertPerExecution": "300000000",
+            "minBeansConvertPerExecution": "30000000",
             "maxBeansConvertPerExecution": "1500000000",
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
@@ -442,7 +442,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2],
             "totalBeanAmountToConvert": "2000000000",
-            "minBeansConvertPerExecution": "200000000",
+            "minBeansConvertPerExecution": "20000000",
             "maxBeansConvertPerExecution": "1000000000",
             "minTimeBetweenConverts": 600,
             "minConvertBonusCapacity": "0",
@@ -466,7 +466,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "1500000000",
-            "minBeansConvertPerExecution": "150000000",
+            "minBeansConvertPerExecution": "15000000",
             "maxBeansConvertPerExecution": "750000000",
             "minTimeBetweenConverts": 450,
             "minConvertBonusCapacity": "0",
@@ -490,7 +490,7 @@
           "convertUpParams": {
             "sourceTokenIndices": [2, 3],
             "totalBeanAmountToConvert": "1000000000",
-            "minBeansConvertPerExecution": "100000000",
+            "minBeansConvertPerExecution": "10000000",
             "maxBeansConvertPerExecution": "500000000",
             "minTimeBetweenConverts": 300,
             "minConvertBonusCapacity": "0",
