@@ -38,9 +38,9 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Struct to hold field-specific harvest parameters
+     * @notice Struct to hold field-specific harvest results after a _userHarvestablePods call
      * @param fieldId The field ID to harvest from
-     * @param totalHarvestAmount The total harvestable pods for this field
+     * @param totalHarvestablePods The total harvestable pods for this field
      * @param harvestablePlots The harvestable plot indexes for the user
      */
     struct UserFieldHarvestResults {
