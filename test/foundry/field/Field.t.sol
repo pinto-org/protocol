@@ -757,6 +757,64 @@ contract FieldTest is TestHelper {
     }
 
     /**
+     * @notice Tests merging of adjacent plots but with unordered plotIndexes in storage
+     */
+    function test_mergeAdjacentPlotsWithUnorderedPlotIndexes() public {
+        uint256 activeField = bs.activeField();
+        mintTokensToUser(farmers[0], BEAN, 1000e6);
+        uint256[] memory plotIndexes = setUpMultipleConsecutiveAccountPlots(farmers[0], 1000e6, 10);
+        assertTrue(isArrayOrdered(plotIndexes), "Original plot indexes should be ordered");
+
+        // Store original plot indexes for verification
+        uint256[] memory originalPlotIndexes = new uint256[](plotIndexes.length);
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            originalPlotIndexes[i] = plotIndexes[i];
+        }
+
+        // Get total pods before merge
+        uint256 totalPodsBefore = getTotalPodsFromAccount(farmers[0]);
+
+        // Create reordered array by copying and swapping elements
+        uint256[] memory newPlotIndexes = new uint256[](plotIndexes.length);
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            newPlotIndexes[i] = plotIndexes[i];
+        }
+
+        // Swap some elements to create unordered array (but still consecutive plots)
+        swapArrayElementPositions(newPlotIndexes, 1, 5);
+        swapArrayElementPositions(newPlotIndexes, 3, 7);
+        swapArrayElementPositions(newPlotIndexes, 0, 9);
+
+        // Reorder the plot indexes in storage to test merge with unordered array
+        bs.reorderPlotIndexes(newPlotIndexes, activeField, farmers[0]);
+
+        // Verify that plot indexes are now unordered in storage
+        uint256[] memory reorderedIndexes = bs.getPlotIndexesFromAccount(farmers[0], activeField);
+        assertTrue(!isArrayOrdered(reorderedIndexes), " New plot indexes should be unordered");
+
+        // Combine plots using original indexes (irrelevant of plotIndexes order in storage)
+        bs.combinePlots(farmers[0], activeField, originalPlotIndexes);
+
+        // Verify merge succeeded - should have only 1 plot left
+        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 1);
+        assertEq(bs.getPlotIndexesFromAccount(farmers[0], activeField)[0], originalPlotIndexes[0]);
+        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, originalPlotIndexes[0]), 0);
+
+        // Verify that merged plots have piIndex set to uint256.max (except the first one which should be 0)
+        assertEq(bs.getPiIndexFromAccount(farmers[0], activeField, originalPlotIndexes[0]), 0);
+        for (uint256 i = 1; i < originalPlotIndexes.length; i++) {
+            assertEq(
+                bs.getPiIndexFromAccount(farmers[0], activeField, originalPlotIndexes[i]),
+                type(uint256).max
+            );
+        }
+
+        // Verify total pods remained the same
+        uint256 totalPodsAfter = getTotalPodsFromAccount(farmers[0]);
+        assertEq(totalPodsAfter, totalPodsBefore);
+    }
+
+    /**
      * @dev Creates multiple consecutive plots for an account of size totalSoil/sowCount
      */
     function setUpMultipleConsecutiveAccountPlots(
@@ -815,5 +873,25 @@ contract FieldTest is TestHelper {
             vm.prank(account);
             bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
         }
+    }
+
+    function swapArrayElementPositions(
+        uint256[] memory array,
+        uint256 index1,
+        uint256 index2
+    ) internal pure {
+        require(index1 < array.length && index2 < array.length, "Field: Index out of bounds");
+        uint256 temp = array[index1];
+        array[index1] = array[index2];
+        array[index2] = temp;
+    }
+
+    function isArrayOrdered(uint256[] memory array) internal pure returns (bool) {
+        for (uint256 i = 1; i < array.length; i++) {
+            if (array[i] < array[i - 1]) {
+                return false;
+            }
+        }
+        return true;
     }
 }
