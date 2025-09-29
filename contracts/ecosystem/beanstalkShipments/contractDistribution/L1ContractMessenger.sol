@@ -49,7 +49,10 @@ contract L1ContractMessenger {
      * From fork testing, all contract accounts claimed their assets with a maximum of 26million gas.
      * (https://docs.optimism.io/app-developers/bridging/messaging#basics-of-communication-between-layers)
      */
-    function claimL2BeanstalkAssets(address l2Receiver, LibTransfer.To siloPaybackToMode) public onlyWhitelistedL1Caller {
+    function claimL2BeanstalkAssets(
+        address l2Receiver,
+        LibTransfer.To siloPaybackToMode
+    ) public onlyWhitelistedL1Caller {
         MESSENGER.sendMessage(
             L2_CONTRACT_PAYBACK_DISTRIBUTOR, // target
             abi.encodeCall(
