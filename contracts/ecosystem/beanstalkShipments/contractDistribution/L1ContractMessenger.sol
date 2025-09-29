@@ -47,9 +47,7 @@ contract L1ContractMessenger {
      * The gas limit is the max gas limit needed on the l2 with a 20% on top of that as buffer
      * (https://docs.optimism.io/app-developers/bridging/messaging#basics-of-communication-between-layers)
      */
-    function setL2BeanstalkAssetsReceiver(
-        address l2Receiver
-    ) public onlyWhitelistedL1Caller {
+    function setL2BeanstalkAssetsReceiver(address l2Receiver) public onlyWhitelistedL1Caller {
         MESSENGER.sendMessage(
             L2_CONTRACT_PAYBACK_DISTRIBUTOR, // target
             abi.encodeCall(
