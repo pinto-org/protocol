@@ -155,17 +155,15 @@ library LibReceiving {
         // barn payback is the second parameter in the data
         (, address barnPaybackContract) = abi.decode(data, (address, address));
 
-        // transfer the shipment amount to the barn payback contract
-        LibTransfer.sendToken(
-            IERC20(s.sys.bean),
-            shipmentAmount,
-            barnPaybackContract,
-            LibTransfer.To.EXTERNAL
-        );
-
-        // update the state of the barn payback contract to account for the newly received beans
+        // send and update the state of the barn payback contract to account for the newly received beans
         // Do not revert on failure to prevent sunrise from failing
         try IBarnPayback(barnPaybackContract).barnPaybackReceive(shipmentAmount) {
+            LibTransfer.sendToken(
+                IERC20(s.sys.bean),
+                shipmentAmount,
+                barnPaybackContract,
+                LibTransfer.To.EXTERNAL
+            );
             // Confirm successful receipt.
             emit Receipt(ShipmentRecipient.BARN_PAYBACK, shipmentAmount, data);
         } catch {}
@@ -184,17 +182,16 @@ library LibReceiving {
         // silo payback is the first parameter in the data
         (address siloPaybackContract, ) = abi.decode(data, (address, address));
 
-        // transfer the shipment amount to the silo payback contract
-        LibTransfer.sendToken(
-            IERC20(s.sys.bean),
-            shipmentAmount,
-            siloPaybackContract,
-            LibTransfer.To.EXTERNAL
-        );
-
         // update the state of the silo payback contract to account for the newly received beans
         // Do not revert on failure to prevent sunrise from failing
         try ISiloPayback(siloPaybackContract).siloPaybackReceive(shipmentAmount) {
+            // transfer the shipment amount to the silo payback contract
+            LibTransfer.sendToken(
+                IERC20(s.sys.bean),
+                shipmentAmount,
+                siloPaybackContract,
+                LibTransfer.To.EXTERNAL
+            );
             // Confirm successful receipt.
             emit Receipt(ShipmentRecipient.SILO_PAYBACK, shipmentAmount, data);
         } catch {}
