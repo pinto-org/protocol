@@ -1139,6 +1139,12 @@ interface IMockFBeanstalk {
         uint256[] calldata plotIndexes
     ) external payable;
 
+    function reorderPlotIndexes(
+        uint256[] memory newPlotIndexes,
+        uint256 fieldId,
+        address account
+    ) external;
+
     function getPodListing(uint256 fieldId, uint256 index) external view returns (bytes32 id);
 
     function getPodOrder(bytes32 id) external view returns (uint256);
