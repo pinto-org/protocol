@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
 import {IContractPaybackDistributor} from "contracts/interfaces/IContractPaybackDistributor.sol";
+import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 
 /**
  * @title L1ContractMessenger
@@ -48,12 +49,12 @@ contract L1ContractMessenger {
      * From fork testing, all contract accounts claimed their assets with a maximum of 26million gas.
      * (https://docs.optimism.io/app-developers/bridging/messaging#basics-of-communication-between-layers)
      */
-    function claimL2BeanstalkAssets(address l2Receiver) public onlyWhitelistedL1Caller {
+    function claimL2BeanstalkAssets(address l2Receiver, LibTransfer.To siloPaybackToMode) public onlyWhitelistedL1Caller {
         MESSENGER.sendMessage(
             L2_CONTRACT_PAYBACK_DISTRIBUTOR, // target
             abi.encodeCall(
                 IContractPaybackDistributor.claimFromL1Message,
-                (msg.sender, l2Receiver)
+                (msg.sender, l2Receiver, siloPaybackToMode)
             ), // message
             MAX_GAS_LIMIT // gas limit
         );

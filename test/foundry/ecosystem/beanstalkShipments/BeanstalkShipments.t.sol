@@ -14,6 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ShipmentRecipient, ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
 import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 import {ContractPaybackDistributor} from "contracts/ecosystem/beanstalkShipments/contractDistribution/ContractPaybackDistributor.sol";
+import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 
 /**
  * @notice Tests shipment distribution and claiming functionality for the beanstalk shipments system.
@@ -474,7 +475,7 @@ contract BeanstalkShipmentsTest is TestHelper {
 
             // Prank as the contract account to call claimDirect
             vm.prank(contractAccounts[i]);
-            contractDistributor.claimDirect(farmer1);
+            contractDistributor.claimDirect(farmer1, LibTransfer.To.EXTERNAL);
 
             uint256 gasUsed = vm.stopSnapshotGas();
             if (gasUsed > maxGasUsed) {
@@ -493,7 +494,7 @@ contract BeanstalkShipmentsTest is TestHelper {
         vm.startSnapshotGas("contractClaimWithMaxPlots");
         // prank and call claimDirect
         vm.prank(plotContract);
-        contractDistributor.claimDirect(farmer1);
+        contractDistributor.claimDirect(farmer1, LibTransfer.To.EXTERNAL);
         uint256 gasUsed = vm.stopSnapshotGas();
         console.log("Gas used by contract claim with max plots", gasUsed);
     }

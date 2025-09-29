@@ -131,7 +131,7 @@ contract ContractDistributionTest is TestHelper {
      */
     function test_contractDistributionDirect() public {
         vm.startPrank(contractAccount1);
-        contractPaybackDistributor.claimDirect(receiver1);
+        contractPaybackDistributor.claimDirect(receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // assert the receiver address holds all the assets for receiver1
@@ -162,12 +162,12 @@ contract ContractDistributionTest is TestHelper {
         // try to claim again from contractAccount1
         vm.startPrank(contractAccount1);
         vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
-        contractPaybackDistributor.claimDirect(receiver1);
+        contractPaybackDistributor.claimDirect(receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // Claim for contractAccount2
         vm.startPrank(contractAccount2);
-        contractPaybackDistributor.claimDirect(receiver2);
+        contractPaybackDistributor.claimDirect(receiver2, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // assert the receiver address holds all the assets for receiver2
@@ -207,7 +207,7 @@ contract ContractDistributionTest is TestHelper {
         // try to claim from non-L1 messenger, expect revert
         vm.startPrank(address(contractAccount1));
         vm.expectRevert("ContractPaybackDistributor: Caller not L1 messenger");
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // try to claim from non-L1 sender, expect revert
@@ -218,7 +218,7 @@ contract ContractDistributionTest is TestHelper {
             abi.encode(makeAddr("nonL1Sender"))
         );
         vm.expectRevert("ContractPaybackDistributor: Bad origin");
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // claim using the L1 message. Mock that the call was initiated by the L1 sender contract
@@ -229,7 +229,7 @@ contract ContractDistributionTest is TestHelper {
             abi.encodeWithSelector(L1_MESSENGER.xDomainMessageSender.selector),
             abi.encode(L1_SENDER)
         );
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // assert the receiver address holds all the assets for receiver1
@@ -265,13 +265,13 @@ contract ContractDistributionTest is TestHelper {
             abi.encode(L1_SENDER)
         );
         vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
-        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1);
+        contractPaybackDistributor.claimFromL1Message(contractAccount1, receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
 
         // try to claim again for same account directly, expect revert
         vm.startPrank(address(contractAccount1));
         vm.expectRevert("ContractPaybackDistributor: Caller already claimed");
-        contractPaybackDistributor.claimDirect(receiver1);
+        contractPaybackDistributor.claimDirect(receiver1, LibTransfer.To.EXTERNAL);
         vm.stopPrank();
     }
 

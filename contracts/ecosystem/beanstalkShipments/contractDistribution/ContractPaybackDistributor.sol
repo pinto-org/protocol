@@ -10,6 +10,7 @@ import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IContractPaybackDistributor} from "contracts/interfaces/IContractPaybackDistributor.sol";
+import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 
 /**
  * @title ContractPaybackDistributor
@@ -132,13 +133,14 @@ contract ContractPaybackDistributor is
      * @param receiver The address to transfer the assets to
      */
     function claimDirect(
-        address receiver
+        address receiver,
+        LibTransfer.To siloPaybackToMode
     ) external nonReentrant onlyWhitelistedCaller(msg.sender) isValidReceiver(receiver) {
         AccountData storage account = accounts[msg.sender];
         require(!account.claimed, "ContractPaybackDistributor: Caller already claimed");
 
         account.claimed = true;
-        _transferAllAssetsForAccount(msg.sender, receiver);
+        _transferAllAssetsForAccount(msg.sender, receiver, siloPaybackToMode);
     }
 
     /**
@@ -148,12 +150,13 @@ contract ContractPaybackDistributor is
      */
     function claimFromL1Message(
         address caller,
-        address receiver
+        address receiver,
+        LibTransfer.To siloPaybackToMode
     ) public nonReentrant onlyL1Messenger onlyWhitelistedCaller(caller) isValidReceiver(receiver) {
         AccountData storage account = accounts[caller];
         require(!account.claimed, "ContractPaybackDistributor: Caller already claimed");
         account.claimed = true;
-        _transferAllAssetsForAccount(caller, receiver);
+        _transferAllAssetsForAccount(caller, receiver, siloPaybackToMode);
     }
 
     /**
@@ -162,12 +165,24 @@ contract ContractPaybackDistributor is
      * @param account The address of the account to claim from
      * @param receiver The address to transfer the assets to
      */
-    function _transferAllAssetsForAccount(address account, address receiver) internal {
+    function _transferAllAssetsForAccount(
+        address account,
+        address receiver,
+        LibTransfer.To siloPaybackToMode
+    ) internal {
         AccountData memory accountData = accounts[account];
 
         // transfer silo payback tokens to the receiver
         if (accountData.siloPaybackTokensOwed > 0) {
-            siloPayback.safeTransfer(receiver, accountData.siloPaybackTokensOwed);
+            if (siloPaybackToMode == LibTransfer.To.INTERNAL) {
+                pintoProtocol.sendTokenToInternalBalance(
+                    address(siloPayback),
+                    receiver,
+                    accountData.siloPaybackTokensOwed
+                );
+            } else {
+                siloPayback.safeTransfer(receiver, accountData.siloPaybackTokensOwed);
+            }
         }
 
         // transfer fertilizer ERC1155s to the receiver
