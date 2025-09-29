@@ -235,4 +235,11 @@ contract MockFieldFacet is FieldFacet {
             prevSeasonTemp
         );
     }
+
+    function reorderPlotIndexes(uint256[] memory newPlotIndexes, uint256 fieldId, address account) external {
+        for (uint256 i = 0; i < newPlotIndexes.length; i++) {
+            s.accts[account].fields[fieldId].plotIndexes[i] = newPlotIndexes[i];
+            s.accts[account].fields[fieldId].piIndex[newPlotIndexes[i]] = i;
+        }
+    }
 }

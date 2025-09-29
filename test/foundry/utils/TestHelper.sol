@@ -802,4 +802,52 @@ contract TestHelper is
             lwImplementation
         );
     }
+
+    /**
+     * @notice Helper function to get the total harvestable pods and plots for a user
+     * @param account The address of the user
+     * @return totalUserHarvestablePods The total amount of harvestable pods for the user
+     * @return userHarvestablePlots The harvestable plot ids for the user
+     */
+    function _userHarvestablePods(
+        address account
+    )
+        internal
+        view
+        returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
+    {
+        // get field info and plot count directly
+        uint256 activeField = bs.activeField();
+        uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, activeField);
+        uint256 harvestableIndex = bs.harvestableIndex(activeField);
+
+        if (plotIndexes.length == 0) return (0, new uint256[](0));
+
+        // initialize array with full length
+        userHarvestablePlots = new uint256[](plotIndexes.length);
+        uint256 harvestableCount;
+
+        // single loop to process all plot indexes directly
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 startIndex = plotIndexes[i];
+            uint256 plotPods = bs.plot(account, activeField, startIndex);
+
+            if (startIndex + plotPods <= harvestableIndex) {
+                // Fully harvestable
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += plotPods;
+                harvestableCount++;
+            } else if (startIndex < harvestableIndex) {
+                // Partially harvestable
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += harvestableIndex - startIndex;
+                harvestableCount++;
+            }
+        }
+        // resize array to actual harvestable plots count
+        assembly {
+            mstore(userHarvestablePlots, harvestableCount)
+        }
+        return (totalUserHarvestablePods, userHarvestablePlots);
+    }
 }
