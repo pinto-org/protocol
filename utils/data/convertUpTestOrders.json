@@ -99,7 +99,7 @@
             "minTimeBetweenConverts": 900,
             "minConvertBonusCapacity": "0",
             "maxGrownStalkPerBdv": "3000000000000000000000",
-            "grownStalkPerBdvBonusBid": "800000000",
+            "grownStalkPerBdvBonusBid": "0",
             "minPriceToConvertUp": "700000",
             "maxPriceToConvertUp": "980000",
             "seedDifference": "0",
