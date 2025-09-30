@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import {console} from "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -653,5 +654,137 @@ contract FieldTest is TestHelper {
         vm.prank(farmers[1]);
         vm.expectRevert("Field: Insufficient approval.");
         bs.transferPlots(farmers[0], farmers[1], activeField, indexes, starts, ends);
+    }
+
+    /**
+     * @notice Test that sowWithReferral correctly allocates pods to both sower and referral
+     * @dev Verifies that referral receives percentage of pods based on referralPercentage
+     */
+    function test_sowWithReferral(uint256 sowAmount) public {
+        uint256 activeField = field.activeField();
+        // Bound to uint64 max to avoid overflow issues with soil calculation
+
+        // set temperature to 100%
+        bs.setMaxTempE(100e6);
+
+        // skip morning auction
+        vm.roll(block.number + 500);
+
+        sowAmount = bound(sowAmount, 100, type(uint64).max);
+
+        // Set referral percentage to 10% (0.1 * 1e18)
+        bs.setReferralPercentageE(0.1e18);
+
+        // Setup: mint beans and set soil
+        bean.mint(farmers[0], sowAmount);
+        season.setSoilE(sowAmount + 1); // Add 1 to ensure enough soil
+
+        // Get initial state
+        uint256 farmer0BeansBefore = bean.balanceOf(farmers[0]);
+        uint256 totalBeanSupplyBefore = bean.totalSupply();
+        uint256 activeFieldPodIndexBefore = field.podIndex(activeField);
+
+        // Calculate expected pods
+        uint256 expectedFarmerPods = calcPods(sowAmount, 100e6);
+        uint256 referralPercentage = field.getReferralPercentage();
+        uint256 expectedReferralPods = (expectedFarmerPods * referralPercentage) / 1e18;
+        // Sow with referral
+        vm.prank(farmers[0]);
+        (uint256 actualFarmerPods, uint256 actualReferralPods) = field.sowWithReferral(
+            sowAmount,
+            0, // minTemperature
+            0, // minSoil
+            LibTransfer.From.EXTERNAL,
+            farmers[1] // referral address
+        );
+
+        // Verify return values
+        assertApproxEqAbs(actualFarmerPods, expectedFarmerPods, 1, "Farmer pods mismatch");
+        assertApproxEqAbs(actualReferralPods, expectedReferralPods, 1, "Referral pods mismatch");
+
+        // Verify farmer state
+        assertEq(
+            bean.balanceOf(farmers[0]),
+            farmer0BeansBefore - sowAmount,
+            "Farmer bean balance incorrect"
+        );
+        assertEq(
+            field.plot(farmers[0], activeField, activeFieldPodIndexBefore),
+            actualFarmerPods,
+            "Farmer plot pods incorrect"
+        );
+
+        // Verify referral state
+        assertEq(
+            field.plot(farmers[1], activeField, activeFieldPodIndexBefore + actualFarmerPods),
+            actualReferralPods,
+            "Referral plot pods incorrect"
+        );
+
+        // Verify total supply decreased by sowAmount (referral pods are minted from protocol, not farmer)
+        assertEq(
+            bean.totalSupply(),
+            totalBeanSupplyBefore - sowAmount,
+            "Total bean supply incorrect"
+        );
+
+        // Verify total pods increased correctly
+        assertEq(
+            field.totalPods(activeField),
+            actualFarmerPods + actualReferralPods,
+            "Total pods incorrect"
+        );
+
+        // Verify pod index advanced correctly
+        assertEq(
+            field.podIndex(activeField),
+            activeFieldPodIndexBefore + actualFarmerPods + actualReferralPods,
+            "Pod index incorrect"
+        );
+    }
+
+    /**
+     * @notice Test that sowWithReferral with address(0) works like regular sow
+     */
+    function test_sowWithReferralZeroAddress(uint256 sowAmount) public {
+        uint256 activeField = field.activeField();
+        // Bound to uint64 max to avoid overflow issues
+        sowAmount = bound(sowAmount, 100, type(uint64).max);
+
+        // Set referral percentage
+        bs.setReferralPercentageE(0.1e18);
+
+        // Setup
+        bean.mint(farmers[0], sowAmount);
+        season.setSoilE(sowAmount + 100); // Ensure enough soil
+
+        uint256 farmer0BeansBefore = bean.balanceOf(farmers[0]);
+        uint256 expectedPods = _minPods(sowAmount);
+
+        // Sow with zero address referral
+        vm.prank(farmers[0]);
+        (uint256 actualPods, uint256 referralPods) = field.sowWithReferral(
+            sowAmount,
+            0,
+            0,
+            LibTransfer.From.EXTERNAL,
+            address(0) // no referral
+        );
+
+        // Verify farmer gets pods, referral gets nothing
+        assertEq(actualPods, expectedPods, "Farmer pods mismatch");
+        assertEq(referralPods, 0, "Referral pods should be zero");
+        assertEq(
+            bean.balanceOf(farmers[0]),
+            farmer0BeansBefore - sowAmount,
+            "Farmer bean balance incorrect"
+        );
+        assertEq(field.plot(farmers[0], activeField, 0), expectedPods, "Farmer plot incorrect");
+    }
+
+    function calcPods(uint256 beans, uint256 temperature) public pure returns (uint256) {
+        console.log("calcPods: beans", beans);
+        console.log("calcPods: temperature", temperature);
+        return (beans * (100e6 + temperature)) / 100e6;
     }
 }
