@@ -15,7 +15,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {LibBytes64} from "contracts/libraries/LibBytes64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
+import {TractorEnabled} from "contracts/ecosystem/abstract/TractorEnabled.sol";
 
 /**
  * @dev Fertilizer tailored implementation of the ERC-1155 standard.

@@ -7,7 +7,7 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {TractorEnabled} from "contracts/ecosystem/TractorEnabled.sol";
+import {TractorEnabled} from "contracts/ecosystem/abstract/TractorEnabled.sol";
 
 /**
  * @title SiloPayback
