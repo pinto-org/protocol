@@ -1606,6 +1606,8 @@ interface IMockFBeanstalk {
 
     function setSoilE(uint256 amount) external;
 
+    function setReferralPercentageE(uint256 percentage) external;
+
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
     function setSunriseBlock(uint256 _block) external;

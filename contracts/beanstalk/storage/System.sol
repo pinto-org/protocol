@@ -18,6 +18,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param initialSoil The initial amount of Soil.
+ * @param referralPercentage The percentage of pods that a user will gain for successfully referring a user to sow.  decimal precision.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -54,7 +56,8 @@ struct System {
     uint256 fieldCount;
     uint256 orderLockedBeans;
     uint128 initialSoil;
-    bytes32[15] _buffer_0;
+    uint256 referralPercentage;
+    bytes32[14] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;

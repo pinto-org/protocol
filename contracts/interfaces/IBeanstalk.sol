@@ -228,4 +228,12 @@ interface IBeanstalk {
         external
         view
         returns (WhitelistStatus[] memory _whitelistStatuses);
+
+    function sowWithReferral(
+        uint256 beans,
+        uint256 minTemperature,
+        uint256 minSoil,
+        LibTransfer.From mode,
+        address referral
+    ) external payable returns (uint256 pods, uint256 referralPods);
 }

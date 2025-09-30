@@ -989,6 +989,29 @@ task(
   });
 });
 
+task("PI-X-PodReferral", "Deploys Pinto improvement set X, Pod Referral System").setAction(
+  async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Account address: ", await owner.getAddress());
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["FieldFacet"],
+      initArgs: [],
+      initFacetName: "InitPodReferral",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  }
+);
+
 task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
   const mock = true;
   let owner;

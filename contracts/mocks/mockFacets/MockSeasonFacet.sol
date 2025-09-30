@@ -300,6 +300,10 @@ contract MockSeasonFacet is SeasonFacet {
         setSoil(amount);
     }
 
+    function setReferralPercentageE(uint256 percentage) public {
+        s.sys.referralPercentage = percentage;
+    }
+
     function resetState() public {
         for (uint256 i; i < s.sys.fieldCount; i++) {
             s.sys.fields[i].pods = 0;

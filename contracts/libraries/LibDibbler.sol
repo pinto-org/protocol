@@ -15,6 +15,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
 import {LibGaugeHelpers} from "./LibGaugeHelpers.sol";
+import {C} from "contracts/C.sol";
 
 /**
  * @title LibDibbler
@@ -73,14 +74,29 @@ library LibDibbler {
      */
     event SoilSoldOut(uint256 secondsSinceStart);
 
+    /**
+     * @notice Emitted from {LibDibbler._sow} when an `account` sows Beans for Pods.
+     * @param account The account that sowed Bean for Pods
+     * @param referral The account that referred the `account`
+     * @param beans The amount of Bean burnt to create the Plot
+     * @param pods The amount of Pods associated with the created Plot
+     */
+    event ReferralSow(
+        address indexed account,
+        address indexed referral,
+        uint256 beans,
+        uint256 pods
+    );
+
     //////////////////// SOW ////////////////////
 
     function sowWithMin(
         uint256 beans,
         uint256 minTemperature,
         uint256 minSoil,
-        LibTransfer.From mode
-    ) internal returns (uint256 pods) {
+        LibTransfer.From mode,
+        address referral
+    ) internal returns (uint256 pods, uint256 referralPods) {
         // `soil` is the remaining Soil
         (uint256 soil, uint256 _morningTemperature, bool abovePeg) = _totalSoilAndTemperature();
 
@@ -93,7 +109,7 @@ library LibDibbler {
         }
 
         // 1 Bean is Sown in 1 Soil, i.e. soil = beans
-        pods = _sow(soil, _morningTemperature, abovePeg, mode);
+        (pods, referralPods) = _sow(soil, _morningTemperature, abovePeg, mode, referral);
     }
 
     /**
@@ -104,11 +120,17 @@ library LibDibbler {
         uint256 beans,
         uint256 _morningTemperature,
         bool peg,
-        LibTransfer.From mode
-    ) internal returns (uint256 pods) {
+        LibTransfer.From mode,
+        address referral
+    ) internal returns (uint256 pods, uint256 referralPods) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, LibTractor._user(), mode);
         pods = sow(beans, _morningTemperature, LibTractor._user(), peg);
+        if (referral != address(0)) {
+            uint256 referralBeans = (beans * s.sys.referralPercentage) / C.PRECISION;
+            referralPods = sow(referralBeans, _morningTemperature, referral, peg);
+            emit ReferralSow(referral, LibTractor._user(), referralBeans, referralPods);
+        }
         s.sys.beanSown += SafeCast.toUint128(beans);
     }
 

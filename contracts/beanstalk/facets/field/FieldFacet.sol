@@ -90,7 +90,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (uint256 pods)
     {
-        return LibDibbler.sowWithMin(beans, minTemperature, beans, mode);
+        (pods, ) = LibDibbler.sowWithMin(beans, minTemperature, beans, mode, address(0));
     }
 
     /**
@@ -116,9 +116,25 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (uint256 pods)
     {
-        return LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode);
+        (pods, ) = LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode, address(0));
     }
 
+    function sowWithReferral(
+        uint256 beans,
+        uint256 minTemperature,
+        uint256 minSoil,
+        LibTransfer.From mode,
+        address referral
+    )
+        external
+        fundsSafu
+        noSupplyIncrease
+        oneOutFlow(s.sys.bean)
+        nonReentrant
+        returns (uint256 pods, uint256 referralPods)
+    {
+        return LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode, referral);
+    }
     //////////////////// HARVEST ////////////////////
 
     /**
