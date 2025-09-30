@@ -468,4 +468,8 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
         }
     }
+
+    function getReferralPercentage() external view returns (uint256) {
+        return s.sys.referralPercentage;
+    }
 }

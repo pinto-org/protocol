@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import {console} from "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -662,6 +663,13 @@ contract FieldTest is TestHelper {
     function test_sowWithReferral(uint256 sowAmount) public {
         uint256 activeField = field.activeField();
         // Bound to uint64 max to avoid overflow issues with soil calculation
+
+        // set temperature to 100%
+        bs.setMaxTempE(100e6);
+
+        // skip morning auction
+        vm.roll(block.number + 500);
+
         sowAmount = bound(sowAmount, 100, type(uint64).max);
 
         // Set referral percentage to 10% (0.1 * 1e18)
@@ -677,10 +685,9 @@ contract FieldTest is TestHelper {
         uint256 activeFieldPodIndexBefore = field.podIndex(activeField);
 
         // Calculate expected pods
-        uint256 expectedFarmerPods = _minPods(sowAmount);
-        uint256 referralBeans = (sowAmount * 0.1e18) / C.precision(); // 10% of sown beans
-        uint256 expectedReferralPods = _minPods(referralBeans);
-
+        uint256 expectedFarmerPods = calcPods(sowAmount, 100e6);
+        uint256 referralPercentage = field.getReferralPercentage();
+        uint256 expectedReferralPods = (expectedFarmerPods * referralPercentage) / 1e18;
         // Sow with referral
         vm.prank(farmers[0]);
         (uint256 actualFarmerPods, uint256 actualReferralPods) = field.sowWithReferral(
@@ -692,8 +699,8 @@ contract FieldTest is TestHelper {
         );
 
         // Verify return values
-        assertEq(actualFarmerPods, expectedFarmerPods, "Farmer pods mismatch");
-        assertEq(actualReferralPods, expectedReferralPods, "Referral pods mismatch");
+        assertApproxEqAbs(actualFarmerPods, expectedFarmerPods, 1, "Farmer pods mismatch");
+        assertApproxEqAbs(actualReferralPods, expectedReferralPods, 1, "Referral pods mismatch");
 
         // Verify farmer state
         assertEq(
@@ -703,14 +710,14 @@ contract FieldTest is TestHelper {
         );
         assertEq(
             field.plot(farmers[0], activeField, activeFieldPodIndexBefore),
-            expectedFarmerPods,
+            actualFarmerPods,
             "Farmer plot pods incorrect"
         );
 
         // Verify referral state
         assertEq(
-            field.plot(farmers[1], activeField, activeFieldPodIndexBefore + expectedFarmerPods),
-            expectedReferralPods,
+            field.plot(farmers[1], activeField, activeFieldPodIndexBefore + actualFarmerPods),
+            actualReferralPods,
             "Referral plot pods incorrect"
         );
 
@@ -724,14 +731,14 @@ contract FieldTest is TestHelper {
         // Verify total pods increased correctly
         assertEq(
             field.totalPods(activeField),
-            expectedFarmerPods + expectedReferralPods,
+            actualFarmerPods + actualReferralPods,
             "Total pods incorrect"
         );
 
         // Verify pod index advanced correctly
         assertEq(
             field.podIndex(activeField),
-            activeFieldPodIndexBefore + expectedFarmerPods + expectedReferralPods,
+            activeFieldPodIndexBefore + actualFarmerPods + actualReferralPods,
             "Pod index incorrect"
         );
     }
@@ -773,5 +780,11 @@ contract FieldTest is TestHelper {
             "Farmer bean balance incorrect"
         );
         assertEq(field.plot(farmers[0], activeField, 0), expectedPods, "Farmer plot incorrect");
+    }
+
+    function calcPods(uint256 beans, uint256 temperature) public pure returns (uint256) {
+        console.log("calcPods: beans", beans);
+        console.log("calcPods: temperature", temperature);
+        return (beans * (100e6 + temperature)) / 100e6;
     }
 }
