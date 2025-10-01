@@ -25,6 +25,8 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
     await hre.run("create-mock-convert-up-orders", {
       execute: true
     });
+    await hre.run("callSunrise");
+    await hre.run("callSunrise");
   }
 });
 
