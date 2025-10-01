@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
-import {IWell, WellPrice, P, C, ReservesType} from "./WellPrice.sol";
+import {WellPrice, P, C, ReservesType} from "./WellPrice.sol";
 
 contract BeanstalkPrice is WellPrice {
     using LibRedundantMath256 for uint256;
