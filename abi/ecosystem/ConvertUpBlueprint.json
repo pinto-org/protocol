@@ -161,6 +161,11 @@
                 "type": "uint256"
               },
               {
+                "internalType": "bool",
+                "name": "capAmountToBonusCapacity",
+                "type": "bool"
+              },
+              {
                 "internalType": "uint256",
                 "name": "minTimeBetweenConverts",
                 "type": "uint256"
@@ -412,6 +417,318 @@
     "name": "unpauseFunction",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "uint8[]",
+                "name": "sourceTokenIndices",
+                "type": "uint8[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "totalBeanAmountToConvert",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minBeansConvertPerExecution",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxBeansConvertPerExecution",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "capAmountToBonusCapacity",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minTimeBetweenConverts",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minConvertBonusCapacity",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxGrownStalkPerBdv",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "grownStalkPerBdvBonusBid",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxPriceToConvertUp",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minPriceToConvertUp",
+                "type": "uint256"
+              },
+              {
+                "internalType": "int256",
+                "name": "seedDifference",
+                "type": "int256"
+              },
+              {
+                "internalType": "int256",
+                "name": "maxGrownStalkPerBdvPenalty",
+                "type": "int256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "slippageRatio",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum LibSiloHelpers.Mode",
+                "name": "lowStalkDeposits",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ConvertUpBlueprint.ConvertUpParams",
+            "name": "convertUpParams",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address[]",
+                "name": "whitelistedOperators",
+                "type": "address[]"
+              },
+              {
+                "internalType": "address",
+                "name": "tipAddress",
+                "type": "address"
+              },
+              {
+                "internalType": "int256",
+                "name": "operatorTipAmount",
+                "type": "int256"
+              }
+            ],
+            "internalType": "struct ConvertUpBlueprint.OperatorParams",
+            "name": "opParams",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct ConvertUpBlueprint.ConvertUpBlueprintStruct",
+        "name": "params",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "orderHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "blueprintPublisher",
+        "type": "address"
+      }
+    ],
+    "name": "validateParamsAndReturnBeanstalkState",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "bonusStalkPerBdv",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "beansLeftToConvert",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "beansToConvertThisExecution",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "name": "withdrawalPlan",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "uint8[]",
+                "name": "sourceTokenIndices",
+                "type": "uint8[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "totalBeanAmountToConvert",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minBeansConvertPerExecution",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxBeansConvertPerExecution",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "capAmountToBonusCapacity",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minTimeBetweenConverts",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minConvertBonusCapacity",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxGrownStalkPerBdv",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "grownStalkPerBdvBonusBid",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxPriceToConvertUp",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minPriceToConvertUp",
+                "type": "uint256"
+              },
+              {
+                "internalType": "int256",
+                "name": "seedDifference",
+                "type": "int256"
+              },
+              {
+                "internalType": "int256",
+                "name": "maxGrownStalkPerBdvPenalty",
+                "type": "int256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "slippageRatio",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum LibSiloHelpers.Mode",
+                "name": "lowStalkDeposits",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ConvertUpBlueprint.ConvertUpParams",
+            "name": "convertUpParams",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address[]",
+                "name": "whitelistedOperators",
+                "type": "address[]"
+              },
+              {
+                "internalType": "address",
+                "name": "tipAddress",
+                "type": "address"
+              },
+              {
+                "internalType": "int256",
+                "name": "operatorTipAmount",
+                "type": "int256"
+              }
+            ],
+            "internalType": "struct ConvertUpBlueprint.OperatorParams",
+            "name": "opParams",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct ConvertUpBlueprint.ConvertUpBlueprintStruct[]",
+        "name": "paramsArray",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "orderHashes",
+        "type": "bytes32[]"
+      },
+      {
+        "internalType": "address[]",
+        "name": "blueprintPublishers",
+        "type": "address[]"
+      }
+    ],
+    "name": "validateParamsAndReturnBeanstalkStateArray",
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "validOrderHashes",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
