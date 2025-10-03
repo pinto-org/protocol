@@ -173,7 +173,11 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             "No active blueprint, function must run from Tractor"
         );
 
-        (vars.bonusStalkPerBdv, ) = validateParams(params.convertUpParams, vars.orderHash);
+        uint256 remainingCapacity;
+        (vars.bonusStalkPerBdv, remainingCapacity) = validateParams(
+            params.convertUpParams,
+            vars.orderHash
+        );
 
         // Check if the executing operator (msg.sender) is whitelisted
         require(
@@ -198,6 +202,16 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         } else if (vars.beansLeftToConvert == 0) {
             // If beansLeftToConvert is 0, initialize it with the total amount
             vars.beansLeftToConvert = params.convertUpParams.totalBeanAmountToConvert;
+        }
+
+        // if the capAmountToBonusCapacity flag is set,
+        // then the max beans convert per execution is the remaining capacity
+        // unless the remaining capacity is less than the max beans convert per execution
+        uint256 maxBeansConvertPerExecution = params.convertUpParams.maxBeansConvertPerExecution;
+        if (params.convertUpParams.capAmountToBonusCapacity) {
+            if (remainingCapacity < maxBeansConvertPerExecution) {
+                maxBeansConvertPerExecution = remainingCapacity;
+            }
         }
 
         // Determine current convert amount based on constraints
