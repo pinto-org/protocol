@@ -931,6 +931,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 totalBeanAmountToConvert: params.totalBeanAmountToConvert,
                 minBeansConvertPerExecution: params.minBeansConvertPerExecution,
                 maxBeansConvertPerExecution: params.maxBeansConvertPerExecution,
+                capAmountToBonusCapacity: false,
                 minTimeBetweenConverts: params.minTimeBetweenConverts,
                 minConvertBonusCapacity: params.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: params.maxGrownStalkPerBdv,

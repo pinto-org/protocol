@@ -67,9 +67,10 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     /**
      * @notice Struct to hold convert up parameters
      * @param sourceTokenIndices Indices of source tokens to use for conversion
-     * @param totalConvertBeans Total beans to convert
-     * @param minBeansConvertedPerExecution Minimum beans to convert per execution
-     * @param maxConvertBeansPerExecution Maximum beans to convert per execution
+     * @param totalBeanAmountToConvert Total beans to convert
+     * @param minBeansConvertPerExecution Minimum beans to convert per execution
+     * @param maxBeansConvertPerExecution Maximum beans to convert per execution
+     * @param capAmountToBonusCapacity a flag that indicates whether an execution should convert up to the bonus capacity, or up to `maxBeansConvertPerExecution`.
      * @param minTimeBetweenConverts Minimum time (in seconds) between convert executions
      * @param minConvertBonusCapacity Minimum capacity required for convert bonus
      * @param maxGrownStalkPerBdv Maximum grown stalk per bdv to withdraw from deposits
@@ -88,6 +89,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         uint256 totalBeanAmountToConvert;
         uint256 minBeansConvertPerExecution;
         uint256 maxBeansConvertPerExecution;
+        bool capAmountToBonusCapacity;
         // Time constraints
         uint256 minTimeBetweenConverts;
         // Bonus/capacity parameters
@@ -171,7 +173,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             "No active blueprint, function must run from Tractor"
         );
 
-        vars.bonusStalkPerBdv = validateParams(params.convertUpParams, vars.orderHash);
+        (vars.bonusStalkPerBdv, ) = validateParams(params.convertUpParams, vars.orderHash);
 
         // Check if the executing operator (msg.sender) is whitelisted
         require(
@@ -321,7 +323,8 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             LibSiloHelpers.WithdrawalPlan memory withdrawalPlan
         )
     {
-        bonusStalkPerBdv = validateParams(params.convertUpParams, orderHash);
+        uint256 remainingCapacity;
+        (bonusStalkPerBdv, remainingCapacity) = validateParams(params.convertUpParams, orderHash);
         beansLeftToConvert = getBeansLeftToConvert(orderHash);
         // If the beansLeftToConvert is 0, then it has not been initialized yet,
         // thus, the amount left to convert is the total amount to convert
@@ -329,10 +332,20 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             beansLeftToConvert = params.convertUpParams.totalBeanAmountToConvert;
         }
 
+        // if the capAmountToBonusCapacity flag is set,
+        // then the max beans convert per execution is the remaining capacity
+        // unless the remaining capacity is less than the max beans convert per execution
+        uint256 maxBeansConvertPerExecution = params.convertUpParams.maxBeansConvertPerExecution;
+        if (params.convertUpParams.capAmountToBonusCapacity) {
+            if (remainingCapacity < maxBeansConvertPerExecution) {
+                maxBeansConvertPerExecution = remainingCapacity;
+            }
+        }
+
         beansToConvertThisExecution = determineConvertAmount(
             beansLeftToConvert,
             params.convertUpParams.minBeansConvertPerExecution,
-            params.convertUpParams.maxBeansConvertPerExecution
+            maxBeansConvertPerExecution
         );
 
         // Apply slippage ratio if needed
@@ -523,7 +536,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     function validateParams(
         ConvertUpParams memory cup,
         bytes32 orderHash
-    ) internal view returns (uint256 bonusStalkPerBdv) {
+    ) internal view returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity) {
         // Source tokens validation
         require(cup.sourceTokenIndices.length > 0, "Must provide at least one source token");
 
@@ -565,7 +578,6 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         // Check convert bonus conditions
         if (cup.grownStalkPerBdvBonusBid > 0 || cup.minConvertBonusCapacity > 0) {
             // Get current bonus amount and remaining capacity
-            uint256 remainingCapacity;
             (bonusStalkPerBdv, remainingCapacity) = beanstalk
                 .getConvertStalkPerBdvBonusAndRemainingCapacity();
 

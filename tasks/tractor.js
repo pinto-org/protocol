@@ -816,6 +816,7 @@ module.exports = function () {
                 totalBeanAmountToConvert: order.convertUpParams.totalBeanAmountToConvert,
                 minBeansConvertPerExecution: order.convertUpParams.minBeansConvertPerExecution,
                 maxBeansConvertPerExecution: order.convertUpParams.maxBeansConvertPerExecution,
+                capAmountToBonusCapacity: order.convertUpParams.capAmountToBonusCapacity,
                 minTimeBetweenConverts: order.convertUpParams.minTimeBetweenConverts,
                 minConvertBonusCapacity: order.convertUpParams.minConvertBonusCapacity,
                 maxGrownStalkPerBdv: order.convertUpParams.maxGrownStalkPerBdv,
