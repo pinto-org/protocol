@@ -1,7 +1,6 @@
 const { task } = require("hardhat/config");
 const { upgradeWithNewFacets } = require("../scripts/diamond.js");
 const { impersonateSigner, mintEth, getBeanstalk } = require("../utils");
-const { addLiquidityAndTransfer } = require("../scripts/deployment/addLiquidity");
 const { to6 } = require("../test/hardhat/utils/helpers.js");
 const { L2_PINTO, L2_PCM, PINTO_CBTC_WELL_BASE } = require("../test/hardhat/utils/constants.js");
 
@@ -854,5 +853,26 @@ module.exports = function () {
 
     // Log the difference
     console.log("\nTemperature change:", finalMaxTemp.sub(initialMaxTemp).toString());
+  });
+
+  task("mock-seeds", "Deploys mock seeds").setAction(async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    // upgrade facets, no new facets or libraries, only init
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [],
+      initArgs: [],
+      initFacetName: "InitSetHighSeeds",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
   });
 };

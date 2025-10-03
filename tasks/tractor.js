@@ -643,12 +643,102 @@ module.exports = function () {
     });
 
   /**
+   * setup-convert-up-addresses TASK
+   *
+   * Sets up test addresses with ETH and LP tokens for ConvertUpBlueprint testing.
+   * This is separated from blueprint signing to allow time for grown stalk accumulation.
+   *
+   * This task:
+   * 1. Generates 5 test addresses from deterministic private keys
+   * 2. Sets up each address with ETH and LP tokens
+   * 3. Deposits LP tokens to the Silo
+   *
+   * USAGE:
+   * npx hardhat setup-convert-up-addresses --network localhost
+   */
+  task(
+    "setup-convert-up-addresses",
+    "Setup test addresses with LP tokens for ConvertUpBlueprint testing"
+  )
+    .addOptionalParam(
+      "params",
+      "Path to JSON parameters file",
+      "./utils/data/convertUpTestOrders.json"
+    )
+    .addOptionalParam("beanPerAddress", "amount of the bean side to add liquidity", "10000")
+    .addFlag("detail", "Show detailed logging")
+    .setAction(async (taskArgs, hre) => {
+      const { ethers } = hre;
+      const verbose = taskArgs.detail;
+
+      console.log("🧪 Setting up ConvertUpBlueprint test addresses with LP tokens...");
+
+      try {
+        // Load configuration
+        if (!fs.existsSync(taskArgs.params)) {
+          throw new Error(`Parameters file not found: ${taskArgs.params}`);
+        }
+        const config = JSON.parse(fs.readFileSync(taskArgs.params, "utf8"));
+
+        const wellAddresses = [PINTO_CBETH_WELL_BASE, PINTO_USDC_WELL_BASE, PINTO_CBTC_WELL_BASE];
+
+        // Process each address
+        for (const [address, addressData] of Object.entries(config.addresses)) {
+          log(verbose, `\n👤 Setting up ${addressData.name} (${address})`);
+
+          // Generate signer from deterministic private key
+          const addressIndex = Object.keys(config.addresses).indexOf(address);
+          const privateKey = ethers.BigNumber.from(config.metadata.privateKeyBase).add(
+            addressIndex + 1
+          );
+          const testSigner = new ethers.Wallet(
+            `0x${privateKey.toHexString().slice(2).padStart(64, "0")}`,
+            ethers.provider
+          );
+
+          // Setup address with ETH
+          log(verbose, "💸 Minting ETH to address...");
+          await hre.network.provider.send("hardhat_setBalance", [
+            testSigner.address,
+            `0x${ethers.utils.parseEther("1000").toHexString().slice(2)}`
+          ]);
+
+          // Mint LP tokens and deposit to Silo
+          log(verbose, "🪙 Minting and depositing LP tokens to address...");
+          await setupAddressWithLPTokens(
+            testSigner.address,
+            taskArgs.beanPerAddress,
+            hre,
+            wellAddresses,
+            verbose
+          );
+
+          console.log(`✅ Setup complete for ${addressData.name}`);
+        }
+
+        console.log(`\n🎉 All addresses setup complete!`);
+        console.log(`👥 Addresses configured: ${Object.keys(config.addresses).length}`);
+        console.log(
+          `💡 Next: Call sunrise many times to accumulate grown stalk before signing blueprints`
+        );
+
+        return {
+          addresses: Object.keys(config.addresses),
+          configured: true
+        };
+      } catch (error) {
+        console.error(`❌ Error setting up addresses: ${error.message}`);
+        throw error;
+      }
+    });
+
+  /**
    * create-mock-convert-up-orders TASK
    *
    * Creates and executes multiple ConvertUpBlueprint orders from different addresses for testing.
    * This task:
    * 1. Generates 5 test addresses from deterministic private keys
-   * 2. Sets up each address with ETH and LP tokens
+   * 2. (Optional) Sets up each address with ETH and LP tokens
    * 3. Creates ConvertUpBlueprint orders based on JSON configuration
    * 4. Signs and executes the blueprints through Tractor
    *
@@ -661,6 +751,7 @@ module.exports = function () {
    * USAGE:
    * npx hardhat create-mock-convert-up-orders --network localhost --params ./utils/data/convertUpTestOrders.json
    * npx hardhat create-mock-convert-up-orders --network localhost --execute --detail
+   * npx hardhat create-mock-convert-up-orders --network localhost --execute --skip-setup  # When addresses already configured
    *
    * SETUP (run first):
    * npx hardhat node --fork https://mainnet.base.org
@@ -676,6 +767,7 @@ module.exports = function () {
     )
     .addOptionalParam("beanPerAddress", "amount of the bean side to add liquidity", "10000")
     .addFlag("execute", "Actually execute the orders (default: dry run)")
+    .addFlag("skipSetup", "Skip LP token setup (assumes addresses already configured)")
     .addFlag("detail", "Show detailed logging")
     .setAction(async (taskArgs, hre) => {
       const { ethers } = hre;
@@ -762,7 +854,7 @@ module.exports = function () {
             console.warn(`⚠️  Address mismatch! Expected ${address}, got ${testSigner.address}`);
           }
 
-          if (taskArgs.execute) {
+          if (taskArgs.execute && !taskArgs.skipSetup) {
             if (!beanstalk) {
               throw new Error(
                 "Cannot execute orders: Beanstalk connection not available. Make sure you're running on a Base fork."
@@ -785,6 +877,11 @@ module.exports = function () {
               hre,
               wellAddresses,
               verbose
+            );
+          } else if (taskArgs.skipSetup) {
+            log(
+              verbose,
+              "⏭️  Skipping LP token setup (--skip-setup flag provided, assuming addresses already configured)"
             );
           }
 
