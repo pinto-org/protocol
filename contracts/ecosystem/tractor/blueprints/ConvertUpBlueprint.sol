@@ -207,10 +207,9 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         // if the capAmountToBonusCapacity flag is set,
         // then the max beans convert per execution is the remaining capacity
         // unless the remaining capacity is less than the max beans convert per execution
-        uint256 maxBeansConvertPerExecution = params.convertUpParams.maxBeansConvertPerExecution;
         if (params.convertUpParams.capAmountToBonusCapacity) {
-            if (remainingCapacity < maxBeansConvertPerExecution) {
-                maxBeansConvertPerExecution = remainingCapacity;
+            if (remainingCapacity < params.convertUpParams.maxBeansConvertPerExecution) {
+                params.convertUpParams.maxBeansConvertPerExecution = remainingCapacity;
             }
         }
 
