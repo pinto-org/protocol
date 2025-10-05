@@ -42,7 +42,6 @@ library LibInitGauges {
     // Gauge data
     uint256 internal constant MIN_SEASON_TARGET = 250e6; // the minimum seasons to reach value target via conversions. 6 decimal precision.
     uint256 internal constant MAX_SEASON_TARGET = 1000e6; // the maximum seasons to reach value target via conversions. 6 decimal precision.
-    uint256 internal constant MIN_MAX_CONVERT_CAPACITY = 0; // the minimum value maxConvertCapacity can be set to. 6 decimal precision. Note: 0 is placed here to allow for more rigerous testing.
     uint256 internal constant MIN_DELTA_CAPACITY = 0.5e6; // the minimum value that the convert capacity factor can be adjusted by. 6 decimal precision.
     uint256 internal constant MAX_DELTA_CAPACITY = 1.5e6; // the maximum value that the convert capacity factor can be adjusted by. 6 decimal precision.
 
@@ -96,7 +95,7 @@ library LibInitGauges {
 
     //////////// Convert Up Bonus Gauge ////////////
 
-    function initConvertUpBonusGauge(uint256 twaDeltaB) internal {
+    function initConvertUpBonusGauge(uint256 twaDeltaB, uint256 minMaxConvertCapacity) internal {
         // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
             INIT_BONUS_STALK_PER_BDV,
@@ -107,7 +106,7 @@ library LibInitGauges {
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = LibGaugeHelpers.ConvertBonusGaugeData(
             MIN_SEASON_TARGET, // minSeasonTarget - minimum seasons to reach value target
             MAX_SEASON_TARGET, // maxSeasonTarget - maximum seasons to reach value target
-            MIN_MAX_CONVERT_CAPACITY, // minMaxConvertCapacity - minimum value maxConvertCapacity can be set to
+            minMaxConvertCapacity, // minMaxConvertCapacity - minimum value maxConvertCapacity can be set to
             MIN_DELTA_CAPACITY, // minDeltaCapacity - minimum delta capacity used to change the rate of change in the capacity factor
             MAX_DELTA_CAPACITY, // maxDeltaCapacity - maximum delta capacity used to change the rate of change in the capacity factor
             0, // bdvConvertedThisSeason
