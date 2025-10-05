@@ -106,10 +106,10 @@ contract BarnPayback is BeanstalkFertilizer {
         uint256 amountToFertilize = shipmentAmount + fert.leftoverBeans;
         // Get the new Beans per Fertilizer and the total new Beans per Fertilizer
         uint256 remainingBpf = amountToFertilize / fert.activeFertilizer;
-        uint256 oldBpf = fert.bpf;
-        uint256 newBpf = oldBpf + remainingBpf;
+        uint128 oldBpf = fert.bpf;
+        uint128 newBpf = oldBpf + uint128(remainingBpf);
         // Get the end BPF of the first Fertilizer to run out.
-        uint256 firstBpf = fert.fertFirst;
+        uint128 firstBpf = fert.fertFirst;
         uint256 deltaFertilized;
         // If the next fertilizer is going to run out, then step BPF according
         while (newBpf >= firstBpf) {
@@ -120,10 +120,10 @@ contract BarnPayback is BeanstalkFertilizer {
                 firstBpf = fert.fertFirst;
                 // Calculate BPF beyond the first Fertilizer edge.
                 remainingBpf = (amountToFertilize - deltaFertilized) / fert.activeFertilizer;
-                newBpf = oldBpf + remainingBpf;
+                newBpf = oldBpf + uint128(remainingBpf);
             } else {
-                fert.bpf = uint128(firstBpf);
-                fert.fertilizedIndex += deltaFertilized;
+                fert.bpf = firstBpf;
+                fert.fertilizedIndex += uint128(deltaFertilized);
                 // Else, if there is no more fertilizer. Matches plan cap.
                 // fert.fertilizedIndex == fert.unfertilizedIndex
                 break;
@@ -132,13 +132,13 @@ contract BarnPayback is BeanstalkFertilizer {
         // If there is Fertilizer remaining.
         if (fert.fertilizedIndex != fert.unfertilizedIndex) {
             // Distribute the rest of the Fertilized Beans
-            fert.bpf = uint128(newBpf); // SafeCast unnecessary here.
+            fert.bpf = newBpf; // SafeCast unnecessary here.
             deltaFertilized += (remainingBpf * fert.activeFertilizer);
-            fert.fertilizedIndex += deltaFertilized;
+            fert.fertilizedIndex += uint128(deltaFertilized);
         }
         // There will be up to activeFertilizer Beans leftover Beans that are not fertilized.
         // These leftovers will be applied on future Fertilizer receipts.
-        fert.leftoverBeans = amountToFertilize - deltaFertilized;
+        fert.leftoverBeans = uint128(amountToFertilize - deltaFertilized);
         emit BarnPaybackRewardsReceived(shipmentAmount);
     }
 
@@ -153,7 +153,7 @@ contract BarnPayback is BeanstalkFertilizer {
         address account = _getBeanstalkFarmer();
         uint256 amount = __update(account, ids, uint256(fert.bpf));
         if (amount > 0) {
-            fert.fertilizedPaidIndex += amount;
+            fert.fertilizedPaidIndex += uint128(amount);
             // Transfer the rewards to the caller, pintos are streamed to the contract's external balance
             pintoProtocol.transferToken(
                 pintoToken,

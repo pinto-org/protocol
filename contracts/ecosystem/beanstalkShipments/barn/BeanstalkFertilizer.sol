@@ -46,14 +46,14 @@ abstract contract BeanstalkFertilizer is
     struct InitSystemFertilizer {
         uint128[] fertilizerIds;
         uint256[] fertilizerAmounts;
-        uint256 activeFertilizer;
-        uint256 fertilizedIndex;
-        uint256 unfertilizedIndex;
-        uint256 fertilizedPaidIndex;
+        uint128 activeFertilizer;
+        uint128 fertilizedIndex;
+        uint128 unfertilizedIndex;
+        uint128 fertilizedPaidIndex;
         uint128 fertFirst;
         uint128 fertLast;
         uint128 bpf;
-        uint256 leftoverBeans;
+        uint128 leftoverBeans;
     }
 
     /**
@@ -74,14 +74,14 @@ abstract contract BeanstalkFertilizer is
     struct SystemFertilizer {
         mapping(uint128 id => uint256 amount) fertilizer;
         mapping(uint128 id => uint128 nextId) nextFid;
-        uint256 activeFertilizer;
-        uint256 fertilizedIndex;
-        uint256 unfertilizedIndex;
-        uint256 fertilizedPaidIndex;
-        uint128 fertFirst;
-        uint128 fertLast;
-        uint128 bpf;
-        uint256 leftoverBeans;
+        uint128 fertilizedIndex; // ──────┐ 16 (16)
+        uint128 unfertilizedIndex; // ────┘ 16 (32)
+        uint128 fertilizedPaidIndex; // ──┐ 16 (16)
+        uint128 leftoverBeans; // ────────┘ 16 (32)
+        uint128 activeFertilizer; // ─────┐ 16 (16)
+        uint128 fertFirst; // ────────────┘ 16 (32)
+        uint128 fertLast; // ─────────────┐ 16 (16)
+        uint128 bpf; // ──────────────────┘ 16 (32) 
     }
 
     // Storage
@@ -333,7 +333,7 @@ abstract contract BeanstalkFertilizer is
     function _update(address account, uint256[] memory ids, uint256 bpf) internal {
         uint256 amount = __update(account, ids, bpf);
         if (amount > 0) {
-            fert.fertilizedPaidIndex += amount;
+            fert.fertilizedPaidIndex += uint128(amount);
             // Transfer the rewards to the caller,
             // note: pintos are streamed to the contract's external balance during the gm call
             pintoProtocol.transferToken(
@@ -378,7 +378,7 @@ abstract contract BeanstalkFertilizer is
      */
     function fertilizerPop() internal returns (bool) {
         uint128 first = fert.fertFirst;
-        fert.activeFertilizer = fert.activeFertilizer.sub(getAmount(first));
+        fert.activeFertilizer = fert.activeFertilizer - uint128(getAmount(first));
         uint128 next = getNext(first);
         if (next == 0) {
             // If all Unfertilized Beans have been fertilized, delete line.

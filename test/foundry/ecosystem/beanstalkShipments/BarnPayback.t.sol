@@ -24,14 +24,14 @@ contract BarnPaybackTest is TestHelper {
     event BarnPaybackRewardsReceived(uint256 amount);
 
     struct SystemFertilizerStruct {
-        uint256 activeFertilizer;
-        uint256 fertilizedIndex;
-        uint256 unfertilizedIndex;
-        uint256 fertilizedPaidIndex;
+        uint128 fertilizedIndex;
+        uint128 unfertilizedIndex;
+        uint128 fertilizedPaidIndex;
+        uint128 leftoverBeans;
+        uint128 activeFertilizer;
         uint128 fertFirst;
         uint128 fertLast;
         uint128 bpf;
-        uint256 leftoverBeans;
     }
 
     // Initial state of the system after arbitrum migration for reference
@@ -332,14 +332,14 @@ contract BarnPaybackTest is TestHelper {
             BeanstalkFertilizer.InitSystemFertilizer({
                 fertilizerIds: fertilizerIds,
                 fertilizerAmounts: fertilizerAmounts,
-                activeFertilizer: 175, // 100 + 50 + 25
-                fertilizedIndex: 0,
-                unfertilizedIndex: totalFertilizer,
-                fertilizedPaidIndex: 0,
+                activeFertilizer: uint128(175), // 100 + 50 + 25
+                fertilizedIndex: uint128(0),
+                unfertilizedIndex: uint128(totalFertilizer),
+                fertilizedPaidIndex: uint128(0),
                 fertFirst: FERT_ID_1, // Start of linked list
                 fertLast: FERT_ID_3, // End of linked list
                 bpf: INITIAL_BPF,
-                leftoverBeans: 0
+                leftoverBeans: uint128(0)
             });
     }
 
@@ -410,25 +410,25 @@ contract BarnPaybackTest is TestHelper {
 
     function _getSystemFertilizer() internal view returns (SystemFertilizerStruct memory) {
         (
-            uint256 activeFertilizer,
-            uint256 fertilizedIndex,
-            uint256 unfertilizedIndex,
-            uint256 fertilizedPaidIndex,
+            uint128 fertilizedIndex,
+            uint128 unfertilizedIndex,
+            uint128 fertilizedPaidIndex,
+            uint128 leftoverBeans,
+            uint128 activeFertilizer,
             uint128 fertFirst,
             uint128 fertLast,
-            uint128 bpf,
-            uint256 leftoverBeans
+            uint128 bpf
         ) = barnPayback.fert();
         return
             SystemFertilizerStruct({
-                activeFertilizer: uint256(activeFertilizer),
                 fertilizedIndex: fertilizedIndex,
                 unfertilizedIndex: unfertilizedIndex,
                 fertilizedPaidIndex: fertilizedPaidIndex,
+                leftoverBeans: leftoverBeans,
+                activeFertilizer: activeFertilizer,
                 fertFirst: fertFirst,
                 fertLast: fertLast,
-                bpf: bpf,
-                leftoverBeans: leftoverBeans
+                bpf: bpf
             });
     }
 }
