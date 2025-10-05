@@ -81,7 +81,7 @@ abstract contract BeanstalkFertilizer is
         uint128 activeFertilizer; // ─────┐ 16 (16)
         uint128 fertFirst; // ────────────┘ 16 (32)
         uint128 fertLast; // ─────────────┐ 16 (16)
-        uint128 bpf; // ──────────────────┘ 16 (32) 
+        uint128 bpf; // ──────────────────┘ 16 (32)
     }
 
     // Storage
