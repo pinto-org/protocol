@@ -635,7 +635,7 @@ module.exports = function () {
       0,
       ethers.utils.defaultAbiCoder.encode(
         ["uint256", "uint256"],
-        [ethers.BigNumber.from("100000000000"), ethers.BigNumber.from("1000000000")]
+        [ethers.BigNumber.from("1000000000000"), ethers.BigNumber.from("1000000000")]
       ) // 100k twaDeltaB, 0.1 stalk per bdv
     );
 

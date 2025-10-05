@@ -77,6 +77,7 @@ library LibGaugeHelpers {
      * @dev The data of the Convert Bonus Gauge is a struct that contains the following:
      * - minSeasonTarget: The minimum target seasons to return to value target via conversions.
      * - maxSeasonTarget: The maximum target seasons to return to value target via conversions.
+     * - minmaxConvertCapacity: The minimum value `maxConvertCapacity` can be set to.
      * - minDeltaCapacity: The minimum delta capacity used to change the rate of change in the capacity factor.
      * - maxDeltaCapacity: The maximum delta capacity used to change the rate of change in the capacity factor.
      * - bdvConvertedThisSeason: The amount of bdv converted that received a bonus this season.
@@ -86,6 +87,7 @@ library LibGaugeHelpers {
     struct ConvertBonusGaugeData {
         uint256 minSeasonTarget;
         uint256 maxSeasonTarget;
+        uint256 minMaxConvertCapacity;
         uint256 minDeltaCapacity;
         uint256 maxDeltaCapacity;
         uint256 bdvConvertedThisSeason;
