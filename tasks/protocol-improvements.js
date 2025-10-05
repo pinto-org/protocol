@@ -623,6 +623,22 @@ module.exports = function () {
     } else {
       owner = (await ethers.getSigners())[0];
     }
+
+    // deploy helper storage
+    const helperStorage = await ethers.getContractFactory("HelperStorage");
+    const helperStorageContract = await helperStorage.deploy();
+    await helperStorageContract.deployed();
+    console.log("\nHelperStorage deployed to:", helperStorageContract.address);
+
+    // initialize helper storage
+    await helperStorageContract.setValue(
+      0,
+      ethers.utils.defaultAbiCoder.encode(
+        ["uint256", "uint256"],
+        [ethers.BigNumber.from("100000000000"), ethers.BigNumber.from("1000000000")]
+      ) // 100k twaDeltaB, 0.1 stalk per bdv
+    );
+
     // upgrade facets
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
@@ -673,7 +689,7 @@ module.exports = function () {
       object: !mock,
       verbose: true,
       account: owner,
-      initArgs: [],
+      initArgs: [helperStorageContract.address, 0],
       initFacetName: "InitPI13"
     });
   });

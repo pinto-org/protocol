@@ -13,6 +13,7 @@ import {InitPI13} from "contracts/beanstalk/init/InitPI13.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
+import {HelperStorage} from "contracts/beanstalk/init/helper/HelperStorage.sol";
 
 /**
  * @dev forks base and tests different cultivation factor scenarios
@@ -27,12 +28,14 @@ contract Pi13ForkTest is TestHelper {
 
     function setUp() public {
         uint256 forkBlock = 35749498;
+        HelperStorage helperStorage = new HelperStorage();
+        helperStorage.setValue(0, abi.encode(100e6, 0.1e10));
         forkMainnetAndUpgradeAllFacets(
             forkBlock,
             vm.envString("BASE_RPC"),
             PINTO,
             "InitPI13",
-            abi.encodeWithSelector(InitPI13.init.selector, 1e9, 960_000e6) // initialize bonus stalk per bdv and twa delta b
+            abi.encodeWithSelector(InitPI13.init.selector, helperStorage, 0) // initialize bonus stalk per bdv and twa delta b
         );
         bs = IMockFBeanstalk(PINTO);
         updateOracleTimeouts(L2_PINTO, false);
