@@ -215,7 +215,7 @@ contract Pi13ForkTest is TestHelper {
      * then a new order comes in that is below the bonus.
      */
     function test_forkBase_convertUp_oneOrder_at_bonus() public {
-        bool write = true;
+        bool write = false;
         if (write) {
             vm.writeFile(
                 CSV_PATH,
