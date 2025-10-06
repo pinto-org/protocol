@@ -8,14 +8,6 @@ import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
 import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 
 /**
- * @title ShipmentPlannerFacet
- * @notice Contains getters for retrieving ShipmentPlans for various Beanstalk components.
- * @dev Lives as a standalone immutable contract. Updating shipment plans requires deploying
- * a new instance and updating the ShipmentRoute planContract addresses help in AppStorage.
- * @dev Called via staticcall. New plan getters must be view/pure functions.
- */
-
-/**
  * @notice Constraints of how many Beans to send to a given route at the current time.
  * @param points Weight of this shipment route relative to all routes. Expects precision of 1e18.
  * @param cap Maximum Beans that can be received by this stream at this time.
@@ -25,6 +17,11 @@ struct ShipmentPlan {
     uint256 cap;
 }
 
+/**
+ * @title ShipmentPlannerFacet
+ * @notice Contains getters for retrieving ShipmentPlans for various Beanstalk components.
+ * @dev Called via staticcall. New plan getters must be view/pure functions.
+ */
 contract ShipmentPlannerFacet {
     uint256 internal constant PRECISION = 1e18;
 
