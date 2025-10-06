@@ -3,11 +3,17 @@
 pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Season} from "contracts/beanstalk/storage/System.sol";
-import {IBudget} from "contracts/interfaces/IBudget.sol";
 import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
 import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
-import {IShipmentPlanner} from "contracts/interfaces/IShipmentPlanner.sol";
+import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
+
+/**
+ * @title ShipmentPlannerFacet
+ * @notice Contains getters for retrieving ShipmentPlans for various Beanstalk components.
+ * @dev Lives as a standalone immutable contract. Updating shipment plans requires deploying
+ * a new instance and updating the ShipmentRoute planContract addresses help in AppStorage.
+ * @dev Called via staticcall. New plan getters must be view/pure functions.
+ */
 
 /**
  * @notice Constraints of how many Beans to send to a given route at the current time.
@@ -19,24 +25,7 @@ struct ShipmentPlan {
     uint256 cap;
 }
 
-interface IBeanstalk {
-    function isHarvesting(uint256 fieldId) external view returns (bool);
-
-    function totalUnharvestable(uint256 fieldId) external view returns (uint256);
-
-    function fieldCount() external view returns (uint256);
-
-    function time() external view returns (Season memory);
-}
-
-/**
- * @title ShipmentPlanner
- * @notice Contains getters for retrieving ShipmentPlans for various Beanstalk components.
- * @dev Lives as a standalone immutable contract. Updating shipment plans requires deploying
- * a new instance and updating the ShipmentRoute planContract addresses help in AppStorage.
- * @dev Called via staticcall. New plan getters must be view/pure functions.
- */
-contract ShipmentPlanner is IShipmentPlanner {
+contract ShipmentPlannerFacet {
     uint256 internal constant PRECISION = 1e18;
 
     uint256 constant FIELD_POINTS = 48_500_000_000_000_000; // 48.5%
@@ -53,14 +42,6 @@ contract ShipmentPlanner is IShipmentPlanner {
 
     uint256 constant SUPPLY_BUDGET_FLIP = 1_000_000_000e6;
 
-    IBeanstalk immutable beanstalk;
-    IERC20 immutable bean;
-
-    constructor(address beanstalkAddress, address beanAddress) {
-        beanstalk = IBeanstalk(beanstalkAddress);
-        bean = IERC20(beanAddress);
-    }
-
     /**
      * @notice Get the current points and cap for Field shipments.
      * @dev The Field cap is the amount of outstanding Pods unharvestable pods.
@@ -69,10 +50,12 @@ contract ShipmentPlanner is IShipmentPlanner {
     function getFieldPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 fieldId = abi.decode(data, (uint256));
-        require(fieldId < beanstalk.fieldCount(), "Field does not exist");
-        if (!beanstalk.isHarvesting(fieldId)) return shipmentPlan;
-        return ShipmentPlan({points: FIELD_POINTS, cap: beanstalk.totalUnharvestable(fieldId)});
+        require(fieldId < s.sys.fieldCount, "Field does not exist");
+        uint256 unharvestable = totalUnharvestable(fieldId);
+        if (unharvestable == 0) return shipmentPlan;
+        return ShipmentPlan({points: FIELD_POINTS, cap: unharvestable});
     }
 
     /**
@@ -91,13 +74,14 @@ contract ShipmentPlanner is IShipmentPlanner {
      * @dev Has a hard cap of 3% of the current season standard minted Beans.
      */
     function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 budgetRatio = budgetMintRatio();
         require(
             budgetRatio > 0,
             "ShipmentPlanner: Supply above flipping point, no budget allocation"
         );
         uint256 points = (BUDGET_POINTS * budgetRatio) / PRECISION;
-        uint256 cap = (beanstalk.time().standardMintedBeans * 3) / 100;
+        uint256 cap = (s.sys.season.standardMintedBeans * 3) / 100;
         return ShipmentPlan({points: points, cap: cap});
     }
 
@@ -108,6 +92,7 @@ contract ShipmentPlanner is IShipmentPlanner {
     function getPaybackFieldPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 paybackRatio = calcAndEnforceActivePayback();
         // since payback is active, fetch the remaining payback amounts
         (uint256 siloRemaining, uint256 barnRemaining) = paybacksRemaining(data);
@@ -125,18 +110,18 @@ contract ShipmentPlanner is IShipmentPlanner {
         // silo is second thing to be paid off so if remaining is 0 then all points go to field
         if (siloRemaining == 0) {
             points = PAYBACK_FIELD_POINTS_ONLY_FIELD;
-            maxCap = (beanstalk.time().standardMintedBeans * 3) / 100; // 3%
+            maxCap = (s.sys.season.standardMintedBeans * 3) / 100; // 3%
         } else if (barnRemaining == 0) {
             // if barn remaining is 0 then 1.5% of all mints goes to silo and 1.5% goes to the field
             points = PAYBACK_FIELD_POINTS_NO_BARN;
-            maxCap = (beanstalk.time().standardMintedBeans * 15) / 1000; // 1.5%
+            maxCap = (s.sys.season.standardMintedBeans * 15) / 1000; // 1.5%
         } else {
             // else, all are active and 1% of all mints goes to field, 1% goes to silo, 1% goes to fert
             points = PAYBACK_FIELD_POINTS;
-            maxCap = beanstalk.time().standardMintedBeans / 100; // 1%
+            maxCap = s.sys.season.standardMintedBeans / 100; // 1%
         }
         // the absolute cap of all mints is the remaining field debt
-        uint256 cap = min(beanstalk.totalUnharvestable(fieldId), maxCap);
+        uint256 cap = min(totalUnharvestable(fieldId), maxCap);
 
         // Scale points by distance to threshold.
         points = (points * paybackRatio) / PRECISION;
@@ -152,6 +137,7 @@ contract ShipmentPlanner is IShipmentPlanner {
     function getPaybackSiloPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         // calculate the payback ratio and enforce that payback is active
         uint256 paybackRatio = calcAndEnforceActivePayback();
         // since payback is active, fetch the remaining paybacks
@@ -167,11 +153,11 @@ contract ShipmentPlanner is IShipmentPlanner {
         if (barnRemaining == 0) {
             // half of the paid off fert points go to silo
             points = PAYBACK_SILO_POINTS_NO_BARN; // 1.5%
-            maxCap = (beanstalk.time().standardMintedBeans * 15) / 1000; // 1.5%
+            maxCap = (s.sys.season.standardMintedBeans * 15) / 1000; // 1.5%
         } else {
             // if silo is not paid off and fert is not paid off then just assign the regular 1% points
             points = PAYBACK_SILO_POINTS;
-            maxCap = beanstalk.time().standardMintedBeans / 100; // 1%
+            maxCap = s.sys.season.standardMintedBeans / 100; // 1%
         }
         // the absolute cap of all mints is the remaining silo debt
         uint256 cap = min(siloRemaining, maxCap);
@@ -189,6 +175,7 @@ contract ShipmentPlanner is IShipmentPlanner {
     function getPaybackBarnPlan(
         bytes memory data
     ) external view returns (ShipmentPlan memory shipmentPlan) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
         // calculate the payback ratio and enforce that payback is active
         uint256 paybackRatio = calcAndEnforceActivePayback();
         // since payback is active, fetch the remaining barn debt
@@ -202,7 +189,7 @@ contract ShipmentPlanner is IShipmentPlanner {
         } else {
             points = PAYBACK_BARN_POINTS; // 1% to barn, 2% to the rest
             // the absolute cap of all mints is the remaining barn debt
-            cap = min(barnRemaining, beanstalk.time().standardMintedBeans / 100);
+            cap = min(barnRemaining, s.sys.season.standardMintedBeans / 100);
         }
 
         // Scale the points by the payback ratio
@@ -214,8 +201,9 @@ contract ShipmentPlanner is IShipmentPlanner {
      * @notice Returns a ratio to scale the seasonal mints between budget and payback.
      */
     function budgetMintRatio() private view returns (uint256) {
-        uint256 beanSupply = bean.totalSupply();
-        uint256 seasonalMints = beanstalk.time().standardMintedBeans;
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 beanSupply = IERC20(s.sys.bean).totalSupply();
+        uint256 seasonalMints = s.sys.season.standardMintedBeans;
 
         // 0% to budget.
         if (beanSupply > SUPPLY_BUDGET_FLIP + seasonalMints) {
@@ -260,6 +248,15 @@ contract ShipmentPlanner is IShipmentPlanner {
             paybackRatio > 0,
             "ShipmentPlanner: Supply above flipping point, no payback allocation"
         );
+    }
+
+    /**
+     * @notice Returns the number of Pods that are not yet Harvestable. Also known as the Pod Line.
+     * @param fieldId The index of the Field to query.
+     */
+    function totalUnharvestable(uint256 fieldId) private view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.fields[fieldId].pods - s.sys.fields[fieldId].harvestable;
     }
 
     function min(uint256 a, uint256 b) private pure returns (uint256) {

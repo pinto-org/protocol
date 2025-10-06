@@ -2,7 +2,7 @@ const fs = require("fs");
 const { splitEntriesIntoChunks, updateProgress, retryOperation } = require("../../utils/read.js");
 const { BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR } = require("../../test/hardhat/utils/constants.js");
 
-// Deploys SiloPayback, BarnPayback, ShipmentPlanner, and ContractPaybackDistributor contracts
+// Deploys SiloPayback, BarnPayback, and ContractPaybackDistributor contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
   if (verbose) {
     console.log("🚀 Deploying Beanstalk shipment contracts...");
@@ -39,13 +39,6 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   console.log("✅ BarnPayback deployed to:", barnPaybackContract.address);
   console.log("👤 BarnPayback owner:", await barnPaybackContract.owner());
 
-  //////////////////////////// Shipment Planner ////////////////////////////
-  console.log("\n📦 Deploying ShipmentPlanner...");
-  const shipmentPlannerFactory = await ethers.getContractFactory("ShipmentPlanner", account);
-  const shipmentPlannerContract = await shipmentPlannerFactory.deploy(L2_PINTO, PINTO);
-  await shipmentPlannerContract.deployed();
-  console.log("✅ ShipmentPlanner deployed to:", shipmentPlannerContract.address);
-
   //////////////////////////// Contract Payback Distributor ////////////////////////////
   console.log("\n📦 Deploying ContractPaybackDistributor...");
   const contractPaybackDistributorFactory = await ethers.getContractFactory(
@@ -71,7 +64,6 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   return {
     siloPaybackContract,
     barnPaybackContract,
-    shipmentPlannerContract,
     contractPaybackDistributorContract
   };
 }

@@ -2234,7 +2234,7 @@ task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setActio
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["SeasonFacet", "TokenHookFacet"],
+      facetNames: ["SeasonFacet", "TokenHookFacet", "ShipmentPlannerFacet"],
       libraryNames: [
         "LibEvaluate",
         "LibGauge",

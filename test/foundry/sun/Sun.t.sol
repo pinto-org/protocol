@@ -8,7 +8,7 @@ import {IWell, IERC20, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
