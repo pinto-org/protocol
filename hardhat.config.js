@@ -46,7 +46,7 @@ module.exports = {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
       timeout: 100000000,
-      accounts: []
+      accounts: [process.env.PINTO_PK]
     },
     custom: {
       chainId: 41337,
