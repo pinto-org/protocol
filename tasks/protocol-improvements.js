@@ -2,7 +2,12 @@ const { task } = require("hardhat/config");
 const { upgradeWithNewFacets } = require("../scripts/diamond.js");
 const { impersonateSigner, mintEth, getBeanstalk } = require("../utils");
 const { to6 } = require("../test/hardhat/utils/helpers.js");
-const { L2_PINTO, L2_PCM, PINTO_CBTC_WELL_BASE } = require("../test/hardhat/utils/constants.js");
+const {
+  L2_PINTO,
+  L2_PCM,
+  PINTO_CBTC_WELL_BASE,
+  HELPER_STORAGE
+} = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
   task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
@@ -624,10 +629,7 @@ module.exports = function () {
     }
 
     // deploy helper storage
-    const helperStorage = await ethers.getContractFactory("HelperStorage");
-    const helperStorageContract = await helperStorage.deploy();
-    await helperStorageContract.deployed();
-    console.log("\nHelperStorage deployed to:", helperStorageContract.address);
+    const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
 
     // initialize helper storage
     await helperStorageContract.setValue(
