@@ -1,11 +1,9 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-ethers");
+require("@nomicfoundation/hardhat-ethers");
+require("@nomicfoundation/hardhat-verify");
+require("@nomicfoundation/hardhat-chai-matchers");
+
 require("hardhat-contract-sizer");
-require("hardhat-gas-reporter");
-require("hardhat-tracer");
-require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
-require("@nomiclabs/hardhat-etherscan");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
@@ -87,21 +85,7 @@ module.exports = {
     }
   },
   etherscan: {
-    apiKey: {
-      arbitrumOne: process.env.ETHERSCAN_KEY_ARBITRUM,
-      mainnet: process.env.ETHERSCAN_KEY,
-      base: process.env.ETHERSCAN_KEY_BASE
-    },
-    customChains: [
-      {
-        network: "base",
-        chainId: 8453,
-        urls: {
-          apiURL: "https://api.basescan.org/api",
-          browserURL: "https://basescan.org"
-        }
-      }
-    ]
+    apiKey: process.env.ETHERSCAN_API_KEY
   },
   solidity: {
     compilers: [
@@ -115,8 +99,5 @@ module.exports = {
         }
       }
     ]
-  },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS ? true : false
   }
 };
