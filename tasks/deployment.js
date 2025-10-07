@@ -177,4 +177,24 @@ module.exports = function () {
       }
     }
   );
+
+  task("deployHelperStorage", async () => {
+    mock = false;
+    let deployer;
+    if (mock) {
+      deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+    } else {
+      deployer = (await ethers.getSigners())[0];
+      console.log("Deployer address: ", await deployer.getAddress());
+
+      // add a enter key:
+      
+    }
+
+    const HelperStorage = await ethers.getContractFactory("HelperStorage");
+    const helperStorage = await HelperStorage.connect(deployer).deploy();
+    await helperStorage.deployed();
+
+    console.log("\helperStorage deployed to:", helperStorage.address);
+  });
 };

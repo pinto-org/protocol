@@ -8,7 +8,7 @@ const {
   addressToNameMap
 } = require("../test/hardhat/utils/constants.js");
 
-module.exports = function() {
+module.exports = function () {
   task("getPrice", async () => {
     const priceContract = await ethers.getContractAt(
       "BeanstalkPrice",
