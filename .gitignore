@@ -28,3 +28,6 @@ lib/
 
 # claude commands
 .claude/commands/
+
+# various tasks
+tasks/requisition/

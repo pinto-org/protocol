@@ -635,8 +635,11 @@ module.exports = function () {
       0,
       ethers.utils.defaultAbiCoder.encode(
         ["uint256", "uint256"],
-        [ethers.BigNumber.from("1000000000000"), ethers.BigNumber.from("1000000000")]
-      ) // 100k twaDeltaB, 0.1 stalk per bdv
+        [ethers.BigNumber.from("184774420000"), ethers.BigNumber.from("1249298174")]
+      )
+      // 184,774.420 twaDeltaB (season 7708) , 0.1249298174 stalk per bdv.
+      // the bonus was calculated via a script.
+      // the script can be found at https://github.com/pinto-org/PI-Data-Analysis/tree/master/PI-13-analysis/convert_bonus_calculation
     );
 
     // upgrade facets
