@@ -1,9 +1,11 @@
-require("@nomicfoundation/hardhat-ethers");
-require("@nomicfoundation/hardhat-verify");
-require("@nomicfoundation/hardhat-chai-matchers");
-
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-ethers");
 require("hardhat-contract-sizer");
+require("hardhat-gas-reporter");
+require("hardhat-tracer");
+require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
+require("@nomiclabs/hardhat-etherscan");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
