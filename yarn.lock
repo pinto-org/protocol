@@ -62,7 +62,7 @@ __metadata:
     "@ethereum-waffle/chai": "npm:4.0.10"
     "@nomicfoundation/hardhat-network-helpers": "npm:^1.0.10"
     "@nomiclabs/hardhat-ethers": "npm:^2.2.1"
-    "@nomiclabs/hardhat-etherscan": "npm:^3.1.2"
+    "@nomiclabs/hardhat-etherscan": "npm:@pinto-org/hardhat-etherscan@^3.1.8-pinto.1"
     "@nomiclabs/hardhat-waffle": "npm:^2.0.3"
     "@openzeppelin/contracts": "npm:5.0.2"
     "@openzeppelin/contracts-upgradeable": "npm:5.0.2"
@@ -1769,9 +1769,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomiclabs/hardhat-etherscan@npm:^3.1.2":
-  version: 3.1.8
-  resolution: "@nomiclabs/hardhat-etherscan@npm:3.1.8"
+"@nomiclabs/hardhat-etherscan@npm:@pinto-org/hardhat-etherscan@^3.1.8-pinto.1":
+  version: 3.1.8-pinto.1
+  resolution: "@pinto-org/hardhat-etherscan@npm:3.1.8-pinto.1"
   dependencies:
     "@ethersproject/abi": "npm:^5.1.2"
     "@ethersproject/address": "npm:^5.0.2"
@@ -1785,7 +1785,7 @@ __metadata:
     undici: "npm:^5.14.0"
   peerDependencies:
     hardhat: ^2.0.4
-  checksum: 10c0/7869e14506794f4ca2da147b99e0775a1e7d1afc3fd35fae53d65a1a01df67748a583e99fd4ef557af2cba4ed59ed1400510ef72b0728d64de67dbbc5742746f
+  checksum: 10c0/6b41784c2ffa0818a5fca421dcf4b07028f4c61947f9376dea44d01300f94d1d985fa0ae26144ac2c519a506da9d9fda2ce3a34b453a316a7b1dac4d1ce067dc
   languageName: node
   linkType: hard
 
