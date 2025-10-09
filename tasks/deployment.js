@@ -186,9 +186,6 @@ module.exports = function () {
     } else {
       deployer = (await ethers.getSigners())[0];
       console.log("Deployer address: ", await deployer.getAddress());
-
-      // add a enter key:
-      
     }
 
     const HelperStorage = await ethers.getContractFactory("HelperStorage");

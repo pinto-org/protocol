@@ -46,7 +46,7 @@ module.exports = {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
       timeout: 100000000,
-      accounts: []
+      accounts: [process.env.PINTO_PK]
     },
     custom: {
       chainId: 41337,
@@ -56,16 +56,14 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      arbitrumOne: process.env.ETHERSCAN_KEY_ARBITRUM,
-      mainnet: process.env.ETHERSCAN_KEY,
-      base: process.env.ETHERSCAN_KEY_BASE
+      base: process.env.ETHERSCAN_API_KEY
     },
     customChains: [
       {
         network: "base",
         chainId: 8453,
         urls: {
-          apiURL: "https://api.basescan.org/api",
+          apiURL: "https://api.etherscan.io/v2/api?chainid=8453",
           browserURL: "https://basescan.org"
         }
       }
