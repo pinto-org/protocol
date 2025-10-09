@@ -1,8 +1,7 @@
 {
-  "name": "pinto-protocol",
+  "name": "@beanstalk/protocol",
   "version": "2.7.1",
-  "private": true,
-  "description": "Pinto algorithmic stablecoin protocol",
+  "description": "Beanstalk is a permissionless fiat stablecoin protocol built on Ethereum.",
   "installConfig": {
     "hoistingLimits": "dependencies"
   },
@@ -31,8 +30,6 @@
     "./abi/*": "./abi/*"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
-    "@nomicfoundation/hardhat-ethers": "^3.0.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
     "@nomiclabs/hardhat-ethers": "^2.2.1",
     "@nomiclabs/hardhat-etherscan": "npm:@pinto-org/hardhat-etherscan@^3.1.8-pinto.1",
@@ -40,30 +37,46 @@
     "@openzeppelin/hardhat-upgrades": "^1.17.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "bignumber": "^1.1.0",
     "chai": "^4.4.1",
+    "csvtojson": "^2.0.10",
+    "ethereum-waffle": "4.0.10",
     "ethers": "5.7.2",
-    "hardhat": "^3.0.6",
+    "ganache-cli": "^6.12.2",
+    "hardhat": "2.22.14",
     "hardhat-contract-sizer": "^2.8.0",
+    "hardhat-gas-reporter": "^1.0.4",
     "json-bigint": "^1.0.0",
     "prettier": "^3.5.3",
     "prettier-plugin-solidity": "^1.4.3",
-    "readline-sync": "^1.4.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   },
   "dependencies": {
     "@beanstalk/wells": "0.4.1",
     "@beanstalk/wells1.2": "npm:@beanstalk/wells@1.2.0",
+    "@ethereum-waffle/chai": "4.0.10",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.7",
     "@openzeppelin/contracts": "5.0.2",
+    "@openzeppelin/contracts-upgradeable": "5.0.2",
+    "@openzeppelin/merkle-tree": "1.0.7",
     "@prb/math": "v2.5.0",
     "@uniswap/v3-core": "v1.0.2-solc-0.8-simulate",
     "axios": "1.6.7",
     "cors": "^2.8.5",
     "csv-parser": "3.0.0",
     "dotenv": "^10.0.0",
+    "eslint": "^9.12.0",
+    "eth-gas-reporter": "0.2.25",
     "express": "^4.21.1",
     "forge-std": "^1.1.2",
     "glob": "10.3.0",
-    "mathjs": "^11.0.1"
+    "hardhat": "2.22.14",
+    "hardhat-tracer": "^1.1.0-rc.9",
+    "keccak256": "^1.0.6",
+    "mathjs": "^11.0.1",
+    "merkletreejs": "^0.2.31",
+    "readline-sync": "^1.4.10",
+    "uniswap": "^0.0.1"
   }
 }
