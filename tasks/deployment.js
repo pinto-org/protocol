@@ -3,7 +3,12 @@ const { parseDeploymentParameters } = require("../scripts/deployment/parameters/
 const { upgradeWithNewFacets } = require("../scripts/diamond.js");
 const { megaInit } = require("../scripts/deployment/megaInit");
 const { impersonateSigner, mintEth } = require("../utils");
-const { L2_PINTO, L2_PCM, PINTO_DIAMOND_DEPLOYER } = require("../test/hardhat/utils/constants.js");
+const {
+  L2_PINTO,
+  L2_PCM,
+  PINTO_DIAMOND_DEPLOYER,
+  PINTO_PRICE_CONTRACT
+} = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
   // new diamond deployment
@@ -38,15 +43,19 @@ module.exports = function () {
   // tractor blueprints deployment
   task("deployConvertUpBlueprint", "Deploys the ConvertUpBlueprint contract").setAction(
     async (args, { network, ethers }) => {
+      mock = true;
       try {
         console.log("-----------------------------------");
         console.log("Deploying ConvertUpBlueprint and dependencies...");
 
         // Get deployer
-        const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
-        await mintEth(deployer.address);
-
-        const BEANSTALK_PRICE = await hre.run("deployBeanstalkPrice");
+        let deployer;
+        if (mock) {
+          deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+          await mintEth(deployer.address);
+        } else {
+          deployer = await ethers.getSigners()[0];
+        }
 
         // Deploy LibSiloHelpers library first
         console.log("Deploying LibSiloHelpers library...");
@@ -72,7 +81,7 @@ module.exports = function () {
           },
           signer: deployer
         });
-        const tractorHelpersContract = await tractorHelpers.deploy(L2_PINTO, BEANSTALK_PRICE);
+        const tractorHelpersContract = await tractorHelpers.deploy(L2_PINTO, PINTO_PRICE_CONTRACT);
         await tractorHelpersContract.deployed();
         console.log("TractorHelpers deployed to:", tractorHelpersContract.address);
 
@@ -105,12 +114,12 @@ module.exports = function () {
           await deployer.getAddress(), // owner address
           tractorHelpersContract.address, // tractorHelpers address
           siloHelpersContract.address, // siloHelpers address
-          BEANSTALK_PRICE
+          PINTO_PRICE_CONTRACT
         );
         await convertUpBlueprint.deployed();
 
         console.log("\n=== Deployment Summary ===");
-        console.log("BeanstalkPrice:", BEANSTALK_PRICE);
+        console.log("BeanstalkPrice:", PINTO_PRICE_CONTRACT);
         console.log("PriceManipulation:", priceManipulationContract.address);
         console.log("SiloHelpers:", siloHelpersContract.address);
         console.log("TractorHelpers:", tractorHelpersContract.address);
@@ -144,7 +153,7 @@ module.exports = function () {
     const siloHelpers = await ethers.getContractFactory("SiloHelpers");
     const siloHelpersContract = await siloHelpers.deploy(
       L2_PINTO,
-      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+      "PINTO_PRICE_CONTRACT", // price contract
       await owner.getAddress(), // owner address
       priceManipulationContract.address // price manipulation contract address
     );
@@ -155,7 +164,7 @@ module.exports = function () {
     const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
     const sowBlueprintContract = await sowBlueprint.deploy(
       L2_PINTO,
-      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+      "PINTO_PRICE_CONTRACT", // price contract
       await owner.getAddress(), // owner address
       siloHelpersContract.address // siloHelpers contract address
     );
@@ -166,7 +175,7 @@ module.exports = function () {
     const tractorHelpers = await ethers.getContractFactory("TractorHelpers");
     const tractorHelpersContract = await tractorHelpers.deploy(
       L2_PINTO,
-      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E" // price contract
+      "PINTO_PRICE_CONTRACT" // price contract
     );
     await tractorHelpersContract.deployed();
     console.log("TractorHelpers deployed to:", tractorHelpersContract.address);
@@ -178,7 +187,7 @@ module.exports = function () {
       await owner.getAddress(), // owner address
       tractorHelpersContract.address, // tractorHelpers contract address
       siloHelpersContract.address, // siloHelpers contract address
-      "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E" // price contract
+      "PINTO_PRICE_CONTRACT" // price contract
     );
     await convertUpBlueprintContract.deployed();
     console.log("ConvertUpBlueprint deployed to:", convertUpBlueprintContract.address);
@@ -244,11 +253,12 @@ module.exports = function () {
         const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
         await mintEth(deployer.address);
 
-        const BEANSTALK_PRICE = "0xd0fd333f7b30c7925debd81b7b7a4dfe106c3a5e";
-
         // Deploy contract
         const SiloHelpers = await ethers.getContractFactory("SiloHelpers");
-        const siloHelpers = await SiloHelpers.connect(deployer).deploy(L2_PINTO, BEANSTALK_PRICE);
+        const siloHelpers = await SiloHelpers.connect(deployer).deploy(
+          L2_PINTO,
+          PINTO_PRICE_CONTRACT
+        );
         await siloHelpers.deployed();
 
         console.log("\nSiloHelpers deployed to:", siloHelpers.address);
@@ -262,8 +272,14 @@ module.exports = function () {
 
   task("deployBeanstalkPrice", "Deploys the BeanstalkPrice contract").setAction(
     async (args, { network, ethers }) => {
-      const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
-      await mintEth(deployer.address);
+      mock = true;
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = await ethers.getSigners()[0];
+      }
       const beanstalkPrice = await ethers.getContractFactory("BeanstalkPrice");
       const beanstalkPriceContract = await beanstalkPrice.deploy(L2_PINTO);
       await beanstalkPriceContract.deployed();

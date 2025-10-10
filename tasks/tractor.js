@@ -719,7 +719,7 @@ module.exports = function () {
         console.log(`\n🎉 All addresses setup complete!`);
         console.log(`👥 Addresses configured: ${Object.keys(config.addresses).length}`);
         console.log(
-          `💡 Next: Call sunrise many times to accumulate grown stalk before signing blueprints`
+          `💡 Next: perform an upgrade to the diamond to change the seeds to increase the amount substantially, in order for the converts to get the full bonus.`
         );
 
         return {

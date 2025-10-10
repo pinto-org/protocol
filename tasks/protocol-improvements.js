@@ -6,7 +6,8 @@ const {
   L2_PINTO,
   L2_PCM,
   PINTO_CBTC_WELL_BASE,
-  HELPER_STORAGE
+  HELPER_STORAGE,
+  PINTO_IMPROVEMENT_DEPLOYER
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
@@ -632,7 +633,9 @@ module.exports = function () {
     const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
 
     // initialize helper storage
-    await helperStorageContract.setValue(
+    // impersonate pinto deployer:
+    const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
+    await helperStorageContract.connect(signer).setValue(
       0,
       ethers.utils.defaultAbiCoder.encode(
         ["uint256", "uint256"],
