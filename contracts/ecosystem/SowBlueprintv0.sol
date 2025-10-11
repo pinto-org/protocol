@@ -3,17 +3,16 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {TractorHelpers} from "./TractorHelpers.sol";
-import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
  * @title SowBlueprintv0
  * @author FordPinto
  * @notice Contract for sowing with Tractor, with a number of conditions
  */
-contract SowBlueprintv0 is PerFunctionPausable {
+contract SowBlueprintv0 is BlueprintBase {
     /**
      * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
@@ -98,32 +97,16 @@ contract SowBlueprintv0 is PerFunctionPausable {
         uint256 maxAmountToSowPerSeason;
     }
 
-    /**
-     * @notice Struct to hold operator parameters
-     * @param whitelistedOperators Array of whitelisted operator addresses
-     * @param tipAddress Address to send tip to
-     * @param operatorTipAmount Amount of tip to pay to operator
-     */
-    struct OperatorParams {
-        address[] whitelistedOperators;
-        address tipAddress;
-        int256 operatorTipAmount;
-    }
-
-    IBeanstalk immutable beanstalk;
-    TractorHelpers public immutable tractorHelpers;
-
     // Default slippage ratio for LP token withdrawals (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
 
     /**
-     * @notice Struct to hold order info
+     * @notice Blueprint specific struct to hold order info
      * @param pintoSownCounter Counter for the number of maximum pinto that can be sown from this blueprint. Used for orders that sow over multiple seasons.
-     * @param lastExecutedSeason Last season a blueprint was executed
      */
     struct OrderInfo {
         uint256 pintoSownCounter;
-        uint32 lastExecutedSeason;
+        // add additional order info here if needed
     }
 
     // Combined state mapping for order info
@@ -133,12 +116,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         address _beanstalk,
         address _owner,
         address _tractorHelpers
-    ) PerFunctionPausable(_owner) {
-        beanstalk = IBeanstalk(_beanstalk);
-
-        // Use existing TractorHelpers contract instead of deploying a new one
-        tractorHelpers = TractorHelpers(_tractorHelpers);
-    }
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {}
 
     /**
      * @notice Sows beans using specified source tokens in order of preference
@@ -167,17 +145,10 @@ contract SowBlueprintv0 is PerFunctionPausable {
         ) = validateParamsAndReturnBeanstalkState(params, vars.orderHash, vars.account);
 
         // Check if the executing operator (msg.sender) is whitelisted
-        require(
-            tractorHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
-            "Operator not whitelisted"
-        );
+        _validateOperatorParams(params.opParams);
 
         // Get tip address. If tip address is not set, set it to the operator
-        if (params.opParams.tipAddress == address(0)) {
-            vars.tipAddress = beanstalk.operator();
-        } else {
-            vars.tipAddress = params.opParams.tipAddress;
-        }
+        vars.tipAddress = _resolveTipAddress(params.opParams.tipAddress);
 
         // if slippage ratio is not set, set a default parameter:
         uint256 slippageRatio = params.sowParams.slippageRatio;
@@ -237,7 +208,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         );
 
         // Update the last executed season for this blueprint
-        updateLastExecutedSeason(vars.orderHash, vars.currentSeason);
+        _updateLastExecutedSeason(vars.orderHash, vars.currentSeason);
     }
 
     /**
@@ -245,10 +216,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @param params The SowBlueprintStruct containing all parameters for the sow operation
      */
     function _validateParams(SowBlueprintStruct calldata params) internal view {
-        require(
-            params.sowParams.sourceTokenIndices.length > 0,
-            "Must provide at least one source token"
-        );
+        _validateSourceTokens(params.sowParams.sourceTokenIndices);
 
         // Require that maxAmountToSowPerSeason > 0
         require(
@@ -282,26 +250,15 @@ contract SowBlueprintv0 is PerFunctionPausable {
     function _validateBlueprintAndPintoLeftToSow(
         bytes32 orderHash
     ) internal view returns (uint256 pintoLeftToSow) {
-        require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
-        require(
-            getLastExecutedSeason(orderHash) < beanstalk.time().current,
-            "Blueprint already executed this season"
-        );
+        // Shared validations
+        _validateBlueprint(orderHash, beanstalk.time().current);
 
+        // Blueprint specific validations
         // Verify there's still sow amount available with the counter
         pintoLeftToSow = getPintosLeftToSow(orderHash);
 
         // If pintoLeftToSow is max uint256, then the sow order has already been fully used, so revert
         require(pintoLeftToSow != type(uint256).max, "Sow order already fulfilled");
-    }
-
-    /**
-     * @notice Gets the last season a blueprint was executed
-     * @param orderHash The hash of the blueprint
-     * @return The last season the blueprint was executed, or 0 if never executed
-     */
-    function getLastExecutedSeason(bytes32 orderHash) public view returns (uint32) {
-        return orderInfo[orderHash].lastExecutedSeason;
     }
 
     /**
@@ -320,15 +277,6 @@ contract SowBlueprintv0 is PerFunctionPausable {
      */
     function updatePintoLeftToSowCounter(bytes32 orderHash, uint256 amount) internal {
         orderInfo[orderHash].pintoSownCounter = amount;
-    }
-
-    /**
-     * @notice Updates the last executed season for a given order hash
-     * @param orderHash The hash of the order
-     * @param season The season number
-     */
-    function updateLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
-        orderInfo[orderHash].lastExecutedSeason = season;
     }
 
     /**

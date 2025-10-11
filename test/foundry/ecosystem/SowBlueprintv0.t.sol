@@ -545,7 +545,7 @@ contract SowBlueprintv0Test is TractorHelper {
 
         // Verify the last executed season was recorded properly
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0.orderLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be current season"
         );
@@ -566,7 +566,7 @@ contract SowBlueprintv0Test is TractorHelper {
 
         // Verify the last executed season was updated
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0.orderLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be updated to current season"
         );
@@ -647,7 +647,7 @@ contract SowBlueprintv0Test is TractorHelper {
             "Counter should be 500e6 after first sow"
         );
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0.orderLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be properly recorded"
         );
@@ -664,7 +664,7 @@ contract SowBlueprintv0Test is TractorHelper {
 
         // Check lastExecutedSeason updated
         assertEq(
-            sowBlueprintv0.getLastExecutedSeason(orderHash),
+            sowBlueprintv0.orderLastExecutedSeason(orderHash),
             bs.time().current,
             "Last executed season should be updated to new season"
         );

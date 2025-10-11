@@ -31,6 +31,15 @@ contract MockFieldFacet is FieldFacet {
         s.sys.fields[fieldId].pods += amount;
     }
 
+    function setUserPodsAtField(
+        address account,
+        uint256 fieldId,
+        uint256 index,
+        uint256 amount
+    ) external {
+        LibDibbler.insertPlot(account, fieldId, index, amount);
+    }
+
     function setUnharvestable(uint256 amount) external {
         // Get current harvestable index
         uint256 currentIndex = s.sys.fields[s.sys.activeField].harvestable;
@@ -234,5 +243,16 @@ contract MockFieldFacet is FieldFacet {
             cultivationTemp,
             prevSeasonTemp
         );
+    }
+
+    function reorderPlotIndexes(
+        uint256[] memory newPlotIndexes,
+        uint256 fieldId,
+        address account
+    ) external {
+        for (uint256 i = 0; i < newPlotIndexes.length; i++) {
+            s.accts[account].fields[fieldId].plotIndexes[i] = newPlotIndexes[i];
+            s.accts[account].fields[fieldId].piIndex[newPlotIndexes[i]] = i;
+        }
     }
 }
