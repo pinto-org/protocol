@@ -47,7 +47,8 @@ gas_reports = ['*']
 no_storage_caching = false
 
 # Exclude deployment tests so CI works
-no_match_contract = "Legacy"
+no_match_contract = "Skip"
+
 
 [profile.differential]
 match_test = "testDiff"

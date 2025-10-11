@@ -1,0 +1,191 @@
+/*
+ SPDX-License-Identifier: MIT
+*/
+
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Implementation} from "contracts/beanstalk/storage/System.sol";
+import {LibAppStorage} from "../LibAppStorage.sol";
+import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
+
+/**
+ * @title LibTokenHook
+ * @notice Handles token hook management and execution for internal transfers.
+ */
+library LibTokenHook {
+    using SafeERC20 for IERC20;
+
+    /**
+     * @notice Emitted when a pre-transfer token hook is registered.
+     */
+    event AddedTokenHook(address indexed token, Implementation hook);
+
+    /**
+     * @notice Emitted when a whitelisted pre-transfer token hook is removed.
+     */
+    event RemovedTokenHook(address indexed token);
+
+    /**
+     * @notice Emitted when a whitelisted pre-transfer token hook is called.
+     */
+    event TokenHookCalled(address indexed token, address indexed target, bytes encodedCall);
+
+    /**
+     * @notice Registers and verifies a token hook for a specific token.
+     * @param token The token address to register the hook for.
+     * @param hook The Implementation token hook struct. (See System.{Implementation})
+     */
+    function addTokenHook(address token, Implementation memory hook) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        require(token != address(0), "LibTokenHook: Invalid token address");
+        require(hook.target != address(0), "LibTokenHook: Invalid target address");
+        require(hook.selector != bytes4(0), "LibTokenHook: Invalid selector");
+
+        // Verify the hook implementation is callable
+        verifyPreTransferHook(hook);
+
+        s.sys.tokenHook[token] = hook;
+
+        emit AddedTokenHook(token, hook);
+    }
+
+    /**
+     * @notice Removes a pre-transfer hook for a specific token.
+     * @param token The token address to remove the hook for.
+     */
+    function removeTokenHook(address token) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        require(s.sys.tokenHook[token].target != address(0), "LibTokenHook: Hook not whitelisted");
+
+        delete s.sys.tokenHook[token];
+
+        emit RemovedTokenHook(token);
+    }
+
+    /**
+     * @notice Updates a pre-transfer hook for a specific token.
+     * @param token The token address to update the hook for.
+     * @param hook The new Implementation token hook struct. (See System.{Implementation})
+     */
+    function updateTokenHook(address token, Implementation memory hook) internal {
+        // remove old hook, check for validity
+        removeTokenHook(token);
+        // add new hook, verify implementation
+        addTokenHook(token, hook);
+    }
+
+    /**
+     * @notice Checks if a token has a registered pre-transfer hook.
+     * @param token The token address to check.
+     * @return True if the token has a hook, false otherwise.
+     */
+    function hasTokenHook(address token) internal view returns (bool) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.tokenHook[token].target != address(0);
+    }
+
+    /**
+     * @notice Gets the pre-transfer hook for a specific token.
+     * @param token The token address.
+     * @return The Implementation token hook struct for the token. (See System.{Implementation})
+     */
+    function getTokenHook(address token) internal view returns (Implementation memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.tokenHook[token];
+    }
+
+    /// Call ///
+
+    /**
+     * @notice Calls the pre-transfer hook for a token before an internal transfer.
+     * - We revert in case of failure since internal transfers are non-critical protocol operations.
+     * - We assume that the hook returns no data
+     * @param token The token being transferred.
+     * @param from The sender address.
+     * @param to The recipient address.
+     * @param amount The transfer amount.
+     */
+    function checkForAndCallPreTransferHook(
+        address token,
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        Implementation memory hook = getTokenHook(token);
+        if (hook.target == address(0)) return;
+
+        // call the hook. If it reverts, revert the entire transfer.
+        bytes memory encodedCall = encodeHookCall(hook, token, from, to, amount);
+        callTokenHook(hook, encodedCall);
+        emit TokenHookCalled(token, hook.target, encodedCall);
+    }
+
+    /**
+     * @notice Verifies that a pre-transfer hook function is valid and callable.
+     * @dev Unlike view functions like the bdv selector, we can't staticcall pre-transfer hooks
+     * since they might potentially modify state or emit events so we perform a regular call with
+     * default parameters and assume the hook does not revert for 0 values.
+     * @dev Care must be taken to only whitelist trusted hooks since a hook is an arbitrary function call.
+     * @param hook The Implementation token hook struct. (See System.{Implementation})
+     */
+    function verifyPreTransferHook(Implementation memory hook) internal {
+        // verify the target is a contract, regular calls don't revert for non-contracts
+        require(isContract(hook.target), "LibTokenHook: Target is not a contract");
+        // verify the target is callable
+        bytes memory encodedCall = encodeHookCall(
+            hook,
+            address(0),
+            address(0),
+            address(0),
+            uint256(0)
+        );
+        callTokenHook(hook, encodedCall);
+    }
+
+    /**
+     * @notice Encodes a hook call for a token before an internal transfer.
+     * @param hook The Implementation token hook struct. (See System.{Implementation})
+     * @param token The token being transferred.
+     * @param from The sender address from the transfer.
+     * @param to The recipient address from the transfer.
+     * @param amount The transfer amount.
+     */
+    function encodeHookCall(
+        Implementation memory hook,
+        address token,
+        address from,
+        address to,
+        uint256 amount
+    ) internal pure returns (bytes memory) {
+        if (hook.encodeType == 0x00) {
+            return abi.encodeWithSelector(hook.selector, from, to, amount);
+        } else if (hook.encodeType == 0x01) {
+            return abi.encodeWithSelector(hook.selector, token, from, to, amount);
+        } else {
+            // any other encode types should be added here
+            revert("LibTokenHook: Invalid encodeType");
+        }
+    }
+
+    /**
+     * @notice Calls a token hook using previously encoded calldata.
+     * @param hook The Implementation token hook struct. (See System.{Implementation})
+     * @param encodedCall The encoded calldata to call on the hook target address.
+     */
+    function callTokenHook(Implementation memory hook, bytes memory encodedCall) internal {
+        (bool success, ) = hook.target.call(encodedCall);
+        require(success, "LibTokenHook: Hook execution failed");
+    }
+
+    /**
+     * @notice Checks if an account is a contract.
+     */
+    function isContract(address account) internal view returns (bool) {
+        uint size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
+    }
+}

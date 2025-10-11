@@ -25,15 +25,50 @@ function convertToBigNum(value) {
   return BigNumber.from(value).toString();
 }
 
-function splitEntriesIntoChunks(entries, chunkSize) {
+function splitEntriesIntoChunks(data, targetEntriesPerChunk) {
   const chunks = [];
-  // Calculate the number of chunks
-  const numChunks = Math.ceil(entries.length / chunkSize);
-  // Loop through the entries and create chunks
-  for (let i = 0; i < numChunks; i++) {
-    const chunk = entries.slice(i * chunkSize, (i + 1) * chunkSize);
-    chunks.push(chunk);
+  let currentChunk = [];
+  let currentChunkEntries = 0;
+
+  for (const item of data) {
+    const itemEntries = countEntries(item);
+
+    if (currentChunkEntries + itemEntries > targetEntriesPerChunk && currentChunk.length > 0) {
+      // This item would exceed the target, so start a new chunk
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentChunkEntries = 0;
+    }
+
+    currentChunk.push(item);
+    currentChunkEntries += itemEntries;
   }
+
+  // Add any remaining entries to the last chunk
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+}
+
+function splitIntoExactChunks(data, numberOfChunks) {
+  if (numberOfChunks <= 0) {
+    throw new Error("Number of chunks must be greater than 0");
+  }
+
+  if (numberOfChunks >= data.length) {
+    // If we want more chunks than items, return each item as its own chunk
+    return data.map((item) => [item]);
+  }
+
+  const chunks = [];
+  const itemsPerChunk = Math.ceil(data.length / numberOfChunks);
+
+  for (let i = 0; i < data.length; i += itemsPerChunk) {
+    chunks.push(data.slice(i, i + itemsPerChunk));
+  }
+
   return chunks;
 }
 
@@ -84,10 +119,7 @@ async function updateProgress(current, total) {
   if (filledLength > progressBarLength) filledLength = progressBarLength;
   const progressBar = "█".repeat(filledLength) + "░".repeat(progressBarLength - filledLength);
 
-  process.stdout.clearLine(0);
-  process.stdout.cursorTo(0);
-  process.stdout.write("\n"); // end the line
-  process.stdout.write(`Processing: [${progressBar}] ${percentage}% | Chunk ${current}/${total}`);
+  console.log(`Processing: [${progressBar}] ${percentage}% | Chunk ${current}/${total}`);
 }
 
 const MAX_RETRIES = 20;
@@ -114,6 +146,7 @@ async function retryOperation(operation, retries = MAX_RETRIES) {
 
 exports.readPrune = readPrune;
 exports.splitEntriesIntoChunks = splitEntriesIntoChunks;
+exports.splitIntoExactChunks = splitIntoExactChunks;
 exports.splitEntriesIntoChunksOptimized = splitEntriesIntoChunksOptimized;
 exports.updateProgress = updateProgress;
 exports.convertToBigNum = convertToBigNum;
