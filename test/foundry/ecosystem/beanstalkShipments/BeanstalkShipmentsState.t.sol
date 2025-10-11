@@ -9,7 +9,6 @@ import {console} from "forge-std/console.sol";
 import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
 import {ISiloPayback} from "contracts/interfaces/ISiloPayback.sol";
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ShipmentRecipient, ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
 
@@ -99,7 +98,7 @@ contract Skip_BeanstalkShipmentsStateTest is TestHelper {
         // silo (0x01)
         assertEq(
             routes[0].planSelector,
-            ShipmentPlanner.getSiloPlan.selector,
+            IMockFBeanstalk.getSiloPlan.selector,
             "Silo plan selector mismatch"
         );
         assertEq(
@@ -111,7 +110,7 @@ contract Skip_BeanstalkShipmentsStateTest is TestHelper {
         // field (0x02)
         assertEq(
             routes[1].planSelector,
-            ShipmentPlanner.getFieldPlan.selector,
+            IMockFBeanstalk.getFieldPlan.selector,
             "Field plan selector mismatch"
         );
         assertEq(
@@ -123,7 +122,7 @@ contract Skip_BeanstalkShipmentsStateTest is TestHelper {
         // budget (0x03)
         assertEq(
             routes[2].planSelector,
-            ShipmentPlanner.getBudgetPlan.selector,
+            IMockFBeanstalk.getBudgetPlan.selector,
             "Budget plan selector mismatch"
         );
         assertEq(
@@ -135,7 +134,7 @@ contract Skip_BeanstalkShipmentsStateTest is TestHelper {
         // payback field (0x02)
         assertEq(
             routes[3].planSelector,
-            ShipmentPlanner.getPaybackFieldPlan.selector,
+            IMockFBeanstalk.getPaybackFieldPlan.selector,
             "Payback field plan selector mismatch"
         );
         assertEq(
@@ -151,7 +150,7 @@ contract Skip_BeanstalkShipmentsStateTest is TestHelper {
         // payback silo (0x05)
         assertEq(
             routes[4].planSelector,
-            ShipmentPlanner.getPaybackSiloPlan.selector,
+            IMockFBeanstalk.getPaybackSiloPlan.selector,
             "Payback silo plan selector mismatch"
         );
         assertEq(
@@ -167,7 +166,7 @@ contract Skip_BeanstalkShipmentsStateTest is TestHelper {
         // payback barn (0x06)
         assertEq(
             routes[5].planSelector,
-            ShipmentPlanner.getPaybackBarnPlan.selector,
+            IMockFBeanstalk.getPaybackBarnPlan.selector,
             "Payback barn plan selector mismatch"
         );
         assertEq(

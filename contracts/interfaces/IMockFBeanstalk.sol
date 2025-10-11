@@ -285,6 +285,11 @@ interface IMockFBeanstalk {
         bool oracleFailure;
     }
 
+    struct ShipmentPlan {
+        uint256 points;
+        uint256 cap;
+    }
+
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();
@@ -1929,4 +1934,24 @@ interface IMockFBeanstalk {
     function hasTokenHook(address token) external view returns (bool);
 
     function getTokenHook(address token) external view returns (Implementation memory);
+
+    function getFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getSiloPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackSiloPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackBarnPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
 }

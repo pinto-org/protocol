@@ -3,7 +3,6 @@
 pragma solidity ^0.8.20;
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {C} from "contracts/C.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {ShipmentRoute} from "contracts/beanstalk/storage/System.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
@@ -33,12 +32,16 @@ abstract contract Distribution is ReentrancyGuard {
 
     /**
      * @notice Replaces the entire set of ShipmentRoutes with a new set.
+     * If the planContract is set to address(0), the target is set as the diamond itself.
      * @dev Changes take effect immediately and will be seen at the next sunrise mint.
      */
-    function setShipmentRoutes(ShipmentRoute[] calldata shipmentRoutes) external {
+    function setShipmentRoutes(ShipmentRoute[] memory shipmentRoutes) external {
         LibDiamond.enforceIsOwnerOrContract();
         delete s.sys.shipmentRoutes;
         for (uint256 i; i < shipmentRoutes.length; i++) {
+            shipmentRoutes[i].planContract == address(0)
+                ? shipmentRoutes[i].planContract = address(this)
+                : shipmentRoutes[i].planContract;
             s.sys.shipmentRoutes.push(shipmentRoutes[i]);
         }
         emit ShipmentRoutesSet(shipmentRoutes);

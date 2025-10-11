@@ -253,4 +253,8 @@ interface IBeanstalk {
     function setShipmentRoutes(ShipmentRoute[] calldata shipmentRoutes) external;
 
     function addField() external;
+
+    function fieldCount() external view returns (uint256);
+
+    function isHarvesting(uint256 fieldId) external view returns (bool);
 }

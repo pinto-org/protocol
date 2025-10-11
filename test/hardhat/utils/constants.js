@@ -129,10 +129,8 @@ module.exports = {
   // Expected proxy address of the barn payback contract from deployer at nonce 3
   BEANSTALK_BARN_PAYBACK: "0x71ad4dCd54B1ee0FA450D7F389bEaFF1C8602f9b",
   BEANSTALK_BARN_PAYBACK_IMPLEMENTATION: "0xeB447cE47107f0c7406716d60Ede2107CE73e5f2",
-  // Expected proxy address of the shipment planner contract from deployer at nonce 4
-  BEANSTALK_SHIPMENT_PLANNER: "0x1152691C30aAd82eB9baE7e32d662B19391e34Db",
-  // Expected address of the contract payback distributor contract from deployer at nonce 5
-  BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR: "0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000",
+  // Expected address of the contract payback distributor contract from deployer at nonce 4
+  BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR: "0x1152691C30aAd82eB9baE7e32d662B19391e34Db",
 
   // EOA that will populate the repayment field
   BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR: "0xc4c66c8b199443a8dea5939ce175c3592e349791",
