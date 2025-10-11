@@ -27,6 +27,9 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
     uint256 STALK_DECIMALS = 1e10;
     int256 DEFAULT_TIP_AMOUNT = 10e6; // 10 BEAN
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
+    uint256 UNEXECUTABLE_MIN_HARVEST_AMOUNT = 1_000_000_000e6; // 1B BEAN
+    uint256 PODS_FIELD_0 = 1000100000;
+    uint256 PODS_FIELD_1 = 250e6;
 
     struct TestState {
         address user;
@@ -88,6 +91,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
     function setupMowPlantHarvestBlueprintTest(
         bool setupPlant,
         bool setupHarvest,
+        bool twoFields,
         bool abovePeg
     ) internal returns (TestState memory) {
         // Create test state
@@ -123,7 +127,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
         if (setupPlant) skipGermination();
 
-        if (setupHarvest) setHarvestConditions(state.user);
+        if (setupHarvest) setHarvestConditions(state.user, twoFields);
 
         return state;
     }
@@ -133,7 +137,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
     function test_mowPlantHarvestBlueprint_smartMow() public {
         // Setup test state
         // setupPlant: false, setupHarvest: false, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, true);
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, false, true);
 
         // Advance season to grow stalk but not enough to plant
         advanceSeason();
@@ -155,7 +159,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             type(uint256).max, // minPlantAmount
-            type(uint256).max, // minHarvestAmount
+            UNEXECUTABLE_MIN_HARVEST_AMOUNT, // minHarvestAmount (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -187,7 +191,8 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     function test_mowPlantHarvestBlueprint_plant_revertWhenMinPlantAmountLessThanTip() public {
         // Setup test state for planting
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, true);
+        // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, false, true);
 
         // assert that the user has earned beans
         assertGt(bs.balanceOfEarnedBeans(state.user), 0, "user should have earned beans to plant");
@@ -199,7 +204,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             1e6, // minPlantAmount < 10e6 (plant tip amount)
-            type(uint256).max, // minHarvestAmount
+            UNEXECUTABLE_MIN_HARVEST_AMOUNT, // minHarvestAmount (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -214,7 +219,8 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     function test_mowPlantHarvestBlueprint_plant_revertWhenInsufficientPlantableBeans() public {
         // Setup test state for planting
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, true);
+        // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, false, true);
 
         // assert that the user has earned beans
         assertGt(bs.balanceOfEarnedBeans(state.user), 0, "user should have earned beans to plant");
@@ -226,7 +232,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             type(uint256).max, // minPlantAmount > (total plantable beans)
-            type(uint256).max, // minHarvestAmount
+            UNEXECUTABLE_MIN_HARVEST_AMOUNT, // minHarvestAmount (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -241,7 +247,8 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     function test_mowPlantHarvestBlueprint_plant_success() public {
         // Setup test state for planting
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, true);
+        // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, true, true);
 
         // get user state before plant
         uint256 userTotalStalkBeforePlant = bs.balanceOfStalk(state.user);
@@ -259,7 +266,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             11e6, // minPlantAmount > 10e6 (plant tip amount)
-            type(uint256).max, // minHarvestAmount
+            UNEXECUTABLE_MIN_HARVEST_AMOUNT, // minHarvestAmount (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -282,13 +289,14 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     function test_mowPlantHarvestBlueprint_harvest_revertWhenMinHarvestAmountLessThanTip() public {
         // Setup test state for harvesting
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true);
+        // setupPlant: false, setupHarvest: true, twoFields: true, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true, true);
 
         // advance season to print beans
         advanceSeason();
 
         // assert user has harvestable pods
-        (uint256 totalHarvestablePods, ) = _userHarvestablePods(state.user);
+        (uint256 totalHarvestablePods, ) = _userHarvestablePods(state.user, DEFAULT_FIELD_ID);
         assertGt(totalHarvestablePods, 0, "user should have harvestable pods to harvest");
 
         // Setup blueprint with minHarvestAmount less than harvest tip amount
@@ -298,7 +306,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             11e6, // minPlantAmount
-            1e6, // minHarvestAmount < 10e6 (harvest tip amount)
+            1e6, // minHarvestAmount < 10e6 (harvest tip amount) (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -313,20 +321,23 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     function test_mowPlantHarvestBlueprint_harvest_partialHarvest() public {
         // Setup test state for harvesting
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true);
+        // setupPlant: false, setupHarvest: true, twoFields: true, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true, true);
 
         // advance season to print beans
         advanceSeason();
 
         // get user state before harvest
         uint256 userTotalBdvBeforeHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
-        (uint256 totalHarvestablePods, uint256[] memory harvestablePlots) = _userHarvestablePods(
-            state.user
+        (, uint256[] memory harvestablePlots) = assertAndGetHarvestablePods(
+            state.user,
+            DEFAULT_FIELD_ID,
+            1, // expected plots
+            488088481 // expected pods
         );
 
         // assert initial conditions
         assertEq(userTotalBdvBeforeHarvest, 100000e6, "user should have the initial bdv");
-        assertGt(totalHarvestablePods, 0, "user should have harvestable pods to harvest");
 
         // Setup blueprint for partial harvest
         (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
@@ -335,7 +346,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             11e6, // minPlantAmount
-            11e6, // minHarvestAmount > 10e6 (harvest tip amount)
+            11e6, // minHarvestAmount > 10e6 (harvest tip amount) (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -353,17 +364,13 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         assertGt(userTotalBdvAfterHarvest, userTotalBdvBeforeHarvest, "userTotalBdv increase");
 
         // assert user harvestable pods is 0 after harvest
-        (
-            uint256 totalHarvestablePodsAfterHarvest,
-            uint256[] memory harvestablePlotsAfterHarvest
-        ) = _userHarvestablePods(state.user);
-        assertEq(totalHarvestablePodsAfterHarvest, 0, "harvestable pods after harvest");
-        assertEq(harvestablePlotsAfterHarvest.length, 0, "harvestable plots after harvest");
+        assertNoHarvestablePods(state.user, DEFAULT_FIELD_ID);
     }
 
     function test_mowPlantHarvestBlueprint_harvest_fullHarvest() public {
         // Setup test state for harvesting
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true);
+        // setupPlant: false, setupHarvest: true, twoFields: false, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, false, true);
 
         // add even more liquidity to well to print more beans and clear the podline
         addLiquidityToWell(BEAN_ETH_WELL, 10000e6, 20 ether);
@@ -374,10 +381,12 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
         // get user state before harvest
         uint256 userTotalBdvBeforeHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
-        (, uint256[] memory harvestablePlots) = _userHarvestablePods(state.user);
-
-        // assert user has 2 harvestable plots for full harvest
-        assertEq(harvestablePlots.length, 2, "user should have 2 harvestable plots");
+        (, uint256[] memory harvestablePlots) = assertAndGetHarvestablePods(
+            state.user,
+            DEFAULT_FIELD_ID,
+            2, // expected plots
+            PODS_FIELD_0 // expected pods
+        );
 
         // Setup blueprint for full harvest
         (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
@@ -386,7 +395,7 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
             10e6, // mintwaDeltaB
             11e6, // minPlantAmount
-            11e6, // minHarvestAmount > 10e6 (harvest tip amount)
+            11e6, // minHarvestAmount > 10e6 (harvest tip amount) (for all fields)
             state.operator, // tipAddress
             state.mowTipAmount, // mowTipAmount
             state.plantTipAmount, // plantTipAmount
@@ -412,15 +421,111 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         assertEq(plots.length, 0, "user should have no plots left");
 
         // assert the user has no harvestable pods left
-        (
-            uint256 totalHarvestablePodsAfterHarvest,
-            uint256[] memory harvestablePlotsAfterHarvest
-        ) = _userHarvestablePods(state.user);
-        assertEq(totalHarvestablePodsAfterHarvest, 0, "harvestable pods after harvest");
-        assertEq(harvestablePlotsAfterHarvest.length, 0, "harvestable plots after harvest");
+        assertNoHarvestablePods(state.user, DEFAULT_FIELD_ID);
+    }
+
+    function test_mowPlantHarvestBlueprint_harvest_fullHarvest_twoFields() public {
+        // Setup test state for harvesting
+        // setupPlant: false, setupHarvest: true, twoFields: true, abovePeg: true
+        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true, true);
+
+        // add even more liquidity to well to print more beans and clear the podline at fieldId 0
+        // note: field id 1 has had its harvestable index incremented already
+        addLiquidityToWell(BEAN_ETH_WELL, 10000e6, 20 ether);
+        addLiquidityToWell(BEAN_WSTETH_WELL, 10000e6, 20 ether);
+
+        // advance season to print beans
+        advanceSeason();
+
+        // get user state before harvest for fieldId 0
+        uint256 userTotalBdvBeforeHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
+        (, uint256[] memory field0HarvestablePlots) = assertAndGetHarvestablePods(
+            state.user,
+            DEFAULT_FIELD_ID,
+            2, // expected plots
+            PODS_FIELD_0 // expected pods
+        );
+        // get user state before harvest for fieldId 1
+        (, uint256[] memory field1HarvestablePlots) = assertAndGetHarvestablePods(
+            state.user,
+            PAYBACK_FIELD_ID,
+            1, // expected plots
+            PODS_FIELD_1 // expected pods
+        );
+
+        // Setup blueprint for full harvest
+        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+            state.user, // account
+            SourceMode.PURE_PINTO, // sourceMode for tip
+            1 * STALK_DECIMALS, // minMowAmount (1 stalk)
+            10e6, // mintwaDeltaB
+            11e6, // minPlantAmount
+            11e6, // minHarvestAmount > 10e6 (harvest tip amount) (for all fields)
+            state.operator, // tipAddress
+            state.mowTipAmount, // mowTipAmount
+            state.plantTipAmount, // plantTipAmount
+            state.harvestTipAmount, // harvestTipAmount
+            MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
+        );
+
+        // Execute requisition, expect harvest events for both fields
+        vm.expectEmit();
+        emit Harvest(state.user, DEFAULT_FIELD_ID, field0HarvestablePlots, 1000100000);
+        emit Harvest(state.user, PAYBACK_FIELD_ID, field1HarvestablePlots, 250e6);
+        executeRequisition(state.operator, req, address(bs));
+
+        // Verify state changes after full harvest
+        uint256 userTotalBdvAfterHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
+        assertGt(userTotalBdvAfterHarvest, userTotalBdvBeforeHarvest, "userTotalBdv increase");
+
+        // get user plots and verify all harvested for fieldId 0
+        IMockFBeanstalk.Plot[] memory plots = bs.getPlotsFromAccount(state.user, DEFAULT_FIELD_ID);
+        assertEq(bs.getPlotsFromAccount(state.user, DEFAULT_FIELD_ID).length, 0, "no plots left");
+
+        // assert the user has no harvestable pods left
+        assertNoHarvestablePods(state.user, DEFAULT_FIELD_ID);
+
+        // get user plots and verify all harvested for fieldId 1
+        plots = bs.getPlotsFromAccount(state.user, PAYBACK_FIELD_ID);
+        assertEq(plots.length, 0, "no plots left");
+
+        // assert the user has no harvestable pods left
+        assertNoHarvestablePods(state.user, PAYBACK_FIELD_ID);
     }
 
     /////////////////////////// HELPER FUNCTIONS ///////////////////////////
+
+    /**
+     * @notice Assert user has no harvestable pods remaining for a field
+     */
+    function assertNoHarvestablePods(address user, uint256 fieldId) internal {
+        (uint256 totalPods, uint256[] memory plots) = _userHarvestablePods(user, fieldId);
+        assertEq(totalPods, 0, "harvestable pods after harvest");
+        assertEq(plots.length, 0, "harvestable plots after harvest");
+    }
+
+    /**
+     * @notice Assert user has expected harvestable pods and return them
+     */
+    function assertAndGetHarvestablePods(
+        address user,
+        uint256 fieldId,
+        uint256 expectedPlots,
+        uint256 expectedPods
+    ) internal returns (uint256 totalPods, uint256[] memory plots) {
+        (totalPods, plots) = _userHarvestablePods(user, fieldId);
+        assertEq(
+            plots.length,
+            expectedPlots,
+            string.concat("harvestable plots for fieldId ", vm.toString(fieldId))
+        );
+        assertGt(
+            totalPods,
+            0,
+            string.concat("harvestable pods for fieldId ", vm.toString(fieldId))
+        );
+        assertEq(totalPods, expectedPods, "harvestable pods for fieldId");
+    }
 
     /// @dev Advance to the next season and update oracles
     function advanceSeason() internal {
@@ -448,8 +553,10 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
 
     /**
      * @notice Sows beans so that the tractor user can harvest later
+     * Results in PODS_FIELD_0 for fieldId 0 and optionally PODS_FIELD_1 for fieldId 1
      */
-    function setHarvestConditions(address account) internal {
+    function setHarvestConditions(address account, bool twoFields) internal {
+        //////  Set active field harvest by sowing //////
         // set soil to 1000e6
         bs.setSoilE(1000e6);
         // sow 1000e6 beans 2 times of 500e6 each
@@ -457,6 +564,11 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         bs.sow(500e6, 0, uint8(LibTransfer.From.EXTERNAL));
         vm.prank(account);
         bs.sow(500e6, 0, uint8(LibTransfer.From.EXTERNAL));
+        /// Give the user pods in fieldId 1 and increment harvestable index ///
+        if (twoFields) {
+            bs.setUserPodsAtField(account, PAYBACK_FIELD_ID, 0, 250e6);
+            bs.incrementTotalHarvestableE(PAYBACK_FIELD_ID, 250e6);
+        }
     }
 
     /**
