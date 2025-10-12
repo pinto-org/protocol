@@ -650,12 +650,14 @@ module.exports = function () {
         "ConvertFacet",
         "ConvertGettersFacet",
         "PipelineConvertFacet",
+        "SiloFacet",
         "SiloGettersFacet",
         "GaugeFacet",
         "GaugeGettersFacet",
         "SeasonFacet",
         "SeasonGettersFacet",
-        "ApprovalFacet"
+        "ApprovalFacet",
+        "BDVFacet"
       ],
       libraryNames: [
         "LibTokenSilo",
@@ -684,6 +686,7 @@ module.exports = function () {
           "LibFlood",
           "LibGerminate"
         ],
+        SiloFacet: ["LibSilo", "LibTokenSilo"],
         SeasonGettersFacet: ["LibWellMinting"]
       },
       linkedLibraries: {
