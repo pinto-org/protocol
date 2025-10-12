@@ -11,7 +11,7 @@ const {
   PINTO_CBTC_WELL_BASE
 } = require("../test/hardhat/utils/constants.js");
 
-module.exports = function() {
+module.exports = function () {
   task("callSunrise", "Calls the sunrise function", async function () {
     beanstalk = await getBeanstalk(L2_PINTO);
     const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
@@ -67,26 +67,54 @@ module.exports = function() {
     await beanstalk.connect(deployer).unpause();
   });
 
-  task("skipMorningAuction", "Skips the morning auction, accounts for block time", async function () {
-    const duration = 300; // 5 minutes
-    // skip 5 minutes in blocks --> 150 blocks for base
-    const blocksToSkip = duration / BASE_BLOCK_TIME;
-    for (let i = 0; i < blocksToSkip; i++) {
+  task(
+    "skipMorningAuction",
+    "Skips the morning auction, accounts for block time",
+    async function () {
+      const duration = 300; // 5 minutes
+      // skip 5 minutes in blocks --> 150 blocks for base
+      const blocksToSkip = duration / BASE_BLOCK_TIME;
+      for (let i = 0; i < blocksToSkip; i++) {
+        await network.provider.send("evm_mine");
+      }
+      // increase timestamp by 5 minutes from current block timestamp
+      const lastTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
+      await network.provider.send("evm_setNextBlockTimestamp", [lastTimestamp + duration]);
+      // mine a new block to register the new timestamp
       await network.provider.send("evm_mine");
+      console.log("---------------------------");
+      console.log("Morning auction skipped!");
+      console.log("Current block:", (await ethers.provider.getBlock("latest")).number);
+      // human readable time
+      const unixTime = await time.latest();
+      const currentTime = new Date(unixTime * 1000).toLocaleString();
+      console.log("Human readable time:", currentTime);
     }
-    // increase timestamp by 5 minutes from current block timestamp
-    const lastTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
-    await network.provider.send("evm_setNextBlockTimestamp", [lastTimestamp + duration]);
-    // mine a new block to register the new timestamp
-    await network.provider.send("evm_mine");
-    console.log("---------------------------");
-    console.log("Morning auction skipped!");
-    console.log("Current block:", (await ethers.provider.getBlock("latest")).number);
-    // human readable time
-    const unixTime = await time.latest();
-    const currentTime = new Date(unixTime * 1000).toLocaleString();
-    console.log("Human readable time:", currentTime);
-  });
+  );
+  task(
+    "skipCapacityRamp",
+    "Skips the capacity ramp up period, accounts for block time",
+    async function () {
+      const duration = 1800; // 5 minutes
+      // skip 5 minutes in blocks --> 150 blocks for base
+      const blocksToSkip = duration / BASE_BLOCK_TIME;
+      for (let i = 0; i < blocksToSkip; i++) {
+        await network.provider.send("evm_mine");
+      }
+      // increase timestamp by 5 minutes from current block timestamp
+      const lastTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
+      await network.provider.send("evm_setNextBlockTimestamp", [lastTimestamp + duration]);
+      // mine a new block to register the new timestamp
+      await network.provider.send("evm_mine");
+      console.log("---------------------------");
+      console.log("Morning auction skipped!");
+      console.log("Current block:", (await ethers.provider.getBlock("latest")).number);
+      // human readable time
+      const unixTime = await time.latest();
+      const currentTime = new Date(unixTime * 1000).toLocaleString();
+      console.log("Human readable time:", currentTime);
+    }
+  );
 
   task("forceFlood", "Forces a flood to occur", async function () {
     const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);

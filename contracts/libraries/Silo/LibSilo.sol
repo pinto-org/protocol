@@ -694,16 +694,31 @@ library LibSilo {
 
     //////////////////////// APPROVE ////////////////////////
 
+    /**
+     * @notice Decrement the sender's allowance.
+     * @dev
+     * @param owner The owner of the allowance
+     * @param spender The spender of the allowance
+     * @param token The token of the allowance
+     * @param amount The amount of the allowance
+     */
     function _spendDepositAllowance(
         address owner,
         address spender,
         address token,
         uint256 amount
     ) external {
-        uint256 currentAllowance = depositAllowance(owner, spender, token);
-        if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "Silo: insufficient allowance");
-            _approveDeposit(owner, spender, token, currentAllowance - amount);
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // if the owner is not the spender (i.e, someone is spending on behalf of the owner)
+        // AND the spender has not been approved for all, for the ERC1155 deposits,
+        // // decrement the allowance
+        if (owner != spender && !s.accts[owner].isApprovedForAll[spender]) {
+            uint256 currentAllowance = depositAllowance(owner, spender, token);
+            if (currentAllowance != type(uint256).max) {
+                require(currentAllowance >= amount, "Silo: insufficient allowance");
+                _approveDeposit(owner, spender, token, currentAllowance - amount);
+            }
         }
     }
 
