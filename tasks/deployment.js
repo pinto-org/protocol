@@ -66,10 +66,8 @@ module.exports = function () {
 
         // Deploy PriceManipulation
         console.log("Deploying PriceManipulation...");
-        const priceManipulation = await ethers.getContractFactory("PriceManipulation");
-        const priceManipulationContract = await priceManipulation
-          .connect(deployer)
-          .deploy(L2_PINTO);
+        const priceManipulation = await ethers.getContractFactory("PriceManipulation", deployer);
+        const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
         await priceManipulationContract.deployed();
         console.log("PriceManipulation deployed to:", priceManipulationContract.address);
 
