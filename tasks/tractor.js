@@ -437,7 +437,7 @@ module.exports = function () {
           data: tractorData,
           privateKey: taskArgs.privateKey,
           maxNonce: taskArgs.maxNonce,
-          startTime: Math.floor(Date.now() / 1000).toString(),
+          startTime: (0).toString(),
           endTime: (
             Math.floor(Date.now() / 1000) +
             parseInt(taskArgs.duration) * 24 * 60 * 60
