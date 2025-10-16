@@ -9,7 +9,6 @@ import {ReservesType} from "../../price/WellPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {IOperatorWhitelist} from "./OperatorWhitelist.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title TractorHelpers
