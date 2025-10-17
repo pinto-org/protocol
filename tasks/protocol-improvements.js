@@ -657,7 +657,8 @@ module.exports = function () {
         "SeasonFacet",
         "SeasonGettersFacet",
         "ApprovalFacet",
-        "BDVFacet"
+        "BDVFacet",
+        "TractorFacet"
       ],
       libraryNames: [
         "LibTokenSilo",
