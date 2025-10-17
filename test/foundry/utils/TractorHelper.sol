@@ -57,6 +57,41 @@ contract TractorHelper is TestHelper {
             });
     }
 
+    /**
+     * @notice Create a requisition for ERC1271 contract publishers (no ECDSA signing)
+     * @dev For ERC1271, the signature is validated by the contract itself via isValidSignature()
+     */
+    function createRequisitionWithPipeCallERC1271(
+        address contractPublisher,
+        bytes memory pipeCallData,
+        address beanstalkAddress
+    ) internal view returns (IMockFBeanstalk.Requisition memory) {
+        // Create the blueprint
+        IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
+            publisher: contractPublisher,
+            data: pipeCallData,
+            operatorPasteInstrs: new bytes32[](0),
+            maxNonce: type(uint256).max,
+            startTime: block.timestamp,
+            endTime: type(uint256).max
+        });
+
+        // Get the blueprint hash
+        bytes32 blueprintHash = IMockFBeanstalk(beanstalkAddress).getBlueprintHash(blueprint);
+
+        // For ERC1271, we provide a dummy signature
+        // The actual validation happens in the contract's isValidSignature() method
+        bytes memory dummySignature = new bytes(65);
+
+        // Create and return the requisition
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: dummySignature
+            });
+    }
+
     function executeRequisition(
         address user,
         IMockFBeanstalk.Requisition memory req,
