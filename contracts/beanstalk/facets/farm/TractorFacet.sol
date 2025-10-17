@@ -61,7 +61,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             );
             require(magicValue == MAGICVALUE, "TractorFacet: invalid signature");
         } else {
-            // if the publisher is an anonymous account, verify the signature using ECDSA.
+            // if the publisher is an EOA, verify the signature using ECDSA.
             address signer = ECDSA.recover(requisition.blueprintHash, requisition.signature);
             require(signer == requisition.blueprint.publisher, "TractorFacet: signer mismatch");
         }
