@@ -29,12 +29,10 @@ contract MockERC1271 is IERC1271 {
      * @param signature Signature byte array
      * @return magicValue Returns magic value if signature is valid, otherwise returns invalid value
      */
-    function isValidSignature(bytes32 hash, bytes memory signature)
-        external
-        view
-        override
-        returns (bytes4 magicValue)
-    {
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) external view override returns (bytes4 magicValue) {
         // Return magic value if valid, otherwise return invalid bytes4
         return isValidSig ? MAGICVALUE : bytes4(0xffffffff);
     }

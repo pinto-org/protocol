@@ -26,11 +26,11 @@ contract TractorHelper is TestHelper {
         sowBlueprintv0 = SowBlueprintv0(_sowBlueprintv0);
     }
 
-    function createRequisitionWithPipeCall(address account, bytes memory pipeCallData, address beanstalkAddress)
-        internal
-        view
-        returns (IMockFBeanstalk.Requisition memory)
-    {
+    function createRequisitionWithPipeCall(
+        address account,
+        bytes memory pipeCallData,
+        address beanstalkAddress
+    ) internal view returns (IMockFBeanstalk.Requisition memory) {
         // Create the blueprint
         IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
             publisher: account,
@@ -49,7 +49,12 @@ contract TractorHelper is TestHelper {
         bytes memory signature = signBlueprint(blueprintHash, privateKey);
 
         // Create and return the requisition
-        return IMockFBeanstalk.Requisition({blueprint: blueprint, blueprintHash: blueprintHash, signature: signature});
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: signature
+            });
     }
 
     /**
@@ -80,15 +85,22 @@ contract TractorHelper is TestHelper {
 
         // Create and return the requisition
         return
-            IMockFBeanstalk.Requisition({blueprint: blueprint, blueprintHash: blueprintHash, signature: dummySignature});
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: dummySignature
+            });
     }
 
-    function executeRequisition(address user, IMockFBeanstalk.Requisition memory req, address beanstalkAddress)
-        internal
-    {
+    function executeRequisition(
+        address user,
+        IMockFBeanstalk.Requisition memory req,
+        address beanstalkAddress
+    ) internal {
         vm.prank(user);
         IMockFBeanstalk(beanstalkAddress).tractor(
-            IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature), ""
+            IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature),
+            ""
         );
     }
 
@@ -121,7 +133,11 @@ contract TractorHelper is TestHelper {
                 0.01e18, // 1%
                 uint8(mode),
                 LibTractorHelpers.WithdrawalPlan(
-                    new address[](0), new int96[][](0), new uint256[][](0), new uint256[](0), 0
+                    new address[](0),
+                    new int96[][](0),
+                    new uint256[][](0),
+                    new uint256[](0),
+                    0
                 )
             ),
             clipboard: hex"0000"
@@ -155,7 +171,12 @@ contract TractorHelper is TestHelper {
         bytes memory signature = signBlueprint(blueprintHash, privateKey);
 
         // Create and return the requisition
-        return IMockFBeanstalk.Requisition({blueprint: blueprint, blueprintHash: blueprintHash, signature: signature});
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: signature
+            });
     }
 
     // Helper function that takes SowAmounts struct
@@ -169,7 +190,13 @@ contract TractorHelper is TestHelper {
         uint256 maxPodlineLength,
         uint256 maxGrownStalkLimitPerBdv,
         uint256 runBlocksAfterSunrise
-    ) public returns (IMockFBeanstalk.Requisition memory, SowBlueprintv0.SowBlueprintStruct memory params) {
+    )
+        public
+        returns (
+            IMockFBeanstalk.Requisition memory,
+            SowBlueprintv0.SowBlueprintStruct memory params
+        )
+    {
         // Create the SowBlueprintStruct using the helper function
         params = createSowBlueprintStruct(
             uint8(sourceMode),
@@ -188,7 +215,11 @@ contract TractorHelper is TestHelper {
         bytes memory pipeCallData = createSowBlueprintv0CallData(params);
 
         // Create the requisition using the pipe call data
-        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(account, pipeCallData, address(bs));
+        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
+            account,
+            pipeCallData,
+            address(bs)
+        );
 
         // Publish the requisition
         vm.prank(account);
@@ -219,7 +250,9 @@ contract TractorHelper is TestHelper {
         // Create array with single index for the token based on source mode
         uint8[] memory sourceTokenIndices = new uint8[](1);
         if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
-            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(IMockFBeanstalk(bsAddress).getBeanToken());
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+                IMockFBeanstalk(bsAddress).getBeanToken()
+            );
         } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
             sourceTokenIndices[0] = type(uint8).max;
         } else {
@@ -249,11 +282,9 @@ contract TractorHelper is TestHelper {
     }
 
     // Helper to create the calldata for sowBlueprintv0
-    function createSowBlueprintv0CallData(SowBlueprintv0.SowBlueprintStruct memory params)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function createSowBlueprintv0CallData(
+        SowBlueprintv0.SowBlueprintStruct memory params
+    ) internal view returns (bytes memory) {
         // Create the sowBlueprintv0 pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
 
