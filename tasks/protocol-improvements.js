@@ -625,26 +625,26 @@ module.exports = function () {
       await hre.run("updateOracleTimeouts");
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
+
+      // deploy helper storage
+      const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
+
+      // initialize helper storage
+      // impersonate pinto deployer:
+      const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
+      await helperStorageContract.connect(signer).setValue(
+        0,
+        ethers.utils.defaultAbiCoder.encode(
+          ["uint256", "uint256"],
+          [ethers.BigNumber.from("184774420000"), ethers.BigNumber.from("1249298174")]
+        )
+        // 184,774.420 twaDeltaB (season 7708) , 0.1249298174 stalk per bdv.
+        // the bonus was calculated via a script.
+        // the script can be found at https://github.com/pinto-org/PI-Data-Analysis/tree/master/PI-13-analysis/convert_bonus_calculation
+      );
     } else {
       owner = (await ethers.getSigners())[0];
     }
-
-    // deploy helper storage
-    const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
-
-    // initialize helper storage
-    // impersonate pinto deployer:
-    const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
-    await helperStorageContract.connect(signer).setValue(
-      0,
-      ethers.utils.defaultAbiCoder.encode(
-        ["uint256", "uint256"],
-        [ethers.BigNumber.from("184774420000"), ethers.BigNumber.from("1249298174")]
-      )
-      // 184,774.420 twaDeltaB (season 7708) , 0.1249298174 stalk per bdv.
-      // the bonus was calculated via a script.
-      // the script can be found at https://github.com/pinto-org/PI-Data-Analysis/tree/master/PI-13-analysis/convert_bonus_calculation
-    );
 
     // upgrade facets
     await upgradeWithNewFacets({
@@ -661,7 +661,9 @@ module.exports = function () {
         "SeasonFacet",
         "SeasonGettersFacet",
         "ApprovalFacet",
+        "ClaimFacet",
         "BDVFacet",
+        "OracleFacet",
         "TractorFacet"
       ],
       libraryNames: [
@@ -692,7 +694,8 @@ module.exports = function () {
           "LibGerminate"
         ],
         SiloFacet: ["LibSilo", "LibTokenSilo"],
-        SeasonGettersFacet: ["LibWellMinting"]
+        SeasonGettersFacet: ["LibWellMinting"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"]
       },
       linkedLibraries: {
         LibConvert: "LibTokenSilo"
@@ -700,7 +703,7 @@ module.exports = function () {
       object: !mock,
       verbose: true,
       account: owner,
-      initArgs: [helperStorageContract.address, 0],
+      initArgs: [HELPER_STORAGE, 0],
       initFacetName: "InitPI13"
     });
   });
