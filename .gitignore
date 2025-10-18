@@ -29,5 +29,5 @@ lib/
 # claude commands
 .claude/commands/
 
-# various tasks
+# task outputs
 tasks/requisition/

@@ -1,9 +1,14 @@
 const { task } = require("hardhat/config");
 const { upgradeWithNewFacets } = require("../scripts/diamond.js");
 const { impersonateSigner, mintEth, getBeanstalk } = require("../utils");
-const { addLiquidityAndTransfer } = require("../scripts/deployment/addLiquidity");
 const { to6 } = require("../test/hardhat/utils/helpers.js");
-const { L2_PINTO, L2_PCM, PINTO_CBTC_WELL_BASE } = require("../test/hardhat/utils/constants.js");
+const {
+  L2_PINTO,
+  L2_PCM,
+  PINTO_CBTC_WELL_BASE,
+  HELPER_STORAGE,
+  PINTO_IMPROVEMENT_DEPLOYER
+} = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
   task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
@@ -617,7 +622,7 @@ module.exports = function () {
     const mock = true;
     let owner;
     if (mock) {
-      // await hre.run("updateOracleTimeouts");
+      await hre.run("updateOracleTimeouts");
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
     } else {
@@ -625,13 +630,12 @@ module.exports = function () {
     }
 
     // deploy helper storage
-    const helperStorage = await ethers.getContractFactory("HelperStorage");
-    const helperStorageContract = await helperStorage.deploy();
-    await helperStorageContract.deployed();
-    console.log("\nHelperStorage deployed to:", helperStorageContract.address);
+    const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
 
     // initialize helper storage
-    await helperStorageContract.setValue(
+    // impersonate pinto deployer:
+    const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
+    await helperStorageContract.connect(signer).setValue(
       0,
       ethers.utils.defaultAbiCoder.encode(
         ["uint256", "uint256"],
@@ -877,5 +881,26 @@ module.exports = function () {
 
     // Log the difference
     console.log("\nTemperature change:", finalMaxTemp.sub(initialMaxTemp).toString());
+  });
+
+  task("mock-seeds", "Deploys mock seeds").setAction(async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    // upgrade facets, no new facets or libraries, only init
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [],
+      initArgs: [],
+      initFacetName: "InitSetHighSeeds",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
   });
 };

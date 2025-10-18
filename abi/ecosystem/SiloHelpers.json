@@ -8,91 +8,17 @@
       },
       {
         "internalType": "address",
-        "name": "_owner",
+        "name": "_tractorHelpers",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_priceManipulation",
         "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnableInvalidOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "OwnableUnauthorizedAccount",
-    "type": "error"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes4",
-        "name": "functionSelector",
-        "type": "bytes4"
-      },
-      {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "isPaused",
-        "type": "bool"
-      }
-    ],
-    "name": "FunctionPaused",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "previousOwner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnershipTransferred",
-    "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes4",
-        "name": "",
-        "type": "bytes4"
-      }
-    ],
-    "name": "functionPaused",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   },
   {
     "inputs": [
@@ -116,6 +42,240 @@
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "getBeanAmountAvailable",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "beanAmountAvailable",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "int96",
+        "name": "minStem",
+        "type": "int96"
+      }
+    ],
+    "name": "getDepositStemsAndAmountsToWithdraw",
+    "outputs": [
+      {
+        "internalType": "int96[]",
+        "name": "stems",
+        "type": "int96[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "availableAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "maxGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "minStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeGerminatingDeposits",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeBean",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum LibSiloHelpers.Mode",
+            "name": "lowStalkDeposits",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lowGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "maxStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "int256",
+            "name": "seedDifference",
+            "type": "int256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.FilterParams",
+        "name": "filterParams",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "name": "excludingPlan",
+        "type": "tuple"
+      }
+    ],
+    "name": "getDepositStemsAndAmountsToWithdraw",
+    "outputs": [
+      {
+        "internalType": "int96[]",
+        "name": "stems",
+        "type": "int96[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "availableAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "getSortedDeposits",
+    "outputs": [
+      {
+        "internalType": "int96[]",
+        "name": "stems",
+        "type": "int96[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "getTokenIndex",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "index",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -151,13 +311,103 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
+    "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "account",
         "type": "address"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetAmount",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "maxGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "minStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeGerminatingDeposits",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeBean",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum LibSiloHelpers.Mode",
+            "name": "lowStalkDeposits",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lowGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "maxStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "int256",
+            "name": "seedDifference",
+            "type": "int256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.FilterParams",
+        "name": "filterParams",
+        "type": "tuple"
+      }
+    ],
+    "name": "getWithdrawalPlan",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "name": "plan",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -166,20 +416,159 @@
   {
     "inputs": [
       {
-        "internalType": "bytes4",
-        "name": "functionSelector",
-        "type": "bytes4"
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetAmount",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "maxGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "minStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeGerminatingDeposits",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeBean",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum LibSiloHelpers.Mode",
+            "name": "lowStalkDeposits",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lowGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "maxStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "int256",
+            "name": "seedDifference",
+            "type": "int256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.FilterParams",
+        "name": "filterParams",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "name": "excludingPlan",
+        "type": "tuple"
       }
     ],
-    "name": "pauseFunction",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "name": "getWithdrawalPlanExcludingPlan",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "name": "plan",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "renounceOwnership",
-    "outputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "slippageRatio",
+        "type": "uint256"
+      }
+    ],
+    "name": "isValidSlippage",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -206,26 +595,118 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "newOwner",
+        "name": "account",
         "type": "address"
-      }
-    ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
+      },
       {
-        "internalType": "bytes4",
-        "name": "functionSelector",
-        "type": "bytes4"
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetAmount",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "maxGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "minStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeGerminatingDeposits",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "excludeBean",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum LibSiloHelpers.Mode",
+            "name": "lowStalkDeposits",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lowGrownStalkPerBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "int96",
+            "name": "maxStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "int256",
+            "name": "seedDifference",
+            "type": "int256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.FilterParams",
+        "name": "filterParams",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "slippageRatio",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum LibTransfer.To",
+        "name": "mode",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibSiloHelpers.WithdrawalPlan",
+        "name": "plan",
+        "type": "tuple"
       }
     ],
-    "name": "unpauseFunction",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "name": "withdrawBeansFromSources",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
     "type": "function"
   }
 ]

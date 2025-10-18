@@ -2,20 +2,47 @@
 pragma solidity ^0.8.20;
 
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {IOperatorWhitelist} from "contracts/ecosystem/tractor/utils/OperatorWhitelist.sol";
 
 /**
  * @title LibTractorHelpers
- * @author FordPinto
+ * @author FordPinto, Frijo
  * @notice Library with helper functions for Silo operations
  */
-library LibTractorHelpers {
+library LibSiloHelpers {
+    enum Mode {
+        USE, // 0 - use low stalk deposits
+        OMIT, // 1 - omit low stalk deposits
+        USE_LAST // 2 - use low stalk deposits last
+    }
+
     struct WithdrawalPlan {
         address[] sourceTokens;
         int96[][] stems;
         uint256[][] amounts;
         uint256[] availableBeans;
         uint256 totalAvailableBeans;
+    }
+
+    /**
+     * @notice Filter parameters for deposits
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param minStem The minimum stem value to consider for withdrawal. Stems smaller than this are considered "high stalk" deposits and cannot be used.
+     * @param excludeGerminatingDeposits Whether to exclude germinating deposits
+     * @param excludeBean Whether to exclude beans
+     * @param lowStalkDeposits how low stalk deposits are processed. USE (0), OMIT (1), USE_LAST (2).
+     * @param lowGrownStalkPerBdv amount of grown stalk per bdv such that the deposit considered a "low stalk" deposit.
+     * @param maxStem The maximum stem value to consider for withdrawal. Stems larger than this are considered "low stalk" deposits.
+     * @dev lowStalkDeposits needed a way to handle low stalk deposits last for the convert bonus.
+     */
+    struct FilterParams {
+        uint256 maxGrownStalkPerBdv;
+        int96 minStem;
+        bool excludeGerminatingDeposits;
+        bool excludeBean;
+        Mode lowStalkDeposits;
+        uint256 lowGrownStalkPerBdv;
+        int96 maxStem;
+        int256 seedDifference;
     }
 
     // Struct to hold variables for the combineWithdrawalPlans function
@@ -181,87 +208,55 @@ library LibTractorHelpers {
     }
 
     /**
-     * @notice Checks if the current operator is whitelisted
-     * @param whitelistedOperators Array of whitelisted operator addresses
-     * @param beanstalk The Beanstalk contract instance
-     * @return isWhitelisted Whether the current operator is whitelisted
+     * @notice Returns a deposit filter with no exclusions
+     * @return FilterParams The default deposit filter parameters
      */
-    function isOperatorWhitelisted(
-        address[] calldata whitelistedOperators,
-        IBeanstalk beanstalk
-    ) external view returns (bool) {
-        // If there are no whitelisted operators, pass in, accept any operator
-        if (whitelistedOperators.length == 0) {
-            return true;
-        }
+    function getDefaultFilterParams() public pure returns (FilterParams memory) {
+        return
+            FilterParams({
+                maxGrownStalkPerBdv: uint256(int256(type(int96).max)), // any amount of grown stalk per bdv is allowed. Maximum set at int96, as this is used to derive the minStem.
+                minStem: type(int96).min, // include all stems
+                excludeGerminatingDeposits: false, // no germinating deposits are excluded
+                excludeBean: false, // beans are included in the set of deposits.
+                lowStalkDeposits: Mode.USE, // the contract will use the smallest stalk deposits normally
+                lowGrownStalkPerBdv: 0, // no minimum grown stalk per bdv
+                maxStem: type(int96).max, // include all stems
+                seedDifference: 0 // no seed difference filter by default
+            });
+    }
 
-        address currentOperator = beanstalk.operator();
-        for (uint256 i = 0; i < whitelistedOperators.length; i++) {
-            address checkAddress = whitelistedOperators[i];
-            if (checkAddress == currentOperator) {
-                return true;
-            } else {
-                // Skip if address is a precompiled contract (address < 0x20)
-                if (uint160(checkAddress) <= 0x20) continue;
-
-                // Check if the address is a contract before attempting staticcall
-                uint256 size;
-                assembly {
-                    size := extcodesize(checkAddress)
-                }
-
-                if (size > 0) {
-                    try
-                        IOperatorWhitelist(checkAddress).checkOperatorWhitelist(currentOperator)
-                    returns (bool success) {
-                        if (success) {
-                            return true;
+    /**
+     * @notice Checks if a deposit is already in an existing plan
+     * @param token The token of the deposit
+     * @param stem The stem of the deposit
+     * @param amount The amount of the deposit
+     * @param excludingPlan The plan to check against
+     */
+    function checkDepositInExistingPlan(
+        address token,
+        int96 stem,
+        uint256 amount,
+        WithdrawalPlan memory excludingPlan
+    ) internal pure returns (uint256) {
+        uint256 remainingAmount = amount;
+        for (uint256 i; i < excludingPlan.sourceTokens.length; i++) {
+            if (excludingPlan.sourceTokens[i] == token) {
+                for (uint256 j; j < excludingPlan.stems[i].length; j++) {
+                    if (excludingPlan.stems[i][j] == stem) {
+                        // If the deposit was fully used in the existing plan, skip it
+                        if (excludingPlan.amounts[i][j] >= amount) {
+                            remainingAmount = 0;
+                            break;
+                        } else {
+                            // Otherwise, subtract the used amount from the remaining amount
+                            remainingAmount = amount - excludingPlan.amounts[i][j];
+                            break;
                         }
-                    } catch {
-                        // If the call fails, continue to the next address
-                        continue;
                     }
                 }
+                if (remainingAmount == 0) return 0;
             }
         }
-        return false;
-    }
-
-    function sortTokens(
-        address[] memory tokens,
-        uint256[] memory index
-    ) external pure returns (address[] memory, uint256[] memory) {
-        for (uint256 i = 0; i < tokens.length - 1; i++) {
-            for (uint256 j = 0; j < tokens.length - i - 1; j++) {
-                uint256 j1 = j + 1;
-                if (index[j] < index[j1]) {
-                    // Swap index
-                    (index[j], index[j1]) = (index[j1], index[j]);
-
-                    // Swap corresponding tokens
-                    (tokens[j], tokens[j1]) = (tokens[j1], tokens[j]);
-                }
-            }
-        }
-        return (tokens, index);
-    }
-
-    function sortTokenIndices(
-        uint8[] memory tokenIndices,
-        uint256[] memory index
-    ) external pure returns (uint8[] memory, uint256[] memory) {
-        for (uint256 i = 0; i < tokenIndices.length - 1; i++) {
-            for (uint256 j = 0; j < tokenIndices.length - i - 1; j++) {
-                uint256 j1 = j + 1;
-                if (index[j] > index[j1]) {
-                    // Swap index
-                    (index[j], index[j1]) = (index[j1], index[j]);
-
-                    // Swap token indices
-                    (tokenIndices[j], tokenIndices[j1]) = (tokenIndices[j1], tokenIndices[j]);
-                }
-            }
-        }
-        return (tokenIndices, index);
+        return remainingAmount;
     }
 }

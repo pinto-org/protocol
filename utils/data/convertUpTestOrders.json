@@ -1,0 +1,557 @@
+{
+  "description": "Test configuration for ConvertUp Blueprint orders. Distribution: 5 addresses with [1,2,3,5,9] orders each.",
+  "addresses": {
+    "0x64525e042465D0615F51aBB2982Ce82B8568Bcc4": {
+      "name": "TestAddress1",
+      "orderCount": 1,
+      "orders": [
+        {
+          "orderId": 1,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "1000000000",
+            "minBeansConvertPerExecution": "10000000",
+            "maxBeansConvertPerExecution": "500000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 300,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "1000000000000000000000",
+            "grownStalkPerBdvBonusBid": "1000000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "990000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "1000000000000000000",
+            "slippageRatio": "10000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "1000000"
+          }
+        }
+      ]
+    },
+    "0x499F455FEd78a78fD462a617974Fa494Fa31D000": {
+      "name": "TestAddress2",
+      "orderCount": 2,
+      "orders": [
+        {
+          "orderId": 2,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "20000000",
+            "maxBeansConvertPerExecution": "1000000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 600,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2000000000000000000000",
+            "grownStalkPerBdvBonusBid": "2500000000",
+            "minPriceToConvertUp": "720000",
+            "maxPriceToConvertUp": "995000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2000000000000000000",
+            "slippageRatio": "15000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2000000"
+          }
+        },
+        {
+          "orderId": 3,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "1500000000",
+            "minBeansConvertPerExecution": "15000000",
+            "maxBeansConvertPerExecution": "750000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 450,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "1500000000000000000000",
+            "grownStalkPerBdvBonusBid": "500000000",
+            "minPriceToConvertUp": "710000",
+            "maxPriceToConvertUp": "985000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "1500000000000000000",
+            "slippageRatio": "12000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "1500000"
+          }
+        }
+      ]
+    },
+    "0xeD586912a780edD9Aa015796981118daC66B84ac": {
+      "name": "TestAddress3",
+      "orderCount": 3,
+      "orders": [
+        {
+          "orderId": 4,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3, 4],
+            "totalBeanAmountToConvert": "3000000000",
+            "minBeansConvertPerExecution": "30000000",
+            "maxBeansConvertPerExecution": "1500000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 900,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "3000000000000000000000",
+            "grownStalkPerBdvBonusBid": "0",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "980000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "3000000000000000000",
+            "slippageRatio": "20000000000000000",
+            "lowStalkDeposits": 2
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "3000000"
+          }
+        },
+        {
+          "orderId": 5,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "2500000000",
+            "minBeansConvertPerExecution": "250000000",
+            "maxBeansConvertPerExecution": "1250000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 750,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2500000000000000000000",
+            "grownStalkPerBdvBonusBid": "1000000000",
+            "minPriceToConvertUp": "940000",
+            "maxPriceToConvertUp": "990000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2500000000000000000",
+            "slippageRatio": "18000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2500000"
+          }
+        },
+        {
+          "orderId": 6,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "20000000",
+            "maxBeansConvertPerExecution": "1000000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 600,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2000000000000000000000",
+            "grownStalkPerBdvBonusBid": "1200000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "975000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2000000000000000000",
+            "slippageRatio": "16000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2000000"
+          }
+        }
+      ]
+    },
+    "0xbf3AE718410b3B1eaAaD9c3cE6085c8B517A9DF0": {
+      "name": "TestAddress4",
+      "orderCount": 5,
+      "orders": [
+        {
+          "orderId": 7,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "4000000000",
+            "minBeansConvertPerExecution": "400000000",
+            "maxBeansConvertPerExecution": "2000000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 1200,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "4000000000000000000000",
+            "grownStalkPerBdvBonusBid": "1500000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "970000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "4000000000000000000",
+            "slippageRatio": "25000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000001",
+            "operatorTipAmount": "4000000"
+          }
+        },
+        {
+          "orderId": 8,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "3500000000",
+            "minBeansConvertPerExecution": "350000000",
+            "maxBeansConvertPerExecution": "1750000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 1050,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "3500000000000000000000",
+            "grownStalkPerBdvBonusBid": "1800000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "965000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "3500000000000000000",
+            "slippageRatio": "22000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "3500000"
+          }
+        },
+        {
+          "orderId": 9,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "3000000000",
+            "minBeansConvertPerExecution": "30000000",
+            "maxBeansConvertPerExecution": "1500000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 900,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "3000000000000000000000",
+            "grownStalkPerBdvBonusBid": "2200000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "960000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "3000000000000000000",
+            "slippageRatio": "20000000000000000",
+            "lowStalkDeposits": 2
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "3000000"
+          }
+        },
+        {
+          "orderId": 10,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "2500000000",
+            "minBeansConvertPerExecution": "250000000",
+            "maxBeansConvertPerExecution": "1250000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 750,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2500000000000000000000",
+            "grownStalkPerBdvBonusBid": "2500000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "955000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2500000000000000000",
+            "slippageRatio": "18000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2500000"
+          }
+        },
+        {
+          "orderId": 11,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "20000000",
+            "maxBeansConvertPerExecution": "1000000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 600,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2000000000000000000000",
+            "grownStalkPerBdvBonusBid": "3000000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "950000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2000000000000000000",
+            "slippageRatio": "16000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2000000"
+          }
+        }
+      ]
+    },
+    "0x3189b1381Ba3913f3b62A45e89C6d373C6BC4043": {
+      "name": "TestAddress5",
+      "orderCount": 9,
+      "orders": [
+        {
+          "orderId": 12,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3, 4],
+            "totalBeanAmountToConvert": "5000000000",
+            "minBeansConvertPerExecution": "500000000",
+            "maxBeansConvertPerExecution": "2500000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 1500,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "5000000000000000000000",
+            "grownStalkPerBdvBonusBid": "3500000000",
+            "minPriceToConvertUp": "800000",
+            "maxPriceToConvertUp": "845000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "5000000000000000000",
+            "slippageRatio": "30000000000000000",
+            "lowStalkDeposits": 2
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "5000000"
+          }
+        },
+        {
+          "orderId": 13,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "4500000000",
+            "minBeansConvertPerExecution": "450000000",
+            "maxBeansConvertPerExecution": "2250000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 1350,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "4500000000000000000000",
+            "grownStalkPerBdvBonusBid": "4000000000",
+            "minPriceToConvertUp": "780000",
+            "maxPriceToConvertUp": "830000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "4500000000000000000",
+            "slippageRatio": "28000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "4500000"
+          }
+        },
+        {
+          "orderId": 14,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "4000000000",
+            "minBeansConvertPerExecution": "400000000",
+            "maxBeansConvertPerExecution": "2000000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 1200,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "4000000000000000000000",
+            "grownStalkPerBdvBonusBid": "4500000000",
+            "minPriceToConvertUp": "760000",
+            "maxPriceToConvertUp": "815000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "4000000000000000000",
+            "slippageRatio": "26000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "4000000"
+          }
+        },
+        {
+          "orderId": 15,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "3500000000",
+            "minBeansConvertPerExecution": "350000000",
+            "maxBeansConvertPerExecution": "1750000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 1050,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "3500000000000000000000",
+            "grownStalkPerBdvBonusBid": "5000000000",
+            "minPriceToConvertUp": "750000",
+            "maxPriceToConvertUp": "800000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "3500000000000000000",
+            "slippageRatio": "24000000000000000",
+            "lowStalkDeposits": 2
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "3500000"
+          }
+        },
+        {
+          "orderId": 16,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "3000000000",
+            "minBeansConvertPerExecution": "30000000",
+            "maxBeansConvertPerExecution": "1500000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 900,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "3000000000000000000000",
+            "grownStalkPerBdvBonusBid": "6000000000",
+            "minPriceToConvertUp": "740000",
+            "maxPriceToConvertUp": "790000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "3000000000000000000",
+            "slippageRatio": "22000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "3000000"
+          }
+        },
+        {
+          "orderId": 17,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "2500000000",
+            "minBeansConvertPerExecution": "250000000",
+            "maxBeansConvertPerExecution": "1250000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 750,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2500000000000000000000",
+            "grownStalkPerBdvBonusBid": "7000000000",
+            "minPriceToConvertUp": "730000",
+            "maxPriceToConvertUp": "780000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2500000000000000000",
+            "slippageRatio": "20000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2500000"
+          }
+        },
+        {
+          "orderId": 18,
+          "convertUpParams": {
+            "sourceTokenIndices": [2],
+            "totalBeanAmountToConvert": "2000000000",
+            "minBeansConvertPerExecution": "20000000",
+            "maxBeansConvertPerExecution": "1000000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 600,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "2000000000000000000000",
+            "grownStalkPerBdvBonusBid": "7500000000",
+            "minPriceToConvertUp": "720000",
+            "maxPriceToConvertUp": "770000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "2000000000000000000",
+            "slippageRatio": "18000000000000000",
+            "lowStalkDeposits": 1
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "2000000"
+          }
+        },
+        {
+          "orderId": 19,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "1500000000",
+            "minBeansConvertPerExecution": "15000000",
+            "maxBeansConvertPerExecution": "750000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 450,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "1500000000000000000000",
+            "grownStalkPerBdvBonusBid": "8000000000",
+            "minPriceToConvertUp": "710000",
+            "maxPriceToConvertUp": "760000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "1500000000000000000",
+            "slippageRatio": "16000000000000000",
+            "lowStalkDeposits": 2
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "1500000"
+          }
+        },
+        {
+          "orderId": 20,
+          "convertUpParams": {
+            "sourceTokenIndices": [2, 3],
+            "totalBeanAmountToConvert": "1000000000",
+            "minBeansConvertPerExecution": "10000000",
+            "maxBeansConvertPerExecution": "500000000",
+            "capAmountToBonusCapacity": true,
+            "minTimeBetweenConverts": 300,
+            "minConvertBonusCapacity": "0",
+            "maxGrownStalkPerBdv": "1000000000000000000000",
+            "grownStalkPerBdvBonusBid": "9000000000",
+            "minPriceToConvertUp": "700000",
+            "maxPriceToConvertUp": "750000",
+            "seedDifference": "0",
+            "maxGrownStalkPerBdvPenalty": "1000000000000000000",
+            "slippageRatio": "14000000000000000",
+            "lowStalkDeposits": 0
+          },
+          "opParams": {
+            "whitelistedOperators": [],
+            "tipAddress": "0x0000000000000000000000000000000000000000",
+            "operatorTipAmount": "1000000"
+          }
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "totalOrders": 20,
+    "totalAddresses": 5,
+    "distribution": [1, 2, 3, 5, 9],
+    "privateKeyBase": "0x1234",
+    "addressDerivation": "privateKey + index",
+    "generatedAddresses": {
+      "0x64525e042465D0615F51aBB2982Ce82B8568Bcc4": "Generated from privateKey 0x1235 (0x1234 + 1)",
+      "0x499F455FEd78a78fD462a617974Fa494Fa31D000": "Generated from privateKey 0x1236 (0x1234 + 2)",
+      "0xeD586912a780edD9Aa015796981118daC66B84ac": "Generated from privateKey 0x1237 (0x1234 + 3)",
+      "0xbf3AE718410b3B1eaAaD9c3cE6085c8B517A9DF0": "Generated from privateKey 0x1238 (0x1234 + 4)",
+      "0x3189b1381Ba3913f3b62A45e89C6d373C6BC4043": "Generated from privateKey 0x1239 (0x1234 + 5)"
+    },
+    "notes": [
+      "Bean amounts are in 6 decimals (Bean token format)",
+      "Prices are in 6 decimals (USDC format)",
+      "Time values are in seconds",
+      "sourceTokenIndices correspond to whitelisted LP tokens",
+      "lowStalkDeposits: 0=USE, 1=OMIT, 2=USE_LAST",
+      "Addresses now match those generated by the tractor task from private keys"
+    ]
+  }
+}

@@ -5189,6 +5189,59 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "tokens",
+        "type": "address[]"
+      }
+    ],
+    "name": "getDepositsForAccount",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "token",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "depositIds",
+            "type": "uint256[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "amount",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "bdv",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct Deposit[]",
+            "name": "tokenDeposits",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct SiloGettersFacet.TokenDepositId[]",
+        "name": "deposits",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "token",
         "type": "address"
       }
@@ -5478,6 +5531,42 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "getMowStatus",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "int96",
+            "name": "lastStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "uint128",
+            "name": "bdv",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct MowStatus",
+        "name": "mowStatus",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "well",
         "type": "address"
       }
@@ -5513,6 +5602,25 @@
         "name": "",
         "type": "uint256"
       },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "getSeedsForToken",
+    "outputs": [
       {
         "internalType": "uint256",
         "name": "",
@@ -8236,6 +8344,68 @@
       }
     ],
     "name": "UpdatedGaugeData",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkLost",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
+        "type": "uint256"
+      }
+    ],
+    "name": "ConvertDownPenalty",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkGained",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newGrownStalk",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvCapacityUsed",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bdvConverted",
+        "type": "uint256"
+      }
+    ],
+    "name": "ConvertUpBonus",
     "type": "event"
   },
   {

@@ -765,4 +765,8 @@ contract SiloGettersFacet is ReentrancyGuard {
     ) external view returns (address, uint256) {
         return LibWell.getNonBeanTokenAndIndexFromWell(well);
     }
+
+    function getSeedsForToken(address token) external view returns (uint256) {
+        return s.sys.silo.assetSettings[token].stalkEarnedPerSeason;
+    }
 }

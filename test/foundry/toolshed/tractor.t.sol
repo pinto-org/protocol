@@ -3,7 +3,7 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {MockERC1271} from "contracts/mocks/ERC/MockERC1271.sol";
 import {C} from "contracts/C.sol";
 import {console} from "forge-std/console.sol";
@@ -11,7 +11,7 @@ import {console} from "forge-std/console.sol";
 /**
  * @notice a significant amount of tests for tractor can are located at `tractor.test.js`.
  */
-contract TractorTest is TestHelper, TractorHelper {
+contract TractorTest is TestHelper, TractorTestHelper {
     // test accounts
     address[] farmers;
 
