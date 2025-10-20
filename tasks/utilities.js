@@ -191,7 +191,7 @@ module.exports = function () {
 
           do {
             const response = await fetch(
-              `https://api.basescan.org/api?module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
+              `https://api.etherscan.io/v2/api?chainid=8453&module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
             );
             data = await response.json();
             attempts++;
