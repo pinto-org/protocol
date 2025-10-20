@@ -160,8 +160,8 @@ module.exports = function () {
     )
     .addFlag("urls", "Show BaseScan URLs for the facets")
     .setAction(async (taskArgs) => {
-      const BASESCAN_API_KEY = process.env.ETHERSCAN_KEY_BASE;
-      if (!BASESCAN_API_KEY) {
+      const ETHERSCAN_API_KEY = process.env.ETHERSCAN_KEY_BASE;
+      if (!ETHERSCAN_API_KEY) {
         console.error("❌ Please set ETHERSCAN_KEY_BASE in your environment variables");
         return;
       }
@@ -191,7 +191,7 @@ module.exports = function () {
 
           do {
             const response = await fetch(
-              `https://api.etherscan.io/v2/api?chainid=8453&module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
+              `https://api.etherscan.io/v2/api?chainid=8453&module=contract&action=getsourcecode&address=${address}&apikey=${ETHERSCAN_API_KEY}`
             );
             data = await response.json();
             attempts++;
