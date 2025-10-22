@@ -589,12 +589,12 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             );
         }
 
+        // Get current bonus amount and remaining capacity
+        (bonusStalkPerBdv, remainingCapacity) = beanstalk
+            .getConvertStalkPerBdvBonusAndRemainingCapacity();
+
         // Check convert bonus conditions
         if (cup.grownStalkPerBdvBonusBid > 0 || cup.minConvertBonusCapacity > 0) {
-            // Get current bonus amount and remaining capacity
-            (bonusStalkPerBdv, remainingCapacity) = beanstalk
-                .getConvertStalkPerBdvBonusAndRemainingCapacity();
-
             // Check if bonus amount meets threshold
             if (cup.grownStalkPerBdvBonusBid > 0) {
                 require(

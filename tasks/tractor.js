@@ -32,7 +32,7 @@
 const { task } = require("hardhat/config");
 const fs = require("fs");
 const path = require("path");
-const { getBeanstalk, impersonateSigner } = require("../utils");
+const { getBeanstalk } = require("../utils");
 const {
   L2_PINTO,
   PINTO_CBTC_WELL_BASE,
@@ -648,8 +648,11 @@ module.exports = function () {
    * Sets up test addresses with ETH and LP tokens for ConvertUpBlueprint testing.
    * This is separated from blueprint signing to allow time for grown stalk accumulation.
    *
+   * ⚠️ WARNING: Uses static private keys from convertUpTestOrders.json
+   * These keys are FOR TESTING ONLY - DO NOT use in production!
+   *
    * This task:
-   * 1. Generates 5 test addresses from deterministic private keys
+   * 1. Loads 5 test addresses with static private keys from config
    * 2. Sets up each address with ETH and LP tokens
    * 3. Deposits LP tokens to the Silo
    *
@@ -686,15 +689,11 @@ module.exports = function () {
         for (const [address, addressData] of Object.entries(config.addresses)) {
           log(verbose, `\n👤 Setting up ${addressData.name} (${address})`);
 
-          // Generate signer from deterministic private key
-          const addressIndex = Object.keys(config.addresses).indexOf(address);
-          const privateKey = ethers.BigNumber.from(config.metadata.privateKeyBase).add(
-            addressIndex + 1
-          );
-          const testSigner = new ethers.Wallet(
-            `0x${privateKey.toHexString().slice(2).padStart(64, "0")}`,
-            ethers.provider
-          );
+          // Get signer from static private key in config
+          if (!addressData.privateKey) {
+            throw new Error(`Missing private key for ${addressData.name} (${address})`);
+          }
+          const testSigner = new ethers.Wallet(addressData.privateKey, ethers.provider);
 
           // Setup address with ETH
           log(verbose, "💸 Minting ETH to address...");
@@ -736,8 +735,12 @@ module.exports = function () {
    * create-mock-convert-up-orders TASK
    *
    * Creates and executes multiple ConvertUpBlueprint orders from different addresses for testing.
+   *
+   * ⚠️ WARNING: Uses static private keys from convertUpTestOrders.json
+   * These keys are FOR TESTING ONLY - DO NOT use in production!
+   *
    * This task:
-   * 1. Generates 5 test addresses from deterministic private keys
+   * 1. Loads 5 test addresses with static private keys from config
    * 2. (Optional) Sets up each address with ETH and LP tokens
    * 3. Creates ConvertUpBlueprint orders based on JSON configuration
    * 4. Signs and executes the blueprints through Tractor
@@ -771,7 +774,7 @@ module.exports = function () {
     .addFlag("detail", "Show detailed logging")
     .setAction(async (taskArgs, hre) => {
       const { ethers } = hre;
-      const verbose = taskArgs.detail;
+      const verbose = true;
 
       if (!verbose) {
         console.log("🧪 Setting up ConvertUpBlueprint test orders...");
@@ -839,17 +842,13 @@ module.exports = function () {
             `\n👤 Processing ${addressData.name} (${address}) - ${addressData.orderCount} orders`
           );
 
-          // Generate signer from deterministic private key
-          const addressIndex = Object.keys(config.addresses).indexOf(address);
-          const privateKey = ethers.BigNumber.from(config.metadata.privateKeyBase).add(
-            addressIndex + 1
-          );
-          const testSigner = new ethers.Wallet(
-            `0x${privateKey.toHexString().slice(2).padStart(64, "0")}`,
-            ethers.provider
-          );
+          // Get signer from static private key in config
+          if (!addressData.privateKey) {
+            throw new Error(`Missing private key for ${addressData.name} (${address})`);
+          }
+          const testSigner = new ethers.Wallet(addressData.privateKey, ethers.provider);
 
-          log(verbose, `🔑 Generated test signer: ${testSigner.address}`);
+          log(verbose, `🔑 Using test signer: ${testSigner.address}`);
           if (testSigner.address.toLowerCase() !== address.toLowerCase()) {
             console.warn(`⚠️  Address mismatch! Expected ${address}, got ${testSigner.address}`);
           }
@@ -937,7 +936,7 @@ module.exports = function () {
                 // Use the sign-beanstalk-blueprint task for consistent encoding and signing
                 const requisition = await hre.run("sign-beanstalk-blueprint", {
                   contract: "ConvertUpBlueprint",
-                  privateKey: `0x${privateKey.toHexString().slice(2).padStart(64, "0")}`,
+                  privateKey: addressData.privateKey,
                   params: JSON.stringify(convertUpBlueprintStruct),
                   maxNonce: "1000000",
                   duration: "600"
