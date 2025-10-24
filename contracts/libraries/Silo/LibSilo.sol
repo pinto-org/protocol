@@ -692,42 +692,33 @@ library LibSilo {
         return beans;
     }
 
-    /**
-     * @notice Returns the amount of Germinating Stalk
-     * for a given GerminationSide enum.
-     * @dev When a Farmer attempts to withdraw Beans from a Deposit that has a Germinating Stem,
-     * `checkForEarnedBeans` is called to determine how many of the Beans were Planted vs Deposited.
-     * If a Farmer withdraws a Germinating Deposit with Earned Beans, only subtract the Germinating Beans
-     * from the Germinating Balances
-     * @return germinatingStalk stalk that is germinating for a given GerminationSide enum.
-     * @return earnedBeanStalk the earned bean portion of stalk for a given GerminationSide enum.
-     */
-    function checkForEarnedBeans(
-        address account,
-        uint256 stalk,
-        GerminationSide side
-    ) internal view returns (uint256 germinatingStalk, uint256 earnedBeanStalk) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 farmerGerminatingStalk = s.accts[account].germinatingStalk[side];
-        if (stalk > farmerGerminatingStalk) {
-            return (farmerGerminatingStalk, stalk.sub(farmerGerminatingStalk));
-        } else {
-            return (stalk, 0);
-        }
-    }
-
     //////////////////////// APPROVE ////////////////////////
 
+    /**
+     * @notice Decrement the sender's allowance.
+     * @dev
+     * @param owner The owner of the allowance
+     * @param spender The spender of the allowance
+     * @param token The token of the allowance
+     * @param amount The amount of the allowance
+     */
     function _spendDepositAllowance(
         address owner,
         address spender,
         address token,
         uint256 amount
     ) external {
-        uint256 currentAllowance = depositAllowance(owner, spender, token);
-        if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "Silo: insufficient allowance");
-            _approveDeposit(owner, spender, token, currentAllowance - amount);
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // if the owner is not the spender (i.e, someone is spending on behalf of the owner)
+        // AND the spender has not been approved for all, for the ERC1155 deposits,
+        // // decrement the allowance
+        if (owner != spender && !s.accts[owner].isApprovedForAll[spender]) {
+            uint256 currentAllowance = depositAllowance(owner, spender, token);
+            if (currentAllowance != type(uint256).max) {
+                require(currentAllowance >= amount, "Silo: insufficient allowance");
+                _approveDeposit(owner, spender, token, currentAllowance - amount);
+            }
         }
     }
 

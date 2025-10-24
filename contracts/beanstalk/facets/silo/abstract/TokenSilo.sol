@@ -62,9 +62,9 @@ abstract contract TokenSilo is ReentrancyGuard {
         address account,
         address token,
         uint256 amount
-    ) internal returns (uint256 stalk, int96 stem) {
+    ) internal returns (uint256 bdv, uint256 stalk, int96 stem) {
         GerminationSide side;
-        (stalk, side) = LibTokenSilo.deposit(
+        (bdv, stalk, side) = LibTokenSilo.deposit(
             account,
             token,
             stem = LibTokenSilo.stemTipForToken(token),
@@ -232,9 +232,8 @@ abstract contract TokenSilo is ReentrancyGuard {
         int96 stem,
         uint256 amount
     ) internal returns (uint256) {
-        if (sender != LibTractor._user()) {
-            LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, amount);
-        }
+        LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, amount);
+
         LibSilo._mow(sender, token);
         // Need to update the recipient's Silo as well.
         LibSilo._mow(recipient, token);

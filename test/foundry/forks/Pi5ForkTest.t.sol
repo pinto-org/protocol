@@ -8,7 +8,11 @@ import {IBean} from "contracts/interfaces/IBean.sol";
 import {Vm} from "forge-std/Vm.sol";
 import "forge-std/console.sol";
 
-contract Pi5ForkTest is TestHelper {
+/**
+ * @dev This test is marked as LEGACY because upon PI-6, a new variable `maxTotalGaugePoints` was added to the `SeedGauge` contract.
+ * and thus this suite is no longer relevant.
+ */
+contract LEGACY_Pi5ForkTest is TestHelper {
     function setUp() public {
         initializeBeanstalkTestState(true, false);
     }
@@ -120,7 +124,7 @@ contract Pi5ForkTest is TestHelper {
         assertEq(soilAfterUpgrade, expectedSoil);
     }*/
 
-    function test_forkBase_new_eval_params() public {
+    function test_forkBase_new_eval_params() public view {
         // new extra evaluation parameters
         IMockFBeanstalk.ExtEvaluationParameters memory extEvaluationParameters = bs
             .getExtEvaluationParameters();

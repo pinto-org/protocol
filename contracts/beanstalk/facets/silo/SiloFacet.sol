@@ -59,7 +59,7 @@ contract SiloFacet is Invariable, TokenSilo {
         returns (uint256 amount, uint256 _bdv, int96 stem)
     {
         amount = LibTransfer.receiveToken(IERC20(token), _amount, LibTractor._user(), mode);
-        (_bdv, stem) = _deposit(LibTractor._user(), token, amount);
+        (_bdv, , stem) = _deposit(LibTractor._user(), token, amount);
     }
 
     //////////////////////// WITHDRAW ////////////////////////
@@ -184,10 +184,8 @@ contract SiloFacet is Invariable, TokenSilo {
             totalAmount = totalAmount.add(amounts[i]);
         }
 
-        // Tractor operator does not use allowance.
-        if (sender != LibTractor._user()) {
-            LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, totalAmount);
-        }
+        // decrement the sender's allowance
+        LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, totalAmount);
 
         LibSilo._mow(sender, token);
         // Need to update the recipient's Silo as well.

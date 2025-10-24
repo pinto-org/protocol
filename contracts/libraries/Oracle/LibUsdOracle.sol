@@ -181,7 +181,7 @@ library LibUsdOracle {
 
         if (!success) return 0;
         assembly {
-            tokenPrice := mload(add(data, add(0x20, 0)))
+            tokenPrice := mload(add(data, 0x20))
         }
     }
 }

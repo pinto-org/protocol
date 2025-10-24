@@ -22,6 +22,7 @@ async function addLiquidityAndTransfer(
   verbose = true,
   deposit
 ) {
+  await mintEth(account.address);
   const pinto = await ethers.getContractAt("BeanstalkERC20", PINTO);
 
   console.log(`-----------------------------------`);
@@ -61,6 +62,7 @@ async function addLiquidityAndTransfer(
 
   // add liquidity to well, send to receiver:
   console.log(`Adding liquidity to ${well.address} and performing an update to the well pump.`);
+  console.log(`Pinto amount: ${pintoAmount}`, `Non pinto amount: ${nonPintoAmount}`);
   const minAmount = 0;
   await well
     .connect(account)

@@ -12,6 +12,8 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {System, EvaluationParameters, Weather} from "contracts/beanstalk/storage/System.sol";
+import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 /**
@@ -47,7 +49,22 @@ library LibEvaluate {
     uint32 internal constant SOW_TIME_STEADY_UPPER = 300; // seconds, upper means closer to the top of the hour
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
     uint256 internal constant HIGH_DEMAND_THRESHOLD = 1e18;
+    uint256 internal constant SOIL_PRECISION = 1e6;
+    uint256 internal constant MIN_BEAN_SOWN_DEMAND = 50e6;
+    uint256 internal constant MIN_BEAN_SOWN_DEMAND_PERCENT = 0.05e6; // 5%
 
+    /**
+     * @notice BeanstalkState is the state of Beanstalk at the end of a season.
+     * Beanstalk uses the state to determine how to adjust itself based on the state.
+     * @param deltaPodDemand The change in demand for Soil between the current and previous Season.
+     * @param lpToSupplyRatio The ratio of liquidity to supply.
+     * @param podRate The ratio of Pods outstanding against the bean supply.
+     * @param largestLiqWell The address of the largest liquidity well.
+     * @param oracleFailure Whether the oracle failed.
+     * @param largestLiquidWellTwapBeanPrice The price of the largest liquidity well in USD.
+     * @param twaDeltaB The amount of beans needed to be bought/sold to reach peg.
+     * @param caseId The caseId of the BeanstalkState.
+     */
     struct BeanstalkState {
         Decimal.D256 deltaPodDemand;
         Decimal.D256 lpToSupplyRatio;
@@ -56,6 +73,7 @@ library LibEvaluate {
         bool oracleFailure;
         uint256 largestLiquidWellTwapBeanPrice;
         int256 twaDeltaB;
+        uint256 caseId;
     }
 
     event SeasonMetrics(
@@ -122,7 +140,7 @@ library LibEvaluate {
      * @notice Evaluates the lp to supply ratio and returns the caseId.
      * @param lpToSupplyRatio The ratio of liquidity to supply.
      *
-     * @dev 'liquidity' is definied as the non-bean value in a pool that trades beans.
+     * @dev 'liquidity' is defined as the non-bean value in a pool that trades beans.
      */
     function evalLpToSupplyRatio(
         Decimal.D256 memory lpToSupplyRatio
@@ -153,8 +171,12 @@ library LibEvaluate {
         returns (Decimal.D256 memory deltaPodDemand, uint32 lastSowTime, uint32 thisSowTime)
     {
         Weather storage w = LibAppStorage.diamondStorage().sys.weather;
+
+        // get the minimum soil sown threshold needed to calculate delta pod demand.
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold();
+
         // not enough soil sown, consider demand to be decreasing, reset sow times.
-        if (dsoil < LibAppStorage.diamondStorage().sys.extEvaluationParameters.minSoilSownDemand) {
+        if (dsoil < minDemandThreshold) {
             return (Decimal.zero(), w.thisSowTime, type(uint32).max);
         }
 
@@ -197,7 +219,7 @@ library LibEvaluate {
     function getDemand(
         uint256 soilSownThisSeason,
         uint256 soilSownLastSeason
-    ) internal view returns (Decimal.D256 memory deltaPodDemand) {
+    ) internal pure returns (Decimal.D256 memory deltaPodDemand) {
         if (soilSownThisSeason == 0) {
             deltaPodDemand = Decimal.zero(); // If no one Sow'd this season, ∆ demand is 0.
         } else if (soilSownLastSeason == 0) {
@@ -319,14 +341,15 @@ library LibEvaluate {
     function evaluateBeanstalk(
         int256 deltaB,
         uint256 beanSupply
-    ) external returns (uint256, BeanstalkState memory) {
+    ) external returns (BeanstalkState memory) {
         BeanstalkState memory bs = updateAndGetBeanstalkState(beanSupply);
         bs.twaDeltaB = deltaB;
         uint256 caseId = evalPodRate(bs.podRate) // Evaluate Pod Rate
             .add(evalPrice(deltaB, bs.largestLiquidWellTwapBeanPrice))
             .add(evalDeltaPodDemand(bs.deltaPodDemand))
             .add(evalLpToSupplyRatio(bs.lpToSupplyRatio)); // Evaluate Price // Evaluate Delta Soil Demand // Evaluate LP to Supply Ratio
-        return (caseId, bs);
+        bs.caseId = caseId;
+        return bs;
     }
 
     /**
@@ -352,7 +375,33 @@ library LibEvaluate {
 
         if (!success) return 0;
         assembly {
-            liquidityWeight := mload(add(data, add(0x20, 0)))
+            liquidityWeight := mload(add(data, 0x20))
+        }
+    }
+
+    /**
+     * @notice Calculates the minimum Beans Sown needed to properly calculate delta pod demand.
+     * Enforces a minimum threshold for delta pod demand to be calculated, ensuring no manipulation
+     * occurs without substantial cost.
+     * If less than this amount is sown, Beanstalk assumes demand is decreasing.
+     */
+    function calcMinSoilDemandThreshold() internal view returns (uint256 minDemandThreshold) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 initialSoil = s.sys.initialSoil;
+
+        // calculate the minimum amount of beans needed to be sown to measure demand
+        uint256 soilBasedThreshold = MIN_BEAN_SOWN_DEMAND >
+            (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) / SOIL_PRECISION
+            ? MIN_BEAN_SOWN_DEMAND
+            : (initialSoil * MIN_BEAN_SOWN_DEMAND_PERCENT) / SOIL_PRECISION;
+
+        // if initial soil is less than the minimum amount of beans needed to be sown to measure demand,
+        // set the threshold to the initial soil (all soil must be sown to measure demand)
+        if (initialSoil < soilBasedThreshold) {
+            return initialSoil;
+        } else {
+            // else, use the minimum amount of beans needed to be sown to measure demand
+            return soilBasedThreshold;
         }
     }
 }

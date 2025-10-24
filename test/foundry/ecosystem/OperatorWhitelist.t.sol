@@ -3,7 +3,7 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper} from "test/foundry/utils/TestHelper.sol";
-import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {OperatorWhitelist} from "contracts/ecosystem/tractor/utils/OperatorWhitelist.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract OperatorWhitelistTest is TestHelper {
