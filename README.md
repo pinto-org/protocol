@@ -32,7 +32,8 @@ This directory contains the code for the core Pinto protocol, including its cont
 
 The Pinto contract is a multi-facet proxy that implements [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535). Thus, the Pinto contract implements functionality from multiple different Facet contracts that all share a common storage.
 
-- [Pinto on Louper, The Ethereum Diamond Inspector]([https://louper.dev/diamond/TBD](https://louper.dev/diamond/0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f?network=base#read))
+- [Pinto on Louper, The Ethereum Diamond Inspector](https://louper.dev/diamond/0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f?network=base#read)
+- [Pinto on Basescan](https://basescan.org/address/0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f)
 
 ## Quickstart
 
