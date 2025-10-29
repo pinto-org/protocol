@@ -55,8 +55,10 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
+    uint128 referralBeanSownEligibilityThreshold;
     uint128 initialSoil;
-    uint256 referralPercentage;
+    uint128 referrerPercentage;
+    uint128 refereePercentage;
     bytes32[14] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;

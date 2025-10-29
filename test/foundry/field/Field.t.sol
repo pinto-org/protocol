@@ -657,11 +657,10 @@ contract FieldTest is TestHelper {
     }
 
     /**
-     * @notice Test that sowWithReferral correctly allocates pods to both sower and referral
-     * @dev Verifies that referral receives percentage of pods based on referralPercentage
+     * @notice Test that sowWithReferral correctly allocates pods to sower (referee), referrer, and provides bonus to referee
+     * @dev Verifies that referrer receives percentage of pods based on referrerPercentage, and referee gets bonus based on refereePercentage
      */
     function test_sowWithReferral(uint256 sowAmount) public {
-        uint256 activeField = field.activeField();
         // Bound to uint64 max to avoid overflow issues with soil calculation
 
         // set temperature to 100%
@@ -672,8 +671,11 @@ contract FieldTest is TestHelper {
 
         sowAmount = bound(sowAmount, 100, type(uint64).max);
 
-        // Set referral percentage to 10% (0.1 * 1e18)
-        bs.setReferralPercentageE(0.1e18);
+        // Set referrer percentage to 10% (0.1 * 1e18)
+        bs.setReferrerPercentageE(0.1e18);
+
+        // Set referee percentage to 5% (0.05 * 1e18)
+        bs.setRefereePercentageE(0.05e18);
 
         // Setup: mint beans and set soil
         bean.mint(farmers[0], sowAmount);
@@ -682,25 +684,52 @@ contract FieldTest is TestHelper {
         // Get initial state
         uint256 farmer0BeansBefore = bean.balanceOf(farmers[0]);
         uint256 totalBeanSupplyBefore = bean.totalSupply();
-        uint256 activeFieldPodIndexBefore = field.podIndex(activeField);
+        uint256 activeFieldPodIndexBefore = field.podIndex(field.activeField());
 
         // Calculate expected pods
         uint256 expectedFarmerPods = calcPods(sowAmount, 100e6);
-        uint256 referralPercentage = field.getReferralPercentage();
-        uint256 expectedReferralPods = (expectedFarmerPods * referralPercentage) / 1e18;
+        uint256 expectedReferrerPods;
+        uint256 expectedRefereePods;
+
+        // if the referrer is not valid, the function will silently return 0 for referrerPods and refereePods.
+
         // Sow with referral
         vm.prank(farmers[0]);
-        (uint256 actualFarmerPods, uint256 actualReferralPods) = field.sowWithReferral(
-            sowAmount,
-            0, // minTemperature
-            0, // minSoil
-            LibTransfer.From.EXTERNAL,
-            farmers[1] // referral address
+        uint256 snapshot = vm.snapshotState();
+        (uint256 actualFarmerPods, uint256 actualReferrerPods, uint256 actualRefereePods) = field
+            .sowWithReferral(
+                sowAmount,
+                0, // minTemperature
+                0, // minSoil
+                LibTransfer.From.EXTERNAL,
+                farmers[1] // referrer address (who gets commission)
+            );
+
+        console.log("Actual Pods:", actualFarmerPods, actualReferrerPods, actualRefereePods);
+        console.log(
+            "Expected Pods:",
+            expectedFarmerPods,
+            expectedReferrerPods,
+            expectedRefereePods
         );
 
         // Verify return values
         assertApproxEqAbs(actualFarmerPods, expectedFarmerPods, 1, "Farmer pods mismatch");
-        assertApproxEqAbs(actualReferralPods, expectedReferralPods, 1, "Referral pods mismatch");
+        assertEq(actualReferrerPods, expectedReferrerPods, "Referrer pods mismatch");
+        assertEq(actualRefereePods, expectedRefereePods, "Referee pods mismatch");
+
+        vm.revertToState(snapshot);
+        field.setReferralEligibility(farmers[1], true);
+        expectedReferrerPods = (expectedFarmerPods * field.getReferrerPercentage()) / 1e18;
+        expectedRefereePods = (expectedFarmerPods * field.getRefereePercentage()) / 1e18;
+        vm.prank(farmers[0]);
+        (actualFarmerPods, actualReferrerPods, actualRefereePods) = field.sowWithReferral(
+            sowAmount,
+            0,
+            0,
+            LibTransfer.From.EXTERNAL,
+            address(0)
+        );
 
         // Verify farmer state
         assertEq(
@@ -709,19 +738,23 @@ contract FieldTest is TestHelper {
             "Farmer bean balance incorrect"
         );
         assertEq(
-            field.plot(farmers[0], activeField, activeFieldPodIndexBefore),
+            field.plot(farmers[0], field.activeField(), activeFieldPodIndexBefore),
             actualFarmerPods,
             "Farmer plot pods incorrect"
         );
 
-        // Verify referral state
+        // Verify referrer state
         assertEq(
-            field.plot(farmers[1], activeField, activeFieldPodIndexBefore + actualFarmerPods),
-            actualReferralPods,
-            "Referral plot pods incorrect"
+            field.plot(
+                farmers[1],
+                field.activeField(),
+                activeFieldPodIndexBefore + actualFarmerPods
+            ),
+            actualReferrerPods,
+            "Referrer plot pods incorrect"
         );
 
-        // Verify total supply decreased by sowAmount (referral pods are minted from protocol, not farmer)
+        // Verify total supply decreased by sowAmount (referrer and referee bonus pods are minted from protocol, not farmer)
         assertEq(
             bean.totalSupply(),
             totalBeanSupplyBefore - sowAmount,
@@ -730,15 +763,15 @@ contract FieldTest is TestHelper {
 
         // Verify total pods increased correctly
         assertEq(
-            field.totalPods(activeField),
-            actualFarmerPods + actualReferralPods,
+            field.totalPods(field.activeField()),
+            actualFarmerPods + actualReferrerPods + actualRefereePods,
             "Total pods incorrect"
         );
 
         // Verify pod index advanced correctly
         assertEq(
-            field.podIndex(activeField),
-            activeFieldPodIndexBefore + actualFarmerPods + actualReferralPods,
+            field.podIndex(field.activeField()),
+            activeFieldPodIndexBefore + actualFarmerPods + actualReferrerPods + actualRefereePods,
             "Pod index incorrect"
         );
     }
@@ -751,8 +784,8 @@ contract FieldTest is TestHelper {
         // Bound to uint64 max to avoid overflow issues
         sowAmount = bound(sowAmount, 100, type(uint64).max);
 
-        // Set referral percentage
-        bs.setReferralPercentageE(0.1e18);
+        // Set referrer commission percentage
+        bs.setReferrerPercentageE(0.1e18);
 
         // Setup
         bean.mint(farmers[0], sowAmount);
@@ -761,19 +794,20 @@ contract FieldTest is TestHelper {
         uint256 farmer0BeansBefore = bean.balanceOf(farmers[0]);
         uint256 expectedPods = _minPods(sowAmount);
 
-        // Sow with zero address referral
+        // Sow with zero address referrer (no commission)
         vm.prank(farmers[0]);
-        (uint256 actualPods, uint256 referralPods) = field.sowWithReferral(
+        (uint256 actualPods, uint256 referrerPods, uint256 refereePods) = field.sowWithReferral(
             sowAmount,
             0,
             0,
             LibTransfer.From.EXTERNAL,
-            address(0) // no referral
+            address(0) // no referrer
         );
 
-        // Verify farmer gets pods, referral gets nothing
+        // Verify farmer gets pods, no referrer commission or referee bonus
         assertEq(actualPods, expectedPods, "Farmer pods mismatch");
-        assertEq(referralPods, 0, "Referral pods should be zero");
+        assertEq(referrerPods, 0, "Referrer pods should be zero");
+        assertEq(refereePods, 0, "Referee pods should be zero");
         assertEq(
             bean.balanceOf(farmers[0]),
             farmer0BeansBefore - sowAmount,
@@ -782,9 +816,36 @@ contract FieldTest is TestHelper {
         assertEq(field.plot(farmers[0], activeField, 0), expectedPods, "Farmer plot incorrect");
     }
 
+    function test_referralEligibility_fuzz(address referrer, uint256 sowAmount) public {
+        // Avoid 0-address and sender self-referrals
+        vm.assume(referrer != address(0) && referrer != farmers[0]);
+
+        bool defaultEligibility = field.isValidReferrer(referrer);
+        assertEq(defaultEligibility, false, "Referrer should not be eligible by default");
+
+        // Bound sowAmount to a reasonable range to avoid overflows and to make the logic meaningful
+        sowAmount = bound(sowAmount, 1, 10_000e6);
+
+        bean.mint(farmers[0], sowAmount);
+        season.setSoilE(sowAmount + 10);
+
+        vm.prank(farmers[0]);
+        field.sowWithReferral(sowAmount, 0, 0, LibTransfer.From.EXTERNAL, referrer);
+
+        bool newEligibility = field.isValidReferrer(referrer);
+
+        if (sowAmount >= 1000e6) {
+            assertEq(newEligibility, true, "Referrer should be eligible when sowAmount >= 1000e6");
+        } else {
+            assertEq(
+                newEligibility,
+                false,
+                "Referrer should not be eligible when sowAmount < 1000e6"
+            );
+        }
+    }
+
     function calcPods(uint256 beans, uint256 temperature) public pure returns (uint256) {
-        console.log("calcPods: beans", beans);
-        console.log("calcPods: temperature", temperature);
         return (beans * (100e6 + temperature)) / 100e6;
     }
 }

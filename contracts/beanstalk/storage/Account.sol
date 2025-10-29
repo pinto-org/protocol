@@ -53,6 +53,7 @@ struct Account {
  * @param podAllowances An allowance mapping for Pods similar to that of the ERC-20 standard. Maps from spender address to allowance amount.
  * @param plotIndexes An array of Plot indexes. Used to return the farm plots of a Farmer.
  * @param piIndex A mapping from Plot index to the index in plotIndexes.
+ * @param referral A struct that contains referral data.
  * @param _buffer Reserved storage for future additions.
  */
 struct Field {
@@ -60,7 +61,18 @@ struct Field {
     mapping(address => uint256) podAllowances;
     uint256[] plotIndexes;
     mapping(uint256 => uint256) piIndex;
-    bytes32[4] _buffer;
+    FieldReferral referral;
+    bytes32[3] _buffer;
+}
+
+/**
+ * @notice Stores referral data for a Farmer.
+ * @param beans The number of Beans a referrer has earned from referrals.
+ * @param eligibility A boolean indicating whether a referrer is eligible for referral rewards.
+ */
+struct FieldReferral {
+    uint128 beans;
+    bool eligibility;
 }
 
 /**

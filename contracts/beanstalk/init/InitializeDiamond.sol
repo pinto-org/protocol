@@ -115,6 +115,8 @@ contract InitializeDiamond {
     // Convert Down Penalty Rate (1.005 with 6 decimals)
     uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6;
 
+    uint128 internal constant INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD = 1000e6; // 1000
+
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
@@ -215,6 +217,7 @@ contract InitializeDiamond {
         s.sys.weather.lastSowTime = type(uint32).max;
 
         s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
+        s.sys.referralBeanSownEligibilityThreshold = INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD;
     }
 
     /**

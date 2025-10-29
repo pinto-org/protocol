@@ -7,6 +7,7 @@ pragma solidity ^0.8.4;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+
 interface IMockFBeanstalk {
     enum CounterUpdateType {
         INCREASE,
@@ -1606,7 +1607,9 @@ interface IMockFBeanstalk {
 
     function setSoilE(uint256 amount) external;
 
-    function setReferralPercentageE(uint256 percentage) external;
+    function setReferrerPercentageE(uint128 percentage) external;
+
+    function setRefereePercentageE(uint128 percentage) external;
 
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
@@ -1871,6 +1874,7 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
+
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1915,4 +1919,6 @@ interface IMockFBeanstalk {
     ) external view returns (uint256 amountIn);
 
     function setPenaltyRatio(uint256 penaltyRatio) external;
+
+    function setReferralEligibility(address referrer, bool eligible) external;
 }

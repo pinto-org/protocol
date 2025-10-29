@@ -75,17 +75,17 @@ library LibDibbler {
     event SoilSoldOut(uint256 secondsSinceStart);
 
     /**
-     * @notice Emitted from {LibDibbler._sow} when an `account` sows Beans for Pods.
-     * @param account The account that sowed Bean for Pods
-     * @param referral The account that referred the `account`
-     * @param beans The amount of Bean burnt to create the Plot
-     * @param pods The amount of Pods associated with the created Plot
+     * @notice Emitted from {LibDibbler._sow} when an `account` sows Beans for Pods, and has a referral.
+     * @param referrer The account that referred the `account`
+     * @param referee The account that was referred by the `referrer`
+     * @param referrerPods The amount of Pods associated with the referral
+     * @param refereePods The amount of Pods associated with the referee
      */
-    event ReferralSow(
-        address indexed account,
-        address indexed referral,
-        uint256 beans,
-        uint256 pods
+    event SowReferral(
+        address indexed referrer,
+        address indexed referee,
+        uint256 referrerPods,
+        uint256 refereePods
     );
 
     //////////////////// SOW ////////////////////
@@ -96,7 +96,7 @@ library LibDibbler {
         uint256 minSoil,
         LibTransfer.From mode,
         address referral
-    ) internal returns (uint256 pods, uint256 referralPods) {
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
         // `soil` is the remaining Soil
         (uint256 soil, uint256 _morningTemperature, bool abovePeg) = _totalSoilAndTemperature();
 
@@ -109,7 +109,13 @@ library LibDibbler {
         }
 
         // 1 Bean is Sown in 1 Soil, i.e. soil = beans
-        (pods, referralPods) = _sow(soil, _morningTemperature, abovePeg, mode, referral);
+        (pods, referrerPods, refereePods) = _sow(
+            soil,
+            _morningTemperature,
+            abovePeg,
+            mode,
+            referral
+        );
     }
 
     /**
@@ -121,15 +127,15 @@ library LibDibbler {
         uint256 _morningTemperature,
         bool peg,
         LibTransfer.From mode,
-        address referral
-    ) internal returns (uint256 pods, uint256 referralPods) {
+        address referrer
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
+        address user = LibTractor._user();
         AppStorage storage s = LibAppStorage.diamondStorage();
-        beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, LibTractor._user(), mode);
-        pods = sow(beans, _morningTemperature, LibTractor._user(), peg);
-        if (referral != address(0)) {
-            uint256 referralBeans = (beans * s.sys.referralPercentage) / C.PRECISION;
-            referralPods = sow(referralBeans, _morningTemperature, referral, peg);
-            emit ReferralSow(referral, LibTractor._user(), referralBeans, referralPods);
+        beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, user, mode);
+        pods = sow(beans, _morningTemperature, user, peg);
+        updateReferralEligibility(user, beans);
+        if (isValidReferral(referrer, user)) {
+            (referrerPods, refereePods) = sowBonus(beans, _morningTemperature, referrer, user, peg);
         }
         s.sys.beanSown += SafeCast.toUint128(beans);
     }
@@ -607,5 +613,61 @@ library LibDibbler {
                 ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /
             SOLD_OUT_PRECISION +
             soilSoldOutThreshold;
+    }
+
+    // REFERRAL BONUS //
+
+    /**
+     * @notice internal function for sowing referral plots.
+     */
+    function sowBonus(
+        uint256 beans,
+        uint256 _morningTemperature,
+        address referrer,
+        address referee,
+        bool peg
+    ) internal returns (uint256 referrerPods, uint256 refereePods) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        if (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0) {
+            uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
+            uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
+            if (referrerBeans > 0) {
+                referrerPods = sow(referrerBeans, _morningTemperature, referrer, peg);
+            }
+            if (refereeBeans > 0) {
+                refereePods = sow(refereeBeans, _morningTemperature, referee, peg);
+            }
+            emit SowReferral(referrer, referee, referrerPods, refereePods);
+        }
+        return (referrerPods, refereePods);
+    }
+
+    /**
+     * @notice internal function for checking if a referral is valid.
+     * a valid referral is one where the referral address is not the zero address and not the sower's address,
+     * AND the referral address is eligible to be a referrer.
+     */
+    function isValidReferral(address referrer, address referee) internal view returns (bool) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 af = s.sys.activeField;
+        return
+            s.accts[referrer].fields[af].referral.eligibility == true &&
+            referrer != referee &&
+            referrer != address(0);
+    }
+
+    function updateReferralEligibility(address user, uint256 beanSown) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 af = s.sys.activeField;
+        // if the user is not eligible already, increment their eligibility sown
+        if (!s.accts[user].fields[af].referral.eligibility) {
+            s.accts[user].fields[af].referral.beans += uint128(beanSown);
+            if (
+                s.accts[user].fields[af].referral.beans >=
+                s.sys.referralBeanSownEligibilityThreshold
+            ) {
+                s.accts[user].fields[af].referral.eligibility = true;
+            }
+        }
     }
 }

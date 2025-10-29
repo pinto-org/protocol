@@ -235,4 +235,16 @@ contract MockFieldFacet is FieldFacet {
             prevSeasonTemp
         );
     }
+
+    function setReferrerPercentageE(uint128 percentage) public {
+        s.sys.referrerPercentage = percentage;
+    }
+
+    function setRefereePercentageE(uint128 percentage) public {
+        s.sys.refereePercentage = percentage;
+    }
+
+    function setReferralEligibility(address referrer, bool eligible) public {
+        s.accts[referrer].fields[s.sys.activeField].referral.eligibility = eligible;
+    }
 }
