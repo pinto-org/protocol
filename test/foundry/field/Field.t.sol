@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
@@ -818,7 +819,7 @@ contract FieldTest is TestHelper {
 
     function test_referralEligibility_fuzz(address referrer, uint256 sowAmount) public {
         // Avoid 0-address and sender self-referrals
-        vm.assume(referrer != address(0) && referrer != farmers[0]);
+        vm.assume(referrer != address(0));
 
         bool defaultEligibility = field.isValidReferrer(referrer);
         assertEq(defaultEligibility, false, "Referrer should not be eligible by default");
@@ -826,11 +827,12 @@ contract FieldTest is TestHelper {
         // Bound sowAmount to a reasonable range to avoid overflows and to make the logic meaningful
         sowAmount = bound(sowAmount, 1, 10_000e6);
 
-        bean.mint(farmers[0], sowAmount);
+        bean.mint(referrer, sowAmount);
         season.setSoilE(sowAmount + 10);
 
-        vm.prank(farmers[0]);
-        field.sowWithReferral(sowAmount, 0, 0, LibTransfer.From.EXTERNAL, referrer);
+        vm.startPrank(referrer);
+        IERC20(BEAN).approve(BEANSTALK, sowAmount);
+        field.sowWithReferral(sowAmount, 0, 0, LibTransfer.From.EXTERNAL, address(0));
 
         bool newEligibility = field.isValidReferrer(referrer);
 

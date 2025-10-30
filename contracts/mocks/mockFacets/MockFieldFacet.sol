@@ -10,6 +10,7 @@ import "contracts/libraries/Math/LibRedundantMath256.sol";
 import "contracts/beanstalk/facets/field/FieldFacet.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+
 /**
  * @title Mock Field Facet
  **/
@@ -191,7 +192,7 @@ contract MockFieldFacet is FieldFacet {
         bool abovePeg
     ) external returns (uint256 pods) {
         s.sys.weather.temp = maxTemperature;
-        pods = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg);
+        pods = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true);
         return pods;
     }
 

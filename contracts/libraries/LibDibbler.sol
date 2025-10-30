@@ -132,7 +132,7 @@ library LibDibbler {
         address user = LibTractor._user();
         AppStorage storage s = LibAppStorage.diamondStorage();
         beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, user, mode);
-        pods = sow(beans, _morningTemperature, user, peg);
+        pods = sow(beans, _morningTemperature, user, peg, true);
         updateReferralEligibility(user, beans);
         if (isValidReferral(referrer, user)) {
             (referrerPods, refereePods) = sowBonus(beans, _morningTemperature, referrer, user, peg);
@@ -167,7 +167,8 @@ library LibDibbler {
         uint256 beans,
         uint256 _morningTemperature,
         address account,
-        bool abovePeg
+        bool abovePeg,
+        bool useSoil
     ) internal returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 activeField = s.sys.activeField;
@@ -190,10 +191,17 @@ library LibDibbler {
         require(pods > 0, "Pods must be greater than 0");
 
         // In the case of an overflow, its equivalent to having no soil left.
-        if (s.sys.soil < soilUsed) {
-            s.sys.soil = 0;
+        if (useSoil) {
+            if (s.sys.soil < soilUsed) {
+                s.sys.soil = 0;
+            } else {
+                s.sys.soil = s.sys.soil.sub(uint128(soilUsed));
+            }
         } else {
-            s.sys.soil = s.sys.soil.sub(uint128(soilUsed));
+            // beans are set to 0, as soil is not being consumed.
+            // this is equivalent to creating a plot without sowing.
+            // currently, this is used in the Pod Referral system.
+            beans = 0;
         }
 
         uint256 index = s.sys.fields[activeField].pods;
@@ -632,10 +640,10 @@ library LibDibbler {
             uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
             uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
             if (referrerBeans > 0) {
-                referrerPods = sow(referrerBeans, _morningTemperature, referrer, peg);
+                referrerPods = sow(referrerBeans, _morningTemperature, referrer, peg, false);
             }
             if (refereeBeans > 0) {
-                refereePods = sow(refereeBeans, _morningTemperature, referee, peg);
+                refereePods = sow(refereeBeans, _morningTemperature, referee, peg, false);
             }
             emit SowReferral(referrer, referee, referrerPods, refereePods);
         }
