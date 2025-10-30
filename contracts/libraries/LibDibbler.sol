@@ -690,15 +690,14 @@ library LibDibbler {
     function updateReferralEligibility(address user, uint256 beanSown) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 af = s.sys.activeField;
+        // increment the number of beans the user has sown for referrals.
+        s.accts[user].fields[af].referral.beans += uint128(beanSown);
         // if the user is not eligible already, increment their eligibility sown
-        if (!s.accts[user].fields[af].referral.eligibility) {
-            s.accts[user].fields[af].referral.beans += uint128(beanSown);
-            if (
-                s.accts[user].fields[af].referral.beans >=
-                s.sys.referralBeanSownEligibilityThreshold
-            ) {
-                s.accts[user].fields[af].referral.eligibility = true;
-            }
+        if (
+            !s.accts[user].fields[af].referral.eligibility &&
+            s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold
+        ) {
+            s.accts[user].fields[af].referral.eligibility = true;
         }
     }
 }

@@ -17,15 +17,17 @@ contract InitPodReferral {
     event ReferralPercentageChanged(uint128 newReferrerPercentage);
     event RefereePercentageChanged(uint128 newRefereePercentage);
 
-    uint128 internal constant INIT_REFERRER_PERCENTAGE = 0.01e18; // 10%
-    uint128 internal constant INIT_REFEREE_PERCENTAGE = 0.01e18; // 10%
+    uint128 internal constant INIT_REFERRER_PERCENTAGE = 0.1e18; // 10%
+    uint128 internal constant INIT_REFEREE_PERCENTAGE = 0.1e18; // 10%
 
     /**
-     * @notice Initialize the Pod referral system
+     * @notice Initialize the Pod referral system.
+     * @dev sets the percentages of referral, as well as initialize the addresses who are allowed to refer.
      */
-    function init() external {
+    function init(address[] memory allowedReferrers) external {
         updateReferrerPercentage(INIT_REFERRER_PERCENTAGE);
         updateRefereePercentage(INIT_REFEREE_PERCENTAGE);
+        initializeReferrers(allowedReferrers);
     }
 
     function updateReferrerPercentage(uint128 newReferrerPercentage) internal {
@@ -38,5 +40,13 @@ contract InitPodReferral {
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.sys.refereePercentage = newRefereePercentage;
         emit ReferralPercentageChanged(newRefereePercentage);
+    }
+
+    function initializeReferrers(address[] memory allowedReferrers) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 activeField = s.sys.activeField;
+        for (uint256 i = 0; i < allowedReferrers.length; i++) {
+            s.accts[allowedReferrers[i]].fields[activeField].referral.eligibility = true;
+        }
     }
 }
