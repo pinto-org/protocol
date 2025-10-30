@@ -192,7 +192,7 @@ contract MockFieldFacet is FieldFacet {
         bool abovePeg
     ) external returns (uint256 pods) {
         s.sys.weather.temp = maxTemperature;
-        pods = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true);
+        (pods, ) = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true);
         return pods;
     }
 

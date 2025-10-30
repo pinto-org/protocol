@@ -83,8 +83,10 @@ library LibDibbler {
      */
     event SowReferral(
         address indexed referrer,
-        address indexed referee,
+        uint256 referrerIndex,
         uint256 referrerPods,
+        address indexed referee,
+        uint256 refereeIndex,
         uint256 refereePods
     );
 
@@ -129,10 +131,10 @@ library LibDibbler {
         LibTransfer.From mode,
         address referrer
     ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
-        address user = LibTractor._user();
         AppStorage storage s = LibAppStorage.diamondStorage();
+        address user = LibTractor._user();
         beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, user, mode);
-        pods = sow(beans, _morningTemperature, user, peg, true);
+        (pods, ) = sow(beans, _morningTemperature, user, peg, true);
         updateReferralEligibility(user, beans);
         if (isValidReferral(referrer, user)) {
             (referrerPods, refereePods) = sowBonus(beans, _morningTemperature, referrer, user, peg);
@@ -169,7 +171,7 @@ library LibDibbler {
         address account,
         bool abovePeg,
         bool useSoil
-    ) internal returns (uint256) {
+    ) internal returns (uint256, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 activeField = s.sys.activeField;
 
@@ -215,7 +217,7 @@ library LibDibbler {
 
         s.sys.fields[activeField].pods += pods;
         _saveSowTime();
-        return pods;
+        return (pods, index);
     }
 
     /**
@@ -639,13 +641,34 @@ library LibDibbler {
         if (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0) {
             uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
             uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
-            if (referrerBeans > 0) {
-                referrerPods = sow(referrerBeans, _morningTemperature, referrer, peg, false);
-            }
+            uint256 referrerIndex;
+            uint256 refereeIndex;
             if (refereeBeans > 0) {
-                refereePods = sow(refereeBeans, _morningTemperature, referee, peg, false);
+                (refereePods, refereeIndex) = sow(
+                    refereeBeans,
+                    _morningTemperature,
+                    referee,
+                    peg,
+                    false
+                );
             }
-            emit SowReferral(referrer, referee, referrerPods, refereePods);
+            if (referrerBeans > 0) {
+                (referrerPods, referrerIndex) = sow(
+                    referrerBeans,
+                    _morningTemperature,
+                    referrer,
+                    peg,
+                    false
+                );
+            }
+            emit SowReferral(
+                referrer,
+                referrerIndex,
+                referrerPods,
+                referee,
+                refereeIndex,
+                refereePods
+            );
         }
         return (referrerPods, refereePods);
     }
