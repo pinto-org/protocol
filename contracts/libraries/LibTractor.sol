@@ -6,11 +6,14 @@ pragma solidity ^0.8.20;
 
 import {LibTractorStorage} from "./LibTractorStorage.sol";
 import {LibTransientStorage} from "./LibTransientStorage.sol";
+import {LibBytes} from "./LibBytes.sol";
+import {AdvancedFarmCall, LibFarm} from "./LibFarm.sol";
 
 /**
  * @title Lib Tractor
  **/
 library LibTractor {
+    using LibBytes for bytes32;
     enum CounterUpdateType {
         INCREASE,
         DECREASE
@@ -31,6 +34,17 @@ library LibTractor {
         );
 
     event TractorVersionSet(string version);
+
+    /**
+     * @notice Container for dynamic data injection in Tractor blueprints
+     * @dev Used to temporarily store key-value pairs during blueprint execution
+     * @param key Unique identifier for the data
+     * @param value Arbitrary bytes data to be stored transiently
+     */
+    struct ContractData {
+        uint256 key;
+        bytes value;
+    }
 
     // Blueprint stores blueprint related values
     struct Blueprint {
@@ -251,15 +265,6 @@ library LibTractor {
         return LibTractorStorage.tractorStorage().operator;
     }
 
-    /**
-     * @notice Clear transient data for a given key.
-     * @dev Uses EIP-1153 transient storage for gas efficiency.
-     *      Data is automatically cleared at transaction end.
-     * @param key The key to clear the data for.
-     */
-    function clearTractorData(uint256 key) internal {
-        LibTransientStorage.clearBytes(key);
-    }
 
     /**
      * @notice Set transient data for a given key.
@@ -281,5 +286,69 @@ library LibTractor {
      */
     function getTractorData(uint256 key) internal view returns (bytes memory) {
         return LibTransientStorage.getBytes(key);
+    }
+
+    /**
+     * @notice Temporarily store contract data for external smart contracts to utilize.
+     * @dev Sets transient storage that persists only during transaction execution
+     * @param contractData Array of key-value pairs to store
+     */
+    function setContractData(ContractData[] memory contractData) internal {
+        for (uint256 i = 0; i < contractData.length; i++) {
+            setTractorData(contractData[i].key, contractData[i].value);
+        }
+    }
+
+
+    /**
+     * @notice Execute tractor blueprint with core execution logic.
+     * @dev Core function that handles blueprint decoding and farm call execution
+     * @param requisition The blueprint requisition containing signature and blueprint data
+     * @param operatorData Static length data provided by the operator
+     * @return results Array of results from executed farm calls
+     */
+    function tractor(
+        Requisition calldata requisition,
+        bytes memory operatorData
+    ) internal returns (bytes[] memory results) {
+        require(requisition.blueprint.data.length > 0, "LibTractor: data empty");
+
+        // Set current blueprint hash
+        _setCurrentBlueprintHash(requisition.blueprintHash);
+
+        // Set operator
+        _setOperator(msg.sender);
+
+        // Decode and execute advanced farm calls.
+        // Cut out blueprint calldata selector.
+        AdvancedFarmCall[] memory calls = abi.decode(
+            LibBytes.sliceFrom(requisition.blueprint.data, 4),
+            (AdvancedFarmCall[])
+        );
+
+        // Update data with operator-defined fillData.
+        for (uint256 i; i < requisition.blueprint.operatorPasteInstrs.length; ++i) {
+            bytes32 operatorPasteInstr = requisition.blueprint.operatorPasteInstrs[i];
+            uint80 pasteCallIndex = operatorPasteInstr.getIndex1();
+            require(calls.length > pasteCallIndex, "LibTractor: pasteCallIndex OOB");
+
+            LibBytes.pasteBytesTractor(
+                operatorPasteInstr,
+                operatorData,
+                calls[pasteCallIndex].callData
+            );
+        }
+
+        results = new bytes[](calls.length);
+        for (uint256 i = 0; i < calls.length; ++i) {
+            require(calls[i].callData.length != 0, "LibTractor: empty AdvancedFarmCall");
+            results[i] = LibFarm._advancedFarm(calls[i], results);
+        }
+
+        // Clear current blueprint hash
+        _resetCurrentBlueprintHash();
+
+        // Clear operator
+        _resetOperator();
     }
 }
