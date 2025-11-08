@@ -1003,7 +1003,7 @@ task("PI-X-PodReferral", "Deploys Pinto improvement set X, Pod Referral System")
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: ["FieldFacet"],
-      initArgs: [],
+      initArgs: [[]],
       initFacetName: "InitPodReferral",
       object: !mock,
       verbose: true,
