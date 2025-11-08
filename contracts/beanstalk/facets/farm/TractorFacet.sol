@@ -185,7 +185,9 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         returns (bytes[] memory results)
     {
         LibTractor.setContractData(operatorDynamicData);
-        return LibTractor.tractor(requisition, operatorData);
+        results = LibTractor.tractor(requisition, operatorData);
+        LibTractor.resetContractData(operatorDynamicData);
+        return results;
     }
 
     /**
@@ -297,5 +299,14 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      */
     function operator() external view returns (address) {
         return LibTractor._getOperator();
+    }
+
+    /**
+     * @notice Get tractor data by key (for blueprint contract access).
+     * @dev This function should be called within Tractor Blueprint Contracts that require dynamically sized data
+     *      given by Tractor operators.
+     */
+    function getTractorData(uint256 key) external view returns (bytes memory) {
+        return LibTractor.getTractorData(key);
     }
 }

@@ -299,6 +299,17 @@ library LibTractor {
         }
     }
 
+    /**
+     * @notice Reset transient storage data for given contract data.
+     * @dev Clears EIP-1153 transient storage to prevent data leakage between calls
+     * @param contractData Array of contract data to reset
+     */
+    function resetContractData(ContractData[] memory contractData) internal {
+        for (uint256 i = 0; i < contractData.length; i++) {
+            LibTransientStorage.clearBytes(contractData[i].key);
+        }
+    }
+
 
     /**
      * @notice Execute tractor blueprint with core execution logic.
