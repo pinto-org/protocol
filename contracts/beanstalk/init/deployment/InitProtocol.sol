@@ -195,8 +195,7 @@ contract InitProtocol {
      * @notice Sets the tractor version and active publisher.
      */
     function setTractor() internal {
-        LibTractor.TractorStorage storage ts = LibTractor._tractorStorage();
-        ts.activePublisher = payable(address(1));
-        ts.version = "1.0.0";
+        LibTractor._resetPublisher();
+        LibTractor._setVersion("1.0.0");
     }
 }

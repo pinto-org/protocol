@@ -4,6 +4,9 @@
 
 pragma solidity ^0.8.20;
 
+import {LibTractorStorage} from "./LibTractorStorage.sol";
+import {LibTransientStorage} from "./LibTransientStorage.sol";
+
 /**
  * @title Lib Tractor
  **/
@@ -29,21 +32,6 @@ library LibTractor {
 
     event TractorVersionSet(string version);
 
-    struct TractorStorage {
-        // Number of times the blueprint has been run.
-        mapping(bytes32 => uint256) blueprintNonce;
-        // Publisher Address => counter id => counter value.
-        mapping(address => mapping(bytes32 => uint256)) blueprintCounters;
-        // Publisher of current operations. Set to address(1) when no active publisher.
-        address payable activePublisher;
-        // Version of Tractor. Only Blueprints using current Version can run.
-        string version;
-        // Hash of currently executing blueprint
-        bytes32 currentBlueprintHash;
-        // Address of the currently executing operator
-        address operator;
-    }
-
     // Blueprint stores blueprint related values
     struct Blueprint {
         address publisher;
@@ -63,23 +51,21 @@ library LibTractor {
         bytes signature;
     }
 
-    /**
-     * @notice Get tractor storage from storage.
-     * @return ts Storage object containing tractor data
-     */
-    function _tractorStorage() internal pure returns (TractorStorage storage ts) {
-        // keccak256("diamond.storage.tractor") == 0x7efbaaac9214ca1879e26b4df38e29a72561affb741bba775ce66d5bb6a82a07
-        assembly {
-            ts.slot := 0x7efbaaac9214ca1879e26b4df38e29a72561affb741bba775ce66d5bb6a82a07
-        }
-    }
 
     /**
      * @notice Set the tractor hashed version.
      */
     function _setVersion(string memory version) internal {
-        _tractorStorage().version = version;
+        LibTractorStorage.tractorStorage().version = version;
         emit TractorVersionSet(version);
+    }
+
+    /**
+     * @notice Get the current tractor version
+     * @return version Current tractor version string
+     */
+    function _getVersion() internal view returns (string memory) {
+        return LibTractorStorage.tractorStorage().version;
     }
 
     /**
@@ -87,7 +73,7 @@ library LibTractor {
      * @param blueprintHash blueprint hash
      */
     function _incrementBlueprintNonce(bytes32 blueprintHash) internal {
-        _tractorStorage().blueprintNonce[blueprintHash]++;
+        LibTractorStorage.tractorStorage().blueprintNonce[blueprintHash]++;
     }
 
     /**
@@ -96,7 +82,7 @@ library LibTractor {
      * @param blueprintHash blueprint hash
      */
     function _cancelBlueprint(bytes32 blueprintHash) internal {
-        _tractorStorage().blueprintNonce[blueprintHash] = type(uint256).max;
+        LibTractorStorage.tractorStorage().blueprintNonce[blueprintHash] = type(uint256).max;
     }
 
     /**
@@ -104,7 +90,7 @@ library LibTractor {
      * @param publisher blueprint publisher address
      */
     function _setPublisher(address payable publisher) internal {
-        TractorStorage storage ts = _tractorStorage();
+        LibTractorStorage.TractorStorage storage ts = LibTractorStorage.tractorStorage();
         require(
             uint160(bytes20(address(ts.activePublisher))) <= 1,
             "LibTractor: publisher already set"
@@ -116,14 +102,14 @@ library LibTractor {
      * @notice Reset blueprint publisher address.
      */
     function _resetPublisher() internal {
-        _tractorStorage().activePublisher = payable(address(1));
+        LibTractorStorage.tractorStorage().activePublisher = payable(address(1));
     }
 
     /** @notice Return current activePublisher address.
      * @return publisher current activePublisher address
      */
     function _getActivePublisher() internal view returns (address payable) {
-        return _tractorStorage().activePublisher;
+        return LibTractorStorage.tractorStorage().activePublisher;
     }
 
     /** @notice Return current activePublisher address or msg.sender if no active blueprint.
@@ -142,7 +128,7 @@ library LibTractor {
      * @return nonce current blueprint nonce
      */
     function _getBlueprintNonce(bytes32 blueprintHash) internal view returns (uint256) {
-        return _tractorStorage().blueprintNonce[blueprintHash];
+        return LibTractorStorage.tractorStorage().blueprintNonce[blueprintHash];
     }
 
     /**
@@ -192,7 +178,7 @@ library LibTractor {
                 abi.encode(
                     EIP712_TYPE_HASH,
                     TRACTOR_HASHED_NAME,
-                    keccak256(bytes(_tractorStorage().version)),
+                    keccak256(bytes(LibTractorStorage.tractorStorage().version)),
                     block.chainid,
                     address(this)
                 )
@@ -204,14 +190,24 @@ library LibTractor {
      * @param blueprintHash The hash of the currently executing blueprint
      */
     function _setCurrentBlueprintHash(bytes32 blueprintHash) internal {
-        _tractorStorage().currentBlueprintHash = blueprintHash;
+        LibTractorStorage.tractorStorage().currentBlueprintHash = blueprintHash;
+    }
+
+    /**
+     * @notice Set blueprint counter value for an account
+     * @param account The account address
+     * @param counterId The counter identifier
+     * @param value The counter value to set
+     */
+    function _setBlueprintCounter(address account, bytes32 counterId, uint256 value) internal {
+        LibTractorStorage.tractorStorage().blueprintCounters[account][counterId] = value;
     }
 
     /**
      * @notice Reset the current blueprint hash
      */
     function _resetCurrentBlueprintHash() internal {
-        _tractorStorage().currentBlueprintHash = bytes32(uint256(1));
+        LibTractorStorage.tractorStorage().currentBlueprintHash = bytes32(uint256(1));
     }
 
     /**
@@ -219,7 +215,17 @@ library LibTractor {
      * @return The hash of the currently executing blueprint
      */
     function _getCurrentBlueprintHash() internal view returns (bytes32) {
-        return _tractorStorage().currentBlueprintHash;
+        return LibTractorStorage.tractorStorage().currentBlueprintHash;
+    }
+
+    /**
+     * @notice Get blueprint counter value for an account
+     * @param account The account address
+     * @param counterId The counter identifier
+     * @return counter The counter value
+     */
+    function _getBlueprintCounter(address account, bytes32 counterId) internal view returns (uint256) {
+        return LibTractorStorage.tractorStorage().blueprintCounters[account][counterId];
     }
 
     /**
@@ -227,14 +233,14 @@ library LibTractor {
      * @param operator The operator address
      */
     function _setOperator(address operator) internal {
-        _tractorStorage().operator = operator;
+        LibTractorStorage.tractorStorage().operator = operator;
     }
 
     /**
      * @notice Reset the operator
      */
     function _resetOperator() internal {
-        _tractorStorage().operator = address(1);
+        LibTractorStorage.tractorStorage().operator = address(1);
     }
 
     /**
@@ -242,6 +248,38 @@ library LibTractor {
      * @return The operator address
      */
     function _getOperator() internal view returns (address) {
-        return _tractorStorage().operator;
+        return LibTractorStorage.tractorStorage().operator;
+    }
+
+    /**
+     * @notice Clear transient data for a given key.
+     * @dev Uses EIP-1153 transient storage for gas efficiency.
+     *      Data is automatically cleared at transaction end.
+     * @param key The key to clear the data for.
+     */
+    function clearTractorData(uint256 key) internal {
+        LibTransientStorage.clearBytes(key);
+    }
+
+    /**
+     * @notice Set transient data for a given key.
+     * @dev Uses EIP-1153 transient storage for gas efficiency.
+     *      Data persists only during transaction execution.
+     * @param key The key to set the data for.
+     * @param value The data to set for the given key.
+     */
+    function setTractorData(uint256 key, bytes memory value) internal {
+        LibTransientStorage.setBytes(key, value);
+    }
+
+    /**
+     * @notice Get transient data for a given key.
+     * @dev Uses EIP-1153 transient storage for gas efficiency.
+     *      Returns empty bytes if key not found.
+     * @param key The key to get the data for.
+     * @return The data for the given key.
+     */
+    function getTractorData(uint256 key) internal view returns (bytes memory) {
+        return LibTransientStorage.getBytes(key);
     }
 }

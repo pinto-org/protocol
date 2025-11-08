@@ -117,7 +117,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @dev Only blueprints using the current version can be run.
      */
     function getTractorVersion() external view returns (string memory) {
-        return LibTractor._tractorStorage().version;
+        return LibTractor._getVersion();
     }
 
     /**
@@ -238,7 +238,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @return count Counter value
      */
     function getCounter(address account, bytes32 counterId) external view returns (uint256 count) {
-        return LibTractor._tractorStorage().blueprintCounters[account][counterId];
+        return LibTractor._getBlueprintCounter(account, counterId);
     }
 
     /**
@@ -247,10 +247,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @return count Counter value
      */
     function getPublisherCounter(bytes32 counterId) public view returns (uint256 count) {
-        return
-            LibTractor._tractorStorage().blueprintCounters[
-                LibTractor._tractorStorage().activePublisher
-            ][counterId];
+        return LibTractor._getBlueprintCounter(LibTractor._getActivePublisher(), counterId);
     }
 
     /**
@@ -269,9 +266,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         } else if (updateType == LibTractor.CounterUpdateType.DECREASE) {
             newCount = getPublisherCounter(counterId).sub(amount);
         }
-        LibTractor._tractorStorage().blueprintCounters[
-            LibTractor._tractorStorage().activePublisher
-        ][counterId] = newCount;
+        LibTractor._setBlueprintCounter(LibTractor._getActivePublisher(), counterId, newCount);
         return newCount;
     }
 
