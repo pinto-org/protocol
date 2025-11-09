@@ -47,31 +47,6 @@ contract MockTractorBlueprint {
         }
     }
 
-    /**
-     * @notice Attempt to process corrupted data (should revert)
-     * @param key Key containing invalid bytes
-     */
-    function processCorrupted(uint256 key) external {
-        bytes memory data = IMockFBeanstalk(beanstalk).getTractorData(key);
-
-        if (data.length > 0) {
-            // This will revert if bytes are corrupted
-            processedValue = abi.decode(data, (uint256));
-            operationSuccess = true;
-        }
-    }
-
-    /**
-     * @notice Process non-existent key (should handle gracefully)
-     * @param key Non-existent key
-     */
-    function processNonExistent(uint256 key) external {
-        bytes memory data = IMockFBeanstalk(beanstalk).getTractorData(key);
-
-        // Should be empty - set success flag to verify this
-        operationSuccess = (data.length == 0);
-    }
-
     // Reset for clean test state
     function reset() external {
         processedValue = 0;

@@ -6,7 +6,6 @@ import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestH
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {MockERC1271} from "contracts/mocks/ERC/MockERC1271.sol";
 import {MockTractorBlueprint} from "contracts/mocks/MockTractorBlueprint.sol";
-import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {C} from "contracts/C.sol";
 import {console} from "forge-std/console.sol";
 
@@ -17,6 +16,9 @@ contract TractorTest is TestHelper, TractorTestHelper {
     // test accounts
     address[] farmers;
 
+    // Mock blueprint for dynamic data testing
+    MockTractorBlueprint mockBlueprint;
+
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
@@ -26,6 +28,39 @@ contract TractorTest is TestHelper, TractorTestHelper {
 
         // max approve.
         maxApproveBeanstalk(farmers);
+
+        // Create a MockTractorBlueprint to test dynamic data injections.
+        mockBlueprint = new MockTractorBlueprint(address(bs));
+    }
+
+    //////////////// Helper Functions ////////////////
+
+    /**
+     * @notice Helper to create requisition data for single function call dynamic data tests
+     * @param selector The function selector to call on mockBlueprint
+     * @param key The key parameter to pass to the function
+     * @return data Encoded data for requisition
+     */
+    function createDynamicDataRequisitionData(
+        bytes4 selector,
+        uint256 key
+    ) internal view returns (bytes memory) {
+        // Create pipe call to mockBlueprint function
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(mockBlueprint),
+            callData: abi.encodeWithSelector(selector, key),
+            clipboard: hex"0000"
+        });
+
+        // Wrap in farm call
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+
+        return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
     }
 
     //////////////// ERC1271 ////////////////
@@ -198,28 +233,14 @@ contract TractorTest is TestHelper, TractorTestHelper {
     }
 
     /**
-     * @notice Test tractorDynamicData with valid data injection
+     * @notice Fuzz test tractorDynamicData with valid data injection
      * @dev Tests EIP-1153 transient storage injection and abi.decode of uint256 data in blueprint execution
      */
-    function test_DynamicData_ValidUint256() public {
-        MockTractorBlueprint mockBlueprint = new MockTractorBlueprint(address(bs));
-
-        // Create pipe call to processUint256 function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 1),
-            clipboard: hex"0000"
-        });
-
-        // Wrap in farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    function testFuzz_DynamicData_ValidUint256(uint256 testValue) public {
+        bytes memory data = createDynamicDataRequisitionData(
+            MockTractorBlueprint.processUint256.selector,
+            1
+        );
 
         // Create requisition
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
@@ -228,9 +249,9 @@ contract TractorTest is TestHelper, TractorTestHelper {
             address(bs)
         );
 
-        // Create dynamic data
+        // Create dynamic data with fuzzed value
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](1);
-        dynamicData[0] = IMockFBeanstalk.ContractData({key: 1, value: abi.encode(uint256(12345))});
+        dynamicData[0] = IMockFBeanstalk.ContractData({key: 1, value: abi.encode(testValue)});
 
         // Execute with dynamic data
         vm.prank(farmers[0]);
@@ -238,7 +259,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
 
         // Verify execution succeeded
         assertEq(results.length, 1, "Should return one result");
-        assertEq(mockBlueprint.processedValue(), 12345, "Should have processed uint256 value");
+        assertEq(mockBlueprint.processedValue(), testValue, "Should have processed uint256 value");
         assertTrue(mockBlueprint.operationSuccess(), "Operation should have succeeded");
     }
 
@@ -247,24 +268,10 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests transient storage with address type encoding/decoding through getTractorData interface
      */
     function test_DynamicData_ValidAddress() public {
-        MockTractorBlueprint mockBlueprint = new MockTractorBlueprint(address(bs));
-
-        // Create pipe call to processAddress function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(MockTractorBlueprint.processAddress.selector, 2),
-            clipboard: hex"0000"
-        });
-
-        // Wrap in farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+        bytes memory data = createDynamicDataRequisitionData(
+            MockTractorBlueprint.processAddress.selector,
+            2
+        );
 
         // Create requisition
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
@@ -297,24 +304,10 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests getTractorData returns empty bytes for missing keys without reverting
      */
     function test_DynamicData_NonExistentKey() public {
-        MockTractorBlueprint mockBlueprint = new MockTractorBlueprint(address(bs));
-
-        // Create pipe call to processNonExistent function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(MockTractorBlueprint.processNonExistent.selector, 999),
-            clipboard: hex"0000"
-        });
-
-        // Wrap in farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+        bytes memory data = createDynamicDataRequisitionData(
+            MockTractorBlueprint.processUint256.selector,
+            999
+        );
 
         // Create requisition
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
@@ -330,9 +323,10 @@ contract TractorTest is TestHelper, TractorTestHelper {
         vm.prank(farmers[0]);
         bytes[] memory results = bs.tractorDynamicData(req, "", dynamicData);
 
-        // Verify execution succeeded and handled empty data gracefully
+        // Verify execution succeeded and processUint256 handled empty data gracefully (no decode, no state change)
         assertEq(results.length, 1, "Should return one result");
-        assertTrue(mockBlueprint.operationSuccess(), "Should handle non-existent key gracefully");
+        assertEq(mockBlueprint.processedValue(), 0, "Should not have processed any value");
+        assertFalse(mockBlueprint.operationSuccess(), "Operation should not have set success flag");
     }
 
     /**
@@ -340,24 +334,10 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests abi.decode revert propagation when blueprint processes malformed bytes from transient storage
      */
     function test_DynamicData_CorruptedData() public {
-        MockTractorBlueprint mockBlueprint = new MockTractorBlueprint(address(bs));
-
-        // Create pipe call to processCorrupted function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(MockTractorBlueprint.processCorrupted.selector, 3),
-            clipboard: hex"0000"
-        });
-
-        // Wrap in farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+        bytes memory data = createDynamicDataRequisitionData(
+            MockTractorBlueprint.processUint256.selector,
+            3
+        );
 
         // Create requisition
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
@@ -384,8 +364,6 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests concurrent transient storage key-value pairs with different data types in single execution
      */
     function test_DynamicData_MultipleEntries() public {
-        MockTractorBlueprint mockBlueprint = new MockTractorBlueprint(address(bs));
-
         // Create pipe calls to process both uint256 and address
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](2);
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
