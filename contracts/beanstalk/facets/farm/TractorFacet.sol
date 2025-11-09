@@ -307,8 +307,8 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice Get tractor data by key (for blueprint contract access).
-     * @dev This function should be called within Tractor Blueprint Contracts that require dynamically sized data
-     *      given by Tractor operators.
+     * @dev This function should be called within Tractor Blueprint Contracts
+     * that require dynamically sized data given by Tractor operators.
      */
     function getTractorData(uint256 key) external view returns (bytes memory) {
         return LibTractor.getTractorData(key);

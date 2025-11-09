@@ -125,7 +125,8 @@ library LibTractor {
         return LibTractorStorage.tractorStorage().activePublisher;
     }
 
-    /** @notice Return current activePublisher address or msg.sender if no active blueprint.
+    /**
+     * @notice Return current activePublisher or msg.sender if no active blueprint.
      * @return user to take actions on behalf of
      */
     function _user() internal view returns (address payable user) {
@@ -270,7 +271,7 @@ library LibTractor {
     /**
      * @notice Set transient data for a given key.
      * @dev Uses EIP-1153 transient storage for gas efficiency.
-     *      Data persists only during transaction execution.
+     * Data persists only during transaction execution.
      * @param key The key to set the data for.
      * @param value The data to set for the given key.
      */
@@ -281,7 +282,7 @@ library LibTractor {
     /**
      * @notice Get transient data for a given key.
      * @dev Uses EIP-1153 transient storage for gas efficiency.
-     *      Returns empty bytes if key not found.
+     * Returns empty bytes if key not found.
      * @param key The key to get the data for.
      * @return The data for the given key.
      */

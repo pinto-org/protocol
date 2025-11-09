@@ -8,11 +8,11 @@ import {TransientContext} from "transience/src/TransientContext.sol";
 
 /**
  * @title LibTransientStorage
- * @notice Pinto protocol standardized transient storage library
+ * @notice Beanstalk standardized transient storage library
  * @dev Built on ethereum-optimism/transience for reentrancy-safe transient storage
  *
  * This library provides a protocol-wide standard for managing transient storage
- * across the Pinto ecosystem. It wraps the transience library to provide:
+ * across the Beanstalk ecosystem. It wraps the transience library to provide:
  *
  * - Gas-efficient temporary storage (EIP-1153 TSTORE/TLOAD)
  * - Reentrancy protection through call depth isolation
@@ -29,10 +29,10 @@ library LibTransientStorage {
     // Protocol Slot Constants
     // ======================
 
-    /// @dev Base slot for Pinto protocol transient storage
-    ///      keccak256("pinto.protocol.transient.storage")
-    bytes32 internal constant PINTO_TRANSIENT_BASE_SLOT =
-        0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809;
+    /// @dev Base slot for transient storage
+    /// keccak256("transient.storage")
+    bytes32 internal constant TRANSIENT_BASE_SLOT =
+        0x21694268a7c5ac77b6d1b5484e2e3fdb32f6630b751d62167b57a3cddc7dd1b5;
 
     /// @dev Slot offset for different data types to avoid collisions
     uint256 internal constant UINT256_OFFSET = 0;
@@ -213,6 +213,6 @@ library LibTransientStorage {
      * @return slot Unique storage slot
      */
     function _generateSlot(uint256 offset, uint256 key) private pure returns (bytes32 slot) {
-        return keccak256(abi.encode(PINTO_TRANSIENT_BASE_SLOT, offset, key));
+        return keccak256(abi.encode(TRANSIENT_BASE_SLOT, offset, key));
     }
 }
