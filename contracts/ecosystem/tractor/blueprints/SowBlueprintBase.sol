@@ -287,9 +287,7 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     /**
      * @notice Validates the initial parameters for the sow operation
      */
-    function _validateParams(
-        SowBlueprintStruct memory params
-    ) internal view {
+    function _validateParams(SowBlueprintStruct memory params) internal view {
         require(
             params.sowParams.sourceTokenIndices.length > 0,
             "Must provide at least one source token"
@@ -341,13 +339,10 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
             LibSiloHelpers.WithdrawalPlan memory plan
         )
     {
-        (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(
-            params.sowParams
-        );
+        (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
 
         _validateParams(params);
         pintoLeftToSow = _validateBlueprintAndPintoLeftToSow(orderHash);
-
 
         // If this is the first execution, initialize the counter
         if (pintoLeftToSow == 0) {
@@ -383,13 +378,21 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
         // Verify enough beans are available
         if (plan.totalAvailableBeans < totalBeansNeeded) {
             require(
-                plan.totalAvailableBeans >= params.sowParams.sowAmounts.minAmountToSowPerSeason + uint256(params.opParams.operatorTipAmount > 0 ? params.opParams.operatorTipAmount : int256(0)),
+                plan.totalAvailableBeans >=
+                    params.sowParams.sowAmounts.minAmountToSowPerSeason +
+                        uint256(
+                            params.opParams.operatorTipAmount > 0
+                                ? params.opParams.operatorTipAmount
+                                : int256(0)
+                        ),
                 "Insufficient beans available"
             );
 
             // Adjust the total amount to sow based on available beans
             if (params.opParams.operatorTipAmount > 0) {
-                totalAmountToSow = plan.totalAvailableBeans - uint256(params.opParams.operatorTipAmount);
+                totalAmountToSow =
+                    plan.totalAvailableBeans -
+                    uint256(params.opParams.operatorTipAmount);
             } else {
                 totalAmountToSow = plan.totalAvailableBeans;
             }
@@ -416,12 +419,12 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
         );
     }
 
-
-
     /**
      * @notice Gets the pinto left to sow for a given order hash
      */
-    function _validateBlueprintAndPintoLeftToSow(bytes32 orderHash) internal view returns (uint256 pintoLeftToSow) {
+    function _validateBlueprintAndPintoLeftToSow(
+        bytes32 orderHash
+    ) internal view returns (uint256 pintoLeftToSow) {
         require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
         require(
             getLastExecutedSeason(orderHash) < beanstalk.time().current,

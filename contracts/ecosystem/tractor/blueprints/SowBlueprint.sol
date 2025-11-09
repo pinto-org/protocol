@@ -9,7 +9,6 @@ import {SowBlueprintBase, LibSiloHelpers} from "./SowBlueprintBase.sol";
  * @notice Contract for sowing with Tractor, with a number of conditions
  */
 contract SowBlueprint is SowBlueprintBase {
-
     constructor(
         address _beanstalk,
         address _owner,
