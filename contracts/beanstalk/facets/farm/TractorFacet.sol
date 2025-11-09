@@ -5,14 +5,10 @@
 pragma solidity ^0.8.20;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Invariable} from "contracts/beanstalk/Invariable.sol";
 import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
-import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
-import {AdvancedFarmCall, LibFarm} from "contracts/libraries/LibFarm.sol";
-import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibTransfer, IERC20} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -22,7 +18,6 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
  * @author Brendan, Frijo, Natto, exTypen
  */
 contract TractorFacet is Invariable, ReentrancyGuard {
-    using LibBytes for bytes32;
     using LibRedundantMath256 for uint256;
 
     event PublishRequisition(LibTractor.Requisition requisition);
