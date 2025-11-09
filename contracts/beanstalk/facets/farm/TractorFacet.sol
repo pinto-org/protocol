@@ -187,7 +187,6 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         LibTractor.setContractData(operatorDynamicData);
         results = LibTractor.tractor(requisition, operatorData);
         LibTractor.resetContractData(operatorDynamicData);
-        return results;
     }
 
     /**
