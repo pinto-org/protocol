@@ -685,6 +685,7 @@ contract FieldTest is TestHelper {
 
         // skip morning auction
         vm.roll(block.number + 500);
+        vm.warp(block.timestamp + 600);
 
         sowAmount = bound(sowAmount, 100, type(uint64).max);
 

@@ -497,4 +497,9 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256 af = s.sys.activeField;
         return s.accts[referrer].fields[af].referral.eligibility;
     }
+
+    function getBeansSownForReferral(address referrer) external view returns (uint256) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.beans;
+    }
 }
