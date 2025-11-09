@@ -65,7 +65,6 @@ library LibTractor {
         bytes signature;
     }
 
-
     /**
      * @notice Set the tractor hashed version.
      */
@@ -238,7 +237,10 @@ library LibTractor {
      * @param counterId The counter identifier
      * @return counter The counter value
      */
-    function _getBlueprintCounter(address account, bytes32 counterId) internal view returns (uint256) {
+    function _getBlueprintCounter(
+        address account,
+        bytes32 counterId
+    ) internal view returns (uint256) {
         return LibTractorStorage.tractorStorage().blueprintCounters[account][counterId];
     }
 
@@ -264,7 +266,6 @@ library LibTractor {
     function _getOperator() internal view returns (address) {
         return LibTractorStorage.tractorStorage().operator;
     }
-
 
     /**
      * @notice Set transient data for a given key.
@@ -309,7 +310,6 @@ library LibTractor {
             LibTransientStorage.clearBytes(contractData[i].key);
         }
     }
-
 
     /**
      * @notice Execute tractor blueprint with core execution logic.

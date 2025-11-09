@@ -10,29 +10,28 @@ import {TransientContext} from "transience/src/TransientContext.sol";
  * @title LibTransientStorage
  * @notice Pinto protocol standardized transient storage library
  * @dev Built on ethereum-optimism/transience for reentrancy-safe transient storage
- * 
+ *
  * This library provides a protocol-wide standard for managing transient storage
  * across the Pinto ecosystem. It wraps the transience library to provide:
- * 
+ *
  * - Gas-efficient temporary storage (EIP-1153 TSTORE/TLOAD)
  * - Reentrancy protection through call depth isolation
  * - Protocol-consistent interface and naming conventions
  * - Type-safe storage operations for common data types
- * 
+ *
  * Usage patterns:
  * 1. Set temporary values at function entry
  * 2. Access values across contract calls within the same transaction
  * 3. Values automatically cleared at transaction end
  */
 library LibTransientStorage {
-    
     // ======================
     // Protocol Slot Constants
     // ======================
-    
+
     /// @dev Base slot for Pinto protocol transient storage
-    ///      keccak256("pinto.protocol.transient.storage") 
-    bytes32 internal constant PINTO_TRANSIENT_BASE_SLOT = 
+    ///      keccak256("pinto.protocol.transient.storage")
+    bytes32 internal constant PINTO_TRANSIENT_BASE_SLOT =
         0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809;
 
     /// @dev Slot offset for different data types to avoid collisions
@@ -114,7 +113,7 @@ library LibTransientStorage {
     function setBytes(uint256 key, bytes memory value) internal {
         bytes32 lengthSlot = _generateSlot(BYTES_OFFSET, key);
         TransientContext.set(lengthSlot, value.length);
-        
+
         // Store data in 32-byte chunks
         uint256 chunks = (value.length + 31) / 32;
         for (uint256 i = 0; i < chunks; i++) {
@@ -135,12 +134,12 @@ library LibTransientStorage {
     function getBytes(uint256 key) internal view returns (bytes memory value) {
         bytes32 lengthSlot = _generateSlot(BYTES_OFFSET, key);
         uint256 length = TransientContext.get(lengthSlot);
-        
+
         if (length == 0) return value; // Return empty bytes
-        
+
         value = new bytes(length);
         uint256 chunks = (length + 31) / 32;
-        
+
         for (uint256 i = 0; i < chunks; i++) {
             bytes32 dataSlot = _generateSlot(BYTES_OFFSET, key + i + 1);
             bytes32 chunk = bytes32(TransientContext.get(dataSlot));
@@ -186,7 +185,7 @@ library LibTransientStorage {
         bytes32 lengthSlot = _generateSlot(BYTES_OFFSET, key);
         uint256 length = TransientContext.get(lengthSlot);
         TransientContext.set(lengthSlot, 0);
-        
+
         // Clear data chunks
         uint256 chunks = (length + 31) / 32;
         for (uint256 i = 0; i < chunks; i++) {

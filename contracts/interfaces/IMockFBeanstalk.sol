@@ -1735,7 +1735,7 @@ interface IMockFBeanstalk {
         Requisition calldata requisition,
         bytes memory operatorData,
         ContractData[] memory operatorDynamicData
-    ) external payable returns (bytes[] memory results);  
+    ) external payable returns (bytes[] memory results);
 
     function transferDeposit(
         address sender,

@@ -9,7 +9,6 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
  * @dev Tests generic bytes injection and processing
  */
 contract MockTractorBlueprint {
-
     // Beanstalk address for accessing tractor data
     address public beanstalk;
 
@@ -21,7 +20,7 @@ contract MockTractorBlueprint {
     constructor(address _beanstalk) {
         beanstalk = _beanstalk;
     }
-    
+
     /**
      * @notice Process uint256 data from transient storage
      * @param key Key to retrieve data
@@ -34,7 +33,7 @@ contract MockTractorBlueprint {
             operationSuccess = true;
         }
     }
-    
+
     /**
      * @notice Process address data from transient storage
      * @param key Key to retrieve data
@@ -47,7 +46,7 @@ contract MockTractorBlueprint {
             operationSuccess = true;
         }
     }
-    
+
     /**
      * @notice Attempt to process corrupted data (should revert)
      * @param key Key containing invalid bytes
@@ -61,7 +60,7 @@ contract MockTractorBlueprint {
             operationSuccess = true;
         }
     }
-    
+
     /**
      * @notice Process non-existent key (should handle gracefully)
      * @param key Non-existent key
@@ -72,7 +71,7 @@ contract MockTractorBlueprint {
         // Should be empty - set success flag to verify this
         operationSuccess = (data.length == 0);
     }
-    
+
     // Reset for clean test state
     function reset() external {
         processedValue = 0;

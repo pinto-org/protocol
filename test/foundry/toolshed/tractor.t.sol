@@ -230,10 +230,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
 
         // Create dynamic data
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](1);
-        dynamicData[0] = IMockFBeanstalk.ContractData({
-            key: 1,
-            value: abi.encode(uint256(12345))
-        });
+        dynamicData[0] = IMockFBeanstalk.ContractData({key: 1, value: abi.encode(uint256(12345))});
 
         // Execute with dynamic data
         vm.prank(farmers[0]);
@@ -279,10 +276,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // Create dynamic data with test address
         address testAddress = farmers[1];
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](1);
-        dynamicData[0] = IMockFBeanstalk.ContractData({
-            key: 2,
-            value: abi.encode(testAddress)
-        });
+        dynamicData[0] = IMockFBeanstalk.ContractData({key: 2, value: abi.encode(testAddress)});
 
         // Execute with dynamic data
         vm.prank(farmers[0]);
@@ -290,7 +284,11 @@ contract TractorTest is TestHelper, TractorTestHelper {
 
         // Verify execution succeeded
         assertEq(results.length, 1, "Should return one result");
-        assertEq(mockBlueprint.processedAddress(), testAddress, "Should have processed address value");
+        assertEq(
+            mockBlueprint.processedAddress(),
+            testAddress,
+            "Should have processed address value"
+        );
         assertTrue(mockBlueprint.operationSuccess(), "Operation should have succeeded");
     }
 
@@ -420,14 +418,8 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // Create multiple dynamic data entries
         address testAddress = farmers[1];
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](2);
-        dynamicData[0] = IMockFBeanstalk.ContractData({
-            key: 10,
-            value: abi.encode(uint256(54321))
-        });
-        dynamicData[1] = IMockFBeanstalk.ContractData({
-            key: 20,
-            value: abi.encode(testAddress)
-        });
+        dynamicData[0] = IMockFBeanstalk.ContractData({key: 10, value: abi.encode(uint256(54321))});
+        dynamicData[1] = IMockFBeanstalk.ContractData({key: 20, value: abi.encode(testAddress)});
 
         // Execute with multiple data entries
         vm.prank(farmers[0]);
@@ -436,7 +428,11 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // Verify both operations succeeded
         assertEq(results.length, 1, "Should return one result");
         assertEq(mockBlueprint.processedValue(), 54321, "Should have processed uint256 value");
-        assertEq(mockBlueprint.processedAddress(), testAddress, "Should have processed address value");
+        assertEq(
+            mockBlueprint.processedAddress(),
+            testAddress,
+            "Should have processed address value"
+        );
         assertTrue(mockBlueprint.operationSuccess(), "Operation should have succeeded");
     }
 }
