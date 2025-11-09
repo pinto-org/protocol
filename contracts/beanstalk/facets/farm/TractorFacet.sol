@@ -19,6 +19,7 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 /**
  * @title TractorFacet handles tractor and blueprint operations.
+ * @author Brendan, Frijo, Natto, exTypen
  */
 contract TractorFacet is Invariable, ReentrancyGuard {
     using LibBytes for bytes32;
