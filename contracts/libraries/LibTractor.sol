@@ -13,7 +13,6 @@ import {AdvancedFarmCall, LibFarm} from "./LibFarm.sol";
  * @title Lib Tractor
  **/
 library LibTractor {
-    using LibBytes for bytes32;
     enum CounterUpdateType {
         INCREASE,
         DECREASE
@@ -341,7 +340,7 @@ library LibTractor {
         // Update data with operator-defined fillData.
         for (uint256 i; i < requisition.blueprint.operatorPasteInstrs.length; ++i) {
             bytes32 operatorPasteInstr = requisition.blueprint.operatorPasteInstrs[i];
-            uint80 pasteCallIndex = operatorPasteInstr.getIndex1();
+            uint80 pasteCallIndex = LibBytes.getIndex1(operatorPasteInstr);
             require(calls.length > pasteCallIndex, "LibTractor: pasteCallIndex OOB");
 
             LibBytes.pasteBytesTractor(
