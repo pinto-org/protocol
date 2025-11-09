@@ -6,6 +6,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
+import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {LibAppStorage, AppStorage} from "./LibAppStorage.sol";
 import {Account, Field} from "contracts/beanstalk/storage/Account.sol";
 import {LibRedundantMath128} from "./Math/LibRedundantMath128.sol";
@@ -33,9 +34,6 @@ library LibDibbler {
     /// @dev The precision of s.sys.weather.temp
     uint256 internal constant TEMPERATURE_PRECISION = 1e6;
 
-    /// @dev The divisor of s.sys.weather.temp in the morning auction
-    uint256 internal constant TEMPERATURE_DIVISOR = 1e12;
-
     /// @dev Simplifies conversion of Beans to Pods:
     /// `pods = beans * (1 + temperature)`
     /// `pods = beans * (100% + temperature) / 100%`
@@ -47,9 +45,6 @@ library LibDibbler {
     uint256 internal constant SOLD_OUT_THRESHOLD_PERCENT = 10e6;
     uint256 internal constant ALMOST_SOLD_OUT_THRESHOLD_PERCENT = 20e6;
     uint256 internal constant SOLD_OUT_PRECISION = 100e6;
-
-    uint256 internal constant L1_BLOCK_TIME = 1200;
-    uint256 internal constant L2_BLOCK_TIME = 200;
 
     uint32 internal constant SOIL_ALMOST_SOLD_OUT_TIME = type(uint32).max - 1;
 
@@ -289,7 +284,7 @@ library LibDibbler {
         returns (uint256 soil, uint256 _morningTemperature, bool abovePeg)
     {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        _morningTemperature = LibDibbler.morningTemperature();
+        _morningTemperature = morningTemperature();
         abovePeg = s.sys.season.abovePeg;
 
         // Below peg: Soil is fixed to the amount set during {calcCaseId}.
@@ -301,7 +296,7 @@ library LibDibbler {
             // Above peg: the maximum amount of Pods that Beanstalk is willing to mint
             // stays fixed; since {morningTemperature} is scaled down when `delta < 25`, we
             // need to scale up the amount of Soil to hold Pods constant.
-            soil = LibDibbler.scaleSoilUp(
+            soil = scaleSoilUp(
                 uint256(s.sys.soil), // max soil offered this Season, reached when `t >= 25`
                 uint256(s.sys.weather.temp), // max temperature (1e6 precision)
                 _morningTemperature // temperature adjusted by number of blocks since Sunrise
@@ -312,168 +307,53 @@ library LibDibbler {
     //////////////////// TEMPERATURE ////////////////////
 
     /**
-     * @dev Returns the temperature `s.sys.weather.temp` scaled down based on the block delta.
+     * @notice Returns the temperature `s.sys.weather.temp` scaled down based on the second delta.
      * Precision level 1e6, as soil has 1e6 precision (1% = 1e6)
-     * the formula `log3.5(A * MAX_BLOCK_ELAPSED + 1)` is applied, where:
+     * the formula `log2(A * delta  + 1)/log2(A * s.sys.weather.morningDuration + 1)` is applied, where:
      * `A = 0.1`
-     * `MAX_BLOCK_ELAPSED = 25`
-     * @dev L2 block times are significantly shorter than L1. To adjust for this,
-     * `delta` is scaled down by the ratio of L2 block time to L1 block time.
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 delta = block
-            .number
-            .sub(s.sys.season.sunriseBlock)
-            .mul(L2_BLOCK_TIME)
-            .div(L1_BLOCK_TIME)
-            .div(2); // dividing by 2 increases the morning auction time from 25 to 50 L1 blocks (5 min -> 10 min)
-
-        // check most likely case first
-        if (delta > 24) {
-            return uint256(s.sys.weather.temp);
+        uint256 maxTemperature = s.sys.weather.temp;
+        uint256 delta;
+        // in theory, block.timestamp should never be less than s.sys.season.timestamp,
+        // but if so, we'll use the delta as 0.
+        if (block.timestamp > s.sys.season.timestamp) {
+            delta = block.timestamp - s.sys.season.timestamp;
         }
 
-        // Binary Search
-        if (delta < 13) {
-            if (delta < 7) {
-                if (delta < 4) {
-                    if (delta < 2) {
-                        if (delta < 1) {
-                            // delta == 0, same block as sunrise
-                            return _scaleTemperature(10000000000);
-                        } else {
-                            // delta == 1
-                            return _scaleTemperature(76079978576);
-                        }
-                    } else {
-                        if (delta == 2) {
-                            return _scaleTemperature(145535557307);
-                        } else {
-                            // delta == 3
-                            return _scaleTemperature(209428496104);
-                        }
-                    }
-                } else {
-                    if (delta < 6) {
-                        if (delta == 4) {
-                            return _scaleTemperature(268584117732);
-                        } else {
-                            // delta == 5
-                            return _scaleTemperature(323656683909);
-                        }
-                    } else {
-                        // delta == 6
-                        return _scaleTemperature(375173629062);
-                    }
-                }
-            } else {
-                if (delta < 10) {
-                    if (delta < 9) {
-                        if (delta == 7) {
-                            return _scaleTemperature(423566360442);
-                        } else {
-                            // delta == 8
-                            return _scaleTemperature(469192241217);
-                        }
-                    } else {
-                        // delta == 9
-                        return _scaleTemperature(512350622036);
-                    }
-                } else {
-                    if (delta < 12) {
-                        if (delta == 10) {
-                            return _scaleTemperature(553294755665);
-                        } else {
-                            // delta == 11
-                            return _scaleTemperature(592240801642);
-                        }
-                    } else {
-                        // delta == 12
-                        return _scaleTemperature(629374734241);
-                    }
-                }
-            }
-        } else {
-            if (delta < 19) {
-                if (delta < 16) {
-                    if (delta < 15) {
-                        if (delta == 13) {
-                            return _scaleTemperature(664857713614);
-                        } else {
-                            // delta == 14
-                            return _scaleTemperature(698830312972);
-                        }
-                    } else {
-                        // delta == 15
-                        return _scaleTemperature(731415882267);
-                    }
-                } else {
-                    if (delta < 18) {
-                        if (delta == 16) {
-                            return _scaleTemperature(762723251769);
-                        } else {
-                            // delta == 17
-                            return _scaleTemperature(792848925126);
-                        }
-                    } else {
-                        // delta == 18
-                        return _scaleTemperature(821878873397);
-                    }
-                }
-            } else {
-                if (delta < 22) {
-                    if (delta < 21) {
-                        if (delta == 19) {
-                            return _scaleTemperature(849890014127);
-                        } else {
-                            // delta == 20
-                            return _scaleTemperature(876951439574);
-                        }
-                    } else {
-                        // delta == 21
-                        return _scaleTemperature(903125443474);
-                    }
-                } else {
-                    if (delta <= 23) {
-                        if (delta == 22) {
-                            return _scaleTemperature(928468384727);
-                        } else {
-                            // delta == 23
-                            return _scaleTemperature(953031418151);
-                        }
-                    } else {
-                        // delta == 24
-                        return _scaleTemperature(976861116107);
-                    }
-                }
-            }
+        uint256 morningDuration = s.sys.weather.morningDuration;
+        // if the delta is greater than the morning duration, return the max temperature.
+        if (delta >= morningDuration) {
+            return maxTemperature;
         }
+
+        uint256 scaledTemperature = _scaleTemperature(maxTemperature, morningDuration, delta);
+
+        // set a temperature floor of 1% of max temperature.
+        if (scaledTemperature < maxTemperature / 100) {
+            return maxTemperature / 100;
+        }
+
+        return scaledTemperature;
     }
 
     /**
-     * @param pct The percentage to scale down by, measured to 1e12.
-     * @return scaledTemperature The scaled temperature, measured to 1e6 = 1% = 1.
-     * @dev Scales down `s.sys.weather.temp` and imposes a minimum of 1e6 (1%) unless
-     * `s.sys.weather.temp` is 0%.
+     * Formula:
+     * T * log2(delta * c + 1) / log2(morningDuration * c + 1)
+     * where c <= morningDuration.
      */
-    function _scaleTemperature(uint256 pct) private view returns (uint256 scaledTemperature) {
+    function _scaleTemperature(
+        uint256 maxTemperature,
+        uint256 morningDuration,
+        uint256 delta
+    ) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-
-        uint256 maxTemperature = s.sys.weather.temp;
-        if (maxTemperature == 0) return 0;
-
-        // To save gas, `pct` is pre-calculated to 12 digits. Here we
-        // perform the following transformation:
-        // (1e6)    maxTemperature
-        // (1e12)    * pct
-        // (1e12)    / TEMPERATURE_DIVISOR
-        // (1e6)     = scaledYield
-        scaledTemperature = maxTemperature.mulDiv(
-            pct,
-            TEMPERATURE_DIVISOR,
-            LibPRBMathRoundable.Rounding.Up
-        );
+        uint256 c = s.sys.weather.morningControl;
+        return
+            (maxTemperature *
+                PRBMathUD60x18.log2(((delta * C.PRECISION * c) / C.PRECISION) + C.PRECISION)) /
+            PRBMathUD60x18.log2(((morningDuration * C.PRECISION * c) / C.PRECISION) + C.PRECISION);
     }
 
     /**
@@ -598,8 +478,7 @@ library LibDibbler {
      * @param initialSoil The initial soil at the start of the season.
      * @return soilSoldOutThreshold The threshold at which soil is considered sold out.
      */
-    function getSoilSoldOutThreshold(uint256 initialSoil) internal view returns (uint256) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
+    function getSoilSoldOutThreshold(uint256 initialSoil) internal pure returns (uint256) {
         return
             Math.min(
                 MAXIMUM_SOIL_SOLD_OUT_THRESHOLD,
@@ -617,7 +496,7 @@ library LibDibbler {
     function getSoilMostlySoldOutThreshold(
         uint256 initialSoil,
         uint256 soilSoldOutThreshold
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         return
             ((initialSoil - getSoilSoldOutThreshold(initialSoil)) *
                 ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /

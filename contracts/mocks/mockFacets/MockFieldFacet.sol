@@ -43,10 +43,6 @@ contract MockFieldFacet is FieldFacet {
         return s.sys.soil;
     }
 
-    function beanSown() external view returns (uint256) {
-        return s.sys.beanSown;
-    }
-
     /**
      * @dev used for testing purposes - refactor field facet upon next field deployment,
      * to avoid duplicate code.

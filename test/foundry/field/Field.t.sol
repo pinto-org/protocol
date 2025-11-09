@@ -606,6 +606,22 @@ contract FieldTest is TestHelper {
         assertGt(field.fieldCount(), 1, "field count");
     }
 
+    function test_morningAuctionTemperature() public {
+        bool verbose = false;
+        uint256 temperature = field.temperature();
+        uint256 maxTemperature = bs.maxTemperature();
+        for (uint256 i; i < 605; i++) {
+            uint256 temperature = field.temperature();
+            assertGe(temperature, temperature, "temperature is not increasing");
+            if (i >= 600) {
+                assertEq(temperature, maxTemperature, "temperature != max temperature");
+            } else {
+                assertLe(temperature, maxTemperature, "temperature > max temperature");
+            }
+            vm.warp(block.timestamp + 1);
+        }
+    }
+
     // field helpers.
 
     function verifyPlotIndexAndPlotLengths(

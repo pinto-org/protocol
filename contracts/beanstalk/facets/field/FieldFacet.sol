@@ -423,7 +423,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice Returns the max Temperature that Beanstalk is willing to offer this Season.
-     * @dev For gas efficiency, Beanstalk stores `s.sys.weather.temp` as a uint32 with precision of 1e6.
+     * @dev For gas efficiency, Beanstalk stores `s.sys.weather.temp` as a uint64 with precision of 1e6.
      */
     function maxTemperature() external view returns (uint256) {
         return uint256(s.sys.weather.temp);
@@ -472,6 +472,13 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
         }
+    }
+
+    /**
+     * @notice Returns the number of Beans that have been Sown this season.
+     */
+    function beanSown() external view returns (uint256) {
+        return s.sys.beanSown;
     }
 
     function getReferrerPercentage() external view returns (uint256) {

@@ -134,6 +134,29 @@ interface IBeanstalk {
 
     function getWhitelistedTokens() external view returns (address[] memory);
 
+    function getHighestNonGerminatingStem(address token) external view returns (int96 stem);
+
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256, uint256);
+
+    function convertWithStalkSlippage(
+        bytes calldata convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        int256 grownStalkSlippage
+    )
+        external
+        payable
+        returns (
+            int96 toStem,
+            uint256 fromAmount,
+            uint256 toAmount,
+            uint256 fromBdv,
+            uint256 toBdv
+        );
+
     function maxTemperature() external view returns (uint256);
 
     function operator() external view returns (address);
@@ -228,6 +251,10 @@ interface IBeanstalk {
         external
         view
         returns (WhitelistStatus[] memory _whitelistStatuses);
+
+    function getSiloTokens() external view returns (address[] memory);
+
+    function getSeedsForToken(address) external view returns (uint256 seeds);
 
     function sowWithReferral(
         uint256 beans,

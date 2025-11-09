@@ -38,23 +38,21 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
+    struct pipelineReturnParams {
+        int96 toStem;
+        uint256 fromAmount;
+        uint256 toAmount;
+        uint256 fromBdv;
+        uint256 toBdv;
+    }
+
     /**
-     * @notice Pipeline convert allows any type of convert using a series of
-     * pipeline calls. A stalk penalty may be applied if the convert crosses deltaB.
-     *
-     * @param inputToken The token to convert from.
-     * @param stems The stems of the deposits to convert from.
-     * @param amounts The amounts of the deposits to convert from.
-     * @param outputToken The token to convert to.
-     * @param advancedPipeCalls The pipe calls to execute.
-     * @return toStem the new stems of the converted deposit
-     * @return fromAmount the amount of tokens converted from
-     * @return toAmount the amount of tokens converted to
-     * @return fromBdv the bdv of the deposits converted from
-     * @return toBdv the bdv of the deposit converted to
+     * @notice See {_pipelineConvert()}.
      */
     function pipelineConvert(
         address inputToken,
@@ -69,6 +67,80 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
+        // set grown stalk slippage to max (i.e, the user is willing to take any stalk penalty).
+        pipelineReturnParams memory returnParams = _pipelineConvert(
+            inputToken,
+            stems,
+            amounts,
+            outputToken,
+            int256(LibConvert.MAX_GROWN_STALK_SLIPPAGE),
+            advancedPipeCalls
+        );
+        return (
+            returnParams.toStem,
+            returnParams.fromAmount,
+            returnParams.toAmount,
+            returnParams.fromBdv,
+            returnParams.toBdv
+        );
+    }
+
+    /**
+     * @notice See {_pipelineConvert()}.
+     * a variant of the pipelineConvert function that allows a
+     * user to specify a grown stalk slippage tolerance.
+     */
+    function pipelineConvertWithStalkSlippage(
+        address inputToken,
+        int96[] calldata stems,
+        uint256[] calldata amounts,
+        address outputToken,
+        int256 grownStalkSlippage,
+        AdvancedPipeCall[] memory advancedPipeCalls
+    )
+        external
+        payable
+        fundsSafu
+        nonReentrant
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
+    {
+        pipelineReturnParams memory returnParams = _pipelineConvert(
+            inputToken,
+            stems,
+            amounts,
+            outputToken,
+            grownStalkSlippage,
+            advancedPipeCalls
+        );
+        return (
+            returnParams.toStem,
+            returnParams.fromAmount,
+            returnParams.toAmount,
+            returnParams.fromBdv,
+            returnParams.toBdv
+        );
+    }
+
+    /**
+     * @notice Pipeline convert allows any type of convert using a series of
+     * pipeline calls. A stalk penalty may be applied if the convert crosses deltaB.
+     *
+     * @param inputToken The token to convert from.
+     * @param stems The stems of the deposits to convert from.
+     * @param amounts The amounts of the deposits to convert from.
+     * @param outputToken The token to convert to.
+     * @param grownStalkSlippage The slippage percentage. Controls the maximum amount of grown stalk that can be lost. 100% = 1e18.
+     * @param advancedPipeCalls The pipe calls to execute.
+     * @return returnParams containing the return values of the convert. see {pipelineReturnParams}
+     */
+    function _pipelineConvert(
+        address inputToken,
+        int96[] calldata stems,
+        uint256[] calldata amounts,
+        address outputToken,
+        int256 grownStalkSlippage,
+        AdvancedPipeCall[] memory advancedPipeCalls
+    ) internal returns (pipelineReturnParams memory returnParams) {
         // Require that input and output tokens be wells.
         // note: the input token does not need to be a currently whitelisted well,
         // but must be previously whitelisted.
@@ -88,49 +160,59 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
 
         // Calculate the maximum amount of tokens to withdraw.
         for (uint256 i = 0; i < stems.length; i++) {
-            fromAmount = fromAmount.add(amounts[i]);
+            returnParams.fromAmount = returnParams.fromAmount.add(amounts[i]);
         }
 
         // withdraw tokens from deposits and calculate the total grown stalk and bdv.
-        uint256 grownStalk;
         uint256 deltaRainRoots;
-        (grownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
+        uint256 initialGrownStalk;
+        (initialGrownStalk, returnParams.fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
             inputToken,
             stems,
             amounts,
-            fromAmount,
+            returnParams.fromAmount,
             LibTractor._user()
         );
+        uint256 grownStalk = initialGrownStalk;
 
-        (toAmount, grownStalk, toBdv) = LibPipelineConvert.executePipelineConvert(
+        (returnParams.toAmount, grownStalk, returnParams.toBdv) = LibPipelineConvert
+            .executePipelineConvert(
+                inputToken,
+                outputToken,
+                returnParams.fromAmount,
+                returnParams.fromBdv,
+                grownStalk,
+                advancedPipeCalls
+            );
+
+        // create convert params.
+        LibConvert.ConvertParams memory cp = LibConvert.ConvertParams({
+            fromToken: inputToken,
+            toToken: outputToken,
+            fromAmount: returnParams.fromAmount,
+            toAmount: returnParams.toAmount,
+            account: LibTractor._user(),
+            decreaseBDV: true,
+            shouldNotGerminate: false
+        });
+
+        (grownStalk, returnParams.toStem) = LibConvert.applyStalkModifiersAndDeposit(
+            cp,
+            returnParams.toBdv,
+            initialGrownStalk,
+            grownStalk,
+            grownStalkSlippage,
+            deltaRainRoots
+        );
+
+        emit Convert(
+            LibTractor._user(),
             inputToken,
             outputToken,
-            fromAmount,
-            fromBdv,
-            grownStalk,
-            advancedPipeCalls
+            returnParams.fromAmount,
+            returnParams.toAmount,
+            returnParams.fromBdv,
+            returnParams.toBdv
         );
-
-        if (outputToken != s.sys.bean && inputToken == s.sys.bean) {
-            uint256 grownStalkLost;
-            (grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
-                outputToken,
-                toBdv,
-                grownStalk,
-                fromAmount
-            );
-            emit LibConvert.ConvertDownPenalty(LibTractor._user(), grownStalkLost, grownStalk);
-        }
-
-        toStem = LibConvert._depositTokensForConvert(
-            outputToken,
-            toAmount,
-            toBdv,
-            grownStalk,
-            deltaRainRoots,
-            LibTractor._user()
-        );
-
-        emit Convert(LibTractor._user(), inputToken, outputToken, fromAmount, toAmount);
     }
 }

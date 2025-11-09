@@ -18,6 +18,7 @@ import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
+import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
 
 /**
  * @title InitializeDiamond
@@ -30,6 +31,7 @@ contract InitializeDiamond {
     // INITIAL CONSTANTS //
     uint128 constant INIT_BEAN_TO_MAX_LP_GP_RATIO = 33_333_333_333_333_333_333; // 33%
     uint128 constant INIT_AVG_GSPBDV = 3e12;
+    uint128 constant INIT_MAX_TOTAL_GAUGE_POINTS = 2000e18;
     uint32 constant INIT_BEAN_STALK_EARNED_PER_SEASON = 2e6;
     uint32 constant INIT_BEAN_TOKEN_WELL_STALK_EARNED_PER_SEASON = 4e6;
     uint48 constant INIT_STALK_ISSUED_PER_BDV = 1e10;
@@ -56,10 +58,10 @@ contract InitializeDiamond {
     /// @dev When the Pod Rate is high, issue less Soil.
     uint256 private constant SOIL_COEFFICIENT_HIGH = 0.25e18;
 
-    uint256 private constant SOIL_COEFFICIENT_REALATIVELY_HIGH = 0.5e18;
+    uint256 private constant SOIL_COEFFICIENT_RELATIVELY_HIGH = 0.5e18;
 
     /// @dev When the Pod Rate is low, issue more Soil.
-    uint256 private constant SOIL_COEFFICIENT_REALATIVELY_LOW = 1e18;
+    uint256 private constant SOIL_COEFFICIENT_RELATIVELY_LOW = 1e18;
 
     uint256 private constant SOIL_COEFFICIENT_LOW = 1.2e18;
 
@@ -81,39 +83,12 @@ contract InitializeDiamond {
     // Soil distribution period
     uint256 internal constant SOIL_DISTRIBUTION_PERIOD = 24 * 60 * 60; // 24 hours
 
-    // GAUGE DATA:
-
-    // Cultivation Factor
-    uint256 internal constant INIT_CULTIVATION_FACTOR = 50e6; // 50%
-    uint256 internal constant MIN_DELTA_CULTIVATION_FACTOR = 0.5e6; // 0.5%
-    uint256 internal constant MAX_DELTA_CULTIVATION_FACTOR = 2e6; // 2%
-    uint256 internal constant MIN_CULTIVATION_FACTOR = 1e6; // 1%
-    uint256 internal constant MAX_CULTIVATION_FACTOR = 100e6; // 100%
-
-    // Rolling Seasons Above Peg.
-    // The % penalty to be applied to grown stalk when down converting.
-    uint256 internal constant INIT_CONVERT_DOWN_PENALTY_RATIO = 0;
-    // Rolling count of seasons with a twap above peg.
-    uint256 internal constant INIT_ROLLING_SEASONS_ABOVE_PEG = 0;
-    // Max magnitude for rolling seasons above peg count.
-    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12;
-    // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
-    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
-
-    // Convert Down Penalty Gauge additional fields
-    uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
-    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 10_000_000e6; // initalize to 10M
-    // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18 = 4.1666667e14 (18 decimals)
-    uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // ~0.000416667e18 with 18 decimals
-
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
-    // Min Soil Sown Demand
-    uint256 internal constant MIN_SOIL_SOWN_DEMAND = 5e6; // 5
-
-    // Convert Down Penalty Rate (1.005 with 6 decimals)
-    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6;
+    // Pod Demand Scalars
+    uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.05e6; // 5%
+    uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
 
     uint128 internal constant INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD = 1000e6; // 1000
 
@@ -128,9 +103,9 @@ contract InitializeDiamond {
     function initializeDiamond(address bean, address beanTokenWell) internal {
         addInterfaces();
         initializeTokens(bean);
-        initalizeSeason();
-        initalizeField();
-        initalizeFarmAndTractor();
+        InitializeSeason();
+        InitializeField();
+        InitializeFarmAndTractor();
         initializeGauges();
 
         address[] memory tokens = new address[](2);
@@ -138,7 +113,7 @@ contract InitializeDiamond {
         tokens[1] = beanTokenWell;
 
         // note: bean and assets that are not in the gauge system
-        // do not need to initalize the gauge system.
+        // do not need to Initialize the gauge system.
         Implementation memory impl = Implementation(address(0), bytes4(0), bytes1(0), new bytes(0));
         Implementation memory liquidityWeightImpl = Implementation(
             address(0),
@@ -211,11 +186,12 @@ contract InitializeDiamond {
     /**
      * @notice Initializes field parameters.
      */
-    function initalizeField() internal {
+    function InitializeField() internal {
         s.sys.weather.temp = 1e6;
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
-
+        s.sys.weather.morningDuration = 600; // 10 minutes
+        s.sys.weather.morningControl = uint128(1e18) / 240; // 1 / 240 = 0.004166666667
         s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
         s.sys.referralBeanSownEligibilityThreshold = INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD;
     }
@@ -223,17 +199,17 @@ contract InitializeDiamond {
     /**
      * @notice Initializes season parameters.
      */
-    function initalizeSeason() internal {
+    function InitializeSeason() internal {
         // set current season to 1.
         s.sys.season.current = 1;
 
-        // initalize the duration of 1 season in seconds.
+        // Initialize the duration of 1 season in seconds.
         s.sys.season.period = C.CURRENT_SEASON_PERIOD;
 
-        // initalize current timestamp.
+        // Initialize current timestamp.
         s.sys.season.timestamp = block.timestamp;
 
-        // initalize the start timestamp.
+        // Initialize the start timestamp.
         // Rounds down to the nearest hour
         // if needed.
         s.sys.season.start = s.sys.season.period > 0
@@ -248,21 +224,24 @@ contract InitializeDiamond {
     }
 
     /**
-     * @notice Initalize the cases for the diamond.
+     * @notice Initialize the cases for the diamond.
      */
     function setCases() internal {
         LibCases.setCasesV2();
     }
 
-    function initalizeSeedGauge(
+    function initializeSeedGauge(
         uint128 beanToMaxLpGpRatio,
-        uint128 averageGrownStalkPerBdvPerSeason
+        uint128 averageGrownStalkPerBdvPerSeason,
+        uint128 maxTotalGaugePoints
     ) internal {
-        // initalize the ratio of bean to max lp gp per bdv.
+        // Initialize the ratio of bean to max lp gp per bdv.
         s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = beanToMaxLpGpRatio;
 
-        // initalize the average grown stalk per bdv per season.
+        // Initialize the average grown stalk per bdv per season.
         s.sys.seedGauge.averageGrownStalkPerBdvPerSeason = averageGrownStalkPerBdvPerSeason;
+
+        s.sys.seedGauge.maxTotalGaugePoints = maxTotalGaugePoints;
 
         // emit events.
         emit BeanToMaxLpGpPerBdvRatioChange(
@@ -322,11 +301,11 @@ contract InitializeDiamond {
         s
             .sys
             .extEvaluationParameters
-            .soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_REALATIVELY_HIGH;
+            .soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_RELATIVELY_HIGH;
         s
             .sys
             .extEvaluationParameters
-            .soilCoefficientRelativelyLow = SOIL_COEFFICIENT_REALATIVELY_LOW;
+            .soilCoefficientRelativelyLow = SOIL_COEFFICIENT_RELATIVELY_LOW;
         s.sys.evaluationParameters.soilCoefficientLow = SOIL_COEFFICIENT_LOW;
         s.sys.evaluationParameters.baseReward = BASE_REWARD;
         s
@@ -338,54 +317,24 @@ contract InitializeDiamond {
 
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
-        s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
     }
 
-    function initalizeFarmAndTractor() internal {
+    function InitializeFarmAndTractor() internal {
         LibTractor._resetPublisher();
         LibTractor._setVersion("1.0.0");
     }
 
     function initializeGauges() internal {
-        initalizeSeedGauge(INIT_BEAN_TO_MAX_LP_GP_RATIO, INIT_AVG_GSPBDV);
-
-        Gauge memory cultivationFactorGauge = Gauge(
-            abi.encode(INIT_CULTIVATION_FACTOR),
-            address(this),
-            IGaugeFacet.cultivationFactor.selector,
-            abi.encode(
-                MIN_DELTA_CULTIVATION_FACTOR,
-                MAX_DELTA_CULTIVATION_FACTOR,
-                MIN_CULTIVATION_FACTOR,
-                MAX_CULTIVATION_FACTOR,
-                0,
-                0
-            )
+        initializeSeedGauge(
+            INIT_BEAN_TO_MAX_LP_GP_RATIO,
+            INIT_AVG_GSPBDV,
+            INIT_MAX_TOTAL_GAUGE_POINTS
         );
-        LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
 
-        Gauge memory convertDownPenaltyGauge = Gauge(
-            abi.encode(
-                LibGaugeHelpers.ConvertDownPenaltyValue({
-                    penaltyRatio: INIT_CONVERT_DOWN_PENALTY_RATIO,
-                    rollingSeasonsAbovePeg: INIT_ROLLING_SEASONS_ABOVE_PEG
-                })
-            ),
-            address(this),
-            IGaugeFacet.convertDownPenaltyGauge.selector,
-            abi.encode(
-                LibGaugeHelpers.ConvertDownPenaltyData({
-                    rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
-                    rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
-                    beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
-                    beanMintedThreshold: INIT_BEAN_AMOUNT_ABOVE_THRESHOLD,
-                    runningThreshold: 0,
-                    percentSupplyThresholdRate: INIT_PERCENT_SUPPLY_THRESHOLD_RATE,
-                    convertDownPenaltyRate: CONVERT_DOWN_PENALTY_RATE,
-                    thresholdSet: true
-                })
-            )
-        );
-        LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
+        LibInitGauges.initCultivationFactor(); // add the cultivation factor gauge
+
+        LibInitGauges.initConvertDownPenalty(); // add the convert down penalty gauge
+
+        LibInitGauges.initConvertUpBonusGauge(0, 0); // add the convert up bonus gauge
     }
 }

@@ -3,15 +3,16 @@
 pragma solidity ^0.8.20;
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {LibRedundantMath128} from "contracts/libraries/Math/LibRedundantMath128.sol";
-import {LibCases} from "contracts/libraries/LibCases.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
+import {LibRedundantMath128} from "contracts/libraries/Math/LibRedundantMath128.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+import {LibCases} from "contracts/libraries/LibCases.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 /**
  * @title LibWeather
- * @notice Library for weather-related functions including temperature and BeanToMaxLpGpPerBdvRatio updates.
+ * @notice Library for managing Weather state in Beanstalk, including Temperature and Grown Stalk to LP ratios.
+ * @dev Weather controls the Temperature and Grown Stalk to LP on the Farm.
  */
 library LibWeather {
     using LibRedundantMath128 for uint128;
@@ -43,17 +44,15 @@ library LibWeather {
 
     /**
      * @notice updates the temperature and BeanToMaxLpGpPerBdvRatio, based on the caseId.
-     * @param caseId the state beanstalk is in, based on the current season.
      * @dev currently, an oracle failure does not affect the temperature, as
      * the temperature is not affected by liquidity levels. The function will
      * need to be updated if the temperature is affected by liquidity levels.
      * This is implemented such that liveliness in change in temperature is retained.
      */
     function updateTemperatureAndBeanToMaxLpGpPerBdvRatio(
-        uint256 caseId,
-        LibEvaluate.BeanstalkState memory bs,
-        bool oracleFailure
+        LibEvaluate.BeanstalkState memory bs
     ) external {
+        uint256 caseId = bs.caseId;
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
 
         // if the podrate is > 100% and deltaB is negative, set bt based on soil demand:
@@ -78,13 +77,16 @@ library LibWeather {
 
         // if one of the oracles needed to calculate usd liquidity fails,
         // the beanToMaxLpGpPerBdvRatio should not be updated.
-        if (oracleFailure) return;
+        if (bs.oracleFailure) return;
         updateBeanToMaxLPRatio(cd.bL, caseId);
     }
 
     /**
-     * @notice Changes the current Temperature `s.weather.t` based on the Case Id.
+     * @notice Changes the current Temperature `s.weather.temp` based on the Case Id.
      * @dev bT are set during edge cases such that the event emitted is valid.
+     * @param bT The temperature change amount
+     * @param caseId The case ID from weather evaluation
+     * @dev Temperature is stored as uint64 in storage
      */
     function updateTemperature(int32 bT, uint256 caseId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -96,15 +98,14 @@ library LibWeather {
                 // if temp is to be decreased and the change is greater than the current temp,
                 // - then the new temp will be 1e6.
                 // - and the change in temp bT will be the difference between the new temp and the old temp.
-                // if (change < 0 && t <= uint32(-change)),
-                // then 0 <= t <= type(int32).max because change is an int32.
+                // if (change < 0 && t <= uint64(-change)),
                 bT = 1e6 - int32(int256(t));
                 s.sys.weather.temp = 1e6;
             } else {
-                s.sys.weather.temp = uint32(t - uint256(int256(-bT)));
+                s.sys.weather.temp = uint64(t - uint256(int256(-bT)));
             }
         } else {
-            s.sys.weather.temp = uint32(t + uint256(int256(bT)));
+            s.sys.weather.temp = uint64(t + uint256(int256(bT)));
         }
 
         emit TemperatureChange(s.sys.season.current, caseId, bT, s.sys.activeField);
