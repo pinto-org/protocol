@@ -117,7 +117,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @dev Only blueprints using the current version can be run.
      */
     function getTractorVersion() external view returns (string memory) {
-        return LibTractor._tractorStorage().version;
+        return LibTractor._getVersion();
     }
 
     /**
@@ -160,45 +160,34 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         runBlueprint(requisition)
         returns (bytes[] memory results)
     {
-        require(requisition.blueprint.data.length > 0, "Tractor: data empty");
+        return LibTractor.tractor(requisition, operatorData);
+    }
 
-        // Set current blueprint hash
-        LibTractor._setCurrentBlueprintHash(requisition.blueprintHash);
-
-        // Set operator
-        LibTractor._setOperator(msg.sender);
-
-        // Decode and execute advanced farm calls.
-        // Cut out blueprint calldata selector.
-        AdvancedFarmCall[] memory calls = abi.decode(
-            LibBytes.sliceFrom(requisition.blueprint.data, 4),
-            (AdvancedFarmCall[])
-        );
-
-        // Update data with operator-defined fillData.
-        for (uint256 i; i < requisition.blueprint.operatorPasteInstrs.length; ++i) {
-            bytes32 operatorPasteInstr = requisition.blueprint.operatorPasteInstrs[i];
-            uint80 pasteCallIndex = operatorPasteInstr.getIndex1();
-            require(calls.length > pasteCallIndex, "Tractor: pasteCallIndex OOB");
-
-            LibBytes.pasteBytesTractor(
-                operatorPasteInstr,
-                operatorData,
-                calls[pasteCallIndex].callData
-            );
-        }
-
-        results = new bytes[](calls.length);
-        for (uint256 i = 0; i < calls.length; ++i) {
-            require(calls[i].callData.length != 0, "Tractor: empty AdvancedFarmCall");
-            results[i] = LibFarm._advancedFarm(calls[i], results);
-        }
-
-        // Clear current blueprint hash
-        LibTractor._resetCurrentBlueprintHash();
-
-        // Clear operator
-        LibTractor._resetOperator();
+    /**
+     * @notice Execute a Tractor blueprint with dynamic data injection.
+     * @param requisition The blueprint requisition. See {LibTractor.Requisition}
+     * @param operatorData Static length data provided by the operator.
+     * @param operatorDynamicData Generic length data provided by the operator
+     * @dev `operatorDynamicData` allows for smart contracts that wrap around Tractor to utilize
+     * @return results Array of results from executed farm calls
+     */
+    function tractorDynamicData(
+        LibTractor.Requisition calldata requisition,
+        bytes memory operatorData,
+        LibTractor.ContractData[] memory operatorDynamicData
+    )
+        external
+        payable
+        fundsSafu
+        nonReentrantFarm
+        verifyRequisition(requisition)
+        runBlueprint(requisition)
+        returns (bytes[] memory results)
+    {
+        LibTractor.setContractData(operatorDynamicData);
+        results = LibTractor.tractor(requisition, operatorData);
+        LibTractor.resetContractData(operatorDynamicData);
+        return results;
     }
 
     /**
@@ -238,7 +227,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @return count Counter value
      */
     function getCounter(address account, bytes32 counterId) external view returns (uint256 count) {
-        return LibTractor._tractorStorage().blueprintCounters[account][counterId];
+        return LibTractor._getBlueprintCounter(account, counterId);
     }
 
     /**
@@ -247,10 +236,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @return count Counter value
      */
     function getPublisherCounter(bytes32 counterId) public view returns (uint256 count) {
-        return
-            LibTractor._tractorStorage().blueprintCounters[
-                LibTractor._tractorStorage().activePublisher
-            ][counterId];
+        return LibTractor._getBlueprintCounter(LibTractor._getActivePublisher(), counterId);
     }
 
     /**
@@ -269,9 +255,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         } else if (updateType == LibTractor.CounterUpdateType.DECREASE) {
             newCount = getPublisherCounter(counterId).sub(amount);
         }
-        LibTractor._tractorStorage().blueprintCounters[
-            LibTractor._tractorStorage().activePublisher
-        ][counterId] = newCount;
+        LibTractor._setBlueprintCounter(LibTractor._getActivePublisher(), counterId, newCount);
         return newCount;
     }
 
@@ -309,7 +293,20 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         return LibTractor._user();
     }
 
+    /**
+     * @notice Get the operator context for tractor operations.
+     * @return operator Current operator
+     */
     function operator() external view returns (address) {
         return LibTractor._getOperator();
+    }
+
+    /**
+     * @notice Get tractor data by key (for blueprint contract access).
+     * @dev This function should be called within Tractor Blueprint Contracts that require dynamically sized data
+     *      given by Tractor operators.
+     */
+    function getTractorData(uint256 key) external view returns (bytes memory) {
+        return LibTractor.getTractorData(key);
     }
 }
