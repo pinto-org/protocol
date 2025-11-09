@@ -58,7 +58,7 @@ library LibTransientStorage {
 
     /**
      * @notice Clear a uint256 value from transient storage
-     * @dev This is optional since transient storage 
+     * @dev This is optional since transient storage
      * auto-clears at transaction end
      * @param key Unique identifier for the value to clear
      */
