@@ -5,6 +5,7 @@
 pragma solidity ^0.8.20;
 
 import {TransientContext} from "transience/src/TransientContext.sol";
+import {TransientContextBytes} from "transience/src/TransientContextBytes.sol";
 
 /**
  * @title LibTransientStorage
@@ -44,6 +45,7 @@ library LibTransientStorage {
     // Core Storage Functions
     // ======================
 
+    // uint256 Operations
     /**
      * @notice Set a uint256 value in transient storage
      * @param key Unique identifier for the stored value
@@ -52,6 +54,16 @@ library LibTransientStorage {
     function setUint256(uint256 key, uint256 value) internal {
         bytes32 slot = _generateSlot(UINT256_OFFSET, key);
         TransientContext.set(slot, value);
+    }
+
+    /**
+     * @notice Clear a uint256 value from transient storage
+     * @dev This is optional since transient storage 
+     * auto-clears at transaction end
+     * @param key Unique identifier for the value to clear
+     */
+    function clearUint256(uint256 key) internal {
+        setUint256(key, 0);
     }
 
     /**
@@ -64,6 +76,7 @@ library LibTransientStorage {
         return TransientContext.get(slot);
     }
 
+    // bytes32 Operations
     /**
      * @notice Set a bytes32 value in transient storage
      * @param key Unique identifier for the stored value
@@ -72,6 +85,14 @@ library LibTransientStorage {
     function setBytes32(uint256 key, bytes32 value) internal {
         bytes32 slot = _generateSlot(BYTES32_OFFSET, key);
         TransientContext.set(slot, uint256(value));
+    }
+
+    /**
+     * @notice Clear a bytes32 value from transient storage
+     * @param key Unique identifier for the value to clear
+     */
+    function clearBytes32(uint256 key) internal {
+        setBytes32(key, 0);
     }
 
     /**
@@ -84,6 +105,7 @@ library LibTransientStorage {
         return bytes32(TransientContext.get(slot));
     }
 
+    // address Operations
     /**
      * @notice Set an address value in transient storage
      * @param key Unique identifier for the stored value
@@ -92,6 +114,14 @@ library LibTransientStorage {
     function setAddress(uint256 key, address value) internal {
         bytes32 slot = _generateSlot(ADDRESS_OFFSET, key);
         TransientContext.set(slot, uint256(uint160(value)));
+    }
+
+    /**
+     * @notice Clear an address value from transient storage
+     * @param key Unique identifier for the value to clear
+     */
+    function clearAddress(uint256 key) internal {
+        setAddress(key, address(0));
     }
 
     /**
@@ -104,26 +134,23 @@ library LibTransientStorage {
         return address(uint160(TransientContext.get(slot)));
     }
 
+    // bytes Operations
     /**
      * @notice Set arbitrary bytes data in transient storage
-     * @dev For bytes data, we store length in one slot and data in subsequent slots
      * @param key Unique identifier for the stored value
      * @param value The bytes data to store
      */
     function setBytes(uint256 key, bytes memory value) internal {
-        bytes32 lengthSlot = _generateSlot(BYTES_OFFSET, key);
-        TransientContext.set(lengthSlot, value.length);
+        bytes32 slot = _generateSlot(BYTES_OFFSET, key);
+        TransientContextBytes.set(slot, value);
+    }
 
-        // Store data in 32-byte chunks
-        uint256 chunks = (value.length + 31) / 32;
-        for (uint256 i = 0; i < chunks; i++) {
-            bytes32 dataSlot = _generateSlot(BYTES_OFFSET, key + i + 1);
-            bytes32 chunk;
-            assembly ("memory-safe") {
-                chunk := mload(add(add(value, 0x20), mul(i, 0x20)))
-            }
-            TransientContext.set(dataSlot, uint256(chunk));
-        }
+    /**
+     * @notice Clear bytes data from transient storage
+     * @param key Unique identifier for the value to clear
+     */
+    function clearBytes(uint256 key) internal {
+        setBytes(key, "");
     }
 
     /**
@@ -132,66 +159,8 @@ library LibTransientStorage {
      * @return value The retrieved bytes data (empty bytes if not set)
      */
     function getBytes(uint256 key) internal view returns (bytes memory value) {
-        bytes32 lengthSlot = _generateSlot(BYTES_OFFSET, key);
-        uint256 length = TransientContext.get(lengthSlot);
-
-        if (length == 0) return value; // Return empty bytes
-
-        value = new bytes(length);
-        uint256 chunks = (length + 31) / 32;
-
-        for (uint256 i = 0; i < chunks; i++) {
-            bytes32 dataSlot = _generateSlot(BYTES_OFFSET, key + i + 1);
-            bytes32 chunk = bytes32(TransientContext.get(dataSlot));
-            assembly ("memory-safe") {
-                mstore(add(add(value, 0x20), mul(i, 0x20)), chunk)
-            }
-        }
-    }
-
-    /**
-     * @notice Clear a value from transient storage (sets to 0)
-     * @dev This is optional since transient storage auto-clears at transaction end
-     * @param key Unique identifier for the value to clear
-     */
-    function clearUint256(uint256 key) internal {
-        bytes32 slot = _generateSlot(UINT256_OFFSET, key);
-        TransientContext.set(slot, 0);
-    }
-
-    /**
-     * @notice Clear a bytes32 value from transient storage
-     * @param key Unique identifier for the value to clear
-     */
-    function clearBytes32(uint256 key) internal {
-        bytes32 slot = _generateSlot(BYTES32_OFFSET, key);
-        TransientContext.set(slot, 0);
-    }
-
-    /**
-     * @notice Clear an address value from transient storage
-     * @param key Unique identifier for the value to clear
-     */
-    function clearAddress(uint256 key) internal {
-        bytes32 slot = _generateSlot(ADDRESS_OFFSET, key);
-        TransientContext.set(slot, 0);
-    }
-
-    /**
-     * @notice Clear bytes data from transient storage
-     * @param key Unique identifier for the value to clear
-     */
-    function clearBytes(uint256 key) internal {
-        bytes32 lengthSlot = _generateSlot(BYTES_OFFSET, key);
-        uint256 length = TransientContext.get(lengthSlot);
-        TransientContext.set(lengthSlot, 0);
-
-        // Clear data chunks
-        uint256 chunks = (length + 31) / 32;
-        for (uint256 i = 0; i < chunks; i++) {
-            bytes32 dataSlot = _generateSlot(BYTES_OFFSET, key + i + 1);
-            TransientContext.set(dataSlot, 0);
-        }
+        bytes32 slot = _generateSlot(BYTES_OFFSET, key);
+        return TransientContextBytes.get(slot);
     }
 
     // ======================
