@@ -230,12 +230,16 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     }
 
     /**
-     * @notice Get current counter value.
+     * @notice Get current counter value and publisher.
      * @dev Intended for access via Tractor farm call. QoL function.
+     * @return publisher Active publisher address
      * @return count Counter value
      */
-    function getPublisherCounter(bytes32 counterId) public view returns (uint256 count) {
-        return LibTractor._getBlueprintCounter(LibTractor._getActivePublisher(), counterId);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) public view returns (address publisher, uint256 count) {
+        publisher = LibTractor._getActivePublisher();
+        count = LibTractor._getBlueprintCounter(publisher, counterId);
     }
 
     /**
@@ -248,13 +252,14 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         LibTractor.CounterUpdateType updateType,
         uint256 amount
     ) external fundsSafu noNetFlow noSupplyChange nonReentrant returns (uint256 count) {
+        (address publisher, uint256 currentCount) = getPublisherCounter(counterId);
         uint256 newCount;
         if (updateType == LibTractor.CounterUpdateType.INCREASE) {
-            newCount = getPublisherCounter(counterId).add(amount);
+            newCount = currentCount.add(amount);
         } else if (updateType == LibTractor.CounterUpdateType.DECREASE) {
-            newCount = getPublisherCounter(counterId).sub(amount);
+            newCount = currentCount.sub(amount);
         }
-        LibTractor._setBlueprintCounter(LibTractor._getActivePublisher(), counterId, newCount);
+        LibTractor._setBlueprintCounter(publisher, counterId, newCount);
         return newCount;
     }
 

@@ -1147,7 +1147,9 @@ interface IMockFBeanstalk {
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB);
 
-    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) external view returns (address publisher, uint256 count);
 
     function getReceiver(address owner) external view returns (address);
 
