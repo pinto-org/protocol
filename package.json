@@ -1,7 +1,8 @@
 {
-  "name": "@beanstalk/protocol",
+  "name": "pinto-convert-bonus",
   "version": "2.7.1",
-  "description": "Beanstalk is a permissionless fiat stablecoin protocol built on Ethereum.",
+  "private": true,
+  "description": "Pinto convert bonus module",
   "installConfig": {
     "hoistingLimits": "dependencies"
   },

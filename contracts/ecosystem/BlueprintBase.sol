@@ -33,7 +33,12 @@ abstract contract BlueprintBase is PerFunctionPausable {
 
     // Contracts
     IBeanstalk public immutable beanstalk;
+    address public immutable beanToken;
     TractorHelpers public immutable tractorHelpers;
+
+    // temporary storage for beanstalk data
+    address publisher;
+    address operator;
 
     constructor(
         address _beanstalk,
@@ -42,6 +47,17 @@ abstract contract BlueprintBase is PerFunctionPausable {
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
         tractorHelpers = TractorHelpers(_tractorHelpers);
+        beanToken = beanstalk.getBeanToken();
+    }
+
+    /**
+     * @notice Fetches beanstalk data that all functions exectuable by blueprints will use.
+     * modifier will fetch data, then reset it after the function is executed.
+     */
+    modifier fetchBeanstalkData() {
+        publisher = beanstalk.tractorUser();
+        operator = beanstalk.operator();
+        _;
     }
 
     /**
