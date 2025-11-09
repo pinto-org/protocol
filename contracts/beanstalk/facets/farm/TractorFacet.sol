@@ -22,6 +22,8 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
     event PublishRequisition(LibTractor.Requisition requisition);
 
+    event PublishData(bytes compressedData);
+
     event CancelBlueprint(bytes32 indexed blueprintHash);
 
     event Tractor(
@@ -121,7 +123,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      */
     function publishRequisition(
         LibTractor.Requisition calldata requisition
-    ) external fundsSafu noNetFlow noSupplyChange verifyRequisition(requisition) nonReentrant {
+    ) external verifyRequisition(requisition) {
         require(
             LibTractor._getBlueprintNonce(requisition.blueprintHash) <
                 requisition.blueprint.maxNonce,
@@ -131,11 +133,19 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice Publish compressed blueprint data by emitting it in an event.
+     * @dev Allows publishing compressed data for gas savings.
+     */
+    function publishData(bytes memory compressedData) external {
+        emit PublishData(compressedData);
+    }
+
+    /**
      * @notice Destroy existing blueprint
      */
     function cancelBlueprint(
         LibTractor.Requisition calldata requisition
-    ) external fundsSafu noNetFlow noSupplyChange verifyRequisition(requisition) nonReentrant {
+    ) external verifyRequisition(requisition) {
         require(msg.sender == requisition.blueprint.publisher, "TractorFacet: not publisher");
         LibTractor._cancelBlueprint(requisition.blueprintHash);
         emit CancelBlueprint(requisition.blueprintHash);
