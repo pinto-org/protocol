@@ -12,12 +12,14 @@ library LibTractorStorage {
     /**
      * @title TractorStorage
      * @notice Contains all state for the Tractor system.
-     * @param blueprintNonce Number of times each blueprint has been run.
-     * @param blueprintCounters Publisher address to counter id to counter value mapping.
-     * @param activePublisher Publisher of current operations. Set to address(1) when no active publisher.
-     * @param version Version of Tractor. Only Blueprints using current Version can run.
-     * @param currentBlueprintHash Hash of currently executing blueprint.
-     * @param operator Address of the currently executing operator.
+     * @param blueprintNonce Number of times each blueprint has been run
+     * @param blueprintCounters Publisher address to counter id to counter value mapping
+     * @param activePublisher The publisher of the blueprint being executed
+     * Set to the publisher when `tractor` is called. Set to address(1) otherwise.
+     * @param version Version of Tractor. Only Blueprints using current Version can run
+     * @param currentBlueprintHash Hash of currently executing blueprint
+     * @param operator The operator executing the blueprint
+     * Set to the operator when `tractor` is called, Set to address(1) otherwise.
      */
     struct TractorStorage {
         mapping(bytes32 => uint256) blueprintNonce;

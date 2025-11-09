@@ -313,7 +313,7 @@ library LibTractor {
 
     /**
      * @notice Execute tractor blueprint with core execution logic.
-     * @dev Core function that handles blueprint decoding and farm call execution
+     * @dev handles blueprint decoding and farm call execution
      * @param requisition The blueprint requisition containing signature and blueprint data
      * @param operatorData Static length data provided by the operator
      * @return results Array of results from executed farm calls
