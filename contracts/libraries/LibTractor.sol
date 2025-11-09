@@ -325,10 +325,10 @@ library LibTractor {
     ) internal returns (bytes[] memory results) {
         require(requisition.blueprint.data.length > 0, "LibTractor: data empty");
 
-        // Set current blueprint hash
+        // Set current blueprint hash.
         _setCurrentBlueprintHash(requisition.blueprintHash);
 
-        // Set operator
+        // Set operator.
         _setOperator(msg.sender);
 
         // Decode and execute advanced farm calls.
@@ -357,10 +357,10 @@ library LibTractor {
             results[i] = LibFarm._advancedFarm(calls[i], results);
         }
 
-        // Clear current blueprint hash
+        // Clear current blueprint hash.
         _resetCurrentBlueprintHash();
 
-        // Clear operator
+        // Clear operator.
         _resetOperator();
     }
 }
