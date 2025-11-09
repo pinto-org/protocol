@@ -90,7 +90,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (uint256 pods)
     {
-        return LibDibbler.sowWithMin(beans, minTemperature, beans, mode);
+        (pods, , ) = LibDibbler.sowWithMin(beans, minTemperature, beans, mode, address(0));
     }
 
     /**
@@ -116,7 +116,28 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (uint256 pods)
     {
-        return LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode);
+        (pods, , ) = LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode, address(0));
+    }
+
+    /**
+     * @notice Sow Beans in exchange for Pods with a referral. See {FieldFacet.sowWithMin} for more details.
+     * @dev If the referral is not valid, the function will silently return 0 for referrerPods and refereePods.
+     */
+    function sowWithReferral(
+        uint256 beans,
+        uint256 minTemperature,
+        uint256 minSoil,
+        LibTransfer.From mode,
+        address referral
+    )
+        external
+        fundsSafu
+        noSupplyIncrease
+        oneOutFlow(s.sys.bean)
+        nonReentrant
+        returns (uint256 pods, uint256 referrerPods, uint256 refereePods)
+    {
+        return LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode, referral);
     }
 
     //////////////////// HARVEST ////////////////////
@@ -458,5 +479,27 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      */
     function beanSown() external view returns (uint256) {
         return s.sys.beanSown;
+    }
+
+    function getReferrerPercentage() external view returns (uint256) {
+        return s.sys.referrerPercentage;
+    }
+
+    function getRefereePercentage() external view returns (uint256) {
+        return s.sys.refereePercentage;
+    }
+
+    function getBeanSownEligibilityThreshold() external view returns (uint256) {
+        return s.sys.referralBeanSownEligibilityThreshold;
+    }
+
+    function isValidReferrer(address referrer) external view returns (bool) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.eligibility;
+    }
+
+    function getBeansSownForReferral(address referrer) external view returns (uint256) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.beans;
     }
 }

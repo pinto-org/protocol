@@ -7,6 +7,7 @@ import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {SowBlueprintBase} from "contracts/ecosystem/tractor/blueprints/SowBlueprintBase.sol";
 import {PriceManipulation} from "contracts/ecosystem/tractor/utils/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -153,7 +154,7 @@ contract SowBlueprintTest is TractorTestHelper {
 
             // Expect the SowOrderComplete event to be emitted for complete order
             vm.expectEmit(true, true, true, true);
-            emit SowBlueprint.SowOrderComplete(
+            emit SowBlueprintBase.SowOrderComplete(
                 req.blueprintHash,
                 state.user,
                 state.sowAmount / 4,
@@ -506,7 +507,7 @@ contract SowBlueprintTest is TractorTestHelper {
 
             // Expect the SowOrderComplete event to be emitted for complete order
             vm.expectEmit(true, true, true, true);
-            emit SowBlueprint.SowOrderComplete(
+            emit SowBlueprintBase.SowOrderComplete(
                 req.blueprintHash,
                 state.user,
                 60e6, // 60e6 sowed
@@ -691,9 +692,9 @@ contract SowBlueprintTest is TractorTestHelper {
         uint256 amountToSow,
         uint256 minAmountToSow,
         uint256 maxAmountToSowPerSeason
-    ) internal pure returns (SowBlueprint.SowAmounts memory) {
+    ) internal pure returns (SowBlueprintBase.SowAmounts memory) {
         return
-            SowBlueprint.SowAmounts({
+            SowBlueprintBase.SowAmounts({
                 totalAmountToSow: amountToSow,
                 minAmountToSowPerSeason: minAmountToSow,
                 maxAmountToSowPerSeason: maxAmountToSowPerSeason
@@ -707,7 +708,7 @@ contract SowBlueprintTest is TractorTestHelper {
         TestState memory state = setupSowBlueprintv0Test();
 
         // Setup mock data
-        SowBlueprint.SowAmounts memory sowAmounts = SowBlueprint.SowAmounts({
+        SowBlueprintBase.SowAmounts memory sowAmounts = SowBlueprintBase.SowAmounts({
             totalAmountToSow: 10000e6,
             minAmountToSowPerSeason: 1000e6,
             maxAmountToSowPerSeason: 1000e6
@@ -792,7 +793,7 @@ contract SowBlueprintTest is TractorTestHelper {
         TestState memory state = setupSowBlueprintv0Test();
 
         // Setup mock data
-        SowBlueprint.SowAmounts memory sowAmounts = SowBlueprint.SowAmounts({
+        SowBlueprintBase.SowAmounts memory sowAmounts = SowBlueprintBase.SowAmounts({
             totalAmountToSow: 1000e6,
             minAmountToSowPerSeason: 1000e6,
             maxAmountToSowPerSeason: type(uint256).max

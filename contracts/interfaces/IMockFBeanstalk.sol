@@ -1614,6 +1614,10 @@ interface IMockFBeanstalk {
 
     function setSoilE(uint256 amount) external;
 
+    function setReferrerPercentageE(uint128 percentage) external;
+
+    function setRefereePercentageE(uint128 percentage) external;
+
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
     function setSunriseBlock(uint256 _block) external;
@@ -1879,6 +1883,7 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
+
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1961,4 +1966,6 @@ interface IMockFBeanstalk {
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
 
     function getSeedsForToken(address token) external view returns (uint256 seeds);
+
+    function setReferralEligibility(address referrer, bool eligible) external;
 }
