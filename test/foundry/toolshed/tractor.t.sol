@@ -63,6 +63,39 @@ contract TractorTest is TestHelper, TractorTestHelper {
         return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
     }
 
+    /**
+     * @notice Helper to create multiple dynamic data entries for fuzz testing.
+     * @param count Number of dynamic data entries to create (1-25)
+     * @return pipes Array of pipe calls
+     * @return dynamicData Array of contract data entries
+     */
+    function createDynamicDataArray(
+        uint256 count
+    )
+        internal
+        view
+        returns (
+            IMockFBeanstalk.AdvancedPipeCall[] memory pipes,
+            IMockFBeanstalk.ContractData[] memory dynamicData
+        )
+    {
+        pipes = new IMockFBeanstalk.AdvancedPipeCall[](count);
+        dynamicData = new IMockFBeanstalk.ContractData[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            uint256 key = i + 100; // Use keys starting from 100 to avoid conflicts.
+            uint256 testValue = (i + 1) * 1000; // Sequential test values.
+
+            pipes[i] = IMockFBeanstalk.AdvancedPipeCall({
+                target: address(mockBlueprint),
+                callData: abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, key),
+                clipboard: hex"0000"
+            });
+
+            dynamicData[i] = IMockFBeanstalk.ContractData({key: key, value: abi.encode(testValue)});
+        }
+    }
+
     //////////////// ERC1271 ////////////////
 
     /**
@@ -360,24 +393,20 @@ contract TractorTest is TestHelper, TractorTestHelper {
     }
 
     /**
-     * @notice Test tractorDynamicData with multiple data entries
-     * @dev Tests concurrent transient storage key-value pairs with different data types in single execution
+     * @notice Fuzz test tractorDynamicData with multiple dynamic data entries (1-25).
+     * @dev Tests transient storage with variable number of concurrent key-value pairs
      */
-    function test_DynamicData_MultipleEntries() public {
-        // Create pipe calls to process both uint256 and address
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](2);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 10),
-            clipboard: hex"0000"
-        });
-        pipes[1] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(MockTractorBlueprint.processAddress.selector, 20),
-            clipboard: hex"0000"
-        });
+    function testFuzz_DynamicData_MultipleEntries(uint256 entryCount) public {
+        // Bound to reasonable range for gas efficiency and coverage.
+        entryCount = bound(entryCount, 1, 25);
 
-        // Wrap in farm call
+        // Create dynamic arrays using helper.
+        (
+            IMockFBeanstalk.AdvancedPipeCall[] memory pipes,
+            IMockFBeanstalk.ContractData[] memory dynamicData
+        ) = createDynamicDataArray(entryCount);
+
+        // Wrap in farm call.
         IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
         calls[0] = IMockFBeanstalk.AdvancedFarmCall({
             callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
@@ -386,31 +415,31 @@ contract TractorTest is TestHelper, TractorTestHelper {
 
         bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
 
-        // Create requisition
+        // Create requisition.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
             farmers[0],
             data,
             address(bs)
         );
 
-        // Create multiple dynamic data entries
-        address testAddress = farmers[1];
-        IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](2);
-        dynamicData[0] = IMockFBeanstalk.ContractData({key: 10, value: abi.encode(uint256(54321))});
-        dynamicData[1] = IMockFBeanstalk.ContractData({key: 20, value: abi.encode(testAddress)});
-
-        // Execute with multiple data entries
+        // Execute with dynamic data.
         vm.prank(farmers[0]);
         bytes[] memory results = bs.tractorDynamicData(req, "", dynamicData);
 
-        // Verify both operations succeeded
+        // Verify execution succeeded.
         assertEq(results.length, 1, "Should return one result");
-        assertEq(mockBlueprint.processedValue(), 54321, "Should have processed uint256 value");
-        assertEq(
-            mockBlueprint.processedAddress(),
-            testAddress,
-            "Should have processed address value"
-        );
+
+        // Verify all values were processed correctly.
+        for (uint256 i = 0; i < entryCount; i++) {
+            uint256 expectedValue = (i + 1) * 1000;
+            assertEq(
+                mockBlueprint.processedValues(i),
+                expectedValue,
+                "Each value should be processed correctly"
+            );
+        }
+
+        // Verify operation succeeded.
         assertTrue(mockBlueprint.operationSuccess(), "Operation should have succeeded");
     }
 }

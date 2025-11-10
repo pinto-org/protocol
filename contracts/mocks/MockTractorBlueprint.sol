@@ -17,6 +17,9 @@ contract MockTractorBlueprint {
     address public processedAddress;
     bool public operationSuccess;
 
+    // Array to track all processed values for multi-entry tests.
+    uint256[] public processedValues;
+
     constructor(address _beanstalk) {
         beanstalk = _beanstalk;
     }
@@ -30,6 +33,7 @@ contract MockTractorBlueprint {
 
         if (data.length > 0) {
             processedValue = abi.decode(data, (uint256));
+            processedValues.push(processedValue);
             operationSuccess = true;
         }
     }
