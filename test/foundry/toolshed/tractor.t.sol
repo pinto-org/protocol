@@ -36,20 +36,21 @@ contract TractorTest is TestHelper, TractorTestHelper {
     //////////////// Helper Functions ////////////////
 
     /**
-     * @notice Helper to create requisition data for single function call dynamic data tests
-     * @param selector The function selector to call on mockBlueprint
-     * @param key The key parameter to pass to the function
+     * @notice Generic helper to create requisition data
+     * for any target and callData
+     * @param target The target address for the pipe call
+     * @param callData The encoded callData to execute
      * @return data Encoded data for requisition
      */
-    function createDynamicDataRequisitionData(
-        bytes4 selector,
-        uint256 key
-    ) internal view returns (bytes memory) {
-        // Create pipe call to mockBlueprint function
+    function createRequisitionData(
+        address target,
+        bytes memory callData
+    ) internal pure returns (bytes memory) {
+        // Create pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mockBlueprint),
-            callData: abi.encodeWithSelector(selector, key),
+            target: target,
+            callData: callData,
             clipboard: hex"0000"
         });
 
@@ -105,23 +106,11 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // Deploy MockERC1271 contract with valid signature state
         MockERC1271 mockContract = new MockERC1271(true);
 
-        // Create a minimal pipe call that calls the season() view function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(bs),
-            callData: abi.encodeWithSelector(IMockFBeanstalk.season.selector),
-            clipboard: hex"0000"
-        });
-
-        // Wrap the pipe call in a farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        // Encode the advancedFarm call
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+        // Create requisition data calling season() view function
+        bytes memory data = createRequisitionData(
+            address(bs),
+            abi.encodeWithSelector(IMockFBeanstalk.season.selector)
+        );
 
         // Create requisition with MockERC1271 as publisher
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCallERC1271(
@@ -159,23 +148,11 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // Deploy MockERC1271 contract with invalid signature state
         MockERC1271 mockContract = new MockERC1271(false);
 
-        // Create a minimal pipe call that calls the season() view function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(bs),
-            callData: abi.encodeWithSelector(IMockFBeanstalk.season.selector),
-            clipboard: hex"0000"
-        });
-
-        // Wrap the pipe call in a farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        // Encode the advancedFarm call
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+        // Create requisition data calling season() view function
+        bytes memory data = createRequisitionData(
+            address(bs),
+            abi.encodeWithSelector(IMockFBeanstalk.season.selector)
+        );
 
         // Create requisition with MockERC1271 as publisher
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCallERC1271(
@@ -201,23 +178,11 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // Deploy MockERC1271 contract with valid signature state
         MockERC1271 mockContract = new MockERC1271(true);
 
-        // Create a minimal pipe call that calls the season() view function
-        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
-        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(bs),
-            callData: abi.encodeWithSelector(IMockFBeanstalk.season.selector),
-            clipboard: hex"0000"
-        });
-
-        // Wrap the pipe call in a farm call
-        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
-        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
-            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
-            clipboard: ""
-        });
-
-        // Encode the advancedFarm call
-        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+        // Create requisition data calling season() view function
+        bytes memory data = createRequisitionData(
+            address(bs),
+            abi.encodeWithSelector(IMockFBeanstalk.season.selector)
+        );
 
         // Create requisition with MockERC1271 as publisher
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCallERC1271(
@@ -270,9 +235,9 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests EIP-1153 transient storage injection and abi.decode of uint256 data in blueprint execution
      */
     function testFuzz_DynamicData_ValidUint256(uint256 testValue) public {
-        bytes memory data = createDynamicDataRequisitionData(
-            MockTractorBlueprint.processUint256.selector,
-            1
+        bytes memory data = createRequisitionData(
+            address(mockBlueprint),
+            abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 1)
         );
 
         // Create requisition
@@ -301,9 +266,9 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests transient storage with address type encoding/decoding through getTractorData interface
      */
     function test_DynamicData_ValidAddress() public {
-        bytes memory data = createDynamicDataRequisitionData(
-            MockTractorBlueprint.processAddress.selector,
-            2
+        bytes memory data = createRequisitionData(
+            address(mockBlueprint),
+            abi.encodeWithSelector(MockTractorBlueprint.processAddress.selector, 2)
         );
 
         // Create requisition
@@ -337,9 +302,9 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests getTractorData returns empty bytes for missing keys without reverting
      */
     function test_DynamicData_NonExistentKey() public {
-        bytes memory data = createDynamicDataRequisitionData(
-            MockTractorBlueprint.processUint256.selector,
-            999
+        bytes memory data = createRequisitionData(
+            address(mockBlueprint),
+            abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 999)
         );
 
         // Create requisition
@@ -367,9 +332,9 @@ contract TractorTest is TestHelper, TractorTestHelper {
      * @dev Tests abi.decode revert propagation when blueprint processes malformed bytes from transient storage
      */
     function test_DynamicData_CorruptedData() public {
-        bytes memory data = createDynamicDataRequisitionData(
-            MockTractorBlueprint.processUint256.selector,
-            3
+        bytes memory data = createRequisitionData(
+            address(mockBlueprint),
+            abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 3)
         );
 
         // Create requisition
