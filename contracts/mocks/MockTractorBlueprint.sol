@@ -50,11 +50,5 @@ contract MockTractorBlueprint {
             operationSuccess = true;
         }
     }
-
-    // Reset for clean test state
-    function reset() external {
-        processedValue = 0;
-        processedAddress = address(0);
-        operationSuccess = false;
-    }
+    
 }
