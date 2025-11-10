@@ -5,14 +5,14 @@ import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 
 /**
  * @title MockTractorBlueprint
- * @notice Simple mock blueprint for testing tractorDynamicData functionality
+ * @notice Simple mock blueprint for testing tractorDynamicData functionality.
  * @dev Tests generic bytes injection and processing
  */
 contract MockTractorBlueprint {
-    // Beanstalk address for accessing tractor data
+    // Beanstalk address for accessing tractor data.
     address public beanstalk;
 
-    // Simple state to verify data was processed
+    // Simple state to verify data was processed.
     uint256 public processedValue;
     address public processedAddress;
     bool public operationSuccess;
@@ -25,7 +25,7 @@ contract MockTractorBlueprint {
     }
 
     /**
-     * @notice Process uint256 data from transient storage
+     * @notice Process uint256 data from transient storage.
      * @param key Key to retrieve data
      */
     function processUint256(uint256 key) external {
@@ -39,7 +39,7 @@ contract MockTractorBlueprint {
     }
 
     /**
-     * @notice Process address data from transient storage
+     * @notice Process address data from transient storage.
      * @param key Key to retrieve data
      */
     function processAddress(uint256 key) external {

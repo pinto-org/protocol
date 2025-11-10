@@ -10,23 +10,23 @@ import {C} from "contracts/C.sol";
 import {console} from "forge-std/console.sol";
 
 /**
- * @notice a significant amount of tests for tractor can are located at `tractor.test.js`.
+ * @notice A significant amount of tests for tractor are located at `tractor.test.js`.
  */
 contract TractorTest is TestHelper, TractorTestHelper {
-    // test accounts
+    // Test accounts.
     address[] farmers;
 
-    // Mock blueprint for dynamic data testing
+    // Mock blueprint for dynamic data testing.
     MockTractorBlueprint mockBlueprint;
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
-        // initializes farmers from farmers (farmer0 == diamond deployer)
+        // Initializes farmers from farmers (farmer0 == diamond deployer).
         farmers.push(users[1]);
         farmers.push(users[2]);
 
-        // max approve.
+        // Max approve.
         maxApproveBeanstalk(farmers);
 
         // Create a MockTractorBlueprint to test dynamic data injections.
@@ -36,8 +36,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
     //////////////// Helper Functions ////////////////
 
     /**
-     * @notice Generic helper to create requisition data
-     * for any target and callData
+     * @notice Generic helper to create requisition data for any target and callData.
      * @param target The target address for the pipe call
      * @param callData The encoded callData to execute
      * @return data Encoded data for requisition
@@ -46,7 +45,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
         address target,
         bytes memory callData
     ) internal pure returns (bytes memory) {
-        // Create pipe call
+        // Create pipe call.
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
             target: target,
@@ -54,7 +53,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
             clipboard: hex"0000"
         });
 
-        // Wrap in farm call
+        // Wrap in farm call.
         IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
         calls[0] = IMockFBeanstalk.AdvancedFarmCall({
             callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
@@ -100,29 +99,29 @@ contract TractorTest is TestHelper, TractorTestHelper {
     //////////////// ERC1271 ////////////////
 
     /**
-     * @notice Test that a valid ERC1271 signature allows tractor execution
+     * @notice Test that a valid ERC1271 signature allows tractor execution.
      */
     function test_ERC1271_ValidSignature() public {
-        // Deploy MockERC1271 contract with valid signature state
+        // Deploy MockERC1271 contract with valid signature state.
         MockERC1271 mockContract = new MockERC1271(true);
 
-        // Create requisition data calling season() view function
+        // Create requisition data calling season() view function.
         bytes memory data = createRequisitionData(
             address(bs),
             abi.encodeWithSelector(IMockFBeanstalk.season.selector)
         );
 
-        // Create requisition with MockERC1271 as publisher
+        // Create requisition with MockERC1271 as publisher.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCallERC1271(
             address(mockContract),
             data,
             address(bs)
         );
 
-        // Verify the mock contract is set to return valid signature
+        // Verify the mock contract is set to return valid signature.
         assertTrue(mockContract.getIsValidSignature(), "Mock should be set to valid");
 
-        // Execute tractor with valid signature - should succeed
+        // Execute tractor with valid signature - should succeed.
         vm.expectEmit(true, true, true, false);
         emit IMockFBeanstalk.TractorExecutionBegan(
             address(this),
@@ -137,101 +136,101 @@ contract TractorTest is TestHelper, TractorTestHelper {
         // emit IMockFBeanstalk.Tractor(addiress(), address(mockContract), req.blueprintHash, 0, 0);
         bytes[] memory results = bs.tractor(req, "");
 
-        // Verify execution completed successfully
+        // Verify execution completed successfully.
         assertEq(results.length, 1, "Should return one result");
     }
 
     /**
-     * @notice Test that an invalid ERC1271 signature reverts tractor execution
+     * @notice Test that an invalid ERC1271 signature reverts tractor execution.
      */
     function test_ERC1271_InvalidSignature() public {
-        // Deploy MockERC1271 contract with invalid signature state
+        // Deploy MockERC1271 contract with invalid signature state.
         MockERC1271 mockContract = new MockERC1271(false);
 
-        // Create requisition data calling season() view function
+        // Create requisition data calling season() view function.
         bytes memory data = createRequisitionData(
             address(bs),
             abi.encodeWithSelector(IMockFBeanstalk.season.selector)
         );
 
-        // Create requisition with MockERC1271 as publisher
+        // Create requisition with MockERC1271 as publisher.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCallERC1271(
             address(mockContract),
             data,
             address(bs)
         );
 
-        // Verify the mock contract is set to return invalid signature
+        // Verify the mock contract is set to return invalid signature.
         assertFalse(mockContract.getIsValidSignature(), "Mock should be set to invalid");
 
-        // Execute tractor with invalid signature - should revert
+        // Execute tractor with invalid signature - should revert.
         vm.expectRevert("TractorFacet: invalid signature");
         vm.prank(farmers[0]);
         bs.tractor(req, "");
     }
 
     /**
-     * @notice Test signature validation toggle behavior
+     * @notice Test signature validation toggle behavior.
      * @dev Tests that signature state changes are properly respected
      */
     function test_ERC1271_SignatureToggle() public {
-        // Deploy MockERC1271 contract with valid signature state
+        // Deploy MockERC1271 contract with valid signature state.
         MockERC1271 mockContract = new MockERC1271(true);
 
-        // Create requisition data calling season() view function
+        // Create requisition data calling season() view function.
         bytes memory data = createRequisitionData(
             address(bs),
             abi.encodeWithSelector(IMockFBeanstalk.season.selector)
         );
 
-        // Create requisition with MockERC1271 as publisher
+        // Create requisition with MockERC1271 as publisher.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCallERC1271(
             address(mockContract),
             data,
             address(bs)
         );
 
-        // First execution with valid signature - should succeed
+        // First execution with valid signature - should succeed.
         assertTrue(mockContract.getIsValidSignature(), "Mock should start as valid");
         vm.prank(farmers[0]);
         bytes[] memory results1 = bs.tractor(req, "");
         assertEq(results1.length, 1, "First execution should succeed");
 
-        // Toggle to invalid signature
+        // Toggle to invalid signature.
         mockContract.setIsValidSignature(false);
         assertFalse(mockContract.getIsValidSignature(), "Mock should now be invalid");
 
-        // Create new requisition with new blueprint hash (due to nonce increment)
+        // Create new requisition with new blueprint hash (due to nonce increment).
         IMockFBeanstalk.Requisition memory req2 = createRequisitionWithPipeCallERC1271(
             address(mockContract),
             data,
             address(bs)
         );
 
-        // Second execution with invalid signature - should revert
+        // Second execution with invalid signature - should revert.
         vm.expectRevert("TractorFacet: invalid signature");
         vm.prank(farmers[0]);
         bs.tractor(req2, "");
 
-        // Toggle back to valid signature
+        // Toggle back to valid signature.
         mockContract.setIsValidSignature(true);
         assertTrue(mockContract.getIsValidSignature(), "Mock should be valid again");
 
-        // Create third requisition
+        // Create third requisition.
         IMockFBeanstalk.Requisition memory req3 = createRequisitionWithPipeCallERC1271(
             address(mockContract),
             data,
             address(bs)
         );
 
-        // Third execution with valid signature - should succeed
+        // Third execution with valid signature - should succeed.
         vm.prank(farmers[0]);
         bytes[] memory results3 = bs.tractor(req3, "");
         assertEq(results3.length, 1, "Third execution should succeed");
     }
 
     /**
-     * @notice Fuzz test tractorDynamicData with valid data injection
+     * @notice Fuzz test tractorDynamicData with valid data injection.
      * @dev Tests EIP-1153 transient storage injection and abi.decode of uint256 data in blueprint execution
      */
     function testFuzz_DynamicData_ValidUint256(uint256 testValue) public {
@@ -240,29 +239,29 @@ contract TractorTest is TestHelper, TractorTestHelper {
             abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 1)
         );
 
-        // Create requisition
+        // Create requisition.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
             farmers[0],
             data,
             address(bs)
         );
 
-        // Create dynamic data with fuzzed value
+        // Create dynamic data with fuzzed value.
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](1);
         dynamicData[0] = IMockFBeanstalk.ContractData({key: 1, value: abi.encode(testValue)});
 
-        // Execute with dynamic data
+        // Execute with dynamic data.
         vm.prank(farmers[0]);
         bytes[] memory results = bs.tractorDynamicData(req, "", dynamicData);
 
-        // Verify execution succeeded
+        // Verify execution succeeded.
         assertEq(results.length, 1, "Should return one result");
         assertEq(mockBlueprint.processedValue(), testValue, "Should have processed uint256 value");
         assertTrue(mockBlueprint.operationSuccess(), "Operation should have succeeded");
     }
 
     /**
-     * @notice Test tractorDynamicData with address data injection
+     * @notice Test tractorDynamicData with address data injection.
      * @dev Tests transient storage with address type encoding/decoding through getTractorData interface
      */
     function test_DynamicData_ValidAddress() public {
@@ -271,23 +270,23 @@ contract TractorTest is TestHelper, TractorTestHelper {
             abi.encodeWithSelector(MockTractorBlueprint.processAddress.selector, 2)
         );
 
-        // Create requisition
+        // Create requisition.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
             farmers[0],
             data,
             address(bs)
         );
 
-        // Create dynamic data with test address
+        // Create dynamic data with test address.
         address testAddress = farmers[1];
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](1);
         dynamicData[0] = IMockFBeanstalk.ContractData({key: 2, value: abi.encode(testAddress)});
 
-        // Execute with dynamic data
+        // Execute with dynamic data.
         vm.prank(farmers[0]);
         bytes[] memory results = bs.tractorDynamicData(req, "", dynamicData);
 
-        // Verify execution succeeded
+        // Verify execution succeeded.
         assertEq(results.length, 1, "Should return one result");
         assertEq(
             mockBlueprint.processedAddress(),
@@ -298,7 +297,7 @@ contract TractorTest is TestHelper, TractorTestHelper {
     }
 
     /**
-     * @notice Test tractorDynamicData with non-existent key
+     * @notice Test tractorDynamicData with non-existent key.
      * @dev Tests getTractorData returns empty bytes for missing keys without reverting
      */
     function test_DynamicData_NonExistentKey() public {
@@ -307,28 +306,28 @@ contract TractorTest is TestHelper, TractorTestHelper {
             abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 999)
         );
 
-        // Create requisition
+        // Create requisition.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
             farmers[0],
             data,
             address(bs)
         );
 
-        // Create empty dynamic data array (no key 999)
+        // Create empty dynamic data array (no key 999).
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](0);
 
-        // Execute with no dynamic data
+        // Execute with no dynamic data.
         vm.prank(farmers[0]);
         bytes[] memory results = bs.tractorDynamicData(req, "", dynamicData);
 
-        // Verify execution succeeded and processUint256 handled empty data gracefully (no decode, no state change)
+        // Verify execution succeeded and processUint256 handled empty data gracefully (no decode, no state change).
         assertEq(results.length, 1, "Should return one result");
         assertEq(mockBlueprint.processedValue(), 0, "Should not have processed any value");
         assertFalse(mockBlueprint.operationSuccess(), "Operation should not have set success flag");
     }
 
     /**
-     * @notice Test tractorDynamicData with corrupted data that should revert
+     * @notice Test tractorDynamicData with corrupted data that should revert.
      * @dev Tests abi.decode revert propagation when blueprint processes malformed bytes from transient storage
      */
     function test_DynamicData_CorruptedData() public {
@@ -337,21 +336,21 @@ contract TractorTest is TestHelper, TractorTestHelper {
             abi.encodeWithSelector(MockTractorBlueprint.processUint256.selector, 3)
         );
 
-        // Create requisition
+        // Create requisition.
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
             farmers[0],
             data,
             address(bs)
         );
 
-        // Create corrupted data (incomplete uint256 encoding)
+        // Create corrupted data (incomplete uint256 encoding).
         IMockFBeanstalk.ContractData[] memory dynamicData = new IMockFBeanstalk.ContractData[](1);
         dynamicData[0] = IMockFBeanstalk.ContractData({
             key: 3,
-            value: hex"1234" // Invalid bytes for uint256 decoding
+            value: hex"1234" // Invalid bytes for uint256 decoding.
         });
 
-        // Execute with corrupted data - should revert during decoding
+        // Execute with corrupted data - should revert during decoding.
         vm.prank(farmers[0]);
         vm.expectRevert();
         bs.tractorDynamicData(req, "", dynamicData);
