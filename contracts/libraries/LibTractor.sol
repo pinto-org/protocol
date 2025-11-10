@@ -237,7 +237,9 @@ library LibTractor {
      * @return publisher Active publisher address
      * @return count The counter value
      */
-    function _getPublisherCounter(bytes32 counterId) internal view returns (address publisher, uint256 count) {
+    function _getPublisherCounter(
+        bytes32 counterId
+    ) internal view returns (address publisher, uint256 count) {
         publisher = _getActivePublisher();
         count = LibTractorStorage.tractorStorage().blueprintCounters[publisher][counterId];
     }

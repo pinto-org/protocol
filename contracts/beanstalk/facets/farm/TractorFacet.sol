@@ -240,10 +240,8 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @dev Intended for access via Tractor farm call. QoL function.
      * @return count Counter value
      */
-    function getPublisherCounter(
-        bytes32 counterId
-    ) external view returns (uint256 count) {
-        (,count) = LibTractor._getPublisherCounter(counterId);
+    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count) {
+        (, count) = LibTractor._getPublisherCounter(counterId);
     }
 
     /**
