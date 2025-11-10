@@ -50,5 +50,4 @@ contract MockTractorBlueprint {
             operationSuccess = true;
         }
     }
-    
 }
