@@ -6,6 +6,7 @@ require("hardhat-tracer");
 require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
+require("@nomicfoundation/hardhat-foundry");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
@@ -109,7 +110,8 @@ module.exports = {
           optimizer: {
             enabled: true,
             runs: 100
-          }
+          },
+          evmVersion: "cancun"
         }
       }
     ]
