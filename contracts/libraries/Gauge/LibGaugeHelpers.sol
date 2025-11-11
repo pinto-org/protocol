@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import {Gauge, GaugeId} from "../beanstalk/storage/System.sol";
-import {LibAppStorage} from "./LibAppStorage.sol";
+import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {C} from "contracts/C.sol";
+import {Implementation} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title LibGaugeHelpers
@@ -436,7 +437,7 @@ library LibGaugeHelpers {
      * @notice returns the ConvertBonusCapacityUtilization and ConvertDemand.
      * @dev helper function to return both Structs.
      */
-    function getCapacityUltilizationAndConvertDemand(
+    function getCapacityUtilizationAndConvertDemand(
         uint256 bdvConvertedThisSeason,
         uint256 bdvConvertedLastSeason,
         uint256 maxConvertCapacityThisSeason

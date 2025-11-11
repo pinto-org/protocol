@@ -8,7 +8,7 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import "forge-std/console.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 
 /**
  * @dev forks base and tests different cultivation factor scenarios

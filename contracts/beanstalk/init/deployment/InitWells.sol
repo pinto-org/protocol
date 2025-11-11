@@ -22,23 +22,17 @@ import {Call} from "contracts/interfaces/basin/IWell.sol";
 contract InitWells {
     AppStorage internal s;
 
-    // A default well salt is used to prevent front-running attacks
-    // as the aquifer also uses msg.sender when boring with non-zero salt.
-    bytes32 internal constant DEFAULT_WELL_SALT =
-        0x0000000000000000000000000000000000000000000000000000000000000001;
-
     /**
-     * @notice contains parameters for the wells to be deployed on basin.
+     * @notice contains parameters for the wells to be deployed on basin. Assumes Pinto is the first token in the well.
      */
     struct WellData {
-        IERC20 nonBeanToken;
+        IERC20[] tokens;
         address wellImplementation;
-        address wellFunctionTarget;
-        bytes wellFunctionData;
+        Call wellFunction;
         address aquifer;
-        address pump;
-        bytes pumpData;
-        bytes32 salt;
+        Call[] pumps;
+        bytes32 wellSalt;
+        bytes32 proxySalt;
         string name;
         string symbol;
     }
@@ -47,16 +41,16 @@ contract InitWells {
      * @notice contains the initial whitelist data for bean assets.
      */
     struct WhitelistData {
-        address[] tokens;
-        address[] nonBeanTokens;
-        AssetSettings[] assets;
-        Implementation[] oracle;
+        address token;
+        address nonBeanToken;
+        AssetSettings asset;
+        Implementation oracle;
     }
 
     /**
      * @notice Initializes the Bean protocol deployment.
      */
-    function init(WellData[] calldata wells, WhitelistData calldata whitelist) external {
+    function init(WellData[] calldata wells, WhitelistData[] calldata whitelist) external {
         // Deploy the initial wells
         deployUpgradableWells(s.sys.bean, wells);
         // Whitelist bean assets
@@ -67,70 +61,45 @@ contract InitWells {
      * @notice Deploys a minimal proxy well with the upgradeable well implementation and a
      * ERC1967Proxy in front of it to allow for future upgrades.
      */
-    function deployUpgradableWell(
-        IERC20[] memory tokens,
-        Call memory wellFunction,
-        Call[] memory pumps,
-        address aquifer,
-        address wellImplementation,
-        bytes32 salt,
-        string memory name,
-        string memory symbol
-    ) internal {
+    function deployUpgradableWell(WellData memory wellData) internal returns (address well, address proxy) {
         // Encode well data
         (bytes memory immutableData, bytes memory initData) = LibWellDeployer
-            .encodeUpgradeableWellDeploymentData(aquifer, tokens, wellFunction, pumps);
+            .encodeUpgradeableWellDeploymentData(
+                wellData.aquifer,
+                wellData.tokens,
+                wellData.wellFunction,
+                wellData.pumps
+            );
 
         // Bore upgradeable well with the same salt for reproducibility.
         // The address of this is irrelevant, we just need it to be constant, this is why no salt is used.
-        address _well = IAquifer(aquifer).boreWell(
-            wellImplementation,
+        address _well = IAquifer(wellData.aquifer).boreWell(
+            wellData.wellImplementation,
             immutableData,
             initData,
-            DEFAULT_WELL_SALT
+            wellData.wellSalt
         );
 
         // console.log("_well for %s: %s", name, _well);
 
         // Deploy proxy
         address(
-            new ERC1967Proxy{salt: salt}(
+            new ERC1967Proxy{salt: wellData.proxySalt}(
                 _well,
-                abi.encodeCall(IWellUpgradeable.init, (name, symbol))
+                abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol))
             )
         );
     }
 
     /**
      * @notice Deploys bean basin wells with the upgradeable well implementation.
-     * Congigures the well's components and pumps.
+     * Configures the well's components and pumps.
      */
-    function deployUpgradableWells(address bean, WellData[] calldata wells) internal {
-        // tokens
-        IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = IERC20(bean);
-
+    function deployUpgradableWells(address bean, WellData[] memory wells) internal {
         // Deployment
         for (uint256 i; i < wells.length; i++) {
-            WellData calldata wellData = wells[i];
-            // tokens
-            tokens[1] = wellData.nonBeanToken;
-            // well function
-            Call memory wellFunction = Call(wellData.wellFunctionTarget, wellData.wellFunctionData);
-            // pumps
-            Call[] memory pumps = new Call[](1);
-            pumps[0] = Call(wellData.pump, wellData.pumpData);
-            // deploy well
-            deployUpgradableWell(
-                tokens, // tokens (IERC20[])
-                wellFunction, // well function (Call)
-                pumps, // pumps (Call[])
-                wellData.aquifer, // aquifer (address)
-                wellData.wellImplementation, // well implementation (address)
-                wellData.salt,
-                wellData.name,
-                wellData.symbol
-            );
+            wells[i].tokens[0] = IERC20(bean);
+            deployUpgradableWell(wells[i]);
         }
     }
 
@@ -140,61 +109,68 @@ contract InitWells {
      * using create2, thus, we don't need to pass them in from the previous step.
      * Note: When whitelisting, we assume all non-bean whitelist tokens are well LP tokens.
      */
-    function whitelistBeanAssets(WhitelistData calldata whitelistData) internal {
-        for (uint256 i; i < whitelistData.tokens.length; i++) {
-            address token = whitelistData.tokens[i];
-            address nonBeanToken = whitelistData.nonBeanTokens[i];
-            AssetSettings memory assetSettings = whitelistData.assets[i];
-            // If an LP token, initialize oracle storage variables.
-            if (token != address(s.sys.bean)) {
-                s.sys.usdTokenPrice[token] = 1;
-                s.sys.twaReserves[token].reserve0 = 1;
-                s.sys.twaReserves[token].reserve1 = 1;
-                // LP tokens will require an Oracle Implementation for the non Bean Asset.
-                s.sys.oracleImplementation[nonBeanToken] = whitelistData.oracle[i];
-                emit LibWhitelist.UpdatedOracleImplementationForToken(
-                    token,
-                    whitelistData.oracle[i]
-                );
-            }
-            // add asset settings for the underlying lp token
-            s.sys.silo.assetSettings[token] = assetSettings;
-            // Whitelist status contains all true values exept for the bean token.
-            WhitelistStatus memory whitelistStatus = WhitelistStatus(
-                token,
-                true,
-                token != address(s.sys.bean),
-                token != address(s.sys.bean),
-                token != address(s.sys.bean)
-            );
-            s.sys.silo.whitelistStatuses.push(whitelistStatus);
-
-            emit LibWhitelistedTokens.UpdateWhitelistStatus(
-                token,
-                i,
-                true,
-                token != address(s.sys.bean),
-                token != address(s.sys.bean),
-                token != address(s.sys.bean)
-            );
-
-            emit LibWhitelist.WhitelistToken(
-                token,
-                assetSettings.selector,
-                assetSettings.stalkEarnedPerSeason,
-                assetSettings.stalkIssuedPerBdv,
-                assetSettings.gaugePoints,
-                assetSettings.optimalPercentDepositedBdv
-            );
-
-            emit LibWhitelist.UpdatedGaugePointImplementationForToken(
-                token,
-                assetSettings.gaugePointImplementation
-            );
-            emit LibWhitelist.UpdatedLiquidityWeightImplementationForToken(
-                token,
-                assetSettings.liquidityWeightImplementation
-            );
+    function whitelistBeanAssets(WhitelistData[] calldata whitelistData) internal {
+        for (uint256 i; i < whitelistData.length; i++) {
+            whitelistBeanAsset(whitelistData[i]);
         }
+    }
+
+    function whitelistBeanAsset(WhitelistData calldata wd) internal {
+        // If an LP token, initialize oracle storage variables.
+        if (wd.token != address(s.sys.bean)) {
+            s.sys.usdTokenPrice[wd.token] = 1;
+            s.sys.twaReserves[wd.token].reserve0 = 1;
+            s.sys.twaReserves[wd.token].reserve1 = 1;
+            // LP tokens will require an Oracle Implementation for the non Bean Asset.
+            s.sys.oracleImplementation[wd.nonBeanToken] = wd.oracle;
+            emit LibWhitelist.UpdatedOracleImplementationForToken(wd.token, wd.oracle);
+        }
+        // add asset settings for the underlying lp token
+        s.sys.silo.assetSettings[wd.token] = wd.asset;
+        // Whitelist status contains all true values except for the bean token.
+        WhitelistStatus memory ws = WhitelistStatus(
+            wd.token,
+            true,
+            wd.token != address(s.sys.bean),
+            wd.token != address(s.sys.bean),
+            wd.token != address(s.sys.bean)
+        );
+        uint256 index = s.sys.silo.whitelistStatuses.length;
+        s.sys.silo.whitelistStatuses.push(ws);
+
+        emitWhitelistEvents(wd, ws, index);
+    }
+
+    function emitWhitelistEvents(
+        WhitelistData calldata wd,
+        WhitelistStatus memory ws,
+        uint256 index
+    ) internal {
+        emit LibWhitelistedTokens.UpdateWhitelistStatus(
+            ws.token,
+            index,
+            ws.isWhitelisted,
+            ws.isWhitelistedLp,
+            ws.isWhitelistedWell,
+            ws.isSoppable
+        );
+
+        emit LibWhitelist.WhitelistToken(
+            ws.token,
+            wd.asset.selector,
+            wd.asset.stalkEarnedPerSeason,
+            wd.asset.stalkIssuedPerBdv,
+            wd.asset.gaugePoints,
+            wd.asset.optimalPercentDepositedBdv
+        );
+
+        emit LibWhitelist.UpdatedGaugePointImplementationForToken(
+            ws.token,
+            wd.asset.gaugePointImplementation
+        );
+        emit LibWhitelist.UpdatedLiquidityWeightImplementationForToken(
+            ws.token,
+            wd.asset.liquidityWeightImplementation
+        );
     }
 }
