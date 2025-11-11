@@ -503,5 +503,6 @@ enum ShipmentRecipient {
 enum GaugeId {
     CULTIVATION_FACTOR,
     CONVERT_DOWN_PENALTY,
-    CONVERT_UP_BONUS
+    CONVERT_UP_BONUS,
+    LP_DISTRIBUTION
 }

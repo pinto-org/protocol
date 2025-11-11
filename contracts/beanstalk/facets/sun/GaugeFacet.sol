@@ -52,6 +52,12 @@ interface IGaugeFacet {
         bytes memory systemData,
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory);
+
+    function lpDistributionUpdateGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external returns (bytes memory, bytes memory);
 }
 
 /**

@@ -79,10 +79,10 @@ library LibGaugeLogic {
                 gd.distributions[i] = gd.distributions[i];
             }
 
-            return (new bytes(0), abi.encode(gd));
+            return (bytes(""), abi.encode(gd));
         } else {
             // skip, return unchanged values/gaugeData.
-            return (new bytes(0), gaugeData);
+            return (bytes(""), gaugeData);
         }
     }
 

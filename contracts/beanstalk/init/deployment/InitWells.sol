@@ -61,7 +61,7 @@ contract InitWells {
      * @notice Deploys a minimal proxy well with the upgradeable well implementation and a
      * ERC1967Proxy in front of it to allow for future upgrades.
      */
-    function deployUpgradableWell(WellData memory wellData) internal {
+    function deployUpgradableWell(WellData memory wellData) internal returns (address well, address proxy) {
         // Encode well data
         (bytes memory immutableData, bytes memory initData) = LibWellDeployer
             .encodeUpgradeableWellDeploymentData(
