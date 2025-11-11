@@ -6,7 +6,7 @@ import {Weather} from "./abstract/Weather.sol";
 import {LibIncentive} from "contracts/libraries/LibIncentive.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
-import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
@@ -20,6 +20,7 @@ import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 /**
  * @title SeasonFacet
  * @notice Holds the Sunrise function and handles all logic for Season changes.
+ * @author Brendan, Frijo
  */
 contract SeasonFacet is Invariable, Weather {
     using LibRedundantMath256 for uint256;
@@ -114,7 +115,7 @@ contract SeasonFacet is Invariable, Weather {
      */
     function stepGauges(LibEvaluate.BeanstalkState memory bs) internal {
         bytes memory systemData = abi.encode(bs);
-        LibGauge.stepGauge();
+        LibSeedGauge.stepSeedGauge();
         LibGaugeHelpers.engage(systemData);
     }
 

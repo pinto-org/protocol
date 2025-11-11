@@ -16,7 +16,7 @@ import {C} from "contracts/C.sol";
  * - stepOracle() - reads oracles from whitelisted silo wells.
  * - calcCaseIdAndHandleRain() - determines and evaluates the beanstalk state, and updates temperature and bean to max lp gp per bdv ratio.
  * - endTotalGermination() - ends the germination process for all whitelisted tokens.
- * - stepGauge() - iterates through the gauge system.
+ * - stepSeedGauge() - iterates through the gauge system.
  * - stepSun() - distrbuted newly minted beans to the field and silo, and issues new soil to the field.
  * - Incentive() - rewards beans to the caller.
  */

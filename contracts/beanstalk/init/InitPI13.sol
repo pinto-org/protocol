@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
 import {LibInitGauges} from "contracts/libraries/Gauge/LibInitGauges.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
-import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
@@ -54,7 +54,7 @@ contract InitPI13 {
 
         // Set the max total gauge points to MAX_TOTAL_GAUGE_POINTS
         s.sys.seedGauge.maxTotalGaugePoints = MAX_TOTAL_GAUGE_POINTS;
-        emit LibGauge.UpdateMaxTotalGaugePoints(MAX_TOTAL_GAUGE_POINTS);
+        emit LibSeedGauge.UpdateMaxTotalGaugePoints(MAX_TOTAL_GAUGE_POINTS);
 
         address[] memory whitelistedLpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
 
@@ -71,7 +71,7 @@ contract InitPI13 {
                 (uint256(s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints) *
                     MAX_TOTAL_GAUGE_POINTS) / totalGaugePoints
             );
-            emit LibGauge.GaugePointChange(
+            emit LibSeedGauge.GaugePointChange(
                 s.sys.season.current,
                 whitelistedLpTokens[i],
                 s.sys.silo.assetSettings[whitelistedLpTokens[i]].gaugePoints

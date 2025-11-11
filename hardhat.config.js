@@ -219,7 +219,7 @@ task("PI-1", "Deploys Pinto improvement set 1").setAction(async function () {
       "LibTokenSilo",
       "LibConvert",
       "LibPipelineConvert",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibWellMinting",
       "LibGerminate",
@@ -236,7 +236,7 @@ task("PI-1", "Deploys Pinto improvement set 1").setAction(async function () {
       SeasonFacet: [
         "LibEvaluate",
         "LibFlood",
-        "LibGauge",
+        "LibSeedGauge",
         "LibGerminate",
         "LibShipping",
         "LibIncentive",
@@ -430,7 +430,7 @@ task("PI-3", "Deploys Pinto improvement set 3").setAction(async function () {
       "LibSilo",
       "LibTokenSilo",
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -442,7 +442,7 @@ task("PI-3", "Deploys Pinto improvement set 3").setAction(async function () {
       PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -476,7 +476,7 @@ task("PI-4", "Deploys Pinto improvement set 4").setAction(async function () {
     facetNames: ["SeasonFacet", "GaugeGettersFacet", "SeasonGettersFacet"],
     libraryNames: [
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -486,7 +486,7 @@ task("PI-4", "Deploys Pinto improvement set 4").setAction(async function () {
     facetLibraries: {
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -524,7 +524,7 @@ task("PI-5", "Deploys Pinto improvement set 5").setAction(async function () {
     ],
     libraryNames: [
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -534,7 +534,7 @@ task("PI-5", "Deploys Pinto improvement set 5").setAction(async function () {
     facetLibraries: {
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -576,7 +576,7 @@ task("PI-6", "Deploys Pinto improvement set 6").setAction(async function () {
     ],
     libraryNames: [
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -589,7 +589,7 @@ task("PI-6", "Deploys Pinto improvement set 6").setAction(async function () {
     facetLibraries: {
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -640,7 +640,7 @@ task("PI-7", "Deploys Pinto improvement set 7, Convert Down Penalty").setAction(
       "LibSilo",
       "LibTokenSilo",
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -652,7 +652,7 @@ task("PI-7", "Deploys Pinto improvement set 7, Convert Down Penalty").setAction(
       PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -768,7 +768,7 @@ task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setActi
         "LibConvert",
         "LibPipelineConvert",
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -781,7 +781,7 @@ task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setActi
         PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
         SeasonFacet: [
           "LibEvaluate",
-          "LibGauge",
+          "LibSeedGauge",
           "LibIncentive",
           "LibShipping",
           "LibWellMinting",
@@ -817,7 +817,7 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
       facetNames: ["FieldFacet", "SeasonFacet", "GaugeFacet", "MarketplaceFacet"],
       libraryNames: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -828,7 +828,7 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
       facetLibraries: {
         SeasonFacet: [
           "LibEvaluate",
-          "LibGauge",
+          "LibSeedGauge",
           "LibIncentive",
           "LibShipping",
           "LibWellMinting",
@@ -885,7 +885,7 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
         "LibSilo",
         "LibTokenSilo",
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -898,7 +898,7 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
         PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
         SeasonFacet: [
           "LibEvaluate",
-          "LibGauge",
+          "LibSeedGauge",
           "LibIncentive",
           "LibShipping",
           "LibWellMinting",
@@ -955,7 +955,7 @@ task(
       "LibPipelineConvert",
       "LibSilo",
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -968,7 +968,7 @@ task(
       PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -1077,7 +1077,7 @@ task(
       "LibPipelineConvert",
       "LibSilo",
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -1090,7 +1090,7 @@ task(
       PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -1172,7 +1172,7 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
       "LibConvert",
       "LibPipelineConvert",
       "LibEvaluate",
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibShipping",
       "LibWellMinting",
@@ -1186,7 +1186,7 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
       PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
       SeasonFacet: [
         "LibEvaluate",
-        "LibGauge",
+        "LibSeedGauge",
         "LibIncentive",
         "LibShipping",
         "LibWellMinting",
@@ -1515,7 +1515,7 @@ task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets"
       files.push("contracts/libraries/Silo/LibWhitelistedTokens.sol");
       files.push("contracts/libraries/Silo/LibWhitelist.sol");
       files.push("contracts/libraries/Silo/LibTokenSilo.sol");
-      files.push("contracts/libraries/LibGauge.sol");
+      files.push("contracts/libraries/LibSeedGauge.sol");
       files.push("contracts/libraries/LibShipping.sol");
       files.push("contracts/libraries/Token/LibTransfer.sol");
       files.push("contracts/libraries/LibEvaluate.sol");
@@ -1612,7 +1612,7 @@ task("mockDiamondABI", "Generates ABI file for mock contracts", async () => {
       files.push("contracts/libraries/Silo/LibWhitelistedTokens.sol");
       files.push("contracts/libraries/Silo/LibWhitelist.sol");
       files.push("contracts/libraries/Silo/LibTokenSilo.sol");
-      files.push("contracts/libraries/LibGauge.sol");
+      files.push("contracts/libraries/LibSeedGauge.sol");
       files.push("contracts/libraries/LibShipping.sol");
       files.push("contracts/libraries/Token/LibTransfer.sol");
       files.push("contracts/libraries/LibEvaluate.sol");

@@ -435,7 +435,7 @@ library LibGaugeHelpers {
      * @notice returns the ConvertBonusCapacityUtilization and ConvertDemand.
      * @dev helper function to return both Structs.
      */
-    function getCapacityUltilizationAndConvertDemand(
+    function getCapacityUtilizationAndConvertDemand(
         uint256 bdvConvertedThisSeason,
         uint256 bdvConvertedLastSeason,
         uint256 maxConvertCapacityThisSeason

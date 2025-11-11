@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
 import {Weather} from "../facets/sun/abstract/Weather.sol";
-import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 /**
  * @title InitPI8
  * @dev Updates parameters for pinto improvement 8.
@@ -27,7 +27,7 @@ contract InitPI8 {
 
         uint256 oldMaxBeanMaxLpGpPerBdvRatio = s.sys.seedGauge.beanToMaxLpGpPerBdvRatio;
         // get current crop ratio
-        uint256 oldMaxBeanMaxLpGpPerBdvScaled = LibGauge.getBeanToMaxLpGpPerBdvRatioScaled(
+        uint256 oldMaxBeanMaxLpGpPerBdvScaled = LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled(
             s.sys.seedGauge.beanToMaxLpGpPerBdvRatio
         );
 

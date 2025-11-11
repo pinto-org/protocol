@@ -181,7 +181,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @notice the convert down penalty gauge adds a penalty when converting down, in certain cases.
      * The penalty can be split into two parts:
      * 1) a mint penalty, which is applied when the system is below value target.
-     * 2) a subseqently penalty that decays over the course of N seasons.
+     * 2) a subsequently penalty that decays over the course of N seasons.
      *
      * @dev returned penalty ratio has 18 decimal precision.
      */
@@ -346,7 +346,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (
                 LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
                 LibGaugeHelpers.ConvertDemand cd
-            ) = LibGaugeHelpers.getCapacityUltilizationAndConvertDemand(
+            ) = LibGaugeHelpers.getCapacityUtilizationAndConvertDemand(
                     gd.bdvConvertedThisSeason,
                     gd.bdvConvertedLastSeason,
                     gv.maxConvertCapacity

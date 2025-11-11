@@ -774,7 +774,7 @@ library LibConvert {
     /**
      *
      * @notice verifies that the exchange rate of the well is above a rate,
-     * after an bean -> lp convert has occured with `amount`.
+     * after an bean -> lp convert has occurred with `amount`.
      * @return greaterThanRate true if the price after the convert is greater than the rate, false otherwise
      * @return beansOverRate the amount of beans that exceed the rate. 0 if `greaterThanRate` is true.
      */

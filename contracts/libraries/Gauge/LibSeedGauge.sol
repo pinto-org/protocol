@@ -15,10 +15,10 @@ import {LibRedundantMath32} from "contracts/libraries/Math/LibRedundantMath32.so
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 /**
- * @title LibGauge
- * @notice LibGauge handles functionality related to the seed gauge system.
+ * @title LibSeedGauge
+ * @notice LibSeedGauge handles functionality related to the seed gauge system.
  */
-library LibGauge {
+library LibSeedGauge {
     using SafeCast for uint256;
     using LibRedundantMath256 for uint256;
     using LibRedundantMath32 for uint32;
@@ -66,7 +66,7 @@ library LibGauge {
      * then the gauge system should be skipped, as a valid
      * usd liquidity value cannot be computed.
      */
-    function stepGauge() external {
+    function stepSeedGauge() external {
         (
             uint256 maxLpGpPerBdv,
             LpGaugePointData[] memory lpGpData,

@@ -13,7 +13,7 @@ import {AssetSettings, Implementation} from "contracts/beanstalk/storage/System.
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
-import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
@@ -246,7 +246,7 @@ contract InitializeDiamond {
             type(uint256).max,
             int80(int128(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
-        emit LibGauge.UpdateAverageStalkPerBdvPerSeason(
+        emit LibSeedGauge.UpdateAverageStalkPerBdvPerSeason(
             s.sys.seedGauge.averageGrownStalkPerBdvPerSeason
         );
     }
