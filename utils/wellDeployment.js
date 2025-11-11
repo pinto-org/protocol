@@ -33,8 +33,10 @@ function encodeWellImmutableData(aquifer, tokens, wellFunction, pumps) {
     [aquifer, tokens.length, wellFunction.target, wellFunction.data.length, pumps.length]
   );
 
-  // Append tokens array
-  immutableData = ethers.utils.solidityPack(["bytes", "address[]"], [immutableData, tokens]);
+  // Append each token address individually (matches Solidity's abi.encodePacked behavior for arrays)
+  for (let i = 0; i < tokens.length; i++) {
+    immutableData = ethers.utils.solidityPack(["bytes", "address"], [immutableData, tokens[i]]);
+  }
 
   // Append well function data
   immutableData = ethers.utils.solidityPack(["bytes", "bytes"], [immutableData, wellFunction.data]);
@@ -200,22 +202,8 @@ async function deployUpgradeableWells(beanAddress, wellsData, deployer, verbose 
   for (let i = 0; i < wellsData.length; i++) {
     const wellData = wellsData[i];
 
-    // Build tokens array [Bean, NonBeanToken]
-    const tokens = [beanAddress, wellData.nonBeanToken];
-
-    // Build well function call
-    const wellFunction = {
-      target: wellData.wellFunctionTarget,
-      data: wellData.wellFunctionData
-    };
-
-    // Build pumps array
-    const pumps = [
-      {
-        target: wellData.pump,
-        data: wellData.pumpData
-      }
-    ];
+    // Set Bean as first token (replaces placeholder from parseParams)
+    wellData.tokens[0] = beanAddress;
 
     if (verbose) {
       console.log(`\n========================================`);
@@ -224,9 +212,9 @@ async function deployUpgradeableWells(beanAddress, wellsData, deployer, verbose 
     }
 
     const result = await deployUpgradeableWell({
-      tokens,
-      wellFunction,
-      pumps,
+      tokens: wellData.tokens,
+      wellFunction: wellData.wellFunction,
+      pumps: wellData.pumps,
       aquifer: wellData.aquifer,
       wellImplementation: wellData.wellImplementation,
       wellSalt: wellData.wellSalt,
@@ -241,7 +229,7 @@ async function deployUpgradeableWells(beanAddress, wellsData, deployer, verbose 
       ...result,
       name: wellData.name,
       symbol: wellData.symbol,
-      nonBeanToken: wellData.nonBeanToken
+      nonBeanToken: wellData.tokens[1]
     });
   }
 
