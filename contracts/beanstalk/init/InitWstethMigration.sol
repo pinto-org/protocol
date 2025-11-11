@@ -15,7 +15,6 @@ import {InitWells} from "contracts/beanstalk/init/deployment/InitWells.sol";
  * 3. Initializes the LP distribution gauge to distribute the LP over the new asset.
  **/
 contract InitWstethMigration is InitWells {
-
     int64 internal constant DELTA = 1e6;
     uint256 internal constant NUM_SEASONS = 33;
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
