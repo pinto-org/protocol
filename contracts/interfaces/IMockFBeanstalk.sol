@@ -1588,6 +1588,8 @@ interface IMockFBeanstalk {
 
     function setBpf(uint128 bpf) external;
 
+    function setTotalStalkE(uint256 amount) external;
+
     function setChangeInSoilDemand(uint256 changeInSoilDemand) external;
 
     function setCurrentSeasonE(uint32 _season) external;
@@ -1957,4 +1959,6 @@ interface IMockFBeanstalk {
     function mowAll(address account) external;
 
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
+
+    function getSeedsForToken(address token) external view returns (uint256 seeds);
 }

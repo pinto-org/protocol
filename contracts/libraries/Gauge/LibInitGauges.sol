@@ -95,7 +95,7 @@ library LibInitGauges {
 
     //////////// Convert Up Bonus Gauge ////////////
 
-    function initConvertUpBonusGauge(uint256 twaDeltaB) internal {
+    function initConvertUpBonusGauge(uint256 twaDeltaB, uint256 minMaxConvertCapacity) internal {
         // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
             INIT_BONUS_STALK_PER_BDV,
@@ -106,6 +106,7 @@ library LibInitGauges {
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = LibGaugeHelpers.ConvertBonusGaugeData(
             MIN_SEASON_TARGET, // minSeasonTarget - minimum seasons to reach value target
             MAX_SEASON_TARGET, // maxSeasonTarget - maximum seasons to reach value target
+            minMaxConvertCapacity, // minMaxConvertCapacity - minimum value maxConvertCapacity can be set to
             MIN_DELTA_CAPACITY, // minDeltaCapacity - minimum delta capacity used to change the rate of change in the capacity factor
             MAX_DELTA_CAPACITY, // maxDeltaCapacity - maximum delta capacity used to change the rate of change in the capacity factor
             0, // bdvConvertedThisSeason

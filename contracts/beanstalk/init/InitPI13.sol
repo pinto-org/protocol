@@ -11,6 +11,7 @@ import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.so
 import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibWeather} from "../../libraries/Sun/LibWeather.sol";
+import {IHelperStorage} from "contracts/interfaces/IHelperStorage.sol";
 
 /**
  * @title InitPI13
@@ -20,14 +21,19 @@ contract InitPI13 {
     uint128 constant MAX_TOTAL_GAUGE_POINTS = 10000e18;
     uint16 constant MORNING_DURATION = 600;
     uint128 constant MORNING_CONTROL = uint128(1e18) / 240;
+    uint256 constant MIN_MAX_CONVERT_CAPACITY = 50e6;
 
-    function init(uint256 bonusStalkPerBdv, uint256 twaDeltaB) external {
+    function init(address helperStorage, uint256 key) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // initialize the gauge point update.
         initMaxGaugePoints();
 
+        // fetch data from the helper storage
+        bytes memory value = IHelperStorage(helperStorage).getValue(key);
+        (uint256 twaDeltaB, uint256 bonusStalkPerBdv) = abi.decode(value, (uint256, uint256));
+
         // add the convert up bonus gauge
-        LibInitGauges.initConvertUpBonusGauge(twaDeltaB);
+        LibInitGauges.initConvertUpBonusGauge(twaDeltaB, MIN_MAX_CONVERT_CAPACITY);
 
         // update the gauge with the stalk per bdv bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(

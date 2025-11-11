@@ -22,7 +22,6 @@ import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title GaugeFacet
@@ -369,10 +368,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             // `twaDeltaB` and `targetSeasons` have 6 decimal precision.
             // `convertCapacityFactor` has 8 decimal precision.
             // 6 + 8 - 6 = 8 decimal precision.
-            gv.maxConvertCapacity =
-                (gd.maxTwaDeltaB * gv.convertCapacityFactor) /
+            uint256 maxConvertCapacity = (gd.maxTwaDeltaB * gv.convertCapacityFactor) /
                 targetSeasons /
                 100;
+
+            if (maxConvertCapacity < gd.minMaxConvertCapacity) {
+                maxConvertCapacity = gd.minMaxConvertCapacity;
+            }
+            gv.maxConvertCapacity = maxConvertCapacity;
 
             // update the bonus stalk per bdv.
             gv.bonusStalkPerBdv = LibGaugeHelpers.updateBonusStalkPerBdv(

@@ -127,13 +127,6 @@ abstract contract Sun is Oracle, Distribution {
         uint256 soilAmount,
         Decimal.D256 memory podRate
     ) internal view returns (uint256) {
-        // Apply cultivationFactor scaling
-        // (cultivationFactor is a percentage with 6 decimal places, where 100e6 = 100%)
-        uint256 cultivationFactor = abi.decode(
-            LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
-            (uint256)
-        );
-
         // determine pod rate scalar as a function of podRate.
         uint256 podRateScalar = LibGaugeHelpers.linearInterpolation(
             podRate.value,
@@ -144,13 +137,8 @@ abstract contract Sun is Oracle, Distribution {
             s.sys.evaluationParameters.soilCoefficientLow
         );
 
-        // soilAmount * podRateScalar * cultivationFactor
-        return
-            Math.mulDiv(
-                Math.mulDiv(soilAmount, podRateScalar, C.PRECISION),
-                cultivationFactor,
-                100e6
-            );
+        // soilAmount * podRateScalar
+        return Math.mulDiv(soilAmount, podRateScalar, C.PRECISION);
     }
 
     /**

@@ -12,6 +12,8 @@ import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {InitPI13} from "contracts/beanstalk/init/InitPI13.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
+import {IWell} from "contracts/interfaces/basin/IWell.sol";
+import {HelperStorage} from "contracts/beanstalk/init/helper/HelperStorage.sol";
 
 /**
  * @dev forks base and tests different cultivation factor scenarios
@@ -19,23 +21,27 @@ import {LibBytes} from "contracts/libraries/LibBytes.sol";
  **/
 contract Pi13ForkTest is TestHelper {
     // address with substantial LP deposits to simulate conversions.
-    address farmer = address(0xaad938805E85f3404E3dbD5a501F9E43672037BB);
+    address farmer = address(0x7E6393DE00D7870127fC5786c5B7040a156E78A0);
     address well = 0x3e11226fe3d85142B734ABCe6e58918d5828d1b4;
+    address constant BASE_USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     string constant CSV_PATH = "convert_up_data.csv";
 
     function setUp() public {
-        uint256 forkBlock = 35363162;
+        uint256 forkBlock = 35749498;
+        HelperStorage helperStorage = new HelperStorage();
+        helperStorage.setValue(0, abi.encode(100e6, 0.1e10));
         forkMainnetAndUpgradeAllFacets(
             forkBlock,
             vm.envString("BASE_RPC"),
             PINTO,
             "InitPI13",
-            abi.encodeWithSelector(InitPI13.init.selector, 1e9, 960_000e6) // initialize bonus stalk per bdv and twa delta b
+            abi.encodeWithSelector(InitPI13.init.selector, helperStorage, 0) // initialize bonus stalk per bdv and twa delta b
         );
         bs = IMockFBeanstalk(PINTO);
+        updateOracleTimeouts(L2_PINTO, false);
     }
 
-    /////////////////// TEST FUNCTIONS ///////////////////
+    /////////////////// CONVERT BONUS FUNCTIONS ///////////////////
 
     /**
      * @notice simulates the convert up bonus gauge with no orders
@@ -243,7 +249,7 @@ contract Pi13ForkTest is TestHelper {
                 convertedLastSeasonOrder2 = convertSomeAtBonus(
                     farmer,
                     targetMaxConvertCapacity,
-                    0.985e9
+                    0.9959e9
                 );
             }
 
@@ -296,6 +302,86 @@ contract Pi13ForkTest is TestHelper {
                     );
                 }
             }
+        }
+    }
+
+    /////////////////// SOIL ABOVE PEG TESTS ///////////////////
+    function test_forkBase_soilAbovePeg() public {
+        /**
+         * in this upgrade, `scaleSoilAbovePeg` was updated to be a function of the pod rate.
+         * Previously, the soil was scaled by some value, determeined by the podrate (step functions).
+         * Now, the protocol performs a linear interpolation between the upper and lower bounds,
+         * And 2 soil coefficients.
+         * this test verifies that the soil is scaled correctly above peg.
+         */
+        // increase deltaP by adding value to wells.
+        address pintoUsdcWell = address(0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1);
+        uint256 value = 500_000_000000;
+        // deal base usdc:
+        deal(BASE_USDC, address(this), value);
+        IERC20(BASE_USDC).transfer(pintoUsdcWell, value);
+        IMockFBeanstalk.EvaluationParameters memory ep = bs.getEvaluationParameters();
+        console.log("podRateLowerBound", ep.podRateLowerBound);
+        console.log("podRateUpperBound", ep.podRateUpperBound);
+        console.log("soilCoefficientHigh", ep.soilCoefficientHigh);
+        console.log("soilCoefficientLow", ep.soilCoefficientLow);
+        IWell(pintoUsdcWell).sync(address(1), 0);
+
+        uint256 temperature = bs.maxTemperature();
+        for (uint256 i = 0; i < 10; i++) {
+            // mint pinto to change podrate.
+            uint256 pintoSupply = IERC20(L2_PINTO).totalSupply();
+            // a different amount is issued such that the podrate is
+            // closer to the upper bound on the initial iteration.
+            uint256 amount = i == 0 ? 110_000_000e6 : 20_000_000e6;
+            deal(L2_PINTO, address(this), pintoSupply + amount, true);
+
+            stepSeason();
+            console.log("podrate", bs.getPodRate(0));
+            vm.warp(block.timestamp + 1 seconds);
+
+            uint256 unscaledSoil = ((uint256(bs.totalDeltaB()) * 485) * 100e6) /
+                (100e6 + temperature) /
+                1000;
+
+            uint256 scalar = LibGaugeHelpers.linearInterpolation(
+                bs.getPodRate(0),
+                false, // when podrate increases, the scalar decreases
+                ep.podRateLowerBound,
+                ep.podRateUpperBound,
+                ep.soilCoefficientHigh,
+                ep.soilCoefficientLow
+            );
+            console.log("scalar", scalar);
+            uint256 soil2 = bs.initialSoil();
+            // approximation due to scalar rounding.
+            if (i > 1) {
+                assertApproxEqRel(soil2, (unscaledSoil * scalar) / 1e18, 0.01e18); // 1% error
+            }
+        }
+    }
+
+    /////////////////// GAUGE POINT FUNCTION ///////////////////
+
+    // verifies that the gauge points are normalized every season.
+    function test_forkBase_gaugePointsNormalized() public {
+        address[] memory lpGaugeTokens = bs.getWhitelistedLpTokens();
+        for (uint256 i = 0; i < 10; i++) {
+            stepSeason();
+            console.log("iteration", i);
+            uint256 totalGaugePoints = 0;
+            for (uint256 j = 0; j < lpGaugeTokens.length; j++) {
+                uint256 gaugePoints = bs.getGaugePoints(lpGaugeTokens[j]);
+                console.log("gaugePoints", lpGaugeTokens[j], gaugePoints);
+                totalGaugePoints += gaugePoints;
+            }
+            // due to normalizing, the error is minimized to `whitelistedLpTokens.length` units.
+            assertApproxEqAbs(
+                totalGaugePoints,
+                10000e18,
+                lpGaugeTokens.length,
+                "totalGaugePoints is not 10000e18"
+            );
         }
     }
 
@@ -534,7 +620,6 @@ contract Pi13ForkTest is TestHelper {
                 stem = stemOfDeposit;
                 uint256 amountToBdvRatio = (amountOfDeposit * 1e18) / bdvOfDeposit;
                 amount = (amountToBdvRatio * effectiveCapacity) / 1e18;
-                console.log("amount", amount);
                 newRemainingCapacity = 0;
             } else {
                 stem = stemOfDeposit;

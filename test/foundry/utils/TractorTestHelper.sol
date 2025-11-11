@@ -3,14 +3,16 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
-import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
-import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 
-contract TractorHelper is TestHelper {
+contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
-    SowBlueprintv0 internal sowBlueprintv0;
+    SowBlueprint internal sowBlueprint;
+    SiloHelpers internal siloHelpers;
 
     enum SourceMode {
         PURE_PINTO,
@@ -23,14 +25,18 @@ contract TractorHelper is TestHelper {
     }
 
     function setSowBlueprintv0(address _sowBlueprintv0) internal {
-        sowBlueprintv0 = SowBlueprintv0(_sowBlueprintv0);
+        sowBlueprint = SowBlueprint(_sowBlueprintv0);
+    }
+
+    function setSiloHelpers(address _siloHelpers) internal {
+        siloHelpers = SiloHelpers(_siloHelpers);
     }
 
     function createRequisitionWithPipeCall(
         address account,
         bytes memory pipeCallData,
         address beanstalkAddress
-    ) internal view returns (IMockFBeanstalk.Requisition memory) {
+    ) internal returns (IMockFBeanstalk.Requisition memory) {
         // Create the blueprint
         IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
             publisher: account,
@@ -57,6 +63,41 @@ contract TractorHelper is TestHelper {
             });
     }
 
+    /**
+     * @notice Create a requisition for ERC1271 contract publishers (no ECDSA signing)
+     * @dev For ERC1271, the signature is validated by the contract itself via isValidSignature()
+     */
+    function createRequisitionWithPipeCallERC1271(
+        address contractPublisher,
+        bytes memory pipeCallData,
+        address beanstalkAddress
+    ) internal view returns (IMockFBeanstalk.Requisition memory) {
+        // Create the blueprint
+        IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
+            publisher: contractPublisher,
+            data: pipeCallData,
+            operatorPasteInstrs: new bytes32[](0),
+            maxNonce: type(uint256).max,
+            startTime: block.timestamp,
+            endTime: type(uint256).max
+        });
+
+        // Get the blueprint hash
+        bytes32 blueprintHash = IMockFBeanstalk(beanstalkAddress).getBlueprintHash(blueprint);
+
+        // For ERC1271, we provide a dummy signature
+        // The actual validation happens in the contract's isValidSignature() method
+        bytes memory dummySignature = new bytes(65);
+
+        // Create and return the requisition
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: dummySignature
+            });
+    }
+
     function executeRequisition(
         address user,
         IMockFBeanstalk.Requisition memory req,
@@ -70,7 +111,7 @@ contract TractorHelper is TestHelper {
     }
 
     // Helper function to sign blueprints
-    function signBlueprint(bytes32 hash, uint256 pk) internal pure returns (bytes memory) {
+    function signBlueprint(bytes32 hash, uint256 pk) internal returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, hash);
         return abi.encodePacked(r, s, v);
     }
@@ -84,26 +125,23 @@ contract TractorHelper is TestHelper {
         uint8[] memory sourceTokenIndices,
         uint256 maxGrownStalkPerBdv,
         LibTransfer.To mode
-    ) internal view returns (IMockFBeanstalk.Requisition memory) {
+    ) internal returns (IMockFBeanstalk.Requisition memory) {
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxGrownStalkPerBdv = maxGrownStalkPerBdv;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         // Create the withdrawBeansFromSources pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(tractorHelpers),
+            target: address(siloHelpers),
             callData: abi.encodeWithSelector(
-                TractorHelpers.withdrawBeansFromSources.selector,
+                SiloHelpers.withdrawBeansFromSources.selector,
                 account,
                 sourceTokenIndices,
                 withdrawAmount,
-                maxGrownStalkPerBdv,
+                filterParams,
                 0.01e18, // 1%
                 uint8(mode),
-                LibTractorHelpers.WithdrawalPlan(
-                    new address[](0),
-                    new int96[][](0),
-                    new uint256[][](0),
-                    new uint256[](0),
-                    0
-                )
+                emptyPlan
             ),
             clipboard: hex"0000"
         });
@@ -148,7 +186,7 @@ contract TractorHelper is TestHelper {
     function setupSowBlueprintv0Blueprint(
         address account,
         SourceMode sourceMode,
-        SowBlueprintv0.SowAmounts memory sowAmounts,
+        SowBlueprint.SowAmounts memory sowAmounts,
         uint256 minTemp,
         int256 operatorTipAmount,
         address tipAddress,
@@ -157,10 +195,7 @@ contract TractorHelper is TestHelper {
         uint256 runBlocksAfterSunrise
     )
         public
-        returns (
-            IMockFBeanstalk.Requisition memory,
-            SowBlueprintv0.SowBlueprintStruct memory params
-        )
+        returns (IMockFBeanstalk.Requisition memory, SowBlueprint.SowBlueprintStruct memory params)
     {
         // Create the SowBlueprintStruct using the helper function
         params = createSowBlueprintStruct(
@@ -196,7 +231,7 @@ contract TractorHelper is TestHelper {
     // Helper function to create SowBlueprintStruct
     function createSowBlueprintStruct(
         uint8 sourceMode,
-        SowBlueprintv0.SowAmounts memory sowAmounts,
+        SowBlueprint.SowAmounts memory sowAmounts,
         uint256 minTemp,
         int256 operatorTipAmount,
         address tipAddress,
@@ -205,7 +240,7 @@ contract TractorHelper is TestHelper {
         uint256 runBlocksAfterSunrise,
         address tractorHelpersAddress,
         address bsAddress
-    ) internal view returns (SowBlueprintv0.SowBlueprintStruct memory) {
+    ) internal view returns (SowBlueprint.SowBlueprintStruct memory) {
         // Create default whitelisted operators array with msg.sender
         address[] memory whitelistedOps = new address[](3);
         whitelistedOps[0] = msg.sender;
@@ -215,7 +250,7 @@ contract TractorHelper is TestHelper {
         // Create array with single index for the token based on source mode
         uint8[] memory sourceTokenIndices = new uint8[](1);
         if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
-            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+            sourceTokenIndices[0] = TractorHelpers(tractorHelpersAddress).getTokenIndex(
                 IMockFBeanstalk(bsAddress).getBeanToken()
             );
         } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
@@ -226,7 +261,7 @@ contract TractorHelper is TestHelper {
         }
 
         // Create SowParams struct
-        SowBlueprintv0.SowParams memory sowParams = SowBlueprintv0.SowParams({
+        SowBlueprint.SowParams memory sowParams = SowBlueprint.SowParams({
             sourceTokenIndices: sourceTokenIndices,
             sowAmounts: sowAmounts,
             minTemp: minTemp,
@@ -237,25 +272,25 @@ contract TractorHelper is TestHelper {
         });
 
         // Create OperatorParams struct
-        SowBlueprintv0.OperatorParams memory opParams = SowBlueprintv0.OperatorParams({
+        SowBlueprint.OperatorParams memory opParams = SowBlueprint.OperatorParams({
             whitelistedOperators: whitelistedOps,
             tipAddress: tipAddress,
             operatorTipAmount: operatorTipAmount
         });
 
-        return SowBlueprintv0.SowBlueprintStruct({sowParams: sowParams, opParams: opParams});
+        return SowBlueprint.SowBlueprintStruct({sowParams: sowParams, opParams: opParams});
     }
 
-    // Helper to create the calldata for sowBlueprintv0
+    // Helper to create the calldata for sowBlueprint
     function createSowBlueprintv0CallData(
-        SowBlueprintv0.SowBlueprintStruct memory params
+        SowBlueprint.SowBlueprintStruct memory params
     ) internal view returns (bytes memory) {
-        // Create the sowBlueprintv0 pipe call
+        // Create the sowBlueprint pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
 
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(sowBlueprintv0),
-            callData: abi.encodeWithSelector(SowBlueprintv0.sowBlueprintv0.selector, params),
+            target: address(sowBlueprint),
+            callData: abi.encodeWithSelector(SowBlueprint.sowBlueprint.selector, params),
             clipboard: hex"0000"
         });
 

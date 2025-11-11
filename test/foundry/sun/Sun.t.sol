@@ -1691,14 +1691,13 @@ contract SunTest is TestHelper {
         // pod rate above upper bound will result in minimum pod rate scalar of 0.25e18
         uint256 podRate = 0.50e18;
 
-        // assume constant cultivation factor of 50e6
         uint256 soilIssued = scaleSoilAbovePeg(1000e6, podRate);
 
-        // soilIssued = soil * podRateScalar * cultivationFactor
-        // soilIssued = 1000e6 * 0.25 * 0.5 = 125e6
+        // soilIssued = soil * podRateScalar
+        // soilIssued = 1000e6 * 0.25 = 250e6
 
         // assert that the soil issued is equal to the scaled twaDeltaB.
-        assertEq(soilIssued, 125e6);
+        assertEq(soilIssued, 250e6);
     }
 
     ////// HELPER FUNCTIONS //////
@@ -1774,16 +1773,10 @@ contract SunTest is TestHelper {
     }
 
     /**
-     * @notice scales soil issued above peg according to pod rate and cultivation factor.
+     * @notice scales soil issued above peg according to pod rate.
      * @dev see {Sun.sol}.
      */
     function scaleSoilAbovePeg(uint256 soilAmount, uint256 podRate) public view returns (uint256) {
-        // Apply cultivationFactor scaling (cultivationFactor is a percentage with 6 decimal places, where 100e6 = 100%)
-        uint256 cultivationFactor = abi.decode(
-            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
-            (uint256)
-        );
-
         // determine pod rate scalar as a function of podRate.
         uint256 podRateScalar = LibGaugeHelpers.linearInterpolation(
             podRate,
@@ -1794,13 +1787,8 @@ contract SunTest is TestHelper {
             1.2e18 // s.sys.evaluationParameters.soilCoefficientLow
         );
 
-        // soilAmount * podRateScalar * cultivationFactor / 1e6
-        return
-            Math.mulDiv(
-                Math.mulDiv(soilAmount, podRateScalar, 1e18), // final precision 1e6
-                cultivationFactor, // % with 1e6 precision
-                100e6 // 1e6 * 1e6 = 1e12 / 1e6 = 1e6
-            );
+        // soilAmount * podRateScalar
+        return Math.mulDiv(soilAmount, podRateScalar, 1e18);
     }
 
     function setInstantaneousReserves(address well, uint256 reserve0, uint256 reserve1) public {

@@ -232,14 +232,8 @@ abstract contract TokenSilo is ReentrancyGuard {
         int96 stem,
         uint256 amount
     ) internal returns (uint256) {
-        // if the sender is not the user, and the sender has not approved the caller ,
-        // then we need to spend the deposit allowance.
-        if (
-            sender != LibTractor._user() &&
-            s.accts[sender].isApprovedForAll[LibTractor._user()] != true
-        ) {
-            LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, amount);
-        }
+        LibSilo._spendDepositAllowance(sender, LibTractor._user(), token, amount);
+
         LibSilo._mow(sender, token);
         // Need to update the recipient's Silo as well.
         LibSilo._mow(recipient, token);

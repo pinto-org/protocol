@@ -615,7 +615,7 @@ contract ConvertTest is TestHelper {
             assertGt(
                 newGrownStalkPerBdv,
                 lastGrownStalkPerBdv,
-                "Grown stalk per pdv should increase"
+                "Grown stalk per bdv should increase"
             );
             lastGrownStalkPerBdv = newGrownStalkPerBdv;
             warpToNextSeasonAndUpdateOracles();
@@ -817,10 +817,21 @@ contract ConvertTest is TestHelper {
                 "convertCapacityFactor should increase when capacity is filled"
             );
 
+            uint256 expectedMaxConvertCapacity = (uint256(-testState.twaDeltaB) *
+                gv.convertCapacityFactor) /
+                targetSeasons /
+                100;
+            LibGaugeHelpers.ConvertBonusGaugeData memory gdCheck = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeData)
+            );
+            if (expectedMaxConvertCapacity < gdCheck.minMaxConvertCapacity) {
+                expectedMaxConvertCapacity = gdCheck.minMaxConvertCapacity;
+            }
             assertEq(
                 gv.maxConvertCapacity,
-                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons / 100,
-                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+                expectedMaxConvertCapacity,
+                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION or minMaxConvertCapacity, whichever is greater"
             );
 
             assertEq(
@@ -980,6 +991,8 @@ contract ConvertTest is TestHelper {
         );
 
         // scenario 4: decreasing demand for converting.
+        uint256 expectedMaxConvertCapacity;
+        LibGaugeHelpers.ConvertBonusGaugeData memory gdCheck;
         for (uint256 i = 1; i < 20; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
@@ -1022,10 +1035,21 @@ contract ConvertTest is TestHelper {
                 "bonusStalkPerBdv should be increasing"
             );
 
+            expectedMaxConvertCapacity =
+                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) /
+                targetSeasons /
+                100;
+            gdCheck = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeData)
+            );
+            if (expectedMaxConvertCapacity < gdCheck.minMaxConvertCapacity) {
+                expectedMaxConvertCapacity = gdCheck.minMaxConvertCapacity;
+            }
             assertEq(
                 gv.maxConvertCapacity,
-                (uint256(-testState.twaDeltaB) * gv.convertCapacityFactor) / targetSeasons / 100,
-                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+                expectedMaxConvertCapacity,
+                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION or minMaxConvertCapacity, whichever is greater"
             );
 
             assertEq(

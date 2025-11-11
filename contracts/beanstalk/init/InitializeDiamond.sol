@@ -332,6 +332,6 @@ contract InitializeDiamond {
 
         LibInitGauges.initConvertDownPenalty(); // add the convert down penalty gauge
 
-        LibInitGauges.initConvertUpBonusGauge(0); // add the convert up bonus gauge
+        LibInitGauges.initConvertUpBonusGauge(0, 0); // add the convert up bonus gauge
     }
 }
