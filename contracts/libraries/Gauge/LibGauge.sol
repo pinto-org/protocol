@@ -4,7 +4,7 @@
 
 pragma solidity ^0.8.20;
 
-import {LibAppStorage} from "./LibAppStorage.sol";
+import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {AssetSettings} from "contracts/beanstalk/storage/System.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";

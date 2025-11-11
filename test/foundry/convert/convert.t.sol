@@ -10,7 +10,7 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import "forge-std/console.sol";

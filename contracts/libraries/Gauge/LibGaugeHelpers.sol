@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import {Gauge, GaugeId} from "../beanstalk/storage/System.sol";
-import {LibAppStorage} from "./LibAppStorage.sol";
+import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {C} from "contracts/C.sol";
@@ -105,19 +105,6 @@ library LibGaugeHelpers {
         DECREASING,
         STEADY,
         INCREASING
-    }
-
-    // LP gauge distrubution Update
-    // LpDisturbutionSettings - a settings struct determining how the Distrobutiion works
-    struct LpDistrubutionGaugeData {
-        LpDisturbutionSettings settings;
-        address[] tokens;
-        int256[] delta;
-    }
-
-    struct LpDistrobutionSettings {
-        uint256 duration;
-        Call[] foo;
     }
 
     // Gauge events

@@ -341,7 +341,7 @@ contract GaugeTest is TestHelper {
             totalStalk,
             (totalBdv * avgGsPerBdvPerSeason) / 1e6,
             1e12,
-            "invalid distrubution"
+            "invalid distribution"
         );
 
         // rounding should occur such that totalBdv * avgGsPerBdvPerSeason > totalStalk.
@@ -607,7 +607,7 @@ contract GaugeTest is TestHelper {
     }
 
     /**
-     * @notice initializes the LP<>LP distrubution.
+     * @notice initializes the LP<>LP distribution.
      * @dev the function updates the gaugePointSelector to a gauge point implementation
      * that stays constant for testing purposes.
      */

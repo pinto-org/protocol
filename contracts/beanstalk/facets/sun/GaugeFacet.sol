@@ -10,7 +10,8 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {C} from "contracts/C.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
+import {LibGaugeLogic} from "contracts/libraries/Gauge/LibGaugeLogic.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -390,14 +391,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     /**
      * @notice Updates the `optimalPercentDepositedBdv` for a list of whitelisted tokens.
-     * @dev `lpDistrubutionUpdateGauge` has no outward facing values, as it updates values internally.
+     * @dev
      */
-    function lpDistrubutionUpdateGauge(
+    function lpDistributionUpdateGauge(
         bytes memory value,
         bytes memory systemData,
         bytes memory gaugeData
-    ) external view returns (bytes memory, bytes memory) {
-        return LibGaugeLogic.lpDistrubutionGauge(value, systemData, gaugeData);
+    ) external returns (bytes memory, bytes memory) {
+        return LibGaugeLogic.lpDistributionGauge(value, systemData, gaugeData);
     }
 
     /// GAUGE ADD/REMOVE/UPDATE ///

@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
 import {Weather} from "../facets/sun/abstract/Weather.sol";
-import {LibGauge} from "../../libraries/LibGauge.sol";
+import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
 /**
  * @title InitPI8
  * @dev Updates parameters for pinto improvement 8.

@@ -4,11 +4,11 @@
 
 pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
-import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
+import {LibInitGauges} from "contracts/libraries/Gauge/LibInitGauges.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
-import {LibGauge} from "../../libraries/LibGauge.sol";
+import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
 import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.sol";
-import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibWeather} from "../../libraries/Sun/LibWeather.sol";
 

@@ -7,7 +7,7 @@ pragma solidity ^0.8.20;
 import "contracts/beanstalk/facets/sun/SeasonFacet.sol";
 import {AssetSettings, Deposited, Field, GerminationSide, GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
@@ -16,7 +16,7 @@ import {ShipmentRecipient} from "contracts/beanstalk/storage/System.sol";
 import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 
 /**

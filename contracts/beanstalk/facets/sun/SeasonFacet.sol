@@ -6,7 +6,7 @@ import {Weather} from "./abstract/Weather.sol";
 import {LibIncentive} from "contracts/libraries/LibIncentive.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
@@ -15,7 +15,7 @@ import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 
 /**
  * @title SeasonFacet

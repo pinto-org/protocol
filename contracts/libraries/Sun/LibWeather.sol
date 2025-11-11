@@ -7,7 +7,7 @@ import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibRedundantMath128} from "contracts/libraries/Math/LibRedundantMath128.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 /**
  * @title LibWeather
  * @notice Library for managing Weather state in Beanstalk, including Temperature and Grown Stalk to LP ratios.

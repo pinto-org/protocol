@@ -124,7 +124,7 @@ contract ClaimFacet is Invariable, ReentrancyGuard {
         }
     }
 
-    //////////////////////// YIELD DISTRUBUTION ////////////////////////
+    //////////////////////// YIELD DISTRIBUTION ////////////////////////
 
     /**
      * @notice Claim Grown Stalk for `account`.

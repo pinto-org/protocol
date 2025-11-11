@@ -9,7 +9,7 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibGauge} from "contracts/libraries/Gauge/LibGauge.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";

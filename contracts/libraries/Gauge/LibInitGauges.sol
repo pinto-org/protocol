@@ -4,7 +4,7 @@
 
 pragma solidity ^0.8.20;
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 
 /**

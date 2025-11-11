@@ -8,28 +8,18 @@ import {LibConvertData} from "./LibConvertData.sol";
 import {LibWellConvert, LibWhitelistedTokens} from "./LibWellConvert.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
-import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {C} from "contracts/C.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity, GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
-import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
-import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GerminationSide, GaugeId, ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title LibConvert
@@ -39,7 +29,6 @@ library LibConvert {
     using LibConvertData for bytes;
     using LibWell for address;
     using LibRedundantMathSigned256 for int256;
-    using SafeCast for uint256;
 
     uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
     uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
@@ -559,7 +548,7 @@ library LibConvert {
                 a.stalksRemoved[i] = LibSilo.stalkReward(
                     stems[i],
                     germStem.stemTip,
-                    a.bdvsRemoved[i].toUint128()
+                    SafeCast.toUint128(a.bdvsRemoved[i])
                 );
                 a.active.stalk = a.active.stalk.add(a.stalksRemoved[i]);
 
@@ -665,7 +654,7 @@ library LibConvert {
     ) internal returns (uint256 newGrownStalk) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // penalty down for BEAN -> WELL
-        if (inputToken == s.sys.bean && LibWell.isWell(outputToken)) {
+        if (inputToken == s.sys.bean && outputToken.isWell()) {
             uint256 grownStalkLost;
             (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
                 outputToken,
@@ -677,7 +666,7 @@ library LibConvert {
                 emit ConvertDownPenalty(account, grownStalkLost, newGrownStalk);
             }
             return newGrownStalk;
-        } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
+        } else if (inputToken.isWell() && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv, grownStalk);
 

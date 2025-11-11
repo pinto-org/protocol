@@ -8,7 +8,7 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import "forge-std/console.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {InitPI13} from "contracts/beanstalk/init/InitPI13.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
