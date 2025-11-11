@@ -14,11 +14,10 @@ contract LibCloneTest {
      * @param data The immutable data to append
      * @return hash The init code hash
      */
-    function calculateInitCodeHash(address implementation, bytes memory data)
-        external
-        pure
-        returns (bytes32 hash)
-    {
+    function calculateInitCodeHash(
+        address implementation,
+        bytes memory data
+    ) external pure returns (bytes32 hash) {
         return LibClone.initCodeHash(implementation, data);
     }
 

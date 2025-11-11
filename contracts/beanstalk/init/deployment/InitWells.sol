@@ -61,12 +61,15 @@ contract InitWells {
      * @notice Deploys a minimal proxy well with the upgradeable well implementation and a
      * ERC1967Proxy in front of it to allow for future upgrades.
      */
-    function deployUpgradableWell(
-        WellData memory wellData
-    ) internal {
+    function deployUpgradableWell(WellData memory wellData) internal {
         // Encode well data
         (bytes memory immutableData, bytes memory initData) = LibWellDeployer
-            .encodeUpgradeableWellDeploymentData(wellData.aquifer, wellData.tokens, wellData.wellFunction, wellData.pumps);
+            .encodeUpgradeableWellDeploymentData(
+                wellData.aquifer,
+                wellData.tokens,
+                wellData.wellFunction,
+                wellData.pumps
+            );
 
         // Bore upgradeable well with the same salt for reproducibility.
         // The address of this is irrelevant, we just need it to be constant, this is why no salt is used.
@@ -112,9 +115,7 @@ contract InitWells {
         }
     }
 
-    function whitelistBeanAsset(
-        WhitelistData calldata wd
-    ) internal {
+    function whitelistBeanAsset(WhitelistData calldata wd) internal {
         // If an LP token, initialize oracle storage variables.
         if (wd.token != address(s.sys.bean)) {
             s.sys.usdTokenPrice[wd.token] = 1;
@@ -122,10 +123,7 @@ contract InitWells {
             s.sys.twaReserves[wd.token].reserve1 = 1;
             // LP tokens will require an Oracle Implementation for the non Bean Asset.
             s.sys.oracleImplementation[wd.nonBeanToken] = wd.oracle;
-            emit LibWhitelist.UpdatedOracleImplementationForToken(
-                wd.token,
-                wd.oracle
-            );
+            emit LibWhitelist.UpdatedOracleImplementationForToken(wd.token, wd.oracle);
         }
         // add asset settings for the underlying lp token
         s.sys.silo.assetSettings[wd.token] = wd.asset;
@@ -143,7 +141,11 @@ contract InitWells {
         emitWhitelistEvents(wd, ws, index);
     }
 
-    function emitWhitelistEvents(WhitelistData calldata wd, WhitelistStatus memory ws, uint256 index) internal {
+    function emitWhitelistEvents(
+        WhitelistData calldata wd,
+        WhitelistStatus memory ws,
+        uint256 index
+    ) internal {
         emit LibWhitelistedTokens.UpdateWhitelistStatus(
             ws.token,
             index,
