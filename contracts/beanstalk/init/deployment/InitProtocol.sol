@@ -18,7 +18,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IDiamondCut} from "contracts/interfaces/IDiamondCut.sol";
 import {IDiamondLoupe} from "contracts/interfaces/IDiamondLoupe.sol";
 import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 
 /**
  * @title InitProtocol
@@ -148,7 +148,7 @@ contract InitProtocol {
             type(uint256).max,
             int80(int128(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
-        emit LibGauge.UpdateAverageStalkPerBdvPerSeason(
+        emit LibSeedGauge.UpdateAverageStalkPerBdvPerSeason(
             s.sys.seedGauge.averageGrownStalkPerBdvPerSeason
         );
     }

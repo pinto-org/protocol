@@ -1661,7 +1661,7 @@ interface IMockFBeanstalk {
 
     function stemTipForToken(address token) external view returns (int96 _stemTip);
 
-    function stepGauge() external;
+    function stepSeedGauge() external;
 
     function sunSunrise(int256 deltaB, uint256 caseId, BeanstalkState memory bs) external;
 

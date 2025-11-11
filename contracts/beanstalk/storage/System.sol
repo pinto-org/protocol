@@ -178,7 +178,7 @@ struct Weather {
  * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should have the highest incentive,
- * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
+ * and that beans will have the minimum seeds ratio. see {LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled}
  */
 struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;

@@ -50,15 +50,15 @@ function parseDeploymentParameters(inputFilePath, updateConstantsAndTimeout) {
     ]) || []
   ];
 
-  // Parse WhitelistData into separate arrays
+  // Parse WhitelistData into array of objects
   const tokens = data.whitelistData?.tokens || [];
   const nonBeanTokens = data.whitelistData?.nonBeanTokens || [];
 
   // AssetSettings parsing with default values
   const defaultSettings = data.whitelistData?.defaultSettings || {};
 
-  // AssetSettings as a list of arrays for each asset
-  const assets = Object.entries(data.whitelistData?.tokenAssetSettings || {}).map(
+  // Build array of AssetSettings (one per token)
+  const assetsArray = Object.entries(data.whitelistData?.tokenAssetSettings || {}).map(
     ([token, tokenSettings]) => {
       const mergedSettings = {
         ...defaultSettings, // Default values applied first
@@ -93,8 +93,8 @@ function parseDeploymentParameters(inputFilePath, updateConstantsAndTimeout) {
     }
   );
 
-  // Oracles array for implementations (without the token address)
-  const oracles =
+  // Build array of oracle implementations (one per token)
+  const oraclesArray =
     data.whitelistData?.oraclesImplementations?.map((oracle) => [
       oracle.implementation?.target || "0x0000000000000000000000000000000000000000",
       oracle.implementation?.selector || "0x00000000",
@@ -102,25 +102,41 @@ function parseDeploymentParameters(inputFilePath, updateConstantsAndTimeout) {
       oracle.implementation?.data || "0x"
     ]) || [];
 
-  // Format WhitelistData with separate arrays
-  const whitelistData = [tokens, nonBeanTokens, assets, oracles];
+  // Format WhitelistData as array of objects (one per token)
+  const whitelistData = tokens.map((token, index) => ({
+    token: token,
+    nonBeanToken: nonBeanTokens[index],
+    asset: assetsArray[index],
+    oracle: oraclesArray[index]
+  }));
 
   // Parse WellData
   // We assume all wells have the same components for the implementation, aquifer, pump, and pumpData
   const wellData =
-    data.wells?.map((well) => [
-      well.nonBeanToken || "0x0000000000000000000000000000000000000000",
-      data.wellComponents.wellUpgradeableImplementation ||
+    data.wells?.map((well) => ({
+      tokens: [
+        "0x0000000000000000000000000000000000000000", // Bean placeholder, will be set in deployment
+        well.nonBeanToken || "0x0000000000000000000000000000000000000000"
+      ],
+      wellImplementation:
+        data.wellComponents.wellUpgradeableImplementation ||
         "0x0000000000000000000000000000000000000000",
-      well.wellFunctionTarget || "0x0000000000000000000000000000000000000000",
-      well.wellFunctionData || "0x",
-      data.wellComponents.aquifer || "0x0000000000000000000000000000000000000000",
-      data.wellComponents.pump || "0x0000000000000000000000000000000000000000",
-      data.wellComponents.pumpData || "0x",
-      well.salt || "0",
-      well.name || "",
-      well.symbol || ""
-    ]) || [];
+      wellFunction: {
+        target: well.wellFunctionTarget || "0x0000000000000000000000000000000000000000",
+        data: well.wellFunctionData || "0x"
+      },
+      aquifer: data.wellComponents.aquifer || "0x0000000000000000000000000000000000000000",
+      pumps: [
+        {
+          target: data.wellComponents.pump || "0x0000000000000000000000000000000000000000",
+          data: data.wellComponents.pumpData || "0x"
+        }
+      ],
+      wellSalt: well.wellSalt || "0x0000000000000000000000000000000000000000000000000000000000000010",
+      proxySalt: well.proxySalt || well.salt || "0x0000000000000000000000000000000000000000000000000000000000000000",
+      name: well.name || "",
+      symbol: well.symbol || ""
+    })) || [];
 
   // Parse TokenData
   const tokenData = [
