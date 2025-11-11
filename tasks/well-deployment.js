@@ -476,8 +476,13 @@ module.exports = function () {
     .addParam("name", "Well name for init call")
     .addParam("symbol", "Well symbol for init call")
     .addOptionalParam(
+      "deployer",
+      "Address that will deploy the proxy (InitDeployAndWhitelistWell contract or CreateX)",
+      undefined
+    )
+    .addOptionalParam(
       "createx",
-      "CreateX factory address",
+      "CreateX factory address (deprecated, use --deployer)",
       "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed"
     )
     .addFlag("caseSensitive", "Enable case-sensitive matching")
@@ -494,10 +499,14 @@ module.exports = function () {
         implementation: implementationAddress,
         name: wellName,
         symbol: wellSymbol,
+        deployer: deployerAddress,
         createx: createXAddress,
         caseSensitive,
         estimateOnly
       } = taskArgs;
+
+      // Use deployer if provided, otherwise fall back to createx
+      const deployer = deployerAddress || createXAddress;
 
       // Show difficulty estimate
       console.log("📊 Difficulty Analysis");
@@ -534,7 +543,7 @@ module.exports = function () {
       console.log(`Implementation: ${implementationAddress}`);
       console.log(`Well name: ${wellName}`);
       console.log(`Well symbol: ${wellSymbol}`);
-      console.log(`CreateX: ${createXAddress}`);
+      console.log(`Deployer: ${deployer}`);
       console.log(`Case sensitive: ${caseSensitive}\n`);
 
       // Progress callback
@@ -556,7 +565,7 @@ module.exports = function () {
       const result = await mineProxySalt({
         implementationAddress,
         initCalldata,
-        createXAddress,
+        deployerAddress: deployer,
         prefix,
         caseSensitive,
         onProgress

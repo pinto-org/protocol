@@ -9,7 +9,8 @@ const path = require("path");
  * @param {Object} params - Mining parameters
  * @param {string} params.implementationAddress - Address of the well implementation
  * @param {string} params.initCalldata - Encoded initialization call (e.g., init(name, symbol))
- * @param {string} params.createXAddress - CreateX factory address
+ * @param {string} params.createXAddress - CreateX factory address (deprecated, use deployerAddress)
+ * @param {string} params.deployerAddress - Address that will deploy the proxy (CreateX or InitDeployAndWhitelistWell)
  * @param {string} params.prefix - Desired address prefix (without 0x, e.g., "BEEF" or "dead")
  * @param {number} [params.numWorkers] - Number of worker threads (default: CPU cores)
  * @param {boolean} [params.caseSensitive=false] - Whether prefix matching is case-sensitive
@@ -19,18 +20,22 @@ const path = require("path");
 async function mineProxySaltMultiThreaded({
   implementationAddress,
   initCalldata,
-  createXAddress,
+  createXAddress, // Deprecated: backward compatibility
+  deployerAddress, // New: use this for deployer
   prefix,
   numWorkers = os.cpus().length,
   caseSensitive = false,
   onProgress = null
 }) {
+  // Support both old (createXAddress) and new (deployerAddress) parameter names
+  const deployer = deployerAddress || createXAddress;
+
   // Validate inputs
   if (!ethers.utils.isAddress(implementationAddress)) {
     throw new Error("Invalid implementation address");
   }
-  if (!ethers.utils.isAddress(createXAddress)) {
-    throw new Error("Invalid CreateX address");
+  if (!ethers.utils.isAddress(deployer)) {
+    throw new Error("Invalid deployer address");
   }
   if (!prefix || prefix.length === 0) {
     throw new Error("Prefix cannot be empty");
@@ -60,7 +65,7 @@ async function mineProxySaltMultiThreaded({
 
   console.log(`\n🔍 Mining for CREATE2 proxy address with prefix: 0x${prefixWithoutOx}`);
   console.log(`   Implementation: ${implementationAddress}`);
-  console.log(`   CreateX: ${createXAddress}`);
+  console.log(`   Deployer: ${deployer}`);
   console.log(`   Workers: ${numWorkers} threads`);
   console.log(`   Case sensitive: ${caseSensitive}`);
   console.log(`   Press Ctrl+C to exit cleanly\n`);
@@ -77,7 +82,7 @@ async function mineProxySaltMultiThreaded({
   for (let i = 0; i < numWorkers; i++) {
     const worker = new Worker(workerPath, {
       workerData: {
-        createXAddress,
+        deployerAddress: deployer,
         initCodeHash,
         prefix: prefixWithoutOx,
         caseSensitive,
@@ -193,7 +198,8 @@ async function mineProxySaltMultiThreaded({
  * @param {Object} params - Mining parameters
  * @param {string} params.implementationAddress - Address of the well implementation
  * @param {string} params.initCalldata - Encoded initialization call (e.g., init(name, symbol))
- * @param {string} params.createXAddress - CreateX factory address
+ * @param {string} params.createXAddress - CreateX factory address (deprecated, use deployerAddress)
+ * @param {string} params.deployerAddress - Address that will deploy the proxy (CreateX or InitDeployAndWhitelistWell)
  * @param {string} params.prefix - Desired address prefix (without 0x, e.g., "BEEF" or "dead")
  * @param {number} [params.maxIterations=1000000] - Maximum attempts before giving up
  * @param {boolean} [params.caseSensitive=false] - Whether prefix matching is case-sensitive
@@ -203,18 +209,22 @@ async function mineProxySaltMultiThreaded({
 function mineProxySaltSingleThreaded({
   implementationAddress,
   initCalldata,
-  createXAddress,
+  createXAddress, // Deprecated: backward compatibility
+  deployerAddress, // New: use this for deployer
   prefix,
   maxIterations = 1000000,
   caseSensitive = false,
   onProgress = null
 }) {
+  // Support both old (createXAddress) and new (deployerAddress) parameter names
+  const deployer = deployerAddress || createXAddress;
+
   // Validate inputs
   if (!ethers.utils.isAddress(implementationAddress)) {
     throw new Error("Invalid implementation address");
   }
-  if (!ethers.utils.isAddress(createXAddress)) {
-    throw new Error("Invalid CreateX address");
+  if (!ethers.utils.isAddress(deployer)) {
+    throw new Error("Invalid deployer address");
   }
   if (!prefix || prefix.length === 0) {
     throw new Error("Prefix cannot be empty");
@@ -246,7 +256,7 @@ function mineProxySaltSingleThreaded({
 
   console.log(`\n🔍 Mining for CREATE2 proxy address with prefix: 0x${prefixWithoutOx}`);
   console.log(`   Implementation: ${implementationAddress}`);
-  console.log(`   CreateX: ${createXAddress}`);
+  console.log(`   Deployer: ${deployer}`);
   console.log(`   Max iterations: ${maxIterations.toLocaleString()}`);
   console.log(`   Case sensitive: ${caseSensitive}`);
   console.log(`   Press Ctrl+C to exit cleanly\n`);
@@ -278,7 +288,7 @@ function mineProxySaltSingleThreaded({
 
     // Calculate CREATE2 address
     // address = keccak256(0xff ++ deployerAddress ++ salt ++ keccak256(initCode))
-    const rawAddress = ethers.utils.getCreate2Address(createXAddress, salt, initCodeHash);
+    const rawAddress = ethers.utils.getCreate2Address(deployer, salt, initCodeHash);
 
     // Get checksummed address for case-sensitive matching
     const create2Address = ethers.utils.getAddress(rawAddress);
@@ -363,7 +373,8 @@ function mineProxySaltSingleThreaded({
  * @param {Object} params - Mining parameters
  * @param {string} params.implementationAddress - Address of the well implementation
  * @param {string} params.initCalldata - Encoded initialization call
- * @param {string} params.createXAddress - CreateX factory address
+ * @param {string} params.createXAddress - CreateX factory address (deprecated, use deployerAddress)
+ * @param {string} params.deployerAddress - Address that will deploy the proxy (CreateX or InitDeployAndWhitelistWell)
  * @param {string} params.prefix - Desired address prefix (without 0x)
  * @param {number} [params.maxIterations] - Max attempts for single-threaded (default: 1000000)
  * @param {number} [params.numWorkers] - Number of worker threads for multi-threaded (default: auto-detect CPUs)
@@ -372,6 +383,11 @@ function mineProxySaltSingleThreaded({
  * @returns {Promise<Object>|Object} Result object with salt and address, or null if not found
  */
 function mineProxySalt(params) {
+  // Support both old (createXAddress) and new (deployerAddress) parameter names
+  if (params.createXAddress && !params.deployerAddress) {
+    params.deployerAddress = params.createXAddress;
+  }
+
   // If numWorkers is specified or maxIterations is not specified, use multi-threaded
   // Multi-threaded is now the default
   const useMultiThreaded = params.numWorkers !== undefined || params.maxIterations === undefined;

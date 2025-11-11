@@ -6,7 +6,9 @@ const { ethers } = require("ethers");
  * Each worker tries random salts until a match is found or told to stop
  */
 
-const { createXAddress, initCodeHash, prefix, caseSensitive, workerId } = workerData;
+// Support both old (createXAddress) and new (deployerAddress) parameter names
+const deployerAddress = workerData.deployerAddress || workerData.createXAddress;
+const { initCodeHash, prefix, caseSensitive, workerId } = workerData;
 
 let shouldStop = false;
 let iterations = 0;
@@ -36,7 +38,7 @@ async function mine() {
       const salt = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
       // Calculate CREATE2 address
-      const rawAddress = ethers.utils.getCreate2Address(createXAddress, salt, initCodeHash);
+      const rawAddress = ethers.utils.getCreate2Address(deployerAddress, salt, initCodeHash);
       const create2Address = ethers.utils.getAddress(rawAddress);
 
       // Check if address matches prefix

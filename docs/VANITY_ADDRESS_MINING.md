@@ -13,19 +13,42 @@ Both can have vanity addresses by mining for the right salt value.
 ## CREATE2 Proxy Mining
 
 The proxy address is determined by:
-- CreateX factory address
+- Deployer address (either CreateX factory or InitDeployAndWhitelistWell contract)
 - Salt (32 bytes)
 - Init code (proxy bytecode + constructor args)
+
+### Deployment Methods
+
+There are two ways to deploy the proxy:
+
+1. **Via InitDeployAndWhitelistWell contract** (recommended for Beanstalk integration):
+   - The InitDeployAndWhitelistWell contract deploys the proxy using `new ERC1967Proxy{salt: proxySalt}(...)`
+   - Use `--deployer <InitDeployAndWhitelistWell_ADDRESS>` to mine salts for this method
+
+2. **Via CreateX factory** (standalone deployments):
+   - CreateX deploys the proxy using its CREATE2 factory
+   - Use `--createx <CREATEX_ADDRESS>` or `--deployer <CREATEX_ADDRESS>`
+
+**IMPORTANT**: The deployer address affects the resulting proxy address! Make sure to use the same deployer address when mining and deploying.
 
 ### Quick Start
 
 ```bash
-# Mine for a simple prefix (multi-threaded, uses all CPU cores)
+# Mine for InitDeployAndWhitelistWell deployment (recommended)
 npx hardhat mineProxySalt \
   --prefix BEEF \
   --implementation 0xYourImplementationAddress \
   --name "PINTO:WETH Well" \
-  --symbol "PINTOWETH"
+  --symbol "PINTOWETH" \
+  --deployer 0xYourInitDeployAndWhitelistWellAddress
+
+# Mine for CreateX deployment (legacy/standalone)
+npx hardhat mineProxySalt \
+  --prefix BEEF \
+  --implementation 0xYourImplementationAddress \
+  --name "PINTO:WETH Well" \
+  --symbol "PINTOWETH" \
+  --createx 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed
 
 # Specify number of worker threads (default: auto-detect CPU cores)
 npx hardhat mineProxySalt \
@@ -33,6 +56,7 @@ npx hardhat mineProxySalt \
   --implementation 0xYourImplementationAddress \
   --name "PINTO:WETH Well" \
   --symbol "PINTOWETH" \
+  --deployer 0xYourDeployerAddress \
   --num-workers 8
 
 # Check difficulty before mining
@@ -41,6 +65,7 @@ npx hardhat mineProxySalt \
   --implementation 0xYourImplementationAddress \
   --name "PINTO:WETH Well" \
   --symbol "PINTOWETH" \
+  --deployer 0xYourDeployerAddress \
   --estimate-only
 ```
 
@@ -51,9 +76,10 @@ npx hardhat mineProxySalt \
 --implementation <address>  # Well implementation address (required)
 --name <string>            # Well name for init call (required)
 --symbol <string>          # Well symbol for init call (required)
+--deployer <address>       # Address that will deploy the proxy (required for InitDeployAndWhitelistWell)
+--createx <address>        # CreateX factory address (deprecated, use --deployer) (default: Base CreateX)
 --num-workers <number>     # Number of worker threads (default: auto-detect CPU cores)
 --max-iterations <number>  # Max attempts for single-threaded mode (default: 1,000,000)
---createx <address>        # CreateX factory address (default: Base CreateX)
 --case-sensitive           # Enable case-sensitive matching (matches checksummed addresses)
 --estimate-only            # Show difficulty without mining
 ```
@@ -369,17 +395,26 @@ const { mineProxySalt, estimateDifficulty } = require("../utils/mineProxySalt");
 const estimate = estimateDifficulty("BEEF", false);
 console.log(`Expected time: ${estimate.expectedTime}`);
 
-// Mine for salt (multi-threaded, default)
+// Mine for salt with InitDeployAndWhitelistWell (multi-threaded, default)
 const result = await mineProxySalt({
   implementationAddress: "0x...",
   initCalldata: "0x...",
-  createXAddress: "0x...",
+  deployerAddress: "0x...",  // InitDeployAndWhitelistWell or CreateX address
   prefix: "BEEF",
   numWorkers: 8,  // Optional: defaults to CPU core count
   caseSensitive: false,
   onProgress: ({ iterations, elapsed, rate }) => {
     console.log(`${iterations.toLocaleString()} attempts in ${elapsed.toFixed(1)}s at ${rate.toLocaleString()}/sec`);
   }
+});
+
+// Backward compatible: still accepts createXAddress
+const resultLegacy = await mineProxySalt({
+  implementationAddress: "0x...",
+  initCalldata: "0x...",
+  createXAddress: "0x...",  // Deprecated but still works
+  prefix: "BEEF",
+  caseSensitive: false
 });
 
 if (result) {
@@ -396,7 +431,7 @@ if (result) {
 const result = mineProxySalt({
   implementationAddress: "0x...",
   initCalldata: "0x...",
-  createXAddress: "0x...",
+  deployerAddress: "0x...",  // Use deployerAddress (new) or createXAddress (deprecated)
   prefix: "BEEF",
   maxIterations: 1000000,  // Forces single-threaded
   caseSensitive: false,
@@ -451,9 +486,16 @@ if (result) {
 - Consider running multiple instances with different prefixes simultaneously
 
 **Address doesn't match in actual deployment**
+- **CRITICAL**: Ensure deployer address is correct - it directly affects the result!
+  - For InitDeployAndWhitelistWell deployment: use the init contract address
+  - For CreateX deployment: use the CreateX factory address
 - Ensure init calldata exactly matches (name, symbol must be identical)
-- Verify CreateX address is correct
 - Check that implementation address hasn't changed
+
+**Deployer address confusion**
+- If deploying via `InitDeployAndWhitelistWell.sol`, use `--deployer <INIT_CONTRACT_ADDRESS>`
+- If deploying via CreateX standalone, use `--createx <CREATEX_ADDRESS>` or `--deployer <CREATEX_ADDRESS>`
+- The deployer MUST be the contract that executes `new ERC1967Proxy{salt: ...}(...)`
 
 ### Well Mining Issues
 
