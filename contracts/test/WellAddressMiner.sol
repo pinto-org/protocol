@@ -46,11 +46,20 @@ contract WellAddressMiner {
 
         for (uint256 i = 0; i < batchSize; i++) {
             // Predict well address with current salt
-            address predictedAddress = aquifer.predictWellAddress(implementation, immutableData, currentSalt);
+            address predictedAddress = aquifer.predictWellAddress(
+                implementation,
+                immutableData,
+                currentSalt
+            );
 
             // Check if address matches prefix
             if (uint160(predictedAddress) & prefixMask == prefixTarget) {
-                return MiningResult({salt: currentSalt, wellAddress: predictedAddress, iterations: i + 1});
+                return
+                    MiningResult({
+                        salt: currentSalt,
+                        wellAddress: predictedAddress,
+                        iterations: i + 1
+                    });
             }
 
             // Increment salt by 1 for next iteration
@@ -87,11 +96,20 @@ contract WellAddressMiner {
 
         for (uint256 i = 0; i < batchSize; i++) {
             // Predict well address with current salt
-            address predictedAddress = aquifer.predictWellAddress(implementation, immutableData, currentSalt);
+            address predictedAddress = aquifer.predictWellAddress(
+                implementation,
+                immutableData,
+                currentSalt
+            );
 
             // Check if address matches prefix (case-insensitive)
             if (matchesPrefix(predictedAddress, prefixBytes)) {
-                return MiningResult({salt: currentSalt, wellAddress: predictedAddress, iterations: i + 1});
+                return
+                    MiningResult({
+                        salt: currentSalt,
+                        wellAddress: predictedAddress,
+                        iterations: i + 1
+                    });
             }
 
             // Increment salt by 1 for next iteration
