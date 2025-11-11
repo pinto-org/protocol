@@ -9,7 +9,7 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
@@ -30,7 +30,7 @@ contract GaugeGettersFacet {
      * @notice Returns the average grown stalk per BDV.
      */
     function getAverageGrownStalkPerBdv() public view returns (uint256) {
-        return LibGauge.getAverageGrownStalkPerBdv();
+        return LibSeedGauge.getAverageGrownStalkPerBdv();
     }
 
     /**
@@ -39,7 +39,7 @@ contract GaugeGettersFacet {
      * as the BDV of a Deposit is only updated when a Deposit is interacted with.
      */
     function getTotalBdv() external view returns (uint256 totalBdv) {
-        return LibGauge.getTotalBdv();
+        return LibSeedGauge.getTotalBdv();
     }
 
     /**
@@ -71,7 +71,7 @@ contract GaugeGettersFacet {
      * @dev 6 decimal precision (1% = 1e6)
      */
     function getBeanToMaxLpGpPerBdvRatioScaled() public view returns (uint256) {
-        return LibGauge.getBeanToMaxLpGpPerBdvRatioScaled(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio);
+        return LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio);
     }
 
     /**
@@ -103,7 +103,7 @@ contract GaugeGettersFacet {
             uint256 wellDepositedBdv = s.sys.silo.balances[well].depositedBdv;
             // avoid division by zero when no BDV is deposited or initial deposits are still germinating.
             if (wellDepositedBdv == 0) return 0;
-            return wellGaugePoints.mul(LibGauge.BDV_PRECISION).div(wellDepositedBdv);
+            return wellGaugePoints.mul(LibSeedGauge.BDV_PRECISION).div(wellDepositedBdv);
         } else {
             revert("Token not supported");
         }
@@ -142,7 +142,7 @@ contract GaugeGettersFacet {
         return
             uint256(s.sys.seedGauge.averageGrownStalkPerBdvPerSeason)
                 .mul(totalLpBdv.add(s.sys.silo.balances[s.sys.bean].depositedBdv))
-                .div(LibGauge.BDV_PRECISION);
+                .div(LibSeedGauge.BDV_PRECISION);
     }
 
     /**
@@ -159,7 +159,7 @@ contract GaugeGettersFacet {
         uint256 newGrownStalk = getGrownStalkIssuedPerSeason();
         totalGaugePoints = totalGaugePoints.add(
             getBeanGaugePointsPerBdv().mul(s.sys.silo.balances[s.sys.bean].depositedBdv).div(
-                LibGauge.BDV_PRECISION
+                LibSeedGauge.BDV_PRECISION
             )
         );
         return newGrownStalk.mul(1e18).div(totalGaugePoints);
@@ -217,7 +217,7 @@ contract GaugeGettersFacet {
             );
         }
         return
-            LibGauge.calcGaugePoints(
+            LibSeedGauge.calcGaugePoints(
                 s.sys.silo.assetSettings[token],
                 percentOfDepositedBdv,
                 totalOptimalDepositedBdvPercent
@@ -262,6 +262,6 @@ contract GaugeGettersFacet {
         uint256 percentDepositedBdv = depositedBdv.mul(100e6).div(totalLpBdv);
 
         AssetSettings memory ss = s.sys.silo.assetSettings[token];
-        return LibGauge.calcGaugePoints(ss, percentDepositedBdv, totalOptimalDepositedBdvPercent);
+        return LibSeedGauge.calcGaugePoints(ss, percentDepositedBdv, totalOptimalDepositedBdvPercent);
     }
 }
