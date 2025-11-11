@@ -5,6 +5,7 @@ This guide explains how to mine for vanity addresses when deploying Wells.
 ## Overview
 
 When deploying an upgradeable well, two addresses are created:
+
 1. **Well Implementation** - Deployed via Aquifer using CREATE2
 2. **Proxy** - Deployed via CreateX using CREATE2
 
@@ -13,6 +14,7 @@ Both can have vanity addresses by mining for the right salt value.
 ## CREATE2 Proxy Mining
 
 The proxy address is determined by:
+
 - Deployer address (either CreateX factory or InitDeployAndWhitelistWell contract)
 - Salt (32 bytes)
 - Init code (proxy bytecode + constructor args)
@@ -138,15 +140,15 @@ npx hardhat mineProxySalt \
 
 ### Difficulty Guide
 
-| Prefix Length | Difficulty | Expected Time* | Example |
-|--------------|------------|----------------|---------|
-| 1-2 chars    | Very Easy  | < 1 second     | `BE`    |
-| 3 chars      | Easy       | < 5 seconds    | `BEE`   |
-| 4 chars      | Medium     | 1-2 minutes    | `BEEF`  |
-| 5 chars      | Hard       | 15-30 minutes  | `CAFEF` |
-| 6+ chars     | Very Hard  | Hours to days  | `CAFEBE` |
+| Prefix Length | Difficulty | Expected Time\* | Example  |
+| ------------- | ---------- | --------------- | -------- |
+| 1-2 chars     | Very Easy  | < 1 second      | `BE`     |
+| 3 chars       | Easy       | < 5 seconds     | `BEE`    |
+| 4 chars       | Medium     | 1-2 minutes     | `BEEF`   |
+| 5 chars       | Hard       | 15-30 minutes   | `CAFEF`  |
+| 6+ chars      | Very Hard  | Hours to days   | `CAFEBE` |
 
-*Multi-threaded on 8-core CPU at ~800k attempts/second. Single-threaded: ~100k attempts/second.
+\*Multi-threaded on 8-core CPU at ~800k attempts/second. Single-threaded: ~100k attempts/second.
 
 ### Using in Deployment
 
@@ -159,8 +161,8 @@ const result = await deployUpgradeableWell({
   pumps: [{ target: pumpAddress, data: pumpData }],
   aquifer: aquiferAddress,
   wellImplementation: wellImplAddress,
-  wellSalt: "0x0000...0010",  // For implementation (covered in part 2)
-  proxySalt: "0xa1b2c3d4...",  // Your mined salt!
+  wellSalt: "0x0000...0010", // For implementation (covered in part 2)
+  proxySalt: "0xa1b2c3d4...", // Your mined salt!
   name: "PINTO:WETH Well",
   symbol: "PINTOWETH",
   deployer: signer
@@ -170,6 +172,7 @@ const result = await deployUpgradeableWell({
 ## Well Implementation Mining
 
 Mining for the well implementation address is more complex than proxy mining because:
+
 - It uses Aquifer's `boreWell()` with CREATE2
 - The salt is combined with `msg.sender` to prevent frontrunning
 - The address depends on the immutable data (tokens, well function, pumps)
@@ -238,30 +241,32 @@ npx hardhat mineWellSalt \
 --estimate-only               # Show difficulty without mining
 ```
 
-*Required unless `--immutable-data` is provided
+\*Required unless `--immutable-data` is provided
 
 ### Performance Notes
 
 **Batch Size**: Controls how many salts are tested per on-chain call
+
 - **Smaller (10-20)**: More frequent progress updates, easier to interrupt
 - **Larger (50-100)**: Fewer RPC calls, potentially faster overall
 - **Default (20)**: Good balance for most cases
 
 **Mining Rate**: Much slower than proxy mining (~100 attempts/second) due to:
+
 - On-chain `predictWellAddress()` calls required
 - RPC overhead for each batch
 - Cannot be parallelized effectively (depends on RPC node)
 
 ### Difficulty Guide
 
-| Prefix Length | Difficulty | Expected Time* | Example |
-|--------------|------------|----------------|---------|
-| 1-2 chars    | Easy       | < 30 seconds   | `BE`    |
-| 3 chars      | Medium     | 1-5 minutes    | `BEA`   |
-| 4 chars      | Hard       | 30-90 minutes  | `BEAN`  |
-| 5+ chars     | Very Hard  | Hours to days  | `BEANW` |
+| Prefix Length | Difficulty | Expected Time\* | Example |
+| ------------- | ---------- | --------------- | ------- |
+| 1-2 chars     | Easy       | < 30 seconds    | `BE`    |
+| 3 chars       | Medium     | 1-5 minutes     | `BEA`   |
+| 4 chars       | Hard       | 30-90 minutes   | `BEAN`  |
+| 5+ chars      | Very Hard  | Hours to days   | `BEANW` |
 
-*At ~100 attempts/second via RPC. Much slower than proxy mining!
+\*At ~100 attempts/second via RPC. Much slower than proxy mining!
 
 ### Examples
 
@@ -306,8 +311,8 @@ const result = await deployUpgradeableWell({
   pumps: [{ target: pumpAddress, data: pumpData }],
   aquifer: aquiferAddress,
   wellImplementation: wellImplAddress,
-  wellSalt: "0xa1b2c3d4...",  // Your mined salt!
-  proxySalt: "0x1234...",     // From proxy mining
+  wellSalt: "0xa1b2c3d4...", // Your mined salt!
+  proxySalt: "0x1234...", // From proxy mining
   name: "PINTO:WETH Well",
   symbol: "PINTOWETH",
   deployer: signer
@@ -317,10 +322,12 @@ const result = await deployUpgradeableWell({
 ### Important Notes
 
 **Sender Address Matters**: The well implementation address depends on `msg.sender`. You MUST:
+
 - Use the same sender address when mining and deploying
 - Verify the sender will have the same address on mainnet (not behind a proxy that could change)
 
 **Immutable Data**: The address depends on:
+
 - Token addresses (sorted order)
 - Well function address and data
 - Pump addresses and data
@@ -366,11 +373,13 @@ PREFIX=CP2 npx hardhat run scripts/mineProxySalt.js
 ## Understanding CREATE2
 
 The CREATE2 address formula:
+
 ```
 address = keccak256(0xff ++ deployerAddress ++ salt ++ keccak256(initCode))
 ```
 
 Where:
+
 - `deployerAddress` = CreateX factory
 - `salt` = Your mined 32-byte value
 - `initCode` = Proxy bytecode + encoded constructor args
@@ -399,12 +408,14 @@ console.log(`Expected time: ${estimate.expectedTime}`);
 const result = await mineProxySalt({
   implementationAddress: "0x...",
   initCalldata: "0x...",
-  deployerAddress: "0x...",  // InitDeployAndWhitelistWell or CreateX address
+  deployerAddress: "0x...", // InitDeployAndWhitelistWell or CreateX address
   prefix: "BEEF",
-  numWorkers: 8,  // Optional: defaults to CPU core count
+  numWorkers: 8, // Optional: defaults to CPU core count
   caseSensitive: false,
   onProgress: ({ iterations, elapsed, rate }) => {
-    console.log(`${iterations.toLocaleString()} attempts in ${elapsed.toFixed(1)}s at ${rate.toLocaleString()}/sec`);
+    console.log(
+      `${iterations.toLocaleString()} attempts in ${elapsed.toFixed(1)}s at ${rate.toLocaleString()}/sec`
+    );
   }
 });
 
@@ -412,7 +423,7 @@ const result = await mineProxySalt({
 const resultLegacy = await mineProxySalt({
   implementationAddress: "0x...",
   initCalldata: "0x...",
-  createXAddress: "0x...",  // Deprecated but still works
+  createXAddress: "0x...", // Deprecated but still works
   prefix: "BEEF",
   caseSensitive: false
 });
@@ -431,9 +442,9 @@ if (result) {
 const result = mineProxySalt({
   implementationAddress: "0x...",
   initCalldata: "0x...",
-  deployerAddress: "0x...",  // Use deployerAddress (new) or createXAddress (deprecated)
+  deployerAddress: "0x...", // Use deployerAddress (new) or createXAddress (deprecated)
   prefix: "BEEF",
-  maxIterations: 1000000,  // Forces single-threaded
+  maxIterations: 1000000, // Forces single-threaded
   caseSensitive: false,
   onProgress: ({ iterations, elapsed, rate }) => {
     console.log(`${iterations} attempts at ${rate}/sec`);
@@ -450,7 +461,7 @@ const { mineWellSalt } = require("../utils/mineWellSalt");
 const result = await mineWellSalt({
   aquifer: "0x...",
   implementation: "0x...",
-  sender: "0x...",  // Your deployer address
+  sender: "0x...", // Your deployer address
   bean: "0x...",
   nonBeanToken: "0x...",
   wellFunctionTarget: "0x...",
@@ -458,7 +469,7 @@ const result = await mineWellSalt({
   pumpTarget: "0x...",
   pumpData: "0x...",
   prefix: "BEA",
-  batchSize: 20,  // Salts to test per batch
+  batchSize: 20, // Salts to test per batch
   caseSensitive: false,
   onProgress: ({ iterations, elapsed, rate, batchCount }) => {
     console.log(`${iterations} attempts | ${batchCount} batches | ${rate}/sec`);
@@ -476,16 +487,19 @@ if (result) {
 ### Proxy Mining Issues
 
 **No match found after max iterations**
+
 - Try a shorter prefix
 - Switch to multi-threaded mode (default) or increase `--num-workers`
 - Consider case-insensitive matching
 
 **Mining is too slow**
+
 - Ensure multi-threaded mode is enabled (default)
 - Check CPU usage - should be using all cores
 - Consider running multiple instances with different prefixes simultaneously
 
 **Address doesn't match in actual deployment**
+
 - **CRITICAL**: Ensure deployer address is correct - it directly affects the result!
   - For InitDeployAndWhitelistWell deployment: use the init contract address
   - For CreateX deployment: use the CreateX factory address
@@ -493,6 +507,7 @@ if (result) {
 - Check that implementation address hasn't changed
 
 **Deployer address confusion**
+
 - If deploying via `InitDeployAndWhitelistWell.sol`, use `--deployer <INIT_CONTRACT_ADDRESS>`
 - If deploying via CreateX standalone, use `--createx <CREATEX_ADDRESS>` or `--deployer <CREATEX_ADDRESS>`
 - The deployer MUST be the contract that executes `new ERC1967Proxy{salt: ...}(...)`
@@ -500,18 +515,21 @@ if (result) {
 ### Well Mining Issues
 
 **Mining is very slow**
+
 - Well mining requires on-chain calls and is inherently slower (~100 attempts/sec)
 - Increase `--batch-size` to reduce RPC overhead (try 50-100)
 - Use shorter prefixes (3-4 characters max)
 - Consider mining proxy address instead if possible
 
 **Address doesn't match in actual deployment**
+
 - Verify sender address is exactly the same
 - Check that immutable data matches (tokens, well function, pumps)
 - Ensure token addresses are in the same order
 - Test on testnet first
 
 **RPC errors or timeouts**
+
 - Reduce `--batch-size` to put less load on RPC
 - Use a different RPC endpoint
 - Add delays between batches if needed
@@ -521,6 +539,7 @@ if (result) {
 ### Proxy Mining Architecture
 
 **Multi-threaded (Default)**:
+
 - Uses Node.js `worker_threads` to parallelize mining
 - Each worker generates random salts independently
 - First worker to find a match stops all others
@@ -528,6 +547,7 @@ if (result) {
 - Implementation: `utils/mineProxySalt.js` + `utils/mineProxySaltWorker.js`
 
 **Single-threaded**:
+
 - Legacy mode for compatibility
 - Useful for debugging or low-memory environments
 - Activated by providing `--max-iterations` parameter
@@ -535,6 +555,7 @@ if (result) {
 ### Well Mining Architecture
 
 **Batch Mining with Helper Contract**:
+
 1. Deploys `WellAddressMiner.sol` helper contract
 2. Uses `hardhat_setCode` to overwrite sender address with helper bytecode
 3. Helper contract provides `batchMineAddressCaseInsensitive()` function
@@ -543,6 +564,7 @@ if (result) {
 6. Reverts if no match, allowing efficient batch processing
 
 **Why This Approach**:
+
 - **Accuracy**: Uses same `predictWellAddress()` as actual deployment
 - **Efficiency**: Batches multiple attempts into single RPC call
 - **Frontrunning Protection**: Respects Aquifer's `msg.sender` salt mixing
@@ -557,8 +579,7 @@ utils/
 └── mineWellSalt.js           # Well implementation miner
 
 contracts/test/
-├── WellAddressMiner.sol      # On-chain helper for batch well mining
-└── LibCloneTest.sol          # Related testing utilities
+└── WellAddressMiner.sol      # On-chain helper for batch well mining
 
 tasks/
 └── well-deployment.js        # Hardhat tasks integrating the miners
@@ -567,12 +588,14 @@ tasks/
 ## Next Steps
 
 ### For Proxy Address Mining:
+
 1. Mine your desired proxy salt using `mineProxySalt`
 2. Use multi-threaded mode for best performance (default)
 3. Use it in your well deployment configuration
 4. Deploy and verify the address matches
 
 ### For Well Implementation Mining:
+
 1. Determine your well parameters (tokens, well function, pumps)
 2. Mine your desired well salt using `mineWellSalt`
 3. Use the same sender address for mining and deployment
@@ -580,6 +603,7 @@ tasks/
 5. Deploy on mainnet with confidence
 
 ### Full Vanity Deployment:
+
 1. Mine proxy salt first (faster, easier)
 2. Mine well implementation salt (slower, but more visible)
 3. Use both salts in `deployUpgradeableWell()`
