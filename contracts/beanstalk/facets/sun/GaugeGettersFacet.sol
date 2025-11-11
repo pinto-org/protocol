@@ -71,7 +71,10 @@ contract GaugeGettersFacet {
      * @dev 6 decimal precision (1% = 1e6)
      */
     function getBeanToMaxLpGpPerBdvRatioScaled() public view returns (uint256) {
-        return LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio);
+        return
+            LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled(
+                s.sys.seedGauge.beanToMaxLpGpPerBdvRatio
+            );
     }
 
     /**
@@ -262,6 +265,7 @@ contract GaugeGettersFacet {
         uint256 percentDepositedBdv = depositedBdv.mul(100e6).div(totalLpBdv);
 
         AssetSettings memory ss = s.sys.silo.assetSettings[token];
-        return LibSeedGauge.calcGaugePoints(ss, percentDepositedBdv, totalOptimalDepositedBdvPercent);
+        return
+            LibSeedGauge.calcGaugePoints(ss, percentDepositedBdv, totalOptimalDepositedBdvPercent);
     }
 }
