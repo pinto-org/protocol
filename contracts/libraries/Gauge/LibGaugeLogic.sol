@@ -13,13 +13,12 @@ import {LibLpDistributionGauge} from "./LibLpDistributionGauge.sol";
 library LibGaugeLogic {
     /**
      * @notice handles the LP distribution gauge.
-     * @param systemData the system data to handle.
      * @param gaugeData the gauge data to handle.
      * @return bytes memory, bytes memory the return data and success status.
      */
     function lpDistributionGauge(
         bytes memory,
-        bytes memory systemData,
+        bytes memory,
         bytes memory gaugeData
     ) internal returns (bytes memory, bytes memory) {
         AppStorage storage s = LibAppStorage.diamondStorage();

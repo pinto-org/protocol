@@ -14,12 +14,15 @@ import {Implementation, WhitelistStatus, AssetSettings} from "contracts/beanstal
 import {LibWhitelist} from "contracts/libraries/Silo/LibWhitelist.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {Call} from "contracts/interfaces/basin/IWell.sol";
-
+import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
+import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 /**
  * @title InitWells
  * Deploys the initial wells for the protocol and whitelists all assets.
  */
 contract InitWells {
+    address internal constant CONSTANT_PRODUCT_2 = 0x0000000000000000000000000000000000000000;
+    address internal constant MULTI_FLOW_PUMP = 0x0000000000000000000000000000000000000000;
     AppStorage internal s;
 
     /**
@@ -73,7 +76,7 @@ contract InitWells {
 
         // Bore upgradeable well with the same salt for reproducibility.
         // The address of this is irrelevant, we just need it to be constant, this is why no salt is used.
-        address _well = IAquifer(wellData.aquifer).boreWell(
+        well = IAquifer(wellData.aquifer).boreWell(
             wellData.wellImplementation,
             immutableData,
             initData,
@@ -83,10 +86,11 @@ contract InitWells {
         // console.log("_well for %s: %s", name, _well);
 
         // Deploy proxy
-        address(
+        initData = abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol));
+        proxy = address(
             new ERC1967Proxy{salt: wellData.proxySalt}(
-                _well,
-                abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol))
+                well,
+                initData
             )
         );
     }
@@ -115,7 +119,7 @@ contract InitWells {
         }
     }
 
-    function whitelistBeanAsset(WhitelistData calldata wd) internal {
+    function whitelistBeanAsset(WhitelistData memory wd) internal {
         // If an LP token, initialize oracle storage variables.
         if (wd.token != address(s.sys.bean)) {
             s.sys.usdTokenPrice[wd.token] = 1;
@@ -142,7 +146,7 @@ contract InitWells {
     }
 
     function emitWhitelistEvents(
-        WhitelistData calldata wd,
+        WhitelistData memory wd,
         WhitelistStatus memory ws,
         uint256 index
     ) internal {
@@ -172,5 +176,37 @@ contract InitWells {
             ws.token,
             wd.asset.liquidityWeightImplementation
         );
+    }
+
+    function getDefaultGaugePointImplementation() internal view returns (Implementation memory gaugePointImplementation) {
+        gaugePointImplementation = Implementation({
+            target: address(this),
+            selector: IGaugeFacet.defaultGaugePoints.selector,
+            encodeType: 0x00,
+            data: bytes("")
+        });
+    }
+    
+    function getDefaultLiquidityWeightImplementation() internal view returns (Implementation memory liquidityWeightImplementation) {
+        liquidityWeightImplementation = Implementation({
+            target: address(this),
+            selector: ILiquidityWeightFacet.maxWeight.selector,
+            encodeType: 0x00,
+            data: bytes("")
+        });
+    }
+
+    function getConstantProduct2Call() internal pure returns (Call memory wellFunction) {
+        wellFunction = Call({
+            target: CONSTANT_PRODUCT_2,
+            data: abi.encode(1)
+        });
+    }
+
+    function getMultiFlowPumpCall() internal pure returns (Call memory pump) {
+        pump = Call({
+            target: MULTI_FLOW_PUMP,
+            data: abi.encode(1)
+        });
     }
 }
