@@ -4,8 +4,8 @@
 
 pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
-import {LibGauge} from "../../libraries/LibGauge.sol";
-import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**
