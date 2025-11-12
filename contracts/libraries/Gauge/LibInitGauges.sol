@@ -127,20 +127,32 @@ library LibInitGauges {
 
     /**
      * @notice Initializes the LP distribution gauge.
-     * @dev this gauge will slowly 
+     * @dev this gauge will slowly
      * @param numSeasons The number of seasons to distribute the LP over.
      * @param token0 The token to decrease the optimal percent deposited bdv for.
      * @param token1 The token to increase the optimal percent deposited bdv for.
      * @param delta The delta to decrease the optimal percent deposited bdv for token1.
      */
-    function initLpDistributionGauge(uint256 numSeasons, address token0, address token1, int64 delta) internal {
-        LibLpDistributionGauge.LpDistribution[] memory distributions = new LibLpDistributionGauge.LpDistribution[](2);
-        distributions[0] = LibLpDistributionGauge.LpDistribution(token0, -delta, Implementation(address(0), 0x00, 0x00, bytes("")));
-        distributions[1] = LibLpDistributionGauge.LpDistribution(token1, delta, Implementation(address(0), 0x00, 0x00, bytes("")));
-        LibLpDistributionGauge.LpDistributionGaugeData memory gd = LibLpDistributionGauge.LpDistributionGaugeData(
-            numSeasons,
-            distributions
+    function initLpDistributionGauge(
+        uint256 numSeasons,
+        address token0,
+        address token1,
+        int64 delta
+    ) internal {
+        LibLpDistributionGauge.LpDistribution[]
+            memory distributions = new LibLpDistributionGauge.LpDistribution[](2);
+        distributions[0] = LibLpDistributionGauge.LpDistribution(
+            token0,
+            -delta,
+            Implementation(address(0), 0x00, 0x00, bytes(""))
         );
+        distributions[1] = LibLpDistributionGauge.LpDistribution(
+            token1,
+            delta,
+            Implementation(address(0), 0x00, 0x00, bytes(""))
+        );
+        LibLpDistributionGauge.LpDistributionGaugeData memory gd = LibLpDistributionGauge
+            .LpDistributionGaugeData(numSeasons, distributions);
         Gauge memory lpDistributionGauge = Gauge(
             bytes(""),
             address(this),
