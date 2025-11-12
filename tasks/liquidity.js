@@ -8,17 +8,20 @@ const {
   PINTO_DIAMOND_DEPLOYER,
   PINTO_WETH_WELL_BASE,
   PINTO_CBETH_WELL_BASE,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   PINTO_USDC_WELL_BASE,
   PINTO_WSOL_WELL_BASE,
   addressToNameMap,
   addressToBalanceSlotMap
 } = require("../test/hardhat/utils/constants.js");
 
-module.exports = function() {
+module.exports = function () {
   task("addLiquidity", "Adds liquidity to a well")
     .addParam("well", "The well address to add liquidity to")
-    .addParam("amounts", "Comma-separated list of amounts to add to the well ignoring token decimals")
+    .addParam(
+      "amounts",
+      "Comma-separated list of amounts to add to the well ignoring token decimals"
+    )
     .addParam("receiver", "receiver of the LP tokens")
     .addFlag("deposit", "Whether to deposit the LP tokens to beanstalk")
     .setAction(async (taskArgs) => {
@@ -41,7 +44,7 @@ module.exports = function() {
       const wells = [
         PINTO_WETH_WELL_BASE,
         PINTO_CBETH_WELL_BASE,
-        PINTO_CBTC_WELL_BASE,
+        PINTO_CBBTC_WELL_BASE,
         PINTO_USDC_WELL_BASE,
         PINTO_WSOL_WELL_BASE
       ];
@@ -70,7 +73,7 @@ module.exports = function() {
       const wells = [
         PINTO_WETH_WELL_BASE,
         PINTO_CBETH_WELL_BASE,
-        PINTO_CBTC_WELL_BASE,
+        PINTO_CBBTC_WELL_BASE,
         PINTO_USDC_WELL_BASE,
         PINTO_WSOL_WELL_BASE
       ];
