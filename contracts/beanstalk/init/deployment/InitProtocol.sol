@@ -196,6 +196,6 @@ contract InitProtocol {
      */
     function setTractor() internal {
         LibTractor._resetPublisher();
-        LibTractor._setVersion("1.0.0");
+        LibTractor._setVersion("1.1.0");
     }
 }
