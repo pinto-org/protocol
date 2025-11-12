@@ -86,7 +86,10 @@ contract InitWells {
         // Deploy proxy
         initData = abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol));
         // log initData
-        bytes memory creationCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(well, initData));
+        bytes memory creationCode = abi.encodePacked(
+            type(ERC1967Proxy).creationCode,
+            abi.encode(well, initData)
+        );
         proxy = address(new ERC1967Proxy{salt: wellData.proxySalt}(well, initData));
     }
 
