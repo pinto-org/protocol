@@ -22,13 +22,15 @@ contract InitWstethMigration is InitWells {
     int64 internal constant DELTA = 1e6;
     uint256 internal constant NUM_SEASONS = 33;
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
-    
+
     // Well parameters.
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address internal constant WELL_IMPLEMENTATION = 0x0000000000000000000000000000000000000000;
     address internal constant AQUIFER = 0x0000000000000000000000000000000000000000;
-    bytes32 internal constant WELL_SALT = 0x0000000000000000000000000000000000000000000000000000000000000002;
-    bytes32 internal constant PROXY_SALT = 0x0000000000000000000000000000000000000000000000000000000000000000;
+    bytes32 internal constant WELL_SALT =
+        0x0000000000000000000000000000000000000000000000000000000000000002;
+    bytes32 internal constant PROXY_SALT =
+        0x0000000000000000000000000000000000000000000000000000000000000000;
 
     // Asset parameters.
     uint48 internal constant STALK_PER_BDV = 1e10;
@@ -59,7 +61,9 @@ contract InitWstethMigration is InitWells {
         });
     }
 
-    function getWhitelistData(address well) internal view returns (WhitelistData memory whitelistData) {
+    function getWhitelistData(
+        address well
+    ) internal view returns (WhitelistData memory whitelistData) {
         AssetSettings memory assetSettings = AssetSettings({
             selector: BDVFacet.beanToBDV.selector,
             stalkEarnedPerSeason: 0,

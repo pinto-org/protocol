@@ -89,12 +89,7 @@ contract InitWells {
 
         // Deploy proxy
         initData = abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol));
-        proxy = address(
-            new ERC1967Proxy{salt: wellData.proxySalt}(
-                well,
-                initData
-            )
-        );
+        proxy = address(new ERC1967Proxy{salt: wellData.proxySalt}(well, initData));
     }
 
     /**
@@ -180,7 +175,11 @@ contract InitWells {
         );
     }
 
-    function getDefaultGaugePointImplementation() internal view returns (Implementation memory gaugePointImplementation) {
+    function getDefaultGaugePointImplementation()
+        internal
+        view
+        returns (Implementation memory gaugePointImplementation)
+    {
         gaugePointImplementation = Implementation({
             target: address(this),
             selector: IGaugeFacet.defaultGaugePoints.selector,
@@ -188,8 +187,12 @@ contract InitWells {
             data: bytes("")
         });
     }
-    
-    function getDefaultLiquidityWeightImplementation() internal view returns (Implementation memory liquidityWeightImplementation) {
+
+    function getDefaultLiquidityWeightImplementation()
+        internal
+        view
+        returns (Implementation memory liquidityWeightImplementation)
+    {
         liquidityWeightImplementation = Implementation({
             target: address(this),
             selector: ILiquidityWeightFacet.maxWeight.selector,
@@ -199,16 +202,10 @@ contract InitWells {
     }
 
     function getConstantProduct2Call() internal pure returns (Call memory wellFunction) {
-        wellFunction = Call({
-            target: CONSTANT_PRODUCT_2,
-            data: abi.encode(1)
-        });
+        wellFunction = Call({target: CONSTANT_PRODUCT_2, data: abi.encode(1)});
     }
 
     function getMultiFlowPumpCall() internal pure returns (Call memory pump) {
-        pump = Call({
-            target: MULTI_FLOW_PUMP,
-            data: abi.encode(1)
-        });
+        pump = Call({target: MULTI_FLOW_PUMP, data: abi.encode(1)});
     }
 }
