@@ -202,6 +202,28 @@ interface IMockFBeanstalk {
         uint256 minFillAmount;
     }
 
+    struct CancelPodListingParams {
+        uint256 fieldId;
+        uint256 index;
+    }
+
+    struct FillPodListingParams {
+        PodListing listing;
+        uint256 beanAmount;
+    }
+
+    struct CreatePodOrderParams {
+        PodOrder order;
+        uint256 beanAmount;
+    }
+
+    struct FillPodOrderParams {
+        PodOrder order;
+        uint256 index;
+        uint256 start;
+        uint256 amount;
+    }
+
     struct Rain {
         uint256 pods;
         uint256 roots;
@@ -733,7 +755,11 @@ interface IMockFBeanstalk {
 
     function cancelPodListing(uint256 fieldId, uint256 index) external payable;
 
+    function multiCancelPodListing(CancelPodListingParams[] memory params) external payable;
+
     function cancelPodOrder(PodOrder memory podOrder, uint8 mode) external payable;
+
+    function multiCancelPodOrder(PodOrder[] memory podOrders, uint8 mode) external payable;
 
     function cappedReservesDeltaB(address well) external view returns (int256 deltaB);
 
@@ -783,11 +809,18 @@ interface IMockFBeanstalk {
 
     function createPodListing(PodListing memory podListing) external payable;
 
+    function multiCreatePodListing(PodListing[] memory podListings) external payable;
+
     function createPodOrder(
         PodOrder memory podOrder,
         uint256 beanAmount,
         uint8 mode
     ) external payable returns (bytes32 id);
+
+    function multiCreatePodOrder(
+        CreatePodOrderParams[] memory params,
+        uint8 mode
+    ) external payable returns (bytes32[] memory ids);
 
     function cumulativeCurrentDeltaB(address[] memory pools) external view returns (int256 deltaB);
 
@@ -883,11 +916,21 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
+    function multiFillPodListing(
+        FillPodListingParams[] memory params,
+        uint8 mode
+    ) external payable;
+
     function fillPodOrder(
         PodOrder memory podOrder,
         uint256 index,
         uint256 start,
         uint256 amount,
+        uint8 mode
+    ) external payable;
+
+    function multiFillPodOrder(
+        FillPodOrderParams[] memory params,
         uint8 mode
     ) external payable;
 

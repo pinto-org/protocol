@@ -78,4 +78,161 @@ contract ListingTest is TestHelper {
         vm.prank(users[1]);
         bs.createPodListing(podListing);
     }
+
+    function testMultiCancelPodListing_Success() public {
+        uint256 fieldId = bs.activeField();
+
+        // Create 2 listings using batch function
+        IMockFBeanstalk.PodListing[] memory listings = new IMockFBeanstalk.PodListing[](2);
+        listings[0] = IMockFBeanstalk.PodListing({
+            lister: users[1],
+            fieldId: fieldId,
+            index: 0,
+            start: 0,
+            podAmount: 50,
+            pricePerPod: 100,
+            maxHarvestableIndex: 1000,
+            minFillAmount: 10,
+            mode: 0
+        });
+        listings[1] = IMockFBeanstalk.PodListing({
+            lister: users[1],
+            fieldId: fieldId,
+            index: 0,
+            start: 50,
+            podAmount: 50,
+            pricePerPod: 100,
+            maxHarvestableIndex: 1000,
+            minFillAmount: 10,
+            mode: 0
+        });
+
+        vm.prank(users[1]);
+        bs.multiCreatePodListing(listings);
+
+        // Cancel both in one batch
+        IMockFBeanstalk.CancelPodListingParams[] memory params = new IMockFBeanstalk.CancelPodListingParams[](2);
+        params[0] = IMockFBeanstalk.CancelPodListingParams({fieldId: fieldId, index: 0});
+        params[1] = IMockFBeanstalk.CancelPodListingParams({fieldId: fieldId, index: 0});
+
+        vm.prank(users[1]);
+        bs.multiCancelPodListing(params);
+
+        // Verify cancelled
+        assertEq(bs.getPodListing(fieldId, 0), bytes32(0));
+    }
+
+    function testMultiCreatePodListing_Success() public {
+        uint256 fieldId = bs.activeField();
+
+        // Create 2 listings in one batch
+        IMockFBeanstalk.PodListing[] memory listings = new IMockFBeanstalk.PodListing[](2);
+        listings[0] = IMockFBeanstalk.PodListing({
+            lister: users[1],
+            fieldId: fieldId,
+            index: 0,
+            start: 0,
+            podAmount: 50,
+            pricePerPod: 100,
+            maxHarvestableIndex: 1000,
+            minFillAmount: 10,
+            mode: 0
+        });
+        listings[1] = IMockFBeanstalk.PodListing({
+            lister: users[1],
+            fieldId: fieldId,
+            index: 0,
+            start: 50,
+            podAmount: 50,
+            pricePerPod: 100,
+            maxHarvestableIndex: 1000,
+            minFillAmount: 10,
+            mode: 0
+        });
+
+        vm.prank(users[1]);
+        bs.multiCreatePodListing(listings);
+
+        // Verify listings created
+        assertNotEq(bs.getPodListing(fieldId, 0), bytes32(0));
+    }
+
+    function testMultiCancelPodOrder_Success() public {
+        uint256 fieldId = bs.activeField();
+
+        // Create 2 orders using batch function
+        IMockFBeanstalk.CreatePodOrderParams[] memory params = new IMockFBeanstalk.CreatePodOrderParams[](2);
+        params[0] = IMockFBeanstalk.CreatePodOrderParams({
+            order: IMockFBeanstalk.PodOrder({
+                orderer: users[2],
+                fieldId: fieldId,
+                pricePerPod: 100,
+                maxPlaceInLine: 1000,
+                minFillAmount: 50
+            }),
+            beanAmount: 1000e6
+        });
+        params[1] = IMockFBeanstalk.CreatePodOrderParams({
+            order: IMockFBeanstalk.PodOrder({
+                orderer: users[2],
+                fieldId: fieldId,
+                pricePerPod: 90,
+                maxPlaceInLine: 2000,
+                minFillAmount: 50
+            }),
+            beanAmount: 1000e6
+        });
+
+        vm.prank(users[2]);
+        bytes32[] memory ids = bs.multiCreatePodOrder(params, 0);
+
+        // Cancel both in one batch
+        IMockFBeanstalk.PodOrder[] memory orders = new IMockFBeanstalk.PodOrder[](2);
+        orders[0] = params[0].order;
+        orders[1] = params[1].order;
+
+        vm.prank(users[2]);
+        bs.multiCancelPodOrder(orders, 0);
+
+        // Verify cancelled
+        assertEq(bs.getPodOrder(ids[0]), 0);
+        assertEq(bs.getPodOrder(ids[1]), 0);
+    }
+
+    function testMultiCreatePodOrder_Success() public {
+        uint256 fieldId = bs.activeField();
+
+        // Create 2 orders in one batch
+        IMockFBeanstalk.CreatePodOrderParams[] memory params = new IMockFBeanstalk.CreatePodOrderParams[](2);
+        params[0] = IMockFBeanstalk.CreatePodOrderParams({
+            order: IMockFBeanstalk.PodOrder({
+                orderer: users[2],
+                fieldId: fieldId,
+                pricePerPod: 100,
+                maxPlaceInLine: 1000,
+                minFillAmount: 50
+            }),
+            beanAmount: 1000e6
+        });
+        params[1] = IMockFBeanstalk.CreatePodOrderParams({
+            order: IMockFBeanstalk.PodOrder({
+                orderer: users[2],
+                fieldId: fieldId,
+                pricePerPod: 90,
+                maxPlaceInLine: 2000,
+                minFillAmount: 50
+            }),
+            beanAmount: 1000e6
+        });
+
+        vm.prank(users[2]);
+        bytes32[] memory ids = bs.multiCreatePodOrder(params, 0);
+
+        // Verify orders created
+        assertEq(ids.length, 2);
+        assertNotEq(ids[0], bytes32(0));
+        assertNotEq(ids[1], bytes32(0));
+        assertGt(bs.getPodOrder(ids[0]), 0);
+        assertGt(bs.getPodOrder(ids[1]), 0);
+    }
 }
