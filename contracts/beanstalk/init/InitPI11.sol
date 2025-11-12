@@ -5,7 +5,7 @@
 pragma solidity ^0.8.20;
 import {AppStorage, LibAppStorage} from "../../libraries/LibAppStorage.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
 import {LibWhitelist} from "../../libraries/Silo/LibWhitelist.sol";

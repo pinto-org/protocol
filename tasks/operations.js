@@ -8,7 +8,7 @@ const {
   L2_PINTO,
   PINTO_DIAMOND_DEPLOYER,
   BASE_BLOCK_TIME,
-  PINTO_CBTC_WELL_BASE
+  PINTO_CBBTC_WELL_BASE
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
@@ -121,7 +121,7 @@ module.exports = function () {
     // add 1000 pintos and 1000 btc to force deltaB to skyrocket
     const amountsArray = ["1000", "1000"];
     const receiver = await account.getAddress();
-    await addLiquidityAndTransfer(account, PINTO_CBTC_WELL_BASE, receiver, amountsArray, false);
+    await addLiquidityAndTransfer(account, PINTO_CBBTC_WELL_BASE, receiver, amountsArray, false);
     // call sunrise 3 times to force a flood
     for (let i = 0; i < 4; i++) {
       await hre.run("callSunrise");

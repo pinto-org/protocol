@@ -26,7 +26,7 @@ function generateDiamondABI(outputFileName, includeMocks = false) {
       files.push("contracts/libraries/Silo/LibWhitelistedTokens.sol");
       files.push("contracts/libraries/Silo/LibWhitelist.sol");
       files.push("contracts/libraries/Silo/LibTokenSilo.sol");
-      files.push("contracts/libraries/LibGauge.sol");
+      files.push("contracts/libraries/Gauge/LibSeedGauge.sol");
       files.push("contracts/libraries/LibShipping.sol");
       files.push("contracts/libraries/Token/LibTransfer.sol");
       files.push("contracts/libraries/LibEvaluate.sol");

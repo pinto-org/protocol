@@ -4,7 +4,7 @@ const {
   L2_PINTO,
   L2_PCM,
   PINTO,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   addressToNameMap
 } = require("../test/hardhat/utils/constants.js");
 
@@ -91,7 +91,7 @@ module.exports = function () {
   });
 
   task("pumps", async function () {
-    const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL_BASE);
+    const well = await ethers.getContractAt("IWell", PINTO_CBBTC_WELL_BASE);
     const pumps = await well.pumps();
     console.log(pumps);
   });

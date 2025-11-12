@@ -91,7 +91,6 @@ describe("Sop Test Cases", function () {
       const balanceOfPlentyFirst = await beanstalk
         .connect(user)
         .balanceOfPlenty(user.address, this.well.address);
-      console.log("balanceOfPlentyFirst: ", balanceOfPlentyFirst);
 
       // Changing the reserves to have SoP rewards in the next season, otherwise deltaB would be zero
       // This is just to simulate a situation  when after the flood in season 8, still the condition of
@@ -108,10 +107,10 @@ describe("Sop Test Cases", function () {
         .connect(user)
         .balanceOfPlenty(user.address, this.well.address);
 
-      console.log("user's balanceOfPlenty: ", balanceOfPlenty);
+      // console.log("user's balanceOfPlenty: ", balanceOfPlenty);
 
       await beanstalk.connect(user).claimPlenty(this.well.address, EXTERNAL);
-      console.log("balance: ", await this.weth.balanceOf(user.address));
+      // console.log("balance: ", await this.weth.balanceOf(user.address));
 
       expect(await this.weth.balanceOf(user.address)).to.be.equal(balanceOfPlenty);
     });
@@ -133,10 +132,9 @@ describe("Sop Test Cases", function () {
     // there is a flood in season 8
     await mockBeanstalk.rainSunrise(); // 7 => 8
 
-    const balanceOfPlentyFirst = await beanstalk
-      .connect(user)
-      .balanceOfPlenty(user.address, this.well.address);
-    console.log("balanceOfPlentyFirst: ", balanceOfPlentyFirst);
+    // const balanceOfPlentyFirst = await beanstalk
+    //   .connect(user)
+    //   .balanceOfPlenty(user.address, this.well.address);
 
     // Changing the reserves to have SoP rewards in the next season, otherwise deltaB would be zero
     // This is just to simulate a situation  when after the flood in season 8, still the condition of
@@ -153,10 +151,10 @@ describe("Sop Test Cases", function () {
       .connect(user)
       .balanceOfPlenty(user.address, this.well.address);
 
-    console.log("user's balanceOfPlenty: ", balanceOfPlenty);
+    // console.log("user's balanceOfPlenty: ", balanceOfPlenty);
 
     await beanstalk.connect(user).claimPlenty(this.well.address, EXTERNAL);
-    console.log("balance: ", await this.weth.balanceOf(user.address));
+    // console.log("balance: ", await this.weth.balanceOf(user.address));
 
     expect(await this.weth.balanceOf(user.address)).to.be.equal(balanceOfPlenty);
   });
