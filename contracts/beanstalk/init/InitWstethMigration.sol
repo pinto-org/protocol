@@ -23,7 +23,7 @@ contract InitWstethMigration is InitWells {
     int64 internal constant DELTA = 1e6;
     uint256 internal constant NUM_SEASONS = 33;
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
-
+    address internal constant PINTO = 0xb170000aeeFa790fa61D6e837d1035906839a3c8;
     // Well parameters.
     address internal constant WSTETH = 0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452;
     address internal constant WELL_IMPLEMENTATION = 0xBA510990a720725Ab1F9a0D231F045fc906909f4;
@@ -56,7 +56,7 @@ contract InitWstethMigration is InitWells {
 
     function getWstethWellData() internal pure returns (WellData memory wstethWellData) {
         IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = IERC20(PINTO_CBETH_WELL);
+        tokens[0] = IERC20(PINTO);
         tokens[1] = IERC20(WSTETH);
         Call[] memory pumps = new Call[](1);
         pumps[0] = getMultiFlowPumpCall();
