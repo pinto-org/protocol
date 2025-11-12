@@ -52,15 +52,6 @@ npx hardhat mineProxySalt \
   --symbol "PINTOWETH" \
   --createx 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed
 
-# Specify number of worker threads (default: auto-detect CPU cores)
-npx hardhat mineProxySalt \
-  --prefix BEEF \
-  --implementation 0xYourImplementationAddress \
-  --name "PINTO:WETH Well" \
-  --symbol "PINTOWETH" \
-  --deployer 0xYourDeployerAddress \
-  --num-workers 8
-
 # Check difficulty before mining
 npx hardhat mineProxySalt \
   --prefix DEADBEEF \
@@ -80,13 +71,11 @@ npx hardhat mineProxySalt \
 --symbol <string>          # Well symbol for init call (required)
 --deployer <address>       # Address that will deploy the proxy (required for InitDeployAndWhitelistWell)
 --createx <address>        # CreateX factory address (deprecated, use --deployer) (default: Base CreateX)
---num-workers <number>     # Number of worker threads (default: auto-detect CPU cores)
---max-iterations <number>  # Max attempts for single-threaded mode (default: 1,000,000)
 --case-sensitive           # Enable case-sensitive matching (matches checksummed addresses)
 --estimate-only            # Show difficulty without mining
 ```
 
-**Note**: By default, the miner uses multi-threaded mode with all available CPU cores for maximum performance. Use `--max-iterations` to force single-threaded mode, or `--num-workers` to control thread count.
+**Note**: Mining uses Foundry's `cast create2` command which automatically parallelizes across all CPU cores for maximum performance. Requires Foundry installation.
 
 ### Case-Sensitive Matching
 
@@ -148,7 +137,7 @@ npx hardhat mineProxySalt \
 | 5 chars       | Hard       | 15-30 minutes   | `CAFEF`  |
 | 6+ chars      | Very Hard  | Hours to days   | `CAFEBE` |
 
-\*Multi-threaded on 8-core CPU at ~800k attempts/second. Single-threaded: ~100k attempts/second.
+\*Using Foundry's `cast create2` on 8-core CPU at ~1-2M attempts/second (varies by CPU).
 
 ### Using in Deployment
 
@@ -349,10 +338,9 @@ Any change to these parameters changes the resulting address!
 
 - **Case insensitive** (default) is ~22x easier than case sensitive
 - **Shorter is better** - Each additional character is 16x harder
-- **Multi-threading** (default) - Proxy mining automatically uses all CPU cores
-- **Parallel mining** - Run multiple instances with different prefixes for even faster results
+- **Uses all CPU cores** - `cast create2` automatically parallelizes across all cores
 - **Start simple** - Test with 2-3 char prefix first
-- **Proxy vs Well** - Proxy mining is 8-10x faster than well implementation mining
+- **Proxy vs Well** - Proxy mining is 100-1000x faster than well implementation mining
 
 ### Common Patterns
 
@@ -404,26 +392,11 @@ const { mineProxySalt, estimateDifficulty } = require("../utils/mineProxySalt");
 const estimate = estimateDifficulty("BEEF", false);
 console.log(`Expected time: ${estimate.expectedTime}`);
 
-// Mine for salt with InitDeployAndWhitelistWell (multi-threaded, default)
+// Mine for salt with InitDeployAndWhitelistWell using cast create2
 const result = await mineProxySalt({
   implementationAddress: "0x...",
   initCalldata: "0x...",
   deployerAddress: "0x...", // InitDeployAndWhitelistWell or CreateX address
-  prefix: "BEEF",
-  numWorkers: 8, // Optional: defaults to CPU core count
-  caseSensitive: false,
-  onProgress: ({ iterations, elapsed, rate }) => {
-    console.log(
-      `${iterations.toLocaleString()} attempts in ${elapsed.toFixed(1)}s at ${rate.toLocaleString()}/sec`
-    );
-  }
-});
-
-// Backward compatible: still accepts createXAddress
-const resultLegacy = await mineProxySalt({
-  implementationAddress: "0x...",
-  initCalldata: "0x...",
-  createXAddress: "0x...", // Deprecated but still works
   prefix: "BEEF",
   caseSensitive: false
 });
@@ -431,25 +404,7 @@ const resultLegacy = await mineProxySalt({
 if (result) {
   console.log(`Found! Salt: ${result.salt}`);
   console.log(`Address: ${result.address}`);
-  console.log(`Iterations: ${result.iterations}`);
 }
-```
-
-### Proxy Mining (Single-threaded)
-
-```javascript
-// Force single-threaded mode by providing maxIterations
-const result = mineProxySalt({
-  implementationAddress: "0x...",
-  initCalldata: "0x...",
-  deployerAddress: "0x...", // Use deployerAddress (new) or createXAddress (deprecated)
-  prefix: "BEEF",
-  maxIterations: 1000000, // Forces single-threaded
-  caseSensitive: false,
-  onProgress: ({ iterations, elapsed, rate }) => {
-    console.log(`${iterations} attempts at ${rate}/sec`);
-  }
-});
 ```
 
 ### Well Implementation Mining
@@ -486,17 +441,17 @@ if (result) {
 
 ### Proxy Mining Issues
 
-**No match found after max iterations**
+**Taking too long to find a match**
 
 - Try a shorter prefix
-- Switch to multi-threaded mode (default) or increase `--num-workers`
 - Consider case-insensitive matching
+- Ensure Foundry is installed and up to date
 
 **Mining is too slow**
 
-- Ensure multi-threaded mode is enabled (default)
-- Check CPU usage - should be using all cores
-- Consider running multiple instances with different prefixes simultaneously
+- Ensure Foundry's `cast` is installed and in your PATH
+- Check CPU usage - `cast create2` should be using all cores automatically
+- Update Foundry to the latest version: `foundryup`
 
 **Address doesn't match in actual deployment**
 
@@ -538,19 +493,20 @@ if (result) {
 
 ### Proxy Mining Architecture
 
-**Multi-threaded (Default)**:
+**Foundry cast create2 (Current)**:
 
-- Uses Node.js `worker_threads` to parallelize mining
-- Each worker generates random salts independently
-- First worker to find a match stops all others
-- Scales linearly with CPU cores (8 cores ≈ 8x faster)
-- Implementation: `utils/mineProxySalt.js` + `utils/mineProxySaltWorker.js`
+- Uses Foundry's highly optimized `cast create2` command
+- Multi-threaded by default (Foundry handles parallelization)
+- Much faster than JavaScript-based mining (~10x+ speedup)
+- Requires Foundry installation: https://getfoundry.sh
+- Implementation: `utils/mineProxySalt.js`
 
-**Single-threaded**:
+**Benefits**:
 
-- Legacy mode for compatibility
-- Useful for debugging or low-memory environments
-- Activated by providing `--max-iterations` parameter
+- Native Rust implementation (faster than Node.js)
+- Built-in parallelization
+- Industry-standard tool from Foundry
+- No custom worker thread management needed
 
 ### Well Mining Architecture
 
@@ -574,8 +530,7 @@ if (result) {
 
 ```
 utils/
-├── mineProxySalt.js          # Main proxy miner (multi & single-threaded)
-├── mineProxySaltWorker.js    # Worker thread for parallel proxy mining
+├── mineProxySalt.js          # Proxy miner using Foundry cast create2
 └── mineWellSalt.js           # Well implementation miner
 
 contracts/test/
@@ -589,10 +544,9 @@ tasks/
 
 ### For Proxy Address Mining:
 
-1. Mine your desired proxy salt using `mineProxySalt`
-2. Use multi-threaded mode for best performance (default)
-3. Use it in your well deployment configuration
-4. Deploy and verify the address matches
+1. Mine your desired proxy salt using `mineProxySalt` (requires Foundry)
+2. Use it in your well deployment configuration
+3. Deploy and verify the address matches
 
 ### For Well Implementation Mining:
 

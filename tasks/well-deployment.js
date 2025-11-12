@@ -525,14 +525,6 @@ module.exports = function () {
         return;
       }
 
-      // Warn if very difficult
-      if (estimate.prefixLength > 5) {
-        console.log("⚠️  Warning: This prefix is very difficult to mine!");
-        console.log("   Consider using a shorter prefix.\n");
-        console.log("   Continuing in 5 seconds... (Ctrl+C to cancel)");
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-      }
-
       // Prepare init calldata
       const initCalldata = new ethers.utils.Interface([
         "function init(string name, string symbol)"
@@ -684,14 +676,6 @@ module.exports = function () {
       if (estimateOnly) {
         console.log("ℹ️  Estimate only mode - exiting without mining\n");
         return;
-      }
-
-      // Warn if very difficult
-      if (estimate.prefixLength > 5) {
-        console.log("⚠️  Warning: This prefix is very difficult to mine!");
-        console.log("   Consider using a shorter prefix.\n");
-        console.log("   Continuing in 5 seconds... (Ctrl+C to cancel)");
-        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
 
       console.log("⚙️  Mining Configuration");

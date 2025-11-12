@@ -27,13 +27,13 @@ async function mineWellSalt({
   bean,
   nonBeanToken,
   wellFunctionTarget,
-  wellFunctionData = "0x",
+  wellFunctionData = "",
   pumpTarget,
   pumpData,
   sender,
   prefix,
   caseSensitive = false,
-  batchSize = 20,
+  batchSize = 40,
   onProgress = null
 }) {
   const { ethers } = hre;
@@ -70,7 +70,6 @@ async function mineWellSalt({
 
     // Encode immutable data
     finalImmutableData = encodeWellImmutableData(aquifer, tokens, wellFunction, pumps);
-    console.log("Encoded immutableData:", finalImmutableData);
   }
 
   // Validate inputs

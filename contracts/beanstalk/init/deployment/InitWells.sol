@@ -21,9 +21,9 @@ import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWei
  * Deploys the initial wells for the protocol and whitelists all assets.
  */
 contract InitWells {
-    address internal constant CONSTANT_PRODUCT_2 = 0x0000000000000000000000000000000000000000;
-    address internal constant MULTI_FLOW_PUMP = 0x0000000000000000000000000000000000000000;
     AppStorage internal s;
+    address internal constant CONSTANT_PRODUCT_2 = 0xBA510C289fD067EBbA41335afa11F0591940d6fe;
+    address internal constant MULTI_FLOW_PUMP = 0xBA51AAaA66DaB6c236B356ad713f759c206DcB93;
 
     /**
      * @notice contains parameters for the wells to be deployed on basin. Assumes Pinto is the first token in the well.
@@ -76,8 +76,6 @@ contract InitWells {
                 wellData.pumps
             );
 
-        // Bore upgradeable well with the same salt for reproducibility.
-        // The address of this is irrelevant, we just need it to be constant, this is why no salt is used.
         well = IAquifer(wellData.aquifer).boreWell(
             wellData.wellImplementation,
             immutableData,
@@ -87,6 +85,8 @@ contract InitWells {
 
         // Deploy proxy
         initData = abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol));
+        // log initData
+        bytes memory creationCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(well, initData));
         proxy = address(new ERC1967Proxy{salt: wellData.proxySalt}(well, initData));
     }
 

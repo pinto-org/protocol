@@ -10,7 +10,6 @@ import {AssetSettings, Implementation} from "contracts/beanstalk/storage/System.
 import {BDVFacet} from "contracts/beanstalk/facets/silo/BDVFacet.sol";
 import {Call} from "contracts/interfaces/basin/IWell.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {console} from "forge-std/console.sol";
 /**
  * @title InitWstethMigration
  * @dev performs the wsteth migration.
@@ -29,9 +28,9 @@ contract InitWstethMigration is InitWells {
     address internal constant WELL_IMPLEMENTATION = 0xBA510990a720725Ab1F9a0D231F045fc906909f4;
     address internal constant AQUIFER = 0xBA51AA60B3b8d9A36cc748a62Aa56801060183f8;
     bytes32 internal constant WELL_SALT =
-        0x0000000000000000000000000000000000000000000000000000000000000001;
+        0xa1403b59e21fd5e877f0c926cc94485d8e048272197f6b1e94bad0186e6c53a7;
     bytes32 internal constant PROXY_SALT =
-        0x0000000000000000000000000000000000000000000000000000000000000001;
+        0x3cf7323e9f464d91de6f51e29f825cc774e1ce5b612887e8ed297677e4070607;
 
     // Asset parameters.
     uint48 internal constant STALK_PER_BDV = 1e10;
@@ -41,12 +40,9 @@ contract InitWstethMigration is InitWells {
 
     function init() external {
         // Deploy the new well.
-        console.log("Deploying new well...");
         (address wellImplementation, address wstethWell) = deployUpgradableWell(
             getWstethWellData()
         );
-        console.log("wellImplementation:", wellImplementation);
-        console.log("wstethWell:", wstethWell);
         // Whitelist new asset.
         whitelistBeanAsset(getWhitelistData(wstethWell));
 
@@ -68,8 +64,8 @@ contract InitWstethMigration is InitWells {
             pumps: pumps,
             wellSalt: WELL_SALT,
             proxySalt: PROXY_SALT,
-            name: "WSTETH",
-            symbol: "WSTETH"
+            name: "PINTO:WSTETH Constant Product 2 Upgradeable Well",
+            symbol: "U-PINTOWSTETHCP2w"
         });
     }
 

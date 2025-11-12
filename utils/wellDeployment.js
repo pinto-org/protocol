@@ -27,25 +27,25 @@ const STANDARD_ADDRESSES_BASE = {
  * @returns {string} Encoded immutable data
  */
 function encodeWellImmutableData(aquifer, tokens, wellFunction, pumps) {
-  // Initial encoding: aquifer, tokens.length, wellFunction.target, wellFunction.data.length, pumps.length
+  // Initial encoding: aquifer, tokens.length, wellFunction.target, wellFunction.data.length, pumps.length, tokens, wellFunction.data, pumps
   let immutableData = ethers.utils.solidityPack(
-    ["address", "uint256", "address", "uint256", "uint256"],
-    [aquifer, tokens.length, wellFunction.target, wellFunction.data.length, pumps.length]
+    ["address", "uint256", "address", "uint256", "uint256", "address[]", "bytes"],
+    [
+      aquifer,
+      tokens.length,
+      wellFunction.target,
+      wellFunction.data.length / 2 - 1, // length is n/2 - 1 as each character is 2 bytes. One character is for the "0x" prefix.
+      pumps.length,
+      tokens,
+      wellFunction.data
+    ]
   );
-
-  // Append each token address individually (matches Solidity's abi.encodePacked behavior for arrays)
-  for (let i = 0; i < tokens.length; i++) {
-    immutableData = ethers.utils.solidityPack(["bytes", "address"], [immutableData, tokens[i]]);
-  }
-
-  // Append well function data
-  immutableData = ethers.utils.solidityPack(["bytes", "bytes"], [immutableData, wellFunction.data]);
 
   // Append each pump (target, data.length, data)
   for (let i = 0; i < pumps.length; i++) {
     immutableData = ethers.utils.solidityPack(
       ["bytes", "address", "uint256", "bytes"],
-      [immutableData, pumps[i].target, pumps[i].data.length, pumps[i].data]
+      [immutableData, pumps[i].target, pumps[i].data.length / 2 - 1, pumps[i].data] // length is n/2 - 1 as each character is 2 bytes. One character is for the "0x" prefix.
     );
   }
 
@@ -130,7 +130,7 @@ async function deployUpgradeableWell({
     .boreWell(wellImplementation, immutableData, initData, wellSalt);
 
   const receipt = await tx.wait();
-  const wellAddress = receipt.events.find(e => e.event === "BoreWell").args.well;
+  const wellAddress = receipt.events.find((e) => e.event === "BoreWell").args.well;
 
   if (verbose) {
     console.log(`Base well deployed at: ${wellAddress}`);
