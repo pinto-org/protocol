@@ -53,7 +53,7 @@ contract InitWells {
     /**
      * @notice Initializes the Bean protocol deployment.
      */
-    function init(WellData[] calldata wells, WhitelistData[] calldata whitelist) external {
+    function initWells(WellData[] calldata wells, WhitelistData[] calldata whitelist) external {
         // Deploy the initial wells
         deployUpgradableWells(s.sys.bean, wells);
         // Whitelist bean assets
@@ -84,8 +84,6 @@ contract InitWells {
             initData,
             wellData.wellSalt
         );
-
-        // console.log("_well for %s: %s", name, _well);
 
         // Deploy proxy
         initData = abi.encodeCall(IWellUpgradeable.init, (wellData.name, wellData.symbol));
@@ -202,10 +200,16 @@ contract InitWells {
     }
 
     function getConstantProduct2Call() internal pure returns (Call memory wellFunction) {
-        wellFunction = Call({target: CONSTANT_PRODUCT_2, data: abi.encode(1)});
+        wellFunction = Call({
+            target: CONSTANT_PRODUCT_2,
+            data: bytes("")
+        });
     }
 
     function getMultiFlowPumpCall() internal pure returns (Call memory pump) {
-        pump = Call({target: MULTI_FLOW_PUMP, data: abi.encode(1)});
+        pump = Call({
+            target: MULTI_FLOW_PUMP,
+            data: hex"3ffefd29d6deab9ccdef2300d0c1c903000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000603ffd0000000000000000000000000000000000000000000000000000000000003ffd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003ffd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000023ffd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        });
     }
 }

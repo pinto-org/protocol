@@ -16,31 +16,9 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   const order = true;
   // compile contracts.
   await hre.run("compile");
-  // deploy PI-13
-  await hre.run("PI-13");
 
-  // Setup LP tokens for test addresses BEFORE running many sunrises
-  if (order) {
-    console.log("Setting up LP tokens for test addresses...");
-    await hre.run("setup-convert-up-addresses");
-    // increase the seeds, call sunrise.
-    await hre.run("mock-seeds");
-    await hre.run("callSunrise");
-  }
-
-  // deploy convert up blueprint
-  // dev: should be deployed to : 0x53B7cF2a4A18062aFF4fA71Bb300F6eA2d3702E2 for testing purposes.
-  await hre.run("deployConvertUpBlueprint");
-
-  // Now sign and publish the convert up blueprints with grown stalk available
-  if (order) {
-    console.log("Signing and publishing convert up blueprints...");
-    await hre.run("create-mock-convert-up-orders", {
-      execute: true,
-      skipSetup: true // Skip LP token setup since we already did it
-    });
-    await hre.run("callSunrise");
-  }
+  await hre.run("wsteth-migration");
+  console.log("WSTETH migration completed");
 });
 
 //////////////////////// CONFIGURATION ////////////////////////
