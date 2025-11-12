@@ -200,10 +200,7 @@ contract InitWells {
     }
 
     function getConstantProduct2Call() internal pure returns (Call memory wellFunction) {
-        wellFunction = Call({
-            target: CONSTANT_PRODUCT_2,
-            data: bytes("")
-        });
+        wellFunction = Call({target: CONSTANT_PRODUCT_2, data: bytes("")});
     }
 
     function getMultiFlowPumpCall() internal pure returns (Call memory pump) {
