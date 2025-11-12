@@ -25,7 +25,7 @@ contract InitWstethMigration is InitWells {
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
 
     // Well parameters.
-    address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+    address internal constant WSTETH = 0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452;
     address internal constant WELL_IMPLEMENTATION = 0xBA510990a720725Ab1F9a0D231F045fc906909f4;
     address internal constant AQUIFER = 0xBA51AA60B3b8d9A36cc748a62Aa56801060183f8;
     bytes32 internal constant WELL_SALT =
@@ -91,7 +91,7 @@ contract InitWstethMigration is InitWells {
         });
         Implementation memory oracle = Implementation({
             target: 0x1CD1CDDc6383dfD53Acd7A22456A82256730b8Ef,
-            selector: bytes4(0x70a08231),
+            selector: bytes4(0xb0dd7409),
             encodeType: bytes1(0x00),
             data: abi.encode(
                 ETH_USD_CHAINLINK_ORACLE,
