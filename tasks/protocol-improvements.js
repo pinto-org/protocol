@@ -906,4 +906,28 @@ module.exports = function () {
       account: owner
     });
   });
+
+  task(
+    "marketplace-batch-functions",
+    "Deploys MarketplaceFacet and MarketplaceMultiFacet"
+  ).setAction(async function () {
+    const mock = false;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["MarketplaceFacet", "MarketplaceMultiFacet"],
+      libraryNames: [],
+      facetLibraries: {},
+      initArgs: [],
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
 };
