@@ -18,8 +18,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param referralBeanSownEligibilityThreshold The number of beans that a user will need to sow to be eligible for referral rewards.
  * @param initialSoil The amount of Soil at the start of the season.
- * @param referralPercentage The percentage of pods that a user will gain for successfully referring a user to sow.  decimal precision.
+ * @param referrerPercentage The percentage of pods that a user will gain for successfully referring a user to sow. 18 decimal precision.
+ * @param refereePercentage The percentage of pods that a user will gain for successfully being referred by a user to sow. 18 decimal precision.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.

@@ -229,6 +229,35 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             1;
     }
 
+    //////////////////// REFERRAL ////////////////////
+
+    /**
+     * @notice Delegate the referral rewards to a delegate.
+     * @param delegate The address of the delegate to delegate the referral rewards to.
+     * @dev a user can reset their delegate to the zero address to stop delegating.
+     */
+    function delegateReferralRewards(address delegate) external {
+        address user = LibTractor._user();
+        uint256 af = s.sys.activeField;
+        require(delegate != user, "Field: delegate cannot be the user");
+
+        // a user is eligible to delegate if they are eligible themselves via sowing the threshold number of beans.
+        require(s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold, "Field: user cannot delgate");
+
+        // if the user has already delegated, reset the eligibility for the delegate.
+        if (s.accts[user].fields[af].referral.delegate != address(0)) {
+            address oldDelegate = s.accts[user].fields[af].referral.delegate;
+            s.accts[oldDelegate].fields[af].referral.eligibility = false;
+        }
+
+        // the delegate must not be already eligible.
+        require(!s.accts[delegate].fields[af].referral.eligibility, "Field: delegate is already eligible");
+
+        // delegate the referral rewards to the delegate.
+        s.accts[user].fields[af].referral.delegate = delegate;
+        s.accts[delegate].fields[af].referral.eligibility = true;
+    }
+
     //////////////////// CONFIG /////////////////////
 
     /**
@@ -501,5 +530,10 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     function getBeansSownForReferral(address referrer) external view returns (uint256) {
         uint256 af = s.sys.activeField;
         return s.accts[referrer].fields[af].referral.beans;
+    }
+
+    function getDelegate(address referrer) external view returns (address) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.delegate;
     }
 }

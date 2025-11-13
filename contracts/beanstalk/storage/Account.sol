@@ -69,10 +69,16 @@ struct Field {
  * @notice Stores referral data for a Farmer.
  * @param beans The number of Beans a referrer has earned from referrals.
  * @param eligibility A boolean indicating whether a referrer is eligible for referral rewards.
+ * @param delegate The address of the delegate that the referrer has delegated their referral rewards to. 
+ * This is the address that will receive the referral rewards.
+ * @dev If a farmer has `eligibility` set, but has not sown the threshold number of beans,
+ * (i.e., `beans` < `referralBeanSownEligibilityThreshold`), the farmer has been delegated
+ * from another address. Farmers that are already eligible cannot become a delegate.
  */
 struct FieldReferral {
     uint128 beans;
     bool eligibility;
+    address delegate;
 }
 
 /**
