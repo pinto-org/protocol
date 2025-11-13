@@ -116,9 +116,13 @@ contract ListingTest is TestHelper {
         }
 
         // Cancel all 3 using different indices
-        IMockFBeanstalk.CancelPodListingParams[] memory params = new IMockFBeanstalk.CancelPodListingParams[](3);
+        IMockFBeanstalk.CancelPodListingParams[]
+            memory params = new IMockFBeanstalk.CancelPodListingParams[](3);
         for (uint256 i = 0; i < 3; i++) {
-            params[i] = IMockFBeanstalk.CancelPodListingParams({fieldId: fieldId, index: plotIndexes[i]});
+            params[i] = IMockFBeanstalk.CancelPodListingParams({
+                fieldId: fieldId,
+                index: plotIndexes[i]
+            });
         }
 
         vm.prank(users[1]);
@@ -134,7 +138,8 @@ contract ListingTest is TestHelper {
         uint256 fieldId = bs.activeField();
 
         // Create 3 orders
-        IMockFBeanstalk.CreatePodOrderParams[] memory params = new IMockFBeanstalk.CreatePodOrderParams[](3);
+        IMockFBeanstalk.CreatePodOrderParams[]
+            memory params = new IMockFBeanstalk.CreatePodOrderParams[](3);
         for (uint256 i = 0; i < 3; i++) {
             params[i] = IMockFBeanstalk.CreatePodOrderParams({
                 order: IMockFBeanstalk.PodOrder({
@@ -215,7 +220,8 @@ contract ListingTest is TestHelper {
         }
 
         // Fill all 3 listings using multiFillPodListing
-        IMockFBeanstalk.FillPodListingParams[] memory fillParams = new IMockFBeanstalk.FillPodListingParams[](3);
+        IMockFBeanstalk.FillPodListingParams[]
+            memory fillParams = new IMockFBeanstalk.FillPodListingParams[](3);
         for (uint256 i = 0; i < 3; i++) {
             fillParams[i] = IMockFBeanstalk.FillPodListingParams({
                 listing: listings[i],
@@ -246,7 +252,8 @@ contract ListingTest is TestHelper {
         require(plotIndexes.length >= 3, "Not enough plots");
 
         // Create 3 orders using multiCreatePodOrder
-        IMockFBeanstalk.CreatePodOrderParams[] memory orderParams = new IMockFBeanstalk.CreatePodOrderParams[](3);
+        IMockFBeanstalk.CreatePodOrderParams[]
+            memory orderParams = new IMockFBeanstalk.CreatePodOrderParams[](3);
         for (uint256 i = 0; i < 3; i++) {
             orderParams[i] = IMockFBeanstalk.CreatePodOrderParams({
                 order: IMockFBeanstalk.PodOrder({
@@ -271,11 +278,12 @@ contract ListingTest is TestHelper {
 
         // Fill all 3 orders using multiFillPodOrder
         uint256[] memory podAmounts = new uint256[](3);
-        podAmounts[0] = 100000000; 
+        podAmounts[0] = 100000000;
         podAmounts[1] = 100100101;
         podAmounts[2] = 100200401;
 
-        IMockFBeanstalk.FillPodOrderParams[] memory fillParams = new IMockFBeanstalk.FillPodOrderParams[](3);
+        IMockFBeanstalk.FillPodOrderParams[]
+            memory fillParams = new IMockFBeanstalk.FillPodOrderParams[](3);
         for (uint256 i = 0; i < 3; i++) {
             fillParams[i] = IMockFBeanstalk.FillPodOrderParams({
                 order: orderParams[i].order,

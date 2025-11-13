@@ -916,10 +916,7 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
-    function multiFillPodListing(
-        FillPodListingParams[] memory params,
-        uint8 mode
-    ) external payable;
+    function multiFillPodListing(FillPodListingParams[] memory params, uint8 mode) external payable;
 
     function fillPodOrder(
         PodOrder memory podOrder,
@@ -929,10 +926,7 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
-    function multiFillPodOrder(
-        FillPodOrderParams[] memory params,
-        uint8 mode
-    ) external payable;
+    function multiFillPodOrder(FillPodOrderParams[] memory params, uint8 mode) external payable;
 
     function floodHarvestablePods() external view returns (uint256);
 
