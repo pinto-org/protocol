@@ -242,7 +242,10 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         require(delegate != user, "Field: delegate cannot be the user");
 
         // a user is eligible to delegate if they are eligible themselves via sowing the threshold number of beans.
-        require(s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold, "Field: user cannot delgate");
+        require(
+            s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold,
+            "Field: user cannot delgate"
+        );
 
         // if the user has already delegated, reset the eligibility for the delegate.
         if (s.accts[user].fields[af].referral.delegate != address(0)) {
@@ -251,7 +254,10 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         }
 
         // the delegate must not be already eligible.
-        require(!s.accts[delegate].fields[af].referral.eligibility, "Field: delegate is already eligible");
+        require(
+            !s.accts[delegate].fields[af].referral.eligibility,
+            "Field: delegate is already eligible"
+        );
 
         // delegate the referral rewards to the delegate.
         s.accts[user].fields[af].referral.delegate = delegate;
