@@ -4,11 +4,21 @@ pragma solidity ^0.8.20;
 import {SowBlueprintBase, LibSiloHelpers} from "./SowBlueprintBase.sol";
 
 /**
- * @title SowBlueprint
+ * @title SowBlueprintReferral
  * @author FordPinto, Frijo
- * @notice Contract for sowing with Tractor, with a number of conditions
+ * @notice Contract for sowing with Tractor, with a number of conditions. Has a referral address.
  */
-contract SowBlueprint is SowBlueprintBase {
+contract SowBlueprintReferral is SowBlueprintBase {
+    /**
+     * @notice Struct for sow referral blueprint
+     * @param params Base sow parameters
+     * @param referral Referral address for the sow operation
+     */
+    struct SowReferralBlueprintStruct {
+        SowBlueprintStruct params;
+        address referral;
+    }
+
     constructor(
         address _beanstalk,
         address _owner,
@@ -17,13 +27,13 @@ contract SowBlueprint is SowBlueprintBase {
     ) SowBlueprintBase(_beanstalk, _owner, _tractorHelpers, _siloHelpers) {}
 
     /**
-     * @notice Sows beans using specified source tokens in order of preference
-     * @param params The SowBlueprintStruct containing all parameters for the sow operation
+     * @notice Sows beans using specified source tokens in order of preference with referral
+     * @param params The SowReferralBlueprintStruct containing all parameters for the sow operation including referral
      */
-    function sowBlueprint(
-        SowBlueprintStruct calldata params
+    function sowBlueprintReferral(
+        SowReferralBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
-        _sowBlueprintInternal(params, address(0));
+        _sowBlueprintInternal(params.params, params.referral);
     }
 
     /**
@@ -31,7 +41,7 @@ contract SowBlueprint is SowBlueprintBase {
      * @dev Public wrapper for external callers
      */
     function validateParamsAndReturnBeanstalkState(
-        SowBlueprintStruct calldata params,
+        SowReferralBlueprintStruct calldata params,
         bytes32 orderHash,
         address blueprintPublisher
     )
@@ -47,18 +57,18 @@ contract SowBlueprint is SowBlueprintBase {
             LibSiloHelpers.WithdrawalPlan memory plan
         )
     {
-        return _validateParamsAndReturnBeanstalkState(params, orderHash, blueprintPublisher);
+        return _validateParamsAndReturnBeanstalkState(params.params, orderHash, blueprintPublisher);
     }
 
     /**
      * @notice Validates multiple sow parameters and returns an array of valid order hashes
-     * @param paramsArray Array of SowBlueprintStruct containing all parameters for the sow operations
+     * @param paramsArray Array of SowReferralBlueprintStruct containing all parameters for the sow operations
      * @param orderHashes Array of order hashes to validate
      * @param blueprintPublishers Array of blueprint publishers to validate
      * @return validOrderHashes Array of valid order hashes that passed validation
      */
     function validateParamsAndReturnBeanstalkStateArray(
-        SowBlueprintStruct[] calldata paramsArray,
+        SowReferralBlueprintStruct[] calldata paramsArray,
         bytes32[] calldata orderHashes,
         address[] calldata blueprintPublishers
     ) external view returns (bytes32[] memory validOrderHashes) {
@@ -97,6 +107,6 @@ contract SowBlueprint is SowBlueprintBase {
     }
 
     function version() external pure returns (string memory) {
-        return "1.1.1";
+        return "1.0.0";
     }
 }

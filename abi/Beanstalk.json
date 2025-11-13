@@ -1870,17 +1870,6 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "x",
-        "type": "uint256"
-      }
-    ],
-    "name": "PRBMathUD60x18__LogInputTooSmall",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
         "name": "prod1",
         "type": "uint256"
       },
@@ -2055,6 +2044,49 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "referrerIndex",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "referrerPods",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "referee",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "refereeIndex",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "refereePods",
+        "type": "uint256"
+      }
+    ],
+    "name": "SowReferral",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "activeField",
     "outputs": [
@@ -2100,19 +2132,6 @@
   },
   {
     "inputs": [],
-    "name": "beanSown",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "fieldCount",
     "outputs": [
       {
@@ -2127,6 +2146,19 @@
   {
     "inputs": [],
     "name": "floodHarvestablePods",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBeanSownEligibilityThreshold",
     "outputs": [
       {
         "internalType": "uint256",
@@ -2192,6 +2224,32 @@
         "internalType": "struct FieldFacet.Plot[]",
         "name": "plots",
         "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getRefereePercentage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getReferrerPercentage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -2293,6 +2351,25 @@
       }
     ],
     "name": "isHarvesting",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "isValidReferrer",
     "outputs": [
       {
         "internalType": "bool",
@@ -2456,6 +2533,55 @@
       }
     ],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "beans",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minTemperature",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minSoil",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum LibTransfer.From",
+        "name": "mode",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "referral",
+        "type": "address"
+      }
+    ],
+    "name": "sowWithReferral",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "pods",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "referrerPods",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refereePods",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -5612,25 +5738,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      }
-    ],
-    "name": "getSeedsForToken",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "getStemTips",
     "outputs": [
@@ -6641,6 +6748,11 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "T",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -6672,21 +6784,34 @@
         "internalType": "uint256",
         "name": "toAmount",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "fromBdv",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "toBdv",
-        "type": "uint256"
       }
     ],
     "name": "Convert",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkLost",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
+        "type": "uint256"
+      }
+    ],
+    "name": "ConvertDownPenalty",
     "type": "event"
   },
   {
@@ -6764,92 +6889,6 @@
     ],
     "stateMutability": "payable",
     "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "inputToken",
-        "type": "address"
-      },
-      {
-        "internalType": "int96[]",
-        "name": "stems",
-        "type": "int96[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "address",
-        "name": "outputToken",
-        "type": "address"
-      },
-      {
-        "internalType": "int256",
-        "name": "grownStalkSlippage",
-        "type": "int256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "target",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes",
-            "name": "callData",
-            "type": "bytes"
-          },
-          {
-            "internalType": "bytes",
-            "name": "clipboard",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct AdvancedPipeCall[]",
-        "name": "advancedPipeCalls",
-        "type": "tuple[]"
-      }
-    ],
-    "name": "pipelineConvertWithStalkSlippage",
-    "outputs": [
-      {
-        "internalType": "int96",
-        "name": "toStem",
-        "type": "int96"
-      },
-      {
-        "internalType": "uint256",
-        "name": "fromAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "toAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "fromBdv",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "toBdv",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "T",
-    "type": "error"
   },
   {
     "inputs": [
@@ -7054,55 +7093,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getCalculatedBonusStalkPerBdv",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getConvertStalkPerBdvBonusAndMaximumCapacity",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getConvertStalkPerBdvBonusAndRemainingCapacity",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -7245,35 +7235,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "bdvToConvert",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "grownStalk",
-        "type": "uint256"
-      }
-    ],
-    "name": "stalkBonus",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "bdvCapacityUsed",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "grownStalkGained",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "bytes",
         "name": "convertData",
         "type": "bytes"
@@ -7290,60 +7251,6 @@
       }
     ],
     "name": "convert",
-    "outputs": [
-      {
-        "internalType": "int96",
-        "name": "toStem",
-        "type": "int96"
-      },
-      {
-        "internalType": "uint256",
-        "name": "fromAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "toAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "fromBdv",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "toBdv",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "convertData",
-        "type": "bytes"
-      },
-      {
-        "internalType": "int96[]",
-        "name": "stems",
-        "type": "int96[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "int256",
-        "name": "grownStalkSlippage",
-        "type": "int256"
-      }
-    ],
-    "name": "convertWithStalkSlippage",
     "outputs": [
       {
         "internalType": "int96",
@@ -8008,19 +7915,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newMaxTotalGaugePoints",
-        "type": "uint256"
-      }
-    ],
-    "name": "UpdateMaxTotalGaugePoints",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "enum ShipmentRecipient",
         "name": "recipient",
@@ -8347,68 +8241,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkLost",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkKept",
-        "type": "uint256"
-      }
-    ],
-    "name": "ConvertDownPenalty",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "grownStalkGained",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newGrownStalk",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bdvCapacityUsed",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bdvConverted",
-        "type": "uint256"
-      }
-    ],
-    "name": "ConvertUpBonus",
-    "type": "event"
-  },
-  {
     "inputs": [],
     "name": "abovePeg",
     "outputs": [
@@ -8720,9 +8552,14 @@
             "type": "uint256"
           },
           {
-            "internalType": "bytes32[61]",
+            "internalType": "uint256",
+            "name": "minSoilSownDemand",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32[60]",
             "name": "buffer",
-            "type": "bytes32[61]"
+            "type": "bytes32[60]"
           }
         ],
         "internalType": "struct ExtEvaluationParameters",
@@ -8801,19 +8638,6 @@
   {
     "inputs": [],
     "name": "getMinBeanMaxLpGpPerBdvRatio",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getOrderLockedBeans",
     "outputs": [
       {
         "internalType": "uint256",
@@ -9397,24 +9221,14 @@
             "type": "uint32"
           },
           {
-            "internalType": "uint64",
+            "internalType": "uint32",
             "name": "temp",
-            "type": "uint64"
+            "type": "uint32"
           },
           {
-            "internalType": "uint128",
-            "name": "morningControl",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint16",
-            "name": "morningDuration",
-            "type": "uint16"
-          },
-          {
-            "internalType": "bytes32[3]",
+            "internalType": "bytes32[4]",
             "name": "_buffer",
-            "type": "bytes32[3]"
+            "type": "bytes32[4]"
           }
         ],
         "internalType": "struct Weather",
@@ -10135,19 +9949,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getMaxTotalGaugePoints",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -10188,11 +9989,6 @@
             "type": "bool"
           },
           {
-            "internalType": "uint128",
-            "name": "maxTotalGaugePoints",
-            "type": "uint128"
-          },
-          {
             "internalType": "bytes32[4]",
             "name": "_buffer",
             "type": "bytes32[4]"
@@ -10222,36 +10018,13 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "systemData",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "gaugeData",
-        "type": "bytes"
+        "internalType": "uint256",
+        "name": "x",
+        "type": "uint256"
       }
     ],
-    "name": "convertDownPenaltyGauge",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    "name": "PRBMathUD60x18__LogInputTooSmall",
+    "type": "error"
   },
   {
     "inputs": [
@@ -10271,7 +10044,7 @@
         "type": "bytes"
       }
     ],
-    "name": "convertUpBonusGauge",
+    "name": "convertDownPenaltyGauge",
     "outputs": [
       {
         "internalType": "bytes",

@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
@@ -132,13 +133,7 @@ contract FieldTest is TestHelper {
         uint256 totalBeanSupplyBefore = bean.totalSupply();
 
         _beforeEachSow(soil, beansToSow, from == true ? 1 : 0);
-        sowAssertEq(
-            farmers[0],
-            beanBalanceBefore,
-            totalBeanSupplyBefore,
-            beansToSow,
-            _minPods(beansToSow)
-        );
+        sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, beansToSow, _minPods(beansToSow));
         assertEq(uint256(field.totalSoil()), soil - beansToSow, "total Soil");
     }
 
@@ -148,11 +143,7 @@ contract FieldTest is TestHelper {
      * from the farmer's Internal Balance and will not fail
      * if there is not enough in their Internal Balance.
      */
-    function test_SowSoilFromInternalTolerant(
-        uint256 beansToSow,
-        uint256 soil,
-        uint256 beansToInternal
-    ) public {
+    function test_SowSoilFromInternalTolerant(uint256 beansToSow, uint256 soil, uint256 beansToInternal) public {
         soil = bound(soil, 100, type(uint128).max); // soil casted to uint128.
         beansToSow = bound(beansToSow, 1, soil); // bounded by soil.
         beansToInternal = bound(beansToInternal, 1, beansToSow); // internal beans < beansToSow
@@ -167,13 +158,7 @@ contract FieldTest is TestHelper {
 
         _beforeEachSowInternalTolerant(soil, beansToSow, beansToInternal);
         if (beansToSow > beansToInternal) beansToSow = beansToInternal;
-        sowAssertEq(
-            farmers[0],
-            beanBalanceBefore,
-            totalBeanSupplyBefore,
-            beansToSow,
-            _minPods(beansToSow)
-        );
+        sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, beansToSow, _minPods(beansToSow));
         assertEq(field.totalSoil(), soil - beansToSow, "total Soil");
     }
 
@@ -201,13 +186,7 @@ contract FieldTest is TestHelper {
 
         uint256 amountSown = beans > minSoil ? minSoil : beans;
 
-        sowAssertEq(
-            farmers[0],
-            beanBalanceBefore,
-            totalBeanSupplyBefore,
-            amountSown,
-            _minPods(amountSown)
-        );
+        sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, amountSown, _minPods(amountSown));
 
         assertEq(field.totalSoil(), 0);
     }
@@ -216,46 +195,28 @@ contract FieldTest is TestHelper {
      * test ensures that multiple sows correctly
      * updates plot index, total pods, and total soil.
      */
-    function testSowFrom2farmers(
-        uint256 soilAvailable,
-        uint256 farmer1Sow,
-        uint256 farmer2Sow
-    ) public {
+    function testSowFrom2farmers(uint256 soilAvailable, uint256 farmer1Sow, uint256 farmer2Sow) public {
         soilAvailable = bound(soilAvailable, 2, type(uint128).max);
         farmer1Sow = bound(farmer1Sow, 1, soilAvailable / 2);
         farmer2Sow = bound(farmer2Sow, 1, soilAvailable / 2);
         uint256 farmer1BeansBeforeSow;
         uint256 farmer2BeansBeforeSow;
 
-        (
-            farmer1Sow,
-            farmer2Sow,
-            farmer1BeansBeforeSow,
-            farmer2BeansBeforeSow
-        ) = beforeEachSow2farmers(soilAvailable, farmers[0], farmer1Sow, farmers[1], farmer2Sow);
+        (farmer1Sow, farmer2Sow, farmer1BeansBeforeSow, farmer2BeansBeforeSow) =
+            beforeEachSow2farmers(soilAvailable, farmers[0], farmer1Sow, farmers[1], farmer2Sow);
 
         uint256 totalAmountSown = farmer1Sow + farmer2Sow;
         uint256 farmer1Pods = _minPods(farmer1Sow);
         uint256 farmer2Pods = _minPods(farmer2Sow);
         uint256 totalPodsIssued = farmer1Pods + farmer2Pods;
 
-        assertEq(
-            bean.balanceOf(farmers[0]),
-            farmer1BeansBeforeSow - farmer1Sow,
-            "farmer 1 invalid balance"
-        );
+        assertEq(bean.balanceOf(farmers[0]), farmer1BeansBeforeSow - farmer1Sow, "farmer 1 invalid balance");
         assertEq(field.plot(farmers[0], 0, 0), farmer1Pods, "farmer 1 invalid pods");
 
-        assertEq(
-            bean.balanceOf(farmers[1]),
-            farmer2BeansBeforeSow - farmer2Sow,
-            "farmer 2 invalid balance"
-        );
+        assertEq(bean.balanceOf(farmers[1]), farmer2BeansBeforeSow - farmer2Sow, "farmer 2 invalid balance");
         assertEq(field.plot(farmers[1], 0, farmer1Pods), farmer2Pods, "farmer 2 invalid pods");
         assertEq(
-            bean.totalSupply(),
-            farmer1BeansBeforeSow + farmer2BeansBeforeSow - totalAmountSown,
-            "invalid bean supply"
+            bean.totalSupply(), farmer1BeansBeforeSow + farmer2BeansBeforeSow - totalAmountSown, "invalid bean supply"
         );
         assertEq(bean.balanceOf(BEANSTALK), 0, "beans remaining in beanstalk");
 
@@ -270,15 +231,11 @@ contract FieldTest is TestHelper {
      * Checking next sow time, with more than 1 soil above the dynamic mostly sold out threshold.
      * @dev Verifies that `thisSowTime` is at the max value
      */
-    function testComplexDPDMoreThan1SoilMostlySoldOut(
-        uint256 initialSoil,
-        uint256 farmerSown
-    ) public {
+    function testComplexDPDMoreThan1SoilMostlySoldOut(uint256 initialSoil, uint256 farmerSown) public {
         initialSoil = bound(initialSoil, 2e6, type(uint128).max);
         // calculate threshold
         uint256 soilSoldOutThreshold = (initialSoil < 500e6) ? (initialSoil * 0.1e6) / 1e6 : 50e6;
-        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
-            soilSoldOutThreshold;
+        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.2e6) / 1e6) + soilSoldOutThreshold;
         // ensure at least `soilSoldOutThreshold + 1` remains after sowing
         farmerSown = bound(farmerSown, 1, initialSoil - (mostlySoldOutThreshold + 1));
         // set initial soil
@@ -300,8 +257,7 @@ contract FieldTest is TestHelper {
         initialSoil = bound(initialSoil, 2e6, type(uint128).max);
         // calculate threshold
         uint256 soilSoldOutThreshold = (initialSoil < 500e6) ? (initialSoil * 0.1e6) / 1e6 : 50e6;
-        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
-            soilSoldOutThreshold;
+        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.2e6) / 1e6) + soilSoldOutThreshold;
         // ensure at least `soilSoldOutThreshold + 1` remains after sowing
         farmerSown = bound(farmerSown, 1, initialSoil - (soilSoldOutThreshold + 1));
         // set initial soil
@@ -349,11 +305,7 @@ contract FieldTest is TestHelper {
      * In this example, a farmer can input a balance larger than their internal balance, but beanstalk will only credit up to their internal balance.
      * This prevents reverts.
      */
-    function _beforeEachSowInternalTolerant(
-        uint256 soilAmount,
-        uint256 sowAmount,
-        uint256 internalBalance
-    ) public {
+    function _beforeEachSowInternalTolerant(uint256 soilAmount, uint256 sowAmount, uint256 internalBalance) public {
         // vm.roll(30);
         season.setSoilE(soilAmount);
         vm.expectEmit();
@@ -363,13 +315,10 @@ contract FieldTest is TestHelper {
         field.sow(sowAmount, 0, LibTransfer.From.INTERNAL_TOLERANT);
     }
 
-    function beforeEachSow2farmers(
-        uint256 soil,
-        address farmer0,
-        uint256 amount0,
-        address farmer1,
-        uint256 amount1
-    ) public returns (uint256, uint256, uint256, uint256) {
+    function beforeEachSow2farmers(uint256 soil, address farmer0, uint256 amount0, address farmer1, uint256 amount1)
+        public
+        returns (uint256, uint256, uint256, uint256)
+    {
         season.setSoilE(soil);
         bean.mint(farmer0, amount0);
         uint256 initalBeanBalance0 = bean.balanceOf(farmer0);
@@ -520,20 +469,13 @@ contract FieldTest is TestHelper {
         }
 
         vm.startPrank(farmers[0]);
-        bs.transferPlots(
-            farmers[0],
-            farmers[1],
-            activeField,
-            plotIndexes,
-            new uint256[](transfers),
-            ends
-        );
+        bs.transferPlots(farmers[0], farmers[1], activeField, plotIndexes, new uint256[](transfers), ends);
         vm.stopPrank();
         verifyPlotIndexAndPlotLengths(farmers[0], activeField, sows - transfers);
 
         // upon a transfer/burn, the list of plots are not ordered.
         plots = field.getPlotsFromAccount(farmers[0], activeField);
-        for (uint i; i < plots.length; i++) {
+        for (uint256 i; i < plots.length; i++) {
             assertTrue(plots[i].index % pods == 0);
             assertEq(plots[i].pods, pods, "pods");
         }
@@ -541,7 +483,7 @@ contract FieldTest is TestHelper {
         verifyPlotIndexAndPlotLengths(farmers[1], activeField, transfers);
 
         plots = field.getPlotsFromAccount(farmers[1], activeField);
-        for (uint i; i < plots.length; i++) {
+        for (uint256 i; i < plots.length; i++) {
             assertTrue(plots[i].index % pods == 0);
             assertEq(plots[i].pods, pods, "pods");
         }
@@ -623,11 +565,7 @@ contract FieldTest is TestHelper {
 
     // field helpers.
 
-    function verifyPlotIndexAndPlotLengths(
-        address farmer,
-        uint256 fieldId,
-        uint256 expectedLength
-    ) public view {
+    function verifyPlotIndexAndPlotLengths(address farmer, uint256 fieldId, uint256 expectedLength) public view {
         uint256[] memory plotIndexes = field.getPlotIndexesFromAccount(farmer, fieldId);
         MockFieldFacet.Plot[] memory plots = field.getPlotsFromAccount(farmer, fieldId);
         assertEq(plotIndexes.length, plots.length, "plotIndexes length != plots length");
@@ -670,5 +608,360 @@ contract FieldTest is TestHelper {
         vm.prank(farmers[1]);
         vm.expectRevert("Field: Insufficient approval.");
         bs.transferPlots(farmers[0], farmers[1], activeField, indexes, starts, ends);
+    }
+
+    /**
+     * @notice Test that sowWithReferral correctly allocates pods to sower (referee), referrer, and provides bonus to referee
+     * @dev Verifies that referrer receives percentage of pods based on referrerPercentage, and referee gets bonus based on refereePercentage
+     */
+    function test_sowWithReferral(uint256 sowAmount) public {
+        // Bound to uint64 max to avoid overflow issues with soil calculation
+
+        // set temperature to 100%
+        bs.setMaxTempE(100e6);
+
+        // skip morning auction
+        vm.roll(block.number + 500);
+        vm.warp(block.timestamp + 600);
+
+        sowAmount = bound(sowAmount, 100, type(uint64).max);
+
+        // Set referrer percentage to 10% (0.1 * 1e18)
+        bs.setReferrerPercentageE(0.1e18);
+
+        // Set referee percentage to 5% (0.05 * 1e18)
+        bs.setRefereePercentageE(0.05e18);
+
+        // Setup: mint beans and set soil
+        bean.mint(farmers[0], sowAmount);
+        season.setSoilE(sowAmount + 1); // Add 1 to ensure enough soil
+
+        // Get initial state
+        uint256 farmer0BeansBefore = bean.balanceOf(farmers[0]);
+        uint256 totalBeanSupplyBefore = bean.totalSupply();
+        uint256 activeFieldPodIndexBefore = field.podIndex(field.activeField());
+
+        // Calculate expected pods
+        uint256 expectedFarmerPods = calcPods(sowAmount, 100e6);
+        uint256 expectedReferrerPods;
+        uint256 expectedRefereePods;
+
+        // if the referrer is not valid, the function will silently return 0 for referrerPods and refereePods.
+
+        // Sow with referral
+        vm.prank(farmers[0]);
+        uint256 snapshot = vm.snapshotState();
+        (uint256 actualFarmerPods, uint256 actualReferrerPods, uint256 actualRefereePods) = field.sowWithReferral(
+            sowAmount,
+            0, // minTemperature
+            0, // minSoil
+            LibTransfer.From.EXTERNAL,
+            farmers[1] // referrer address (who gets commission)
+        );
+
+        console.log("Actual Pods:", actualFarmerPods, actualReferrerPods, actualRefereePods);
+        console.log("Expected Pods:", expectedFarmerPods, expectedReferrerPods, expectedRefereePods);
+
+        // Verify return values
+        assertApproxEqAbs(actualFarmerPods, expectedFarmerPods, 1, "Farmer pods mismatch");
+        assertEq(actualReferrerPods, expectedReferrerPods, "Referrer pods mismatch");
+        assertEq(actualRefereePods, expectedRefereePods, "Referee pods mismatch");
+
+        vm.revertToState(snapshot);
+        field.setReferralEligibility(farmers[1], true);
+        expectedReferrerPods = (expectedFarmerPods * field.getReferrerPercentage()) / 1e18;
+        expectedRefereePods = (expectedFarmerPods * field.getRefereePercentage()) / 1e18;
+        vm.prank(farmers[0]);
+        (actualFarmerPods, actualReferrerPods, actualRefereePods) =
+            field.sowWithReferral(sowAmount, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        // Verify farmer state
+        assertEq(bean.balanceOf(farmers[0]), farmer0BeansBefore - sowAmount, "Farmer bean balance incorrect");
+        assertEq(
+            field.plot(farmers[0], field.activeField(), activeFieldPodIndexBefore),
+            actualFarmerPods,
+            "Farmer plot pods incorrect"
+        );
+
+        // Verify referrer state
+        assertEq(
+            field.plot(farmers[1], field.activeField(), activeFieldPodIndexBefore + actualFarmerPods),
+            actualReferrerPods,
+            "Referrer plot pods incorrect"
+        );
+
+        // Verify total supply decreased by sowAmount (referrer and referee bonus pods are minted from protocol, not farmer)
+        assertEq(bean.totalSupply(), totalBeanSupplyBefore - sowAmount, "Total bean supply incorrect");
+
+        // Verify total pods increased correctly
+        assertEq(
+            field.totalPods(field.activeField()),
+            actualFarmerPods + actualReferrerPods + actualRefereePods,
+            "Total pods incorrect"
+        );
+
+        // Verify pod index advanced correctly
+        assertEq(
+            field.podIndex(field.activeField()),
+            activeFieldPodIndexBefore + actualFarmerPods + actualReferrerPods + actualRefereePods,
+            "Pod index incorrect"
+        );
+    }
+
+    /**
+     * @notice Test that sowWithReferral with address(0) works like regular sow
+     */
+    function test_sowWithReferralZeroAddress(uint256 sowAmount) public {
+        uint256 activeField = field.activeField();
+        // Bound to uint64 max to avoid overflow issues
+        sowAmount = bound(sowAmount, 100, type(uint64).max);
+
+        // Set referrer commission percentage
+        bs.setReferrerPercentageE(0.1e18);
+
+        // Setup
+        bean.mint(farmers[0], sowAmount);
+        season.setSoilE(sowAmount + 100); // Ensure enough soil
+
+        uint256 farmer0BeansBefore = bean.balanceOf(farmers[0]);
+        uint256 expectedPods = _minPods(sowAmount);
+
+        // Sow with zero address referrer (no commission)
+        vm.prank(farmers[0]);
+        (uint256 actualPods, uint256 referrerPods, uint256 refereePods) =
+            field.sowWithReferral(
+                sowAmount,
+                0,
+                0,
+                LibTransfer.From.EXTERNAL,
+                address(0) // no referrer
+            );
+
+        // Verify farmer gets pods, no referrer commission or referee bonus
+        assertEq(actualPods, expectedPods, "Farmer pods mismatch");
+        assertEq(referrerPods, 0, "Referrer pods should be zero");
+        assertEq(refereePods, 0, "Referee pods should be zero");
+        assertEq(bean.balanceOf(farmers[0]), farmer0BeansBefore - sowAmount, "Farmer bean balance incorrect");
+        assertEq(field.plot(farmers[0], activeField, 0), expectedPods, "Farmer plot incorrect");
+    }
+
+    function test_referralEligibility_fuzz(address referrer, uint256 sowAmount) public {
+        // Avoid 0-address and sender self-referrals
+        vm.assume(referrer != address(0));
+
+        bool defaultEligibility = field.isValidReferrer(referrer);
+        assertEq(defaultEligibility, false, "Referrer should not be eligible by default");
+
+        // Bound sowAmount to a reasonable range to avoid overflows and to make the logic meaningful
+        sowAmount = bound(sowAmount, 1, 10_000e6);
+
+        bean.mint(referrer, sowAmount);
+        season.setSoilE(sowAmount + 10);
+
+        vm.startPrank(referrer);
+        IERC20(BEAN).approve(BEANSTALK, sowAmount);
+        field.sowWithReferral(sowAmount, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        bool newEligibility = field.isValidReferrer(referrer);
+
+        if (sowAmount >= 1000e6) {
+            assertEq(newEligibility, true, "Referrer should be eligible when sowAmount >= 1000e6");
+        } else {
+            assertEq(newEligibility, false, "Referrer should not be eligible when sowAmount < 1000e6");
+        }
+    }
+
+    function calcPods(uint256 beans, uint256 temperature) public pure returns (uint256) {
+        return (beans * (100e6 + temperature)) / 100e6;
+    }
+
+    //////////// DELEGATION TESTS ////////////
+
+    /**
+     * @notice Test that a user can properly delegate their referral rewards to another address
+     * @dev The USER must have sown >= threshold to be able to delegate.
+     * The DELEGATE must not already be eligible.
+     */
+    function test_delegateReferralRewards_success() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+
+        // Farmer 0 (USER) sows enough beans to earn the right to delegate
+        _sowReferral(farmers[0], threshold);
+
+        // Verify farmer 0 has sown enough and became eligible
+        assertGe(field.getBeansSownForReferral(farmers[0]), threshold, "User should have sown threshold");
+        assertTrue(field.isValidReferrer(farmers[0]), "User should be eligible after sowing");
+
+        // Farmer 1 (DELEGATE) should not be eligible yet
+        assertFalse(field.isValidReferrer(farmers[1]), "Delegate should not be eligible");
+
+        // Farmer 0 delegates to farmer 1
+        vm.prank(farmers[0]);
+        field.delegateReferralRewards(farmers[1]);
+
+        // Verify delegation was set
+        assertEq(field.getDelegate(farmers[0]), farmers[1], "Delegate should be set to farmers[1]");
+
+        // verify farmer 1 is eligible
+        assertTrue(field.isValidReferrer(farmers[1]), "Delegate should be eligible");
+    }
+
+    /**
+     * @notice Test that delegation fails if the USER hasn't sown enough beans
+     * @dev The error message says "delegate is not eligible" but it's actually checking
+     * if the USER has sown enough, not the delegate.
+     */
+    function test_delegateReferralRewards_userNotEligible(uint256 insufficientAmount) public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+
+        // Bound to less than threshold
+        insufficientAmount = bound(insufficientAmount, 0, threshold - 1);
+
+        // Farmer 0 (USER) sows less than threshold
+        if (insufficientAmount > 0) {
+            _sowReferral(farmers[0], insufficientAmount);
+        }
+
+        // Verify farmer 0 hasn't sown enough
+        assertLt(field.getBeansSownForReferral(farmers[0]), threshold, "User should not have sown threshold");
+
+        // Farmer 0 tries to delegate to farmer 1 - should fail
+        vm.prank(farmers[0]);
+        vm.expectRevert("Field: user cannot delgate");
+        field.delegateReferralRewards(farmers[1]);
+
+        // verify farmer 1 is not eligible
+        assertFalse(field.isValidReferrer(farmers[1]), "Delegate should not be eligible");
+    }
+
+    /**
+     * @notice Test that a user can change their delegation from one delegate to another
+     */
+    function test_delegateReferralRewards_changeDelegation() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+        address farmer2 = users[3]; // Use users[3] since only farmers[0] and farmers[1] exist
+
+        // Farmer 0 (USER) sows enough beans to earn the right to delegate
+        _sowReferral(farmers[0], threshold);
+
+        // Verify farmer 0 has sown enough
+        assertGe(field.getBeansSownForReferral(farmers[0]), threshold, "User should have sown threshold");
+
+        // Farmer 1 and farmer2 should not be eligible (they are potential delegate targets)
+        assertFalse(field.isValidReferrer(farmers[1]), "Delegate 1 should not be eligible");
+        assertFalse(field.isValidReferrer(farmer2), "Delegate 2 should not be eligible");
+
+        // Farmer 0 delegates to farmer 1
+        vm.prank(farmers[0]);
+        field.delegateReferralRewards(farmers[1]);
+
+        assertEq(field.getDelegate(farmers[0]), farmers[1], "Initial delegate should be farmers[1]");
+        assertTrue(field.isValidReferrer(farmers[1]), "Delegate 1 should be eligible");
+
+        // Now farmer 0 changes delegation to farmer2
+        vm.prank(farmers[0]);
+        field.delegateReferralRewards(farmer2);
+
+        assertEq(field.getDelegate(farmers[0]), farmer2, "New delegate should be farmer2");
+        assertTrue(field.isValidReferrer(farmer2), "Delegate 2 should be eligible");
+
+        // Verify old delegate (farmer 1) had their eligibility reset to false
+        assertFalse(field.isValidReferrer(farmers[1]), "Old delegate should have eligibility reset");
+    }
+
+    /**
+     * @notice Test that users can stop delegating by setting delegate to address(0)
+     * @dev According to the natspec comment at FieldFacet.sol:237, a user can reset
+     * their delegate to the zero address to stop delegating.
+     */
+    function test_delegateReferralRewards_stopDelegating() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+
+        // Farmer 0 (USER) sows enough beans to earn the right to delegate
+        _sowReferral(farmers[0], threshold);
+
+        // Verify farmer 0 has sown enough
+        assertGe(field.getBeansSownForReferral(farmers[0]), threshold, "User should have sown threshold");
+
+        // Farmer 0 delegates to farmer 1
+        vm.prank(farmers[0]);
+        field.delegateReferralRewards(farmers[1]);
+
+        assertEq(field.getDelegate(farmers[0]), farmers[1], "Delegate should be set");
+
+        // Stop delegating by setting to address(0)
+        vm.prank(farmers[0]);
+        field.delegateReferralRewards(address(0));
+
+        assertEq(field.getDelegate(farmers[0]), address(0), "Delegate should be reset to address(0)");
+
+        // Verify old delegate (farmer 1) had their eligibility reset to false
+        assertFalse(field.isValidReferrer(farmers[1]), "Old delegate should have eligibility reset");
+    }
+
+    /**
+     * @notice Test that a user cannot delegate to themselves
+     */
+    function test_delegateReferralRewards_cannotDelegateToSelf() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+
+        // Farmer 0 (USER) sows enough to meet threshold
+        _sowReferral(farmers[0], threshold);
+
+        // Verify farmer 0 has sown enough
+        assertGe(field.getBeansSownForReferral(farmers[0]), threshold, "User should have sown threshold");
+
+        // Try to delegate to self - should fail
+        vm.prank(farmers[0]);
+        vm.expectRevert("Field: delegate cannot be the user");
+        field.delegateReferralRewards(farmers[0]);
+    }
+
+    /**
+     * @notice Test that delegation fails if the delegate is already eligible
+     * @dev Per the design, farmers who are already eligible cannot become delegate targets.
+     * This prevents circular or conflicting delegation scenarios.
+     */
+    function test_delegateReferralRewards_delegateAlreadyEligible() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+
+        // Farmer 0 (USER) sows enough to earn the right to delegate
+        bean.mint(farmers[0], threshold);
+        season.setSoilE(threshold * 3);
+        vm.prank(farmers[0]);
+        field.sowWithReferral(threshold, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        // Farmer 1 (DELEGATE) also sows enough and becomes eligible
+        bean.mint(farmers[1], threshold);
+        vm.prank(farmers[1]);
+        field.sowWithReferral(threshold, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        // Verify both are eligible
+        assertTrue(field.isValidReferrer(farmers[0]), "User should be eligible");
+        assertTrue(field.isValidReferrer(farmers[1]), "Delegate should be eligible");
+
+        // Farmer 0 tries to delegate to farmer 1 - should fail because farmer 1 is already eligible
+        vm.prank(farmers[0]);
+        vm.expectRevert("Field: delegate is already eligible");
+        field.delegateReferralRewards(farmers[1]);
+
+        // farmer 0 delegates to to address(123890123)
+        vm.prank(farmers[0]);
+        field.delegateReferralRewards(address(123890123));
+
+        // verify farmer 1 cannot delegate to address(123890123)
+        vm.prank(farmers[1]);
+        vm.expectRevert("Field: delegate is already eligible");
+        field.delegateReferralRewards(address(123890123));
+
+        // verify farmer 1 is still eligible
+        assertTrue(field.isValidReferrer(farmers[1]), "Delegate should still be eligible");
+    }
+
+    function _sowReferral(address user, uint256 amount) internal {
+        bean.mint(user, amount);
+        season.setSoilE(amount * 2);
+        vm.prank(user);
+        field.sowWithReferral(amount, 0, 0, LibTransfer.From.EXTERNAL, address(0));
     }
 }

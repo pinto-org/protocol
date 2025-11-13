@@ -90,7 +90,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (uint256 pods)
     {
-        return LibDibbler.sowWithMin(beans, minTemperature, beans, mode);
+        (pods, , ) = LibDibbler.sowWithMin(beans, minTemperature, beans, mode, address(0));
     }
 
     /**
@@ -116,7 +116,28 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         nonReentrant
         returns (uint256 pods)
     {
-        return LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode);
+        (pods, , ) = LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode, address(0));
+    }
+
+    /**
+     * @notice Sow Beans in exchange for Pods with a referral. See {FieldFacet.sowWithMin} for more details.
+     * @dev If the referral is not valid, the function will silently return 0 for referrerPods and refereePods.
+     */
+    function sowWithReferral(
+        uint256 beans,
+        uint256 minTemperature,
+        uint256 minSoil,
+        LibTransfer.From mode,
+        address referral
+    )
+        external
+        fundsSafu
+        noSupplyIncrease
+        oneOutFlow(s.sys.bean)
+        nonReentrant
+        returns (uint256 pods, uint256 referrerPods, uint256 refereePods)
+    {
+        return LibDibbler.sowWithMin(beans, minTemperature, minSoil, mode, referral);
     }
 
     //////////////////// HARVEST ////////////////////
@@ -206,6 +227,35 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         s.accts[account].fields[fieldId].piIndex[newIndex] =
             s.accts[account].fields[fieldId].plotIndexes.length -
             1;
+    }
+
+    //////////////////// REFERRAL ////////////////////
+
+    /**
+     * @notice Delegate the referral rewards to a delegate.
+     * @param delegate The address of the delegate to delegate the referral rewards to.
+     * @dev a user can reset their delegate to the zero address to stop delegating.
+     */
+    function delegateReferralRewards(address delegate) external {
+        address user = LibTractor._user();
+        uint256 af = s.sys.activeField;
+        require(delegate != user, "Field: delegate cannot be the user");
+
+        // a user is eligible to delegate if they are eligible themselves via sowing the threshold number of beans.
+        require(s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold, "Field: user cannot delgate");
+
+        // if the user has already delegated, reset the eligibility for the delegate.
+        if (s.accts[user].fields[af].referral.delegate != address(0)) {
+            address oldDelegate = s.accts[user].fields[af].referral.delegate;
+            s.accts[oldDelegate].fields[af].referral.eligibility = false;
+        }
+
+        // the delegate must not be already eligible.
+        require(!s.accts[delegate].fields[af].referral.eligibility, "Field: delegate is already eligible");
+
+        // delegate the referral rewards to the delegate.
+        s.accts[user].fields[af].referral.delegate = delegate;
+        s.accts[delegate].fields[af].referral.eligibility = true;
     }
 
     //////////////////// CONFIG /////////////////////
@@ -458,5 +508,32 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      */
     function beanSown() external view returns (uint256) {
         return s.sys.beanSown;
+    }
+
+    function getReferrerPercentage() external view returns (uint256) {
+        return s.sys.referrerPercentage;
+    }
+
+    function getRefereePercentage() external view returns (uint256) {
+        return s.sys.refereePercentage;
+    }
+
+    function getBeanSownEligibilityThreshold() external view returns (uint256) {
+        return s.sys.referralBeanSownEligibilityThreshold;
+    }
+
+    function isValidReferrer(address referrer) external view returns (bool) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.eligibility;
+    }
+
+    function getBeansSownForReferral(address referrer) external view returns (uint256) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.beans;
+    }
+
+    function getDelegate(address referrer) external view returns (address) {
+        uint256 af = s.sys.activeField;
+        return s.accts[referrer].fields[af].referral.delegate;
     }
 }
