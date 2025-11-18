@@ -18,7 +18,9 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   await hre.run("compile");
 
   await hre.run("wsteth-migration");
-  console.log("WSTETH migration completed");
+
+  await hre.run("addLiquidityToWstethWell");
+  console.log("WSTETH migration and liquidity added completed");
 });
 
 //////////////////////// CONFIGURATION ////////////////////////
