@@ -14,7 +14,6 @@ import {Implementation, WhitelistStatus, AssetSettings} from "contracts/beanstal
 import {LibWhitelist} from "contracts/libraries/Silo/LibWhitelist.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {Call} from "contracts/interfaces/basin/IWell.sol";
-import "forge-std/console.sol";
 
 /**
  * @title InitWells
@@ -94,13 +93,12 @@ contract InitWells {
         // console.log("_well for %s: %s", name, _well);
 
         // Deploy proxy
-        address wellProxy = address(
+        address(
             new ERC1967Proxy{salt: salt}(
                 _well,
                 abi.encodeCall(IWellUpgradeable.init, (name, symbol))
             )
         );
-        console.log("Deployed well %s at %s", name, wellProxy);
     }
 
     /**

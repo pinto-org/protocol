@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {IOperatorWhitelist} from "contracts/ecosystem/tractor/utils/OperatorWhitelist.sol";
 
 /**
  * @title LibTractorHelpers

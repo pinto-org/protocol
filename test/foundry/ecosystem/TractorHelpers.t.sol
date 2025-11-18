@@ -11,28 +11,30 @@ import {LibChainlinkOracle} from "contracts/libraries/Oracle/LibChainlinkOracle.
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {AdvancedFarmCall} from "contracts/libraries/LibFarm.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {P} from "contracts/ecosystem/price/P.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
-import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
-import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
+import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {PriceManipulation} from "contracts/ecosystem/tractor/utils/PriceManipulation.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {console} from "forge-std/console.sol";
 
 /**
- * @notice Tests the functionality of the Oracles.
+ * @notice Tests the functionality of TractorHelpers.
  */
-contract TractorHelpersTest is TractorHelper {
+contract TractorHelpersTest is TractorTestHelper {
     address[] farmers;
-    BeanstalkPrice beanstalkPrice;
     PriceManipulation priceManipulation;
-    SiloHelpers siloHelpers;
+    BeanstalkPrice beanstalkPrice;
+    LibSiloHelpers.FilterParams testFilterParams;
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
@@ -50,24 +52,29 @@ contract TractorHelpersTest is TractorHelper {
         vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy TractorHelpers with PriceManipulation address
-        tractorHelpers = new TractorHelpers(
-            address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(priceManipulation)
-        );
+        tractorHelpers = new TractorHelpers(address(bs), address(beanstalkPrice));
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers
-        siloHelpers = new SiloHelpers(address(bs), address(this));
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(priceManipulation)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        // Deploy SowBlueprint with TractorHelpers and SiloHelpers addresses
+        sowBlueprint = new SowBlueprint(
+            address(bs),
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprint), "SowBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0));
+        setSowBlueprintv0(address(sowBlueprint));
+        setSiloHelpers(address(siloHelpers));
 
         addLiquidityToWell(
             BEAN_ETH_WELL,
@@ -80,6 +87,9 @@ contract TractorHelpersTest is TractorHelper {
             10010e6, // 10,010 Beans
             10 ether // 10 ether.
         );
+
+        testFilterParams = LibSiloHelpers.getDefaultFilterParams();
+        testFilterParams.maxGrownStalkPerBdv = MAX_GROWN_STALK_PER_BDV;
     }
 
     function test_getDepositStemsAndAmountsToWithdraw() public {
@@ -113,7 +123,7 @@ contract TractorHelpersTest is TractorHelper {
         testAmounts[5] = 50000e6; // All 50 full withdrawal
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         for (uint256 i; i < testAmounts.length; i++) {
             for (uint256 j; j < minStems.length; j++) {
@@ -124,16 +134,17 @@ contract TractorHelpersTest is TractorHelper {
                         totalAvailableForStem += depositAmount;
                     }
                 }
+                testFilterParams.minStem = minStems[j];
 
                 (
                     int96[] memory stems,
                     uint256[] memory amounts,
                     uint256 availableAmount
-                ) = tractorHelpers.getDepositStemsAndAmountsToWithdraw(
+                ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
                         farmers[0],
                         BEAN,
                         testAmounts[i],
-                        minStems[j],
+                        testFilterParams,
                         emptyPlan
                     );
 
@@ -177,8 +188,14 @@ contract TractorHelpersTest is TractorHelper {
         }
 
         // Test with non-existent account
-        (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = tractorHelpers
-            .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, emptyPlan);
+        (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = siloHelpers
+            .getDepositStemsAndAmountsToWithdraw(
+                address(0x123),
+                BEAN,
+                1000e6,
+                testFilterParams,
+                emptyPlan
+            );
         assertEq(noStems.length, 0, "Should return empty stems array for non-existent account");
         assertEq(noAmounts.length, 0, "Should return empty amounts array for non-existent account");
         assertEq(noAvailable, 0, "Should return 0 available for non-existent account");
@@ -204,32 +221,31 @@ contract TractorHelpersTest is TractorHelper {
         vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy TractorHelpers with PriceManipulation address
-        tractorHelpers = new TractorHelpers(
-            PINTO_DIAMOND,
-            BEANSTALK_PRICE,
-            address(this),
-            address(priceManipulation)
-        );
+        tractorHelpers = new TractorHelpers(PINTO_DIAMOND, BEANSTALK_PRICE);
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(PINTO_DIAMOND, address(this), address(tractorHelpers));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        // Deploy SiloHelpers first
+        siloHelpers = new SiloHelpers(
+            PINTO_DIAMOND,
+            address(tractorHelpers),
+            address(priceManipulation)
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprint with TractorHelpers and SiloHelpers addresses
+        sowBlueprint = new SowBlueprint(
+            PINTO_DIAMOND,
+            address(this),
+            address(tractorHelpers),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprint), "SowBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
-        setSowBlueprintv0(address(sowBlueprintv0));
+        setSowBlueprintv0(address(sowBlueprint));
+        setSiloHelpers(address(siloHelpers));
 
         return (testWallet, PINTO_DIAMOND, PINTO);
-    }
-
-    /**
-     * @notice Overload for setupForkTest without a block number (uses default)
-     */
-    function setupForkTest()
-        internal
-        returns (address testWallet, address PINTO_DIAMOND, address PINTO)
-    {
-        return setupForkTest(0); // 0 indicates to use the default block
     }
 
     /**
@@ -242,11 +258,17 @@ contract TractorHelpersTest is TractorHelper {
         // uint256 gasBefore = gasleft();
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get deposit stems and amounts to withdraw
-        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = tractorHelpers
-            .getDepositStemsAndAmountsToWithdraw(testWallet, PINTO, requestAmount, 0, emptyPlan);
+        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+            .getDepositStemsAndAmountsToWithdraw(
+                testWallet,
+                PINTO,
+                requestAmount,
+                testFilterParams,
+                emptyPlan
+            );
 
         // uint256 gasUsed = gasBefore - gasleft();
         // console.log("Gas used for getDepositStemsAndAmountsToWithdraw:", gasUsed);
@@ -364,33 +386,34 @@ contract TractorHelpersTest is TractorHelper {
         sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the plan that we would use to withdraw the total amount of beans
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV
+            testFilterParams
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
-        LibTractorHelpers.WithdrawalPlan memory newPlan = tractorHelpers
-            .getWithdrawalPlanExcludingPlan(
-                farmers[0],
-                sourceTokenIndices,
-                totalBeansToWithdraw,
-                MAX_GROWN_STALK_PER_BDV,
-                plan
-            );
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
+            farmers[0],
+            sourceTokenIndices,
+            totalBeansToWithdraw,
+            testFilterParams,
+            plan
+        );
 
         // Combine the plans and verify the result
-        LibTractorHelpers.WithdrawalPlan[]
-            memory plansToCombine = new LibTractorHelpers.WithdrawalPlan[](2);
+        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
+            2
+        );
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        LibTractorHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers
-            .combineWithdrawalPlans(plansToCombine);
+        LibSiloHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers.combineWithdrawalPlans(
+            plansToCombine
+        );
 
         // Verify the combined plan
         assertEq(combinedPlan.sourceTokens.length, 1, "Should have one source token");
@@ -469,7 +492,7 @@ contract TractorHelpersTest is TractorHelper {
         );
     }
 
-    function test_withdrawBeansHelper() public {
+    function test_withdrawBeansHelperBasic() public {
         // Setup: Create deposits in both Bean and LP tokens
         uint256 beanAmount = 1000e6;
 
@@ -592,22 +615,23 @@ contract TractorHelpersTest is TractorHelper {
             sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN);
 
             // Create empty plan
-            LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+            LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
             // Get withdrawal plan
-            LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+            testFilterParams.maxGrownStalkPerBdv = MAX_GROWN_STALK_PER_BDV;
+            LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV
+                testFilterParams
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
-            tractorHelpers.withdrawBeansFromSources(
+            siloHelpers.withdrawBeansFromSources(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV,
+                testFilterParams,
                 0.01e18, // 1%
                 LibTransfer.To.EXTERNAL,
                 plan
@@ -659,7 +683,7 @@ contract TractorHelpersTest is TractorHelper {
         }
     }
 
-    function test_getSortedWhitelistedTokensBySeeds() public {
+    function test_getSortedWhitelistedTokensBySeeds() public view {
         // Get sorted tokens and seeds
         (address[] memory tokens, uint256[] memory seeds) = tractorHelpers
             .getSortedWhitelistedTokensBySeeds();
@@ -680,7 +704,7 @@ contract TractorHelpersTest is TractorHelper {
         }
     }
 
-    function test_getHighestSeedToken() public {
+    function test_getHighestSeedToken() public view {
         // Get highest seed token
         (address highestSeedToken, uint256 seedAmount) = tractorHelpers.getHighestSeedToken();
 
@@ -704,7 +728,7 @@ contract TractorHelpersTest is TractorHelper {
         );
     }
 
-    function test_getLowestSeedToken() public {
+    function test_getLowestSeedToken() public view {
         // Get lowest seed token
         (address lowestSeedToken, uint256 seedAmount) = tractorHelpers.getLowestSeedToken();
 
@@ -732,14 +756,14 @@ contract TractorHelpersTest is TractorHelper {
         address user = farmers[0];
 
         // Initially user should have no deposits
-        address[] memory initialTokens = tractorHelpers.getUserDepositedTokens(user);
+        address[] memory initialTokens = siloHelpers.getUserDepositedTokens(user);
         assertEq(initialTokens.length, 0, "User should have no deposits initially");
 
         // Setup deposits
         setupUserDeposits(user);
 
         // Get user's deposited tokens
-        address[] memory depositedTokens = tractorHelpers.getUserDepositedTokens(user);
+        address[] memory depositedTokens = siloHelpers.getUserDepositedTokens(user);
 
         // Verify correct number of tokens
         assertEq(depositedTokens.length, 2, "User should have deposits in 2 tokens");
@@ -755,7 +779,7 @@ contract TractorHelpersTest is TractorHelper {
         assertTrue(foundLP, "LP deposit not found");
     }
 
-    function test_getTokensAscendingSeeds() public {
+    function test_getTokensAscendingSeeds() public view {
         // Get sorted tokens
         (uint8[] memory tokenIndices, uint256[] memory seeds) = tractorHelpers
             .getTokensAscendingSeeds();
@@ -783,7 +807,7 @@ contract TractorHelpersTest is TractorHelper {
         }
     }
 
-    function test_getTokensAscendingPrice() public {
+    function test_getTokensAscendingPrice() public view {
         // Call Price on beanstalkprice contract and verify it's not 0
         BeanstalkPrice.Prices memory price = beanstalkPrice.price();
         assertGt(price.price, 0, "Price should be non-zero");
@@ -812,6 +836,100 @@ contract TractorHelpersTest is TractorHelper {
         // Verify prices are non-zero
         for (uint256 i = 0; i < prices.length; i++) {
             assertGt(prices[i], 0, "Prices should be non-zero");
+        }
+    }
+
+    function test_getTokensAscendingPriceExcludeBean() public {
+        // Get sorted tokens with Bean excluded
+        (uint8[] memory tokenIndices, uint256[] memory prices) = tractorHelpers
+            .getTokensAscendingPrice(true);
+
+        // Verify arrays are not empty and have same length
+        assertGt(tokenIndices.length, 0, "Should have at least one token");
+        assertEq(tokenIndices.length, prices.length, "Arrays should have same length");
+
+        // Get all token addresses
+        address[] memory allTokenAddresses = tractorHelpers.getWhitelistStatusAddresses();
+        address beanToken = bs.getBeanToken();
+
+        // Verify Bean token is not included
+        for (uint256 i = 0; i < tokenIndices.length; i++) {
+            assertNotEq(
+                allTokenAddresses[tokenIndices[i]],
+                beanToken,
+                "Bean token should be excluded"
+            );
+        }
+
+        // Verify arrays are sorted by price (ascending)
+        for (uint256 i = 0; i < prices.length - 1; i++) {
+            assertTrue(prices[i] <= prices[i + 1], "Prices should be sorted in ascending order");
+        }
+
+        // Verify indices correspond to whitelisted tokens (excluding Bean)
+        address[] memory whitelistedTokens = bs.getWhitelistedTokens();
+        uint256 expectedLength = 0;
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            if (whitelistedTokens[i] != beanToken) {
+                expectedLength++;
+            }
+        }
+        assertEq(
+            tokenIndices.length,
+            expectedLength,
+            "Should return all whitelisted tokens except Bean"
+        );
+
+        // Verify prices are non-zero
+        for (uint256 i = 0; i < prices.length; i++) {
+            assertGt(prices[i], 0, "Prices should be non-zero");
+        }
+    }
+
+    function test_getTokensAscendingSeedsExcludeBean() public {
+        // Get sorted tokens with Bean excluded
+        (uint8[] memory tokenIndices, uint256[] memory seeds) = tractorHelpers
+            .getTokensAscendingSeeds(true);
+
+        // Verify arrays are not empty and have same length
+        assertGt(tokenIndices.length, 0, "Should have at least one token");
+        assertEq(tokenIndices.length, seeds.length, "Arrays should have same length");
+
+        // Get all token addresses
+        address[] memory allTokenAddresses = tractorHelpers.getWhitelistStatusAddresses();
+        address beanToken = bs.getBeanToken();
+
+        // Verify Bean token is not included
+        for (uint256 i = 0; i < tokenIndices.length; i++) {
+            assertNotEq(
+                allTokenAddresses[tokenIndices[i]],
+                beanToken,
+                "Bean token should be excluded"
+            );
+        }
+
+        // Verify arrays are sorted by seed value (ascending)
+        for (uint256 i = 0; i < seeds.length - 1; i++) {
+            assertTrue(seeds[i] <= seeds[i + 1], "Seeds should be sorted in ascending order");
+        }
+
+        // Verify indices correspond to whitelisted tokens (excluding Bean)
+        address[] memory whitelistedTokens = bs.getWhitelistedTokens();
+        uint256 expectedLength = 0;
+        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            if (whitelistedTokens[i] != beanToken) {
+                expectedLength++;
+            }
+        }
+        assertEq(
+            tokenIndices.length,
+            expectedLength,
+            "Should return all whitelisted tokens except Bean"
+        );
+
+        // Verify seeds are non-zero
+        for (uint256 i = 0; i < seeds.length; i++) {
+            assertGt(seeds[i], 0, "Seeds should be non-zero");
         }
     }
 
@@ -1204,13 +1322,13 @@ contract TractorHelpersTest is TractorHelper {
         strategyIndices[1] = 1;
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV
+            testFilterParams
         );
 
         // totalAvailableBeans should be 1900e6
@@ -1245,6 +1363,205 @@ contract TractorHelpersTest is TractorHelper {
             }
         }
         console.log("Total available beans:", plan.totalAvailableBeans);*/
+    }
+
+    function test_getWithdrawalPlanWithExclusions() public {
+        uint256 beanAmount = 1000e6;
+
+        // Deposit Beans
+        mintTokensToUser(farmers[0], BEAN, beanAmount * 2);
+
+        // Deposit LP tokens in BEAN_ETH_WELL
+        vm.prank(farmers[0]);
+        MockToken(BEAN).approve(BEAN_ETH_WELL, beanAmount);
+
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = beanAmount;
+        tokenAmountsIn[1] = 0;
+
+        vm.prank(farmers[0]);
+        uint256 lpAmountOut = IWell(BEAN_ETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            farmers[0],
+            type(uint256).max
+        );
+
+        vm.prank(farmers[0]);
+        MockToken(BEAN_ETH_WELL).approve(address(bs), lpAmountOut);
+
+        // First create some fully germinated deposits
+        // Deposit both Bean and LP tokens
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Advance at least 2 seasons to complete germination
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        // Deposit again
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Advance again to complete second set of deposits
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        // Now create deposits that will remain germinating
+        // Create two more deposits that will remain germinating
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Create one more set of germinating deposits in the next season
+        bs.siloSunrise(0); // Advance one season
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount / 4, 0);
+
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut / 4, 0);
+
+        // Do NOT advance seasons after these last deposits to ensure they remain germinating
+
+        uint256 withdrawalAmount = 2000e6; // Request more than available
+        uint8[] memory strategyIndices = new uint8[](2);
+        strategyIndices[0] = 0; // BEAN
+        strategyIndices[1] = 1; // BEAN_ETH_WELL
+
+        // Test case 1: No exclusions (both false)
+        LibSiloHelpers.WithdrawalPlan memory planNoExclusions = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndices,
+            withdrawalAmount,
+            testFilterParams
+        );
+
+        // Verify both BEAN and BEAN_ETH_WELL are included
+        assertEq(planNoExclusions.sourceTokens.length, 2, "Should include both token types");
+        bool hasBeanToken = false;
+        bool hasLpToken = false;
+
+        for (uint i = 0; i < planNoExclusions.sourceTokens.length; i++) {
+            if (planNoExclusions.sourceTokens[i] == BEAN) hasBeanToken = true;
+            if (planNoExclusions.sourceTokens[i] == BEAN_ETH_WELL) hasLpToken = true;
+        }
+
+        assertTrue(hasBeanToken, "Should include Bean token without exclusions");
+        assertTrue(hasLpToken, "Should include LP token without exclusions");
+
+        // Should include all 4 deposits of each token type (both germinating and non-germinating)
+        uint8 beanIndex = hasBeanToken ? (planNoExclusions.sourceTokens[0] == BEAN ? 0 : 1) : 0;
+        uint8 lpIndex = hasLpToken
+            ? (planNoExclusions.sourceTokens[0] == BEAN_ETH_WELL ? 0 : 1)
+            : 0;
+
+        if (hasBeanToken) {
+            assertEq(
+                planNoExclusions.stems[beanIndex].length,
+                4,
+                "Should include all Bean deposits"
+            );
+        }
+
+        if (hasLpToken) {
+            assertEq(planNoExclusions.stems[lpIndex].length, 4, "Should include all LP deposits");
+        }
+
+        // Test case 2: Exclude Bean only - use LOWEST_PRICE_STRATEGY (type(uint8).max)
+        uint8[] memory strategyIndex = new uint8[](1);
+        strategyIndex[0] = type(uint8).max; // LOWEST_PRICE_STRATEGY
+
+        testFilterParams.excludeBean = true;
+        LibSiloHelpers.WithdrawalPlan memory planExcludeBean = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndex,
+            withdrawalAmount,
+            testFilterParams
+        );
+
+        // Verify only BEAN_ETH_WELL is included
+        assertEq(planExcludeBean.sourceTokens.length, 1, "Should only include LP token");
+        assertEq(planExcludeBean.sourceTokens[0], BEAN_ETH_WELL, "Should only include LP token");
+
+        // Should still include all 4 LP deposits
+        assertEq(planExcludeBean.stems[0].length, 4, "Should include all LP deposits");
+
+        // Test case 3: Exclude germinating deposits only
+        testFilterParams.excludeBean = false;
+        testFilterParams.excludeGerminatingDeposits = true;
+        LibSiloHelpers.WithdrawalPlan memory planExcludeGerminating = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndices,
+            withdrawalAmount,
+            testFilterParams
+        );
+
+        // Should still include both token types
+        assertEq(planExcludeGerminating.sourceTokens.length, 2, "Should include both token types");
+
+        hasBeanToken = false;
+        hasLpToken = false;
+
+        for (uint i = 0; i < planExcludeGerminating.sourceTokens.length; i++) {
+            if (planExcludeGerminating.sourceTokens[i] == BEAN) hasBeanToken = true;
+            if (planExcludeGerminating.sourceTokens[i] == BEAN_ETH_WELL) hasLpToken = true;
+        }
+
+        assertTrue(hasBeanToken, "Should include Bean token");
+        assertTrue(hasLpToken, "Should include LP token");
+
+        // Calculate indices again for this plan
+        beanIndex = hasBeanToken ? (planExcludeGerminating.sourceTokens[0] == BEAN ? 0 : 1) : 0;
+        lpIndex = hasLpToken
+            ? (planExcludeGerminating.sourceTokens[0] == BEAN_ETH_WELL ? 0 : 1)
+            : 0;
+
+        // Should only include non-germinating deposits (2 of each token type)
+        if (hasBeanToken) {
+            assertEq(
+                planExcludeGerminating.stems[beanIndex].length,
+                2,
+                "Should only include non-germinating Bean deposits"
+            );
+        }
+
+        if (hasLpToken) {
+            assertEq(
+                planExcludeGerminating.stems[lpIndex].length,
+                2,
+                "Should only include non-germinating LP deposits"
+            );
+        }
+
+        // Test case 4: Exclude both Bean and germinating deposits
+        testFilterParams.excludeBean = true;
+        testFilterParams.excludeGerminatingDeposits = true;
+        LibSiloHelpers.WithdrawalPlan memory planExcludeBoth = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            strategyIndex, // Use LOWEST_PRICE_STRATEGY
+            withdrawalAmount,
+            testFilterParams
+        );
+
+        // Verify only BEAN_ETH_WELL is included
+        assertEq(planExcludeBoth.sourceTokens.length, 1, "Should only include LP token");
+        assertEq(planExcludeBoth.sourceTokens[0], BEAN_ETH_WELL, "Should only include LP token");
+
+        // Should only include non-germinating LP deposits (2)
+        assertEq(
+            planExcludeBoth.stems[0].length,
+            2,
+            "Should only include non-germinating LP deposits"
+        );
     }
 
     function test_withdrawBeansHelperMultipleTokensExcludeExistingPlan() public {
@@ -1309,33 +1626,34 @@ contract TractorHelpersTest is TractorHelper {
         sourceTokenIndices[2] = tractorHelpers.getTokenIndex(BEAN_WSTETH_WELL);
 
         // Create empty plan
-        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the first plan for a smaller amount
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV
+            testFilterParams
         );
 
         // Get the second plan excluding the first plan
-        LibTractorHelpers.WithdrawalPlan memory newPlan = tractorHelpers
-            .getWithdrawalPlanExcludingPlan(
-                farmers[0],
-                sourceTokenIndices,
-                (beanAmount * 1.2e6) / 1e6,
-                MAX_GROWN_STALK_PER_BDV,
-                plan
-            );
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
+            farmers[0],
+            sourceTokenIndices,
+            (beanAmount * 1.2e6) / 1e6,
+            testFilterParams,
+            plan
+        );
 
         // Combine the plans and verify the result
-        LibTractorHelpers.WithdrawalPlan[]
-            memory plansToCombine = new LibTractorHelpers.WithdrawalPlan[](2);
+        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
+            2
+        );
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        LibTractorHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers
-            .combineWithdrawalPlans(plansToCombine);
+        LibSiloHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers.combineWithdrawalPlans(
+            plansToCombine
+        );
 
         // Verify the combined plan has all source tokens
         assertEq(combinedPlan.sourceTokens.length, 3, "Should have three source tokens");
@@ -1540,6 +1858,16 @@ contract TractorHelpersTest is TractorHelper {
         assertEq(amountWithdrawn, withdrawAmount, "Incorrect amount withdrawn");
     }
 
+    /**
+     * @notice Overload for setupForkTest without a block number (uses default)
+     */
+    function setupForkTest()
+        internal
+        returns (address testWallet, address PINTO_DIAMOND, address PINTO)
+    {
+        return setupForkTest(0); // 0 indicates to use the default block
+    }
+
     function test_sortDepositsWithEmptyDeposits() public {
         // Test with address that has no deposits
         address emptyUser = address(0x123);
@@ -1559,7 +1887,11 @@ contract TractorHelpersTest is TractorHelper {
         (address testWallet, address PINTO_DIAMOND, address PINTO) = setupForkTest(newBlockNumber);
 
         // Deploy SiloHelpers specifically for this test
-        SiloHelpers forkSiloHelpers = new SiloHelpers(PINTO_DIAMOND, address(this));
+        SiloHelpers forkSiloHelpers = new SiloHelpers(
+            PINTO_DIAMOND,
+            address(tractorHelpers),
+            address(priceManipulation)
+        );
         vm.label(address(forkSiloHelpers), "ForkSiloHelpers");
 
         // Get the tokens that the user has deposits for
@@ -1637,6 +1969,275 @@ contract TractorHelpersTest is TractorHelper {
                     }
                 }
                 assertTrue(found, "Original deposit ID not found in sorted array");
+            }
+        }
+    }
+
+    /**
+     * @notice Tests result of `getDepositStemsAndAmountsToWithdraw` when parameters do not affect the result.
+     */
+    function test_useLowStalkDepositsLast_unaffected() public {
+        // Setup: Create deposits with different stalk levels
+        uint256 beanAmount = 1000e6;
+        uint256 numDeposits = 5;
+
+        // Deposit beans multiple times with sunrises to create different stem values
+        mintTokensToUser(farmers[0], BEAN, beanAmount * numDeposits);
+        vm.startPrank(farmers[0]);
+        MockToken(BEAN).approve(address(bs), beanAmount * numDeposits);
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            bs.deposit(BEAN, beanAmount, 0);
+            bs.siloSunrise(0); // Advance stems
+        }
+        vm.stopPrank();
+
+        // Configure filter params with lowStalkDeposits enabled
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+
+        // check that if the lowDepositLast is false, OR set true but no low stalk deposits (i.e lowGrownStalkPerBdv is 0),
+        // the deposits are processed in the correct order.
+        for (uint256 i = 0; i < 2; i++) {
+            if (i == 0) {
+                filterParams.lowStalkDeposits = LibSiloHelpers.Mode.USE;
+            } else {
+                filterParams.lowStalkDeposits = LibSiloHelpers.Mode.USE_LAST;
+                filterParams.lowGrownStalkPerBdv = 1; // set a very low stalkPerBdv threshold.
+            }
+
+            (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+                .getDepositStemsAndAmountsToWithdraw(
+                    farmers[0],
+                    BEAN,
+                    beanAmount * 3, // Request 3 deposits worth
+                    filterParams,
+                    LibSiloHelpers.WithdrawalPlan(
+                        new address[](0),
+                        new int96[][](0),
+                        new uint256[][](0),
+                        new uint256[](0),
+                        0
+                    )
+                );
+
+            // Verify we got deposits back
+            assertEq(stems.length, 3, "Should have 3 deposits");
+            assertEq(amounts.length, 3, "Should have 3 amounts");
+            assertEq(availableAmount, beanAmount * 3, "Should withdraw exact amount requested");
+
+            // Verify stems are ordered properly (higher stems first, then lower stems)
+            for (uint256 i = 1; i < stems.length; i++) {
+                assertGt(stems[i - 1], stems[i], "Stems should be in descending order");
+            }
+        }
+    }
+
+    /**
+     * @notice Tests lowStalkDeposits with mixed high and low stalk deposits
+     */
+    function test_useLowStalkDepositsLast_mixed_deposits() public {
+        uint256 beanAmount = 1000e6;
+        {
+            uint256 numDeposits = 4;
+            // Create deposits with different stalk levels
+            mintTokensToUser(farmers[0], BEAN, beanAmount * numDeposits);
+            vm.startPrank(farmers[0]);
+            MockToken(BEAN).approve(address(bs), beanAmount * numDeposits);
+
+            for (uint256 i = 0; i < numDeposits; i++) {
+                bs.deposit(BEAN, beanAmount, 0);
+                if (i < numDeposits - 1) {
+                    bs.siloSunrise(0); // Create stem gaps
+                }
+            }
+        }
+        vm.stopPrank();
+
+        // Test with lowStalkDeposits normal mode
+        LibSiloHelpers.FilterParams memory filterParamsNormal = LibSiloHelpers
+            .getDefaultFilterParams();
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
+        filterParamsNormal.lowStalkDeposits = LibSiloHelpers.Mode.USE;
+        filterParamsNormal.maxGrownStalkPerBdv = 500e16;
+
+        (
+            int96[] memory stemsNormal,
+            uint256[] memory amountsNormal,
+            uint256 availableNormal
+        ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                beanAmount * 2,
+                filterParamsNormal,
+                withdrawalPlan
+            );
+
+        // Test with lowStalkDeposits enabled
+        LibSiloHelpers.FilterParams memory filterParamsLowLast = LibSiloHelpers
+            .getDefaultFilterParams();
+        filterParamsLowLast.lowStalkDeposits = LibSiloHelpers.Mode.USE_LAST;
+        filterParamsLowLast.maxGrownStalkPerBdv = 500e16;
+        filterParamsLowLast.lowGrownStalkPerBdv = 100e16;
+        uint256 numDepositsToWithdraw = 2;
+
+        (
+            int96[] memory stemsLowLast,
+            uint256[] memory amountsLowLast,
+            uint256 availableLowLast
+        ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                beanAmount * numDepositsToWithdraw,
+                filterParamsLowLast,
+                withdrawalPlan
+            );
+
+        // Both should get the same total amount
+        assertEq(availableNormal, availableLowLast, "Available amounts should be equal");
+
+        // Both should have the same number of deposits used
+        assertEq(stemsNormal.length, stemsLowLast.length, "Should use same number of deposits");
+
+        // Both should have the same number of deposits used
+        assertEq(stemsNormal.length, numDepositsToWithdraw, "Should use same number of deposits");
+
+        // Verify we got expected amount
+        assertEq(
+            availableLowLast,
+            beanAmount * numDepositsToWithdraw,
+            "Should withdraw exact amount requested"
+        );
+    }
+
+    /**
+     * @notice Tests edge case where all deposits are low stalk deposits (all deposits should be used.)
+     */
+    function test_useLowStalkDepositsLast_all_low_stalk() public {
+        uint256 beanAmount = 1000e6;
+        uint256 numDeposits = 3;
+
+        // Create all deposits at current stem tip (newest deposits = low stalk)
+        mintTokensToUser(farmers[0], BEAN, beanAmount * numDeposits);
+        vm.startPrank(farmers[0]);
+        MockToken(BEAN).approve(address(bs), beanAmount * numDeposits);
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            bs.deposit(BEAN, beanAmount, 0);
+            bs.siloSunrise(0); // Advance stems.
+        }
+
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
+        filterParams.lowStalkDeposits = LibSiloHelpers.Mode.USE_LAST;
+        filterParams.lowGrownStalkPerBdv = 1000e16; // High threshold - all deposits are low stalk
+
+        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+            .getDepositStemsAndAmountsToWithdraw(
+                farmers[0],
+                BEAN,
+                beanAmount * 2,
+                filterParams,
+                withdrawalPlan
+            );
+
+        // Should still work and return deposits
+        assertTrue(stems.length > 0, "Should have deposits even if all are low stalk");
+        assertEq(availableAmount, beanAmount * 2, "Should withdraw requested amount");
+    }
+
+    /**
+     * @notice verifies that deposits with low stalks are processed last.
+     */
+    function test_getWithdrawalPlan_with_low_stalk_deposits(int96 stem) public {
+        uint256 numDeposits = 5;
+        uint256 seeds = 2e6;
+        uint256 totalAmount = 5000e6;
+        int96 largestStem = int96(int256((numDeposits - 1) * seeds));
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxStem = int96(bound(stem, 1, largestStem)); // set a very low stem threshold.
+
+        // Create mixed deposits
+        mintTokensToUser(farmers[0], BEAN, totalAmount);
+        vm.startPrank(farmers[0]);
+        MockToken(BEAN).approve(address(bs), totalAmount);
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            bs.deposit(BEAN, totalAmount / numDeposits, 0);
+            bs.siloSunrise(0);
+        }
+        vm.stopPrank();
+
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan;
+
+        // test checks 2 cases:
+        // 1. OMIT (1): no low stalk deposits are used.
+        // 2. USE_LAST (2): low stalk deposits are used last.
+        for (uint256 i = 0; i < 2; i++) {
+            if (i == 0) {
+                filterParams.lowStalkDeposits = LibSiloHelpers.Mode.USE_LAST;
+            } else {
+                filterParams.lowStalkDeposits = LibSiloHelpers.Mode.OMIT;
+            }
+
+            (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+                .getDepositStemsAndAmountsToWithdraw(
+                    farmers[0],
+                    BEAN,
+                    totalAmount,
+                    filterParams,
+                    withdrawalPlan
+                );
+
+            for (uint256 i = 0; i < stems.length; i++) {
+                console.log("stem", stems[i]);
+            }
+
+            // determine how many low/high stems there are.
+            uint256 numLowStems;
+            if (filterParams.maxStem == largestStem) {
+                numLowStems = 0;
+            } else {
+                numLowStems = ((uint256(uint96((largestStem - filterParams.maxStem - 1))) / seeds) +
+                    1);
+            }
+            uint256 numHighStems = numDeposits - numLowStems;
+
+            if (i == 0) {
+                // independent of the stem threshold, the number of deposits should be the same.
+                assertEq(stems.length, numDeposits, "Should have same number of deposits");
+                assertEq(amounts.length, stems.length, "Should have same number of amounts");
+                for (uint256 i = 0; i < stems.length; i++) {
+                    if (i < numHighStems) {
+                        if (i != 0) {
+                            assertLe(stems[i], stems[i - 1], "stems should be in descending order");
+                        }
+                    } else {
+                        if (i != numHighStems - 1) {
+                            assertGt(stems[i], filterParams.maxStem, "Should be low stem");
+                            if (i > numHighStems) {
+                                assertLe(
+                                    stems[i],
+                                    stems[i - 1],
+                                    "stems should be in descending order"
+                                );
+                            }
+                        } else {
+                            assertEq(stems[i], largestStem, "the last high stem should be 0");
+                        }
+                    }
+                }
+            } else {
+                // if we don't want to use low stalk deposits, we should only have high stalk deposits.
+                assertEq(stems.length, numHighStems, "Should have same number of deposits");
+                assertEq(amounts.length, stems.length, "Should have same number of amounts");
+
+                for (uint256 j = 0; j < stems.length; j++) {
+                    assertLe(
+                        stems[j],
+                        filterParams.maxStem,
+                        "stems should be lower than maxStem (for higher stalk)"
+                    );
+                }
             }
         }
     }

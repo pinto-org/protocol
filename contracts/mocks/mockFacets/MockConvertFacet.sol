@@ -137,4 +137,50 @@ contract MockConvertFacet is ConvertFacet {
         gv.penaltyRatio = penaltyRatio;
         LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gv));
     }
+
+    function mockUpdateBdvConverted(uint256 bdvConverted) external {
+        LibConvert.updateBdvConverted(bdvConverted);
+    }
+
+    function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external {
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        // Update this season's converted amount
+        gv.maxConvertCapacity = newBdvCapacity;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
+    }
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external {
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        // Update this season's converted amount
+        gv.bonusStalkPerBdv = newStalkPerBdvBonus;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
+    }
+
+    function mockUpdateLastConvertBonusTaken(uint256 newLastConvertBonusTaken) external {
+        // Get current gauge data
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        // Update lastConvertBonusTaken
+        gd.lastConvertBonusTaken = newLastConvertBonusTaken;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(gd);
+    }
 }

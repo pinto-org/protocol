@@ -177,7 +177,7 @@ library LibTokenSilo {
 
     /**
      * @dev Increment the total amount and bdv of `token` deposited in the Silo.
-     * @dev `IncrementTotalDeposited` should be used when removing deposits that are
+     * @dev `IncrementTotalDeposited` should be used when adding deposits that are
      * >= 2 seasons old (ex. when a user converts).
      */
     function incrementTotalDeposited(address token, uint256 amount, uint256 bdv) internal {
@@ -208,7 +208,6 @@ library LibTokenSilo {
     //////////////////////// ADD DEPOSIT ////////////////////////
 
     /**
-     * @return stalk The amount of Stalk received for this Deposit.
      *
      * @dev Calculate the current BDV for `amount` of `token`, then perform
      * Deposit accounting.
@@ -218,9 +217,9 @@ library LibTokenSilo {
         address token,
         int96 stem,
         uint256 amount
-    ) external returns (uint256 stalk, GerminationSide) {
-        uint256 bdv = beanDenominatedValue(token, amount);
-        return depositWithBDV(account, token, stem, amount, bdv);
+    ) external returns (uint256 bdv, uint256 stalk, GerminationSide side) {
+        bdv = beanDenominatedValue(token, amount);
+        (stalk, side) = depositWithBDV(account, token, stem, amount, bdv);
     }
 
     /**
@@ -413,7 +412,7 @@ library LibTokenSilo {
         }
 
         assembly {
-            bdv := mload(add(data, add(0x20, 0)))
+            bdv := mload(add(data, 0x20))
         }
     }
 

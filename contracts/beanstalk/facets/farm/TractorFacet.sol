@@ -15,6 +15,7 @@ import {AdvancedFarmCall, LibFarm} from "contracts/libraries/LibFarm.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibTransfer, IERC20} from "contracts/libraries/Token/LibTransfer.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 /**
  * @title TractorFacet handles tractor and blueprint operations.
@@ -43,14 +44,27 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         uint256 gasleft
     );
 
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 internal constant MAGICVALUE = 0x1626ba7e;
+
     /**
      * @notice Ensure requisition hash matches blueprint data and signer is publisher.
      */
     modifier verifyRequisition(LibTractor.Requisition calldata requisition) {
         bytes32 blueprintHash = LibTractor._getBlueprintHash(requisition.blueprint);
         require(blueprintHash == requisition.blueprintHash, "TractorFacet: invalid hash");
-        address signer = ECDSA.recover(requisition.blueprintHash, requisition.signature);
-        require(signer == requisition.blueprint.publisher, "TractorFacet: signer mismatch");
+        if (requisition.blueprint.publisher.code.length > 0) {
+            // if the publisher is a smart contract, verify the publisher using EIP-1271.
+            bytes4 magicValue = IERC1271(requisition.blueprint.publisher).isValidSignature(
+                requisition.blueprintHash,
+                requisition.signature
+            );
+            require(magicValue == MAGICVALUE, "TractorFacet: invalid signature");
+        } else {
+            // if the publisher is an EOA, verify the signature using ECDSA.
+            address signer = ECDSA.recover(requisition.blueprintHash, requisition.signature);
+            require(signer == requisition.blueprint.publisher, "TractorFacet: signer mismatch");
+        }
         _;
     }
 

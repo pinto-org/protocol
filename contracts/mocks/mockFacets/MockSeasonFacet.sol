@@ -1,24 +1,14 @@
 /*
- SPDX-License-Identifier: MIT*/
+ SPDX-License-Identifier: MIT
+ */
 
 pragma solidity ^0.8.20;
 
-import "contracts/libraries/Math/LibRedundantMath256.sol";
 import "contracts/beanstalk/facets/sun/SeasonFacet.sol";
-import {AssetSettings, Deposited, Field, GerminationSide} from "contracts/beanstalk/storage/System.sol";
-import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
-import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "../MockToken.sol";
-import "contracts/libraries/LibBytes.sol";
-import {LibChainlinkOracle} from "contracts/libraries/Oracle/LibChainlinkOracle.sol";
-import {LibUsdOracle} from "contracts/libraries/Oracle/LibUsdOracle.sol";
-import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
-import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
+import {AssetSettings, Deposited, Field, GerminationSide, GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {LibGauge} from "contracts/libraries/LibGauge.sol";
-import {LibRedundantMath32} from "contracts/libraries/Math/LibRedundantMath32.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
-import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
@@ -26,9 +16,8 @@ import {ShipmentRecipient} from "contracts/beanstalk/storage/System.sol";
 import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 
 /**
  * @title Mock Season Facet
@@ -51,8 +40,6 @@ interface IMockPump {
 
 contract MockSeasonFacet is SeasonFacet {
     using LibRedundantMath256 for uint256;
-    using LibRedundantMath32 for uint32;
-    using LibRedundantMathSigned256 for int256;
 
     event DeltaB(int256 deltaB);
 
@@ -64,6 +51,10 @@ contract MockSeasonFacet is SeasonFacet {
 
     function setYieldE(uint256 t) public {
         s.sys.weather.temp = uint32(t);
+    }
+
+    function setTotalStalkE(uint256 amount) public {
+        s.sys.silo.stalk = uint128(amount);
     }
 
     function siloSunrise(uint256 amount) public {
@@ -151,25 +142,21 @@ contract MockSeasonFacet is SeasonFacet {
         mockStepSilo(amount);
     }
 
-    function sunSunriseWithL2srScaling(int256 deltaB, uint256 caseId) public {
+    function sunSunriseWithL2srScaling(int256 deltaB, uint256) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        (, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
-        stepSun(caseId, bs);
+        LibEvaluate.BeanstalkState memory bs = calcCaseIdAndHandleRain(deltaB);
+        stepSun(bs);
     }
 
-    function sunSunrise(
-        int256 deltaB,
-        uint256 caseId,
-        LibEvaluate.BeanstalkState memory bs
-    ) public {
+    function sunSunrise(int256 deltaB, uint256, LibEvaluate.BeanstalkState memory bs) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
         bs.twaDeltaB = deltaB;
         stepGauges(bs);
-        stepSun(caseId, bs);
+        stepSun(bs);
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) public {
@@ -183,23 +170,23 @@ contract MockSeasonFacet is SeasonFacet {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 0,
-            twaDeltaB: deltaB
+            twaDeltaB: deltaB,
+            caseId: caseId
         });
-        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
-        stepSun(caseId, bs); // Do not scale soil down using L2SR
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
+        stepSun(bs); // Do not scale soil down using L2SR
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {
         seedGaugeSunSunrise(deltaB, caseId, false);
     }
 
-    function sunTemperatureSunrise(int256 deltaB, uint256 caseId, uint32 t) public {
+    function sunTemperatureSunrise(int256 deltaB, uint256, uint32 t) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.weather.temp = t;
         s.sys.season.sunriseBlock = uint64(block.number);
         stepSun(
-            caseId,
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
@@ -207,7 +194,8 @@ contract MockSeasonFacet is SeasonFacet {
                 largestLiqWell: address(0),
                 oracleFailure: false,
                 largestLiquidWellTwapBeanPrice: 0,
-                twaDeltaB: deltaB
+                twaDeltaB: deltaB,
+                caseId: 0
             })
         ); // Do not scale soil down using L2SR
     }
@@ -298,6 +286,10 @@ contract MockSeasonFacet is SeasonFacet {
 
     function setSoilE(uint256 amount) public {
         setSoil(amount);
+    }
+
+    function setBeansSownE(uint128 amount) public {
+        s.sys.beanSown = amount;
     }
 
     function resetState() public {
@@ -477,16 +469,10 @@ contract MockSeasonFacet is SeasonFacet {
         (
             uint256 maxLpGpPerBdv,
             LibGauge.LpGaugePointData[] memory lpGpData,
-            uint256 totalGaugePoints,
             uint256 totalLpBdv
         ) = LibGauge.updateGaugePoints();
         if (totalLpBdv == type(uint256).max) return;
-        LibGauge.updateGrownStalkEarnedPerSeason(
-            maxLpGpPerBdv,
-            lpGpData,
-            totalGaugePoints,
-            totalLpBdv
-        );
+        LibGauge.updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalLpBdv);
     }
 
     function stepGauge() external {
@@ -504,7 +490,7 @@ contract MockSeasonFacet is SeasonFacet {
      * @dev used to test the updateGrownStalkPerSeason updating.
      */
     function mockUpdateAverageGrownStalkPerBdvPerSeason() external {
-        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 100e18, 0);
+        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 0);
     }
 
     function gaugePointsNoChange(
@@ -522,7 +508,7 @@ contract MockSeasonFacet is SeasonFacet {
         uint96,
         uint64 optimalPercentDepositedBdv
     ) external {
-        AssetSettings storage ss = LibAppStorage.diamondStorage().sys.silo.assetSettings[token];
+        AssetSettings storage ss = s.sys.silo.assetSettings[token];
         ss.gaugePointImplementation.selector = gaugePointSelector;
         ss.liquidityWeightImplementation.selector = liquidityWeightSelector;
         ss.optimalPercentDepositedBdv = optimalPercentDepositedBdv;
@@ -544,7 +530,10 @@ contract MockSeasonFacet is SeasonFacet {
     }
 
     function mockStartSop() internal {
-        LibFlood.handleRain(3);
+        // caseId is set to 75 because it satisfies the conditions in handleRain.
+        // caseId % 36 3-8 : execessively low pod rate
+        // cases / 36  >=2 : at least reasonably high l2sr
+        LibFlood.handleRain(75);
     }
 
     function mockIncrementGermination(
@@ -701,17 +690,18 @@ contract MockSeasonFacet is SeasonFacet {
      */
     function mockcalcCaseIdAndHandleRain(
         int256 deltaB
-    ) public returns (uint256 caseId, LibEvaluate.BeanstalkState memory bs) {
+    ) public returns (LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
             s.sys.weather.temp = 1e6;
-            return (9, bs); // Reasonably low
+            return (bs); // Reasonably low
         }
         // Calculate Case Id
-        (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, false);
-        LibFlood.handleRain(caseId);
+        bs = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        bs.oracleFailure = false;
+        LibWeather.updateTemperatureAndBeanToMaxLpGpPerBdvRatio(bs);
+        LibFlood.handleRain(bs.caseId);
     }
 
     function getSeasonStart() external view returns (uint256) {
@@ -743,7 +733,7 @@ contract MockSeasonFacet is SeasonFacet {
     }
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB) {
-        bytes memory lastSnapshot = LibAppStorage.diamondStorage().sys.wellOracleSnapshots[well];
+        bytes memory lastSnapshot = s.sys.wellOracleSnapshots[well];
         // If the length of the stored Snapshot for a given Well is 0,
         // then the Oracle is not initialized.
         if (lastSnapshot.length > 0) {
@@ -757,6 +747,9 @@ contract MockSeasonFacet is SeasonFacet {
         emit DeltaB(instDeltaB);
     }
 
+    function setOverallConvertCapacityUsedForBlock(uint256 capacity) external {
+        s.sys.convertCapacity[block.number].overallConvertCapacityUsed = capacity;
+    }
     function setLastSeasonAndThisSeasonBeanSown(
         uint128 lastSeasonBeanSown,
         uint128 thisSeasonBeanSown
@@ -765,7 +758,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.beanSown = thisSeasonBeanSown;
     }
 
-    function setMinSoilSownDemand(uint256 minSoilSownDemand) public {
-        s.sys.extEvaluationParameters.minSoilSownDemand = minSoilSownDemand;
+    function setSeasonAbovePeg(bool abovePeg) public {
+        s.sys.season.abovePeg = abovePeg;
     }
 }

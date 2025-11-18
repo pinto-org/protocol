@@ -40,7 +40,7 @@ contract ShipmentDeployer is Utils {
         vm.prank(deployer);
         bs.addField();
         vm.prank(deployer);
-        bs.setActiveField(0, 1);
+        bs.setActiveField(0, 1e6);
 
         // Deploy fake budget address.
         budget = address(new MockBudget());

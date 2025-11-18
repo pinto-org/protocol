@@ -62,9 +62,9 @@ contract SeasonFacet is Invariable, Weather {
         uint32 season = stepSeason();
         int256 deltaB = stepOracle();
         LibGerminate.endTotalGermination(season, LibWhitelistedTokens.getWhitelistedTokens());
-        (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
+        LibEvaluate.BeanstalkState memory bs = calcCaseIdAndHandleRain(deltaB);
         stepGauges(bs);
-        stepSun(caseId, bs);
+        stepSun(bs);
 
         return incentivize(account, mode);
     }

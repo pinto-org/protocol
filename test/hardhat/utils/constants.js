@@ -40,6 +40,11 @@ const addressAllowanceSlotMap = {
   "0x1C61629598e4a901136a81BC138E5828dc150d67": 6
 };
 
+const tractorToAddressMap = {
+  SowBlueprint: "0xbb0a41927895F8ca2b4ECCc659ba158735fCF28B",
+  ConvertUpBlueprint: "0xDe3005B12f55C3a6AD940652A11F913E6d7956FB"
+};
+
 // Wells
 const PINTO_WETH_WELL_BASE = "0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3";
 const PINTO_CBETH_WELL_BASE = "0x3e111115A82dF6190e36ADf0d552880663A4dBF1";
@@ -110,15 +115,22 @@ module.exports = {
   // external contracts
   LSD_CHAINLINK_ORACLE: "0xCCCCCC35b53c8a16404Ae414AFa31F30A5B35626",
   SHIPMENT_PLANNER: "0x555555987d98079b9f43CDcDBD52DbB24FfEEef5",
+  HELPER_STORAGE: "0xbe95c6806ab4EEFc10AC9E96938c3A222964DD91",
+
+  // Tractor:
+  SOW_BLUEPRINT: tractorToAddressMap["SowBlueprint"],
+  CONVERT_UP_BLUEPRINT: tractorToAddressMap["ConvertUpBlueprint"],
 
   //////////////////////// BASE ////////////////////////
   // Pinto
   L2_PINTO: "0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f",
   PINTO: nameToAddressMap["PINTO"],
   PINTO_DIAMOND_DEPLOYER: "0x183926c42993478F6b2eb8CDEe0BEa524B119ab2",
+  PINTO_IMPROVEMENT_DEPLOYER: "0x00000015EE13a3C1fD0e8Dc2e8C2c8590D5B440B",
   L2_PCM: "0x2cf82605402912C6a79078a9BBfcCf061CbfD507",
   DEV_BUDGET_PROXY: "0xb0cdb715D8122bd976a30996866Ebe5e51bb18b0",
   RESERVES_5_PERCENT_MULTISIG: "0x4FAE5420F64c282FD908fdf05930B04E8e079770",
+  PINTO_PRICE_CONTRACT: "0x13D25ABCB6a19948d35654715c729c6501230b49",
 
   //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
   // EOA That will deploy the beanstlak shipment related contracts on base
@@ -177,6 +189,7 @@ module.exports = {
   nameToAddressMap,
   addressToBalanceSlotMap,
   addressAllowanceSlotMap,
+  tractorToAddressMap,
 
   wellToNonPintoTokenMap: {
     [PINTO_WETH_WELL_BASE]: nameToAddressMap["WETH"],

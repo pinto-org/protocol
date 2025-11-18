@@ -30,11 +30,12 @@ contract MockInitDiamond is InitializeDiamond {
         address(0xBeA0000113B0d182f4064C86B71c315389E4715D);
 
     function init() external {
-        // initalize the default state of the diamond.
+        // initialize the default state of the diamond.
         // {see. InitializeDiamond.initializeDiamond()}
         initializeDiamond(BEAN, BEAN_ETH_WELL);
 
         // Whitelist the LP well.
+
         whitelistLPWell(BEAN_WSTETH_WELL);
     }
 
