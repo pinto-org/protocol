@@ -10,6 +10,8 @@ import {AssetSettings, Implementation} from "contracts/beanstalk/storage/System.
 import {BDVFacet} from "contracts/beanstalk/facets/silo/BDVFacet.sol";
 import {Call} from "contracts/interfaces/basin/IWell.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/console.sol";
+import {LSDChainlinkOracle} from "contracts/ecosystem/oracles/LSDChainlinkOracle.sol";
 /**
  * @title InitWstethMigration
  * @dev performs the wsteth migration.
@@ -44,10 +46,12 @@ contract InitWstethMigration is InitWells {
             getWstethWellData()
         );
         // Whitelist new asset.
-        whitelistBeanAsset(getWhitelistData(wstethWell));
+        whitelistBeanAsset(getWhitelistData(wstethWell, address(new LSDChainlinkOracle())));
 
         // Initialize the LP distribution gauge.
         LibInitGauges.initLpDistributionGauge(NUM_SEASONS, PINTO_CBETH_WELL, wstethWell, DELTA);
+        console.log("wsteth well deployed to:", wstethWell);
+        console.log("wsteth well implementation deployed to:", wellImplementation);
     }
 
     function getWstethWellData() internal pure returns (WellData memory wstethWellData) {
@@ -70,13 +74,14 @@ contract InitWstethMigration is InitWells {
     }
 
     function getWhitelistData(
-        address well
+        address well,
+        address oracleAddress
     ) internal view returns (WhitelistData memory whitelistData) {
         AssetSettings memory assetSettings = AssetSettings({
-            selector: BDVFacet.beanToBDV.selector,
-            stalkEarnedPerSeason: 0,
+            selector: BDVFacet.wellBdv.selector,
+            stalkEarnedPerSeason: 1,
             stalkIssuedPerBdv: STALK_PER_BDV,
-            milestoneSeason: 0,
+            milestoneSeason: uint32(s.sys.season.current),
             milestoneStem: 0,
             encodeType: bytes1(0x01),
             deltaStalkEarnedPerSeason: 0,
@@ -86,7 +91,7 @@ contract InitWstethMigration is InitWells {
             liquidityWeightImplementation: getDefaultLiquidityWeightImplementation()
         });
         Implementation memory oracle = Implementation({
-            target: 0x1CD1CDDc6383dfD53Acd7A22456A82256730b8Ef,
+            target: oracleAddress,
             selector: bytes4(0xb0dd7409),
             encodeType: bytes1(0x00),
             data: abi.encode(

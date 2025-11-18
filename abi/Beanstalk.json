@@ -10631,6 +10631,40 @@
   {
     "inputs": [
       {
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "systemData",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "gaugeData",
+        "type": "bytes"
+      }
+    ],
+    "name": "lpDistributionUpdateGauge",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "value",
         "type": "uint256"
