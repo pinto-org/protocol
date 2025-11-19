@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AdvancedFarmCall} from "../libraries/LibFarm.sol";
 import {LibTransfer} from "../libraries/Token/LibTransfer.sol";
 import {LibTractor} from "../libraries/LibTractor.sol";
+import {ShipmentRoute} from "../beanstalk/storage/System.sol";
 
 interface IBeanstalk {
     enum GerminationSide {
@@ -125,6 +126,8 @@ interface IBeanstalk {
         address[] calldata tokens
     ) external view returns (MowStatus[] memory mowStatuses);
 
+    function getInternalBalance(address account, address token) external view returns (uint256);
+
     function getNonBeanTokenAndIndexFromWell(address well) external view returns (address, uint256);
 
     function getTokenDepositIdsForAccount(
@@ -218,6 +221,24 @@ interface IBeanstalk {
         LibTransfer.To toMode
     ) external payable;
 
+    function transferPlot(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 end
+    ) external payable;
+
+    function transferPlots(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256[] calldata ids,
+        uint256[] calldata starts,
+        uint256[] calldata ends
+    ) external payable;
+
     function update(address account) external payable;
 
     function updateSortedDepositIds(
@@ -255,4 +276,12 @@ interface IBeanstalk {
     function getSiloTokens() external view returns (address[] memory);
 
     function getSeedsForToken(address) external view returns (uint256 seeds);
+
+    function setShipmentRoutes(ShipmentRoute[] calldata shipmentRoutes) external;
+
+    function addField() external;
+
+    function fieldCount() external view returns (uint256);
+
+    function isHarvesting(uint256 fieldId) external view returns (bool);
 }

@@ -52,7 +52,8 @@ contract BeanstalkDeployer is Utils {
         "OracleFacet",
         "GaugeGettersFacet",
         "TractorFacet",
-        "ApprovalFacet"
+        "ApprovalFacet",
+        "ShipmentPlannerFacet"
     ];
 
     // Facets that have a mock counter part should be appended here.
@@ -63,7 +64,8 @@ contract BeanstalkDeployer is Utils {
         "ConvertFacet", // MockConvertFacet
         "SeasonFacet", // MockSeasonFacet
         "PipelineConvertFacet", // MockPipelineConvertFacet
-        "SeasonGettersFacet" // MockSeasonGettersFacet
+        "SeasonGettersFacet", // MockSeasonGettersFacet
+        "TokenHookFacet" // MockTokenHookFacet
     ];
     address[] initialDeployFacetAddresses;
     string[] initialDeploFacetNames;

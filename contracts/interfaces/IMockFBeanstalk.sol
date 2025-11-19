@@ -32,7 +32,9 @@ interface IMockFBeanstalk {
         SILO,
         FIELD,
         INTERNAL_BALANCE,
-        EXTERNAL_BALANCE
+        EXTERNAL_BALANCE,
+        SILO_PAYBACK,
+        BARN_PAYBACK
     }
 
     struct AccountSeasonOfPlenty {
@@ -284,6 +286,11 @@ interface IMockFBeanstalk {
         D256 podRate;
         address largestLiqWell;
         bool oracleFailure;
+    }
+
+    struct ShipmentPlan {
+        uint256 points;
+        uint256 cap;
     }
 
     error AddressEmptyCode(address target);
@@ -551,6 +558,10 @@ interface IMockFBeanstalk {
         Implementation gpImplementation,
         Implementation lwImplementation
     );
+
+    event TokenHookRegistered(address indexed token, address target, bytes4 selector);
+    event TokenHookRemoved(address indexed token);
+    event TokenHookUpdated(address indexed token, address target, bytes4 selector);
 
     function abovePeg() external view returns (bool);
 
@@ -1961,4 +1972,34 @@ interface IMockFBeanstalk {
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
 
     function getSeedsForToken(address token) external view returns (uint256 seeds);
+
+    function addTokenHook(address token, Implementation memory hook) external payable;
+
+    function removeTokenHook(address token) external payable;
+
+    function updateTokenHook(address token, Implementation memory hook) external payable;
+
+    function hasTokenHook(address token) external view returns (bool);
+
+    function getTokenHook(address token) external view returns (Implementation memory);
+
+    function getFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getSiloPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackSiloPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackBarnPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
 }
