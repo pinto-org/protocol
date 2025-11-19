@@ -166,7 +166,7 @@ contract InitializeDiamond {
         s.sys.twaReserves[beanTokenWell].reserve1 = 1;
 
         // init tractor.
-        LibTractor._tractorStorage().activePublisher = payable(address(1));
+        LibTractor._resetPublisher();
     }
 
     /**

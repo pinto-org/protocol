@@ -973,4 +973,28 @@ module.exports = function () {
       account: owner
     });
   });
+
+  task("dynamic-tractor-data", "deploys the dynamic tractor upgrade").setAction(
+    async function () {
+      const mock = false;
+      let owner;
+      if (mock) {
+        await hre.run("updateOracleTimeouts");
+        owner = await impersonateSigner(L2_PCM);
+        await mintEth(owner.address);
+      } else {
+        owner = (await ethers.getSigners())[0];
+      }
+      await upgradeWithNewFacets({
+        diamondAddress: L2_PINTO,
+        facetNames: ["TractorFacet"],
+        libraryNames: [],
+        facetLibraries: {},
+        initArgs: [],
+        object: !mock,
+        verbose: true,
+        account: owner
+      });
+    }
+  );
 };

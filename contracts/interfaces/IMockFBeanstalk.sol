@@ -286,6 +286,11 @@ interface IMockFBeanstalk {
         bool oracleFailure;
     }
 
+    struct ContractData {
+        uint256 key;
+        bytes value;
+    }
+
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();
@@ -1142,7 +1147,9 @@ interface IMockFBeanstalk {
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB);
 
-    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) external view returns (address publisher, uint256 count);
 
     function getReceiver(address owner) external view returns (address);
 
@@ -1730,6 +1737,12 @@ interface IMockFBeanstalk {
         bytes memory operatorData
     ) external payable returns (bytes[] memory results);
 
+    function tractorDynamicData(
+        Requisition calldata requisition,
+        bytes memory operatorData,
+        ContractData[] memory operatorDynamicData
+    ) external payable returns (bytes[] memory results);
+
     function transferDeposit(
         address sender,
         address recipient,
@@ -1968,4 +1981,6 @@ interface IMockFBeanstalk {
     function getSeedsForToken(address token) external view returns (uint256 seeds);
 
     function setReferralEligibility(address referrer, bool eligible) external;
+
+    function getTractorData(uint256 key) external view returns (bytes memory);
 }
