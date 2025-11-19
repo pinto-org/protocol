@@ -90,6 +90,8 @@ contract InitializeDiamond {
     uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.05e6; // 5%
     uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
 
+    uint128 internal constant INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD = 1000e6; // 1000
+
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
@@ -191,6 +193,7 @@ contract InitializeDiamond {
         s.sys.weather.morningDuration = 600; // 10 minutes
         s.sys.weather.morningControl = uint128(1e18) / 240; // 1 / 240 = 0.004166666667
         s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
+        s.sys.referralBeanSownEligibilityThreshold = INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD;
     }
 
     /**

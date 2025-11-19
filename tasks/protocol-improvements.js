@@ -750,6 +750,31 @@ module.exports = function () {
     });
   });
 
+  task(
+    "PI-X-sow-referral",
+    "Deploys Pinto improvement set X, Sow with referral delegation"
+  ).setAction(async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["FieldFacet"],
+      libraryNames: [],
+      facetLibraries: {},
+      object: !mock,
+      verbose: true,
+      account: owner,
+      initArgs: [[]],
+      initFacetName: "InitPodReferral"
+    });
+  });
+
   task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
     const mock = true;
     let owner;

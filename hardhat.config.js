@@ -21,6 +21,8 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
 
   await hre.run("addLiquidityToWstethWell");
   console.log("WSTETH migration and liquidity added completed");
+  // deploy PI-X-sow-referral
+  await hre.run("PI-X-sow-referral");
 });
 
 //////////////////////// CONFIGURATION ////////////////////////
