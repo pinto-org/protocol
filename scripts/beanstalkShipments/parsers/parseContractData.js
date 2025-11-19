@@ -71,7 +71,7 @@ async function parseContractData(includeContracts, detectedContractAddresses = [
       fertilizerIds: [],
       fertilizerAmounts: [],
       plotIds: [],
-      plotEnds: []  // Only plotEnds needed - plotStarts is always 0 (constant in contract)
+      plotAmounts: []  // Only plotAmounts needed - plotStarts is always 0 (constant in contract)
     };
     
     // Helper function to find contract data by normalized address
@@ -145,10 +145,10 @@ async function parseContractData(includeContracts, detectedContractAddresses = [
     
     // Convert plot map to arrays
     for (const [plotIndex, totalPods] of plotMap) {
-      // For ContractPaybackDistributor, we only need plotIds and plotEnds
-      // plotStarts is always 0 (constant in contract), plotEnds contains the pod amounts
+      // For ContractPaybackDistributor, we only need plotIds and plotAmounts
+      // plotStarts is always 0 (constant in contract), plotAmounts contains the pod amounts
       accountData.plotIds.push(plotIndex);
-      accountData.plotEnds.push(totalPods.toString());  // plotEnds = pod amounts, not calculated end indices
+      accountData.plotAmounts.push(totalPods.toString());  // plotAmounts = pod amounts, not calculated end indices
     }
     
     // Only include contracts that have some assets

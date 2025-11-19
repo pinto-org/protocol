@@ -264,18 +264,19 @@ async function transferContractOwnership({
   siloPaybackContract,
   barnPaybackContract,
   contractPaybackDistributorContract,
-  L2_PCM,
+  newOwner,
+  deployer,
   verbose = true
 }) {
   if (verbose) console.log("🔄 Transferring ownership to PCM...");
 
-  await siloPaybackContract.transferOwnership(L2_PCM);
+  await siloPaybackContract.connect(deployer).transferOwnership(newOwner);
   if (verbose) console.log("✅ SiloPayback ownership transferred to PCM");
 
-  await barnPaybackContract.transferOwnership(L2_PCM);
+  await barnPaybackContract.connect(deployer).transferOwnership(newOwner);
   if (verbose) console.log("✅ BarnPayback ownership transferred to PCM");
 
-  await contractPaybackDistributorContract.transferOwnership(L2_PCM);
+  await contractPaybackDistributorContract.connect(deployer).transferOwnership(newOwner);
   if (verbose) console.log("✅ ContractPaybackDistributor ownership transferred to PCM");
 }
 
