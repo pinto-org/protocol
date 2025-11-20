@@ -32,7 +32,7 @@ contract InitWstethMigration is InitWells {
     bytes32 internal constant WELL_SALT =
         0xa1403b59e21fd5e877f0c926cc94485d8e048272197f6b1e94bad0186e6c53a7;
     bytes32 internal constant PROXY_SALT =
-        0x3cf7323e9f464d91de6f51e29f825cc774e1ce5b612887e8ed297677e4070607;
+        0x00ee4d9e32976f40b38d99d1c3eee5ca2e3ae06d24630a6df69a9a8b7c8b4500;
 
     // Asset parameters.
     uint48 internal constant STALK_PER_BDV = 1e10;
