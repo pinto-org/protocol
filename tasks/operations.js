@@ -171,7 +171,7 @@ module.exports = function () {
   });
 
   task("addLiquidityToWstethWell", "Adds liquidity to the wstETH well")
-    .addOptionalParam("well", "The well address", "0x3e1155480Fce43686793dd18E43104A01abCBC92")
+    .addOptionalParam("well", "The well address", "0x3e1155245FF9a6a019Bc35827e801c6ED2CE91b9")
     .addOptionalParam("beanAmount", "Amount of Bean tokens to add", "10000")
     .addOptionalParam("wstethAmount", "Amount of wstETH tokens to add", "1")
     .addOptionalParam("receiver", "Receiver of LP tokens", PINTO_DIAMOND_DEPLOYER)
