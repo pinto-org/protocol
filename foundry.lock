@@ -10,5 +10,8 @@
   },
   "lib/prb-math": {
     "rev": "b8583d490b5f3a1017c09dd9568b45c736281d3e"
+  },
+  "lib/transience": {
+    "rev": "c61b45882b65cc8ea38fc48350ea48d05b7c4b25"
   }
 }
