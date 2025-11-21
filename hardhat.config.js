@@ -7,6 +7,8 @@ require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
 require("@nomicfoundation/hardhat-foundry");
+const { getBeanstalk } = require("./utils");
+const { L2_PINTO } = require("./test/hardhat/utils/constants.js");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
@@ -14,17 +16,44 @@ require("./tasks")();
 
 // used in the UI to run the latest upgrade
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
-  const order = true;
   // compile contracts.
   await hre.run("compile");
 
-  await hre.run("wsteth-migration");
+  await hre.run("PI-X-migration-referral");
 
-  await hre.run("addLiquidityToWstethWell");
-  console.log("WSTETH migration and liquidity added completed");
-  // deploy PI-X-sow-referral
-  await hre.run("PI-X-sow-referral");
+  console.log("Diamond Upgraded.");
+
+  await hre.run("addLiquidityToWstethWell", { deposit: true });
+  console.log("Liquidity added to WSTETH well.");
+  await hre.run("updateOracleTimeouts");
+  console.log("Oracle timeouts updated.");
 });
+
+task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
+  async function () {
+    for (let i = 0; i < 50; i++) {
+      await hre.run("callSunrise");
+      console.log("Sunrise called.");
+
+      const beanstalk = await getBeanstalk(L2_PINTO);
+      const cbethWellData = await beanstalk.tokenSettings(
+        "0x3e111115A82dF6190e36ADf0d552880663A4dBF1"
+      );
+      const wstethWellData = await beanstalk.tokenSettings(
+        "0x3e1155245FF9a6a019Bc35827e801c6ED2CE91b9"
+      );
+      console.log(
+        "CBETH optimal percent deposited bdv: ",
+        cbethWellData.optimalPercentDepositedBdv.toString()
+      );
+      console.log(
+        "WSTETH optimal percent deposited bdv: ",
+        wstethWellData.optimalPercentDepositedBdv.toString()
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+);
 
 //////////////////////// CONFIGURATION ////////////////////////
 

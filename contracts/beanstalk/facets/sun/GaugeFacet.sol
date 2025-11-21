@@ -426,22 +426,24 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     /**
      * @notice returns the result of calling a gauge.
+     * @dev does not support stateful gauges.
      */
     function getGaugeResult(
         Gauge memory gauge,
         bytes memory systemData
     ) external view returns (bytes memory, bytes memory) {
-        return LibGaugeHelpers.getGaugeResult(gauge, systemData);
+        return LibGaugeHelpers.getStatelessGaugeResult(gauge, systemData);
     }
 
     /**
      * @notice returns the result of calling a gauge by its id.
+     * @dev does not support stateful gauges.
      */
     function getGaugeIdResult(
         GaugeId gaugeId,
         bytes memory systemData
     ) external view returns (bytes memory, bytes memory) {
         Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
-        return LibGaugeHelpers.getGaugeResult(g, systemData);
+        return LibGaugeHelpers.getStatelessGaugeResult(g, systemData);
     }
 }

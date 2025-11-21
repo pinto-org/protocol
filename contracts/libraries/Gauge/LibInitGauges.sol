@@ -128,37 +128,41 @@ library LibInitGauges {
     /**
      * @notice Initializes the LP distribution gauge.
      * @dev this gauge will slowly
-     * @param numSeasons The number of seasons to distribute the LP over.
      * @param token0 The token to decrease the optimal percent deposited bdv for.
      * @param token1 The token to increase the optimal percent deposited bdv for.
      * @param delta The delta to decrease the optimal percent deposited bdv for token1.
+     * @param target The target optimal distribution percentage.
      */
     function initLpDistributionGauge(
-        uint256 numSeasons,
         address token0,
         address token1,
-        int64 delta
+        int64 delta,
+        uint64 target
     ) internal {
         LibLpDistributionGauge.LpDistribution[]
             memory distributions = new LibLpDistributionGauge.LpDistribution[](2);
+        // decrease the optimal percent deposited bdv for token0.
         distributions[0] = LibLpDistributionGauge.LpDistribution(
             token0,
             -delta,
+            0,
             Implementation(address(0), 0x00, 0x00, bytes(""))
         );
+        // increase the optimal percent deposited bdv for token1.
         distributions[1] = LibLpDistributionGauge.LpDistribution(
             token1,
             delta,
+            target,
             Implementation(address(0), 0x00, 0x00, bytes(""))
         );
         LibLpDistributionGauge.LpDistributionGaugeData memory gd = LibLpDistributionGauge
-            .LpDistributionGaugeData(numSeasons, distributions);
+            .LpDistributionGaugeData(true, distributions);
         Gauge memory lpDistributionGauge = Gauge(
             bytes(""),
             address(this),
             IGaugeFacet.lpDistributionUpdateGauge.selector,
             abi.encode(gd)
         );
-        LibGaugeHelpers.addGauge(GaugeId.LP_DISTRIBUTION, lpDistributionGauge);
+        LibGaugeHelpers.addStatefulGauge(GaugeId.LP_DISTRIBUTION, lpDistributionGauge);
     }
 }
