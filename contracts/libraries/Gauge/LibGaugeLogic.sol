@@ -5,6 +5,7 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibSeedGauge} from "./LibSeedGauge.sol";
 import {LibLpDistributionGauge} from "./LibLpDistributionGauge.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title LibGaugeLogic
@@ -27,92 +28,90 @@ library LibGaugeLogic {
             (LibLpDistributionGauge.LpDistributionGaugeData)
         );
 
-        // this Gauge can be invoked for a number of seasons or indefinitely:
-        // 1: if the duration is 0, run indefinitely.
-        // 2: otherwise, run for N seasons.
-        // note: default state is for the gauge to run in perpetuity.
-        // Responsibility is on Deployer to ensure lengths are correct.
-        if (gd.duration == 0 || (gd.duration >= s.sys.season.current)) {
-            for (uint i = 0; i < gd.distributions.length; i++) {
-                LibLpDistributionGauge.LpDistribution memory lpDist = gd.distributions[i];
+        // if the gauge is not enabled, skip and return unchanged values/gaugeData.
+        if (!gd.enabled) {
+            return (bytes(""), gaugeData);
+        }
 
-                // if the token has an implementation, invoke the implementation to calculate the new delta.
-                if (lpDist.impl.target != address(0)) {
-                    // the function should adhere to `foo(int256,bytes) external returns (int256)`
-                    bool success;
-                    bytes memory returnData;
-                    if (lpDist.impl.encodeType == bytes1(0x00)) {
-                        (success, returnData) = lpDist.impl.target.staticcall(
-                            abi.encodeWithSelector(
-                                lpDist.impl.selector,
-                                lpDist.delta,
-                                lpDist.impl.data
-                            )
-                        );
-                    }
-                    // more encode types can be added here.
-                    // if the encoding type is not valid, the delta remains the same.
+        console.log("length of distributions: %s", gd.distributions.length);
+        bool targetReached = true;
+        for (uint i = 0; i < gd.distributions.length; i++) {
+            LibLpDistributionGauge.LpDistribution memory lpDist = gd.distributions[i];
+            console.log(
+                "Calculating new optimal percent deposited bdv for token: %s",
+                lpDist.token
+            );
+            console.log("Delta: %s", lpDist.delta);
 
-                    if (success) {
-                        lpDist.delta = abi.decode(returnData, (int64));
-                    }
+            // if the token has an implementation, invoke the implementation to calculate the new delta.
+            console.log("Implementation target: %s", lpDist.impl.target);
+            if (lpDist.impl.target != address(0)) {
+                // the function should adhere to `foo(int64,bytes) external returns (int64)`
+                bool success;
+                bytes memory returnData;
+                console.log("Encode type: %s");
+                console.logBytes1(lpDist.impl.encodeType);
+                if (lpDist.impl.encodeType == bytes1(0x00)) {
+                    (success, returnData) = lpDist.impl.target.staticcall(
+                        abi.encodeWithSelector(lpDist.impl.selector, lpDist.delta, lpDist.impl.data)
+                    );
+                    console.log("Success: %s", success);
+                    console.log("Return data: %s");
+                    console.logBytes(returnData);
+                }
+                // more encode types can be added here.
+                // if the encoding type is not valid, the delta remains the same.
 
-                    // if delta is non-zero, calculate the new optimal percent deposited bdv.
-                    if (lpDist.delta > 0) {
-                        uint64 newOptimalPercentDepositedBdv = calculateOptimalPercentDepositedBdv(
-                            lpDist.token,
-                            lpDist.delta
-                        );
-                        s
-                            .sys
-                            .silo
-                            .assetSettings[lpDist.token]
-                            .optimalPercentDepositedBdv = newOptimalPercentDepositedBdv;
-                    }
+                if (success) {
+                    lpDist.delta = abi.decode(returnData, (int64));
+                    console.log("New delta: %s", lpDist.delta);
                 }
             }
 
-            // encode the new gauge data.
-            gd.distributions = new LibLpDistributionGauge.LpDistribution[](gd.distributions.length);
-            for (uint i = 0; i < gd.distributions.length; i++) {
-                gd.distributions[i] = gd.distributions[i];
-            }
+            console.log("Delta: %s", lpDist.delta);
 
-            return (bytes(""), abi.encode(gd));
-        } else {
-            // skip, return unchanged values/gaugeData.
-            return (bytes(""), gaugeData);
-        }
-    }
+            console.log(
+                "Optimal percent deposited bdv: %s",
+                s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv
+            );
+            console.log("Target: %s", lpDist.target);
 
-    /**
-     * @notice Internal function to calculate the new optimal percent deposited bdv.
-     */
-    function calculateOptimalPercentDepositedBdv(
-        address token,
-        int64 delta
-    ) internal view returns (uint64) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        uint64 currentOptimalPercentDepositedBdv = s
-            .sys
-            .silo
-            .assetSettings[token]
-            .optimalPercentDepositedBdv;
-        if (delta > 0) {
-            // if the new optimal percent deposited bdv is greater than the maximum, set it to the maximum.
+            // if the target is not reached, change the optimal percent deposited bdv if delta is non-zero.
             if (
-                currentOptimalPercentDepositedBdv + uint64(delta) >
-                uint64(LibSeedGauge.OPTIMAL_DEPOSITED_BDV_PERCENT)
+                s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv != lpDist.target
             ) {
-                return uint64(LibSeedGauge.OPTIMAL_DEPOSITED_BDV_PERCENT);
+                targetReached = false;
+                console.log("Delta: %s", lpDist.delta);
+                if (lpDist.delta != 0) {
+                    uint64 newOptimalPercentDepositedBdv = LibLpDistributionGauge
+                        .calculateOptimalPercentDepositedBdv(
+                            lpDist.token,
+                            lpDist.delta,
+                            lpDist.target
+                        );
+                    s
+                        .sys
+                        .silo
+                        .assetSettings[lpDist.token]
+                        .optimalPercentDepositedBdv = newOptimalPercentDepositedBdv;
+                    console.log(
+                        "New optimal percent deposited bdv: %s",
+                        newOptimalPercentDepositedBdv
+                    );
+                }
             }
-            return currentOptimalPercentDepositedBdv + uint64(delta);
-        } else {
-            // if the new optimal percent deposited bdv is less than the minimum, set it to the minimum.
-            if (currentOptimalPercentDepositedBdv < uint64(-delta)) {
-                return 0;
-            }
-            return currentOptimalPercentDepositedBdv - uint64(-delta);
         }
+
+        // if targetReached is true (i.e all targets are reached), disable the gauge.
+        if (targetReached) {
+            gd.enabled = false;
+        }
+        // encode the new gauge data.
+        gd.distributions = new LibLpDistributionGauge.LpDistribution[](gd.distributions.length);
+        for (uint i = 0; i < gd.distributions.length; i++) {
+            gd.distributions[i] = gd.distributions[i];
+        }
+
+        return (bytes(""), abi.encode(gd));
     }
 }

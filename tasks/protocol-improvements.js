@@ -708,7 +708,7 @@ module.exports = function () {
     });
   });
 
-  task("wsteth-migration", "Deploys wsteth migration").setAction(async function () {
+  task("PI-X-migration-referral", "Deploys PI-X migration referral").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -717,9 +717,10 @@ module.exports = function () {
     } else {
       owner = (await ethers.getSigners())[0];
     }
+
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["GaugeFacet", "GaugeGettersFacet", "SeasonFacet"],
+      facetNames: ["GaugeFacet", "GaugeGettersFacet", "SeasonFacet", "FieldFacet", "TractorFacet"],
       libraryNames: [
         "LibSeedGauge",
         "LibEvaluate",
@@ -742,36 +743,11 @@ module.exports = function () {
           "LibWeather"
         ]
       },
-      initArgs: [],
-      initFacetName: "InitWstethMigration",
+      initArgs: [[]],
+      initFacetName: "InitPIXMigration",
       object: !mock,
       verbose: true,
       account: owner
-    });
-  });
-
-  task(
-    "PI-X-sow-referral",
-    "Deploys Pinto improvement set X, Sow with referral delegation"
-  ).setAction(async function () {
-    const mock = true;
-    let owner;
-    if (mock) {
-      owner = await impersonateSigner(L2_PCM);
-      await mintEth(owner.address);
-    } else {
-      owner = (await ethers.getSigners())[0];
-    }
-    await upgradeWithNewFacets({
-      diamondAddress: L2_PINTO,
-      facetNames: ["FieldFacet"],
-      libraryNames: [],
-      facetLibraries: {},
-      object: !mock,
-      verbose: true,
-      account: owner,
-      initArgs: [[]],
-      initFacetName: "InitPodReferral"
     });
   });
 
@@ -974,27 +950,25 @@ module.exports = function () {
     });
   });
 
-  task("dynamic-tractor-data", "deploys the dynamic tractor upgrade").setAction(
-    async function () {
-      const mock = false;
-      let owner;
-      if (mock) {
-        await hre.run("updateOracleTimeouts");
-        owner = await impersonateSigner(L2_PCM);
-        await mintEth(owner.address);
-      } else {
-        owner = (await ethers.getSigners())[0];
-      }
-      await upgradeWithNewFacets({
-        diamondAddress: L2_PINTO,
-        facetNames: ["TractorFacet"],
-        libraryNames: [],
-        facetLibraries: {},
-        initArgs: [],
-        object: !mock,
-        verbose: true,
-        account: owner
-      });
+  task("dynamic-tractor-data", "deploys the dynamic tractor upgrade").setAction(async function () {
+    const mock = false;
+    let owner;
+    if (mock) {
+      await hre.run("updateOracleTimeouts");
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
     }
-  );
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["TractorFacet"],
+      libraryNames: [],
+      facetLibraries: {},
+      initArgs: [],
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
 };

@@ -354,10 +354,18 @@ struct Implementation {
     bytes data;
 }
 
+/**
+ * @notice Stores the data for the gauges.
+ * @param gaugeIds The ids of the gauges.
+ * @param gauges The gauges.
+ * @param stateful Whether the gauge is stateful.
+ * @param _buffer Reserved storage for future expansion.
+ */
 struct GaugeData {
     GaugeId[] gaugeIds;
     mapping(GaugeId => Gauge) gauges;
-    bytes32[16] _buffer;
+    mapping(GaugeId => bool) stateful;
+    bytes32[15] _buffer;
 }
 
 /**

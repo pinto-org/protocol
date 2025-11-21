@@ -133,6 +133,13 @@ library LibGaugeHelpers {
     event AddedGauge(GaugeId gaugeId, Gauge gauge);
 
     /**
+     * @notice Emitted when a Stateful Gauge is added.
+     * @param gaugeId The id of the Stateful Gauge that was added.
+     * @param gauge The Stateful Gauge that was added.
+     */
+    event AddedStatefulGauge(GaugeId gaugeId, Gauge gauge);
+
+    /**
      * @notice Emitted when a Gauge is removed.
      * @param gaugeId The id of the Gauge that was removed.
      */
@@ -177,10 +184,15 @@ library LibGaugeHelpers {
     function callGaugeId(GaugeId gaugeId, bytes memory systemData) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
-        (
-            s.sys.gaugeData.gauges[gaugeId].value,
-            s.sys.gaugeData.gauges[gaugeId].data
-        ) = getGaugeResult(g, systemData);
+
+        // if the gauge is stateful, call the stateful gauge result.
+        bytes memory value;
+        bytes memory data;
+        if (s.sys.gaugeData.stateful[gaugeId]) {
+            (value, data) = getStatefulGaugeResult(g, systemData);
+        } else {
+            (value, data) = getStatelessGaugeResult(g, systemData);
+        }
 
         // emit change in gauge value and data
         emit Engaged(gaugeId, s.sys.gaugeData.gauges[gaugeId].value);
@@ -188,33 +200,63 @@ library LibGaugeHelpers {
     }
 
     /**
-     * @notice Calls a Gauge.
-     * @dev Returns the original value of the Gauge if the call fails.
+     * @notice Calls a Stateless Gauge.
+     * @dev Returns the original value and data of the Gauge if the call fails.
      */
-    function getGaugeResult(
+    function getStatelessGaugeResult(
         Gauge memory g,
         bytes memory systemData
     ) internal view returns (bytes memory, bytes memory) {
+        if (g.selector == bytes4(0)) return (g.value, g.data);
+        (bool success, bytes memory returnData) = g.target.staticcall(getCallData(g, systemData));
+        return getCallResult(g, success, returnData);
+    }
+
+    /**
+     * @notice Calls a Stateful Gauge.
+     * @dev Returns the original value and data of the Gauge if the call fails.
+     */
+    function getStatefulGaugeResult(
+        Gauge memory g,
+        bytes memory systemData
+    ) internal returns (bytes memory, bytes memory) {
+        if (g.selector == bytes4(0)) return (g.value, g.data);
+        (bool success, bytes memory returnData) = g.target.call(getCallData(g, systemData));
+        return getCallResult(g, success, returnData);
+    }
+
+    /**
+     * @notice Returns the call data for a Gauge.
+     */
+    function getCallData(
+        Gauge memory g,
+        bytes memory systemData
+    ) internal view returns (bytes memory) {
         // if the Gauge does not have a target, assume the target is address(this)
         if (g.target == address(0)) {
             g.target = address(this);
         }
 
-        // if the Gauge does not have a selector, return original value
-        if (g.selector == bytes4(0)) {
-            return (g.value, g.data);
-        }
+        return abi.encodeWithSelector(g.selector, g.value, systemData, g.data);
+    }
 
-        (bool success, bytes memory returnData) = g.target.staticcall(
-            abi.encodeWithSelector(g.selector, g.value, systemData, g.data)
-        );
+    function getCallResult(
+        Gauge memory g,
+        bool success,
+        bytes memory returnData
+    ) internal pure returns (bytes memory, bytes memory) {
         if (!success) {
             return (g.value, g.data); // In case of failure, return value unadjusted
         }
-
         return abi.decode(returnData, (bytes, bytes));
     }
 
+    /**
+     * @notice Adds a Gauge to the system.
+     * @dev Gauges are not stateful by default. Stateful gauges are added using `addStatefulGauge`.
+     * @param gaugeId The id of the Gauge to add.
+     * @param g The Gauge to add.
+     */
     function addGauge(GaugeId gaugeId, Gauge memory g) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // verify that the gaugeId is not already in the array
@@ -227,6 +269,13 @@ library LibGaugeHelpers {
         s.sys.gaugeData.gauges[gaugeId] = g;
 
         emit AddedGauge(gaugeId, g);
+    }
+
+    function addStatefulGauge(GaugeId gaugeId, Gauge memory g) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        addGauge(gaugeId, g);
+        s.sys.gaugeData.stateful[gaugeId] = true;
+        emit AddedStatefulGauge(gaugeId, g);
     }
 
     function updateGauge(GaugeId gaugeId, Gauge memory g) internal {
@@ -311,7 +360,7 @@ library LibGaugeHelpers {
      * @notice Updates the convert capacity factor based on the convert demand and capacity utilization.
      * @param gv The value of the Convert Bonus Gauge.
      * @param gd The data of the Convert Bonus Gauge.
-     * @param cbu how much capacity was ultilized last season.
+     * @param cbu how much capacity was utilized last season.
      * @param cd the demand for converting over the past 2 seasons.
      * @param lpToSupplyRatio the twa lpToSupplyRatio from sunrise.
      * @return convertCapacityFactor The updated convert capacity factor.

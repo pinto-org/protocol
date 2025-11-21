@@ -24,7 +24,7 @@ contract InitPodReferral {
      * @notice Initialize the Pod referral system.
      * @dev sets the percentages of referral, as well as initialize the addresses who are allowed to refer.
      */
-    function init(address[] memory allowedReferrers) external {
+    function initPodReferral(address[] memory allowedReferrers) internal {
         updateReferrerPercentage(INIT_REFERRER_PERCENTAGE);
         updateRefereePercentage(INIT_REFEREE_PERCENTAGE);
         initializeReferrers(allowedReferrers);

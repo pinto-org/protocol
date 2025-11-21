@@ -159,7 +159,7 @@ contract MockSeasonFacet is SeasonFacet {
         stepSun(bs);
     }
 
-    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) public {
+    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
@@ -453,7 +453,7 @@ contract MockSeasonFacet is SeasonFacet {
             (uint256)
         );
         Gauge memory g = s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR];
-        (bytes memory newCultivationFactorBytes, ) = LibGaugeHelpers.getGaugeResult(
+        (bytes memory newCultivationFactorBytes, ) = LibGaugeHelpers.getStatelessGaugeResult(
             g,
             abi.encode(bs)
         );
