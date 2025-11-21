@@ -203,8 +203,11 @@ library LibGaugeHelpers {
      * @notice Calls a Stateless Gauge.
      * @dev Returns the original value and data of the Gauge if the call fails.
      */
-    function getStatelessGaugeResult(Gauge memory g, bytes memory systemData) internal view returns (bytes memory, bytes memory) {
-        if(g.selector == bytes4(0)) return (g.value, g.data);
+    function getStatelessGaugeResult(
+        Gauge memory g,
+        bytes memory systemData
+    ) internal view returns (bytes memory, bytes memory) {
+        if (g.selector == bytes4(0)) return (g.value, g.data);
         (bool success, bytes memory returnData) = g.target.staticcall(getCallData(g, systemData));
         return getCallResult(g, success, returnData);
     }
@@ -213,8 +216,11 @@ library LibGaugeHelpers {
      * @notice Calls a Stateful Gauge.
      * @dev Returns the original value and data of the Gauge if the call fails.
      */
-    function getStatefulGaugeResult(Gauge memory g, bytes memory systemData) internal returns (bytes memory, bytes memory) {
-        if(g.selector == bytes4(0)) return (g.value, g.data);
+    function getStatefulGaugeResult(
+        Gauge memory g,
+        bytes memory systemData
+    ) internal returns (bytes memory, bytes memory) {
+        if (g.selector == bytes4(0)) return (g.value, g.data);
         (bool success, bytes memory returnData) = g.target.call(getCallData(g, systemData));
         return getCallResult(g, success, returnData);
     }
@@ -222,16 +228,23 @@ library LibGaugeHelpers {
     /**
      * @notice Returns the call data for a Gauge.
      */
-    function getCallData(Gauge memory g, bytes memory systemData) internal view returns (bytes memory) {
+    function getCallData(
+        Gauge memory g,
+        bytes memory systemData
+    ) internal view returns (bytes memory) {
         // if the Gauge does not have a target, assume the target is address(this)
         if (g.target == address(0)) {
             g.target = address(this);
         }
 
-        return abi.encodeWithSelector(g.selector, g.value, systemData, g.data);    
+        return abi.encodeWithSelector(g.selector, g.value, systemData, g.data);
     }
 
-    function getCallResult(Gauge memory g, bool success, bytes memory returnData) internal pure returns (bytes memory, bytes memory) {
+    function getCallResult(
+        Gauge memory g,
+        bool success,
+        bytes memory returnData
+    ) internal pure returns (bytes memory, bytes memory) {
         if (!success) {
             return (g.value, g.data); // In case of failure, return value unadjusted
         }

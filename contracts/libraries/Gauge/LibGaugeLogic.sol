@@ -37,7 +37,10 @@ library LibGaugeLogic {
         bool targetReached = true;
         for (uint i = 0; i < gd.distributions.length; i++) {
             LibLpDistributionGauge.LpDistribution memory lpDist = gd.distributions[i];
-            console.log("Calculating new optimal percent deposited bdv for token: %s", lpDist.token);
+            console.log(
+                "Calculating new optimal percent deposited bdv for token: %s",
+                lpDist.token
+            );
             console.log("Delta: %s", lpDist.delta);
 
             // if the token has an implementation, invoke the implementation to calculate the new delta.
@@ -50,11 +53,7 @@ library LibGaugeLogic {
                 console.logBytes1(lpDist.impl.encodeType);
                 if (lpDist.impl.encodeType == bytes1(0x00)) {
                     (success, returnData) = lpDist.impl.target.staticcall(
-                        abi.encodeWithSelector(
-                            lpDist.impl.selector,
-                            lpDist.delta,
-                            lpDist.impl.data
-                        )
+                        abi.encodeWithSelector(lpDist.impl.selector, lpDist.delta, lpDist.impl.data)
                     );
                     console.log("Success: %s", success);
                     console.log("Return data: %s");
@@ -71,21 +70,34 @@ library LibGaugeLogic {
 
             console.log("Delta: %s", lpDist.delta);
 
-            console.log("Optimal percent deposited bdv: %s", s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv);
+            console.log(
+                "Optimal percent deposited bdv: %s",
+                s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv
+            );
             console.log("Target: %s", lpDist.target);
 
             // if the target is not reached, change the optimal percent deposited bdv if delta is non-zero.
-            if (s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv != lpDist.target) {
+            if (
+                s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv != lpDist.target
+            ) {
                 targetReached = false;
                 console.log("Delta: %s", lpDist.delta);
-                if( lpDist.delta != 0) {
-                uint64 newOptimalPercentDepositedBdv = LibLpDistributionGauge.calculateOptimalPercentDepositedBdv(
-                    lpDist.token,
-                    lpDist.delta,
-                    lpDist.target
+                if (lpDist.delta != 0) {
+                    uint64 newOptimalPercentDepositedBdv = LibLpDistributionGauge
+                        .calculateOptimalPercentDepositedBdv(
+                            lpDist.token,
+                            lpDist.delta,
+                            lpDist.target
+                        );
+                    s
+                        .sys
+                        .silo
+                        .assetSettings[lpDist.token]
+                        .optimalPercentDepositedBdv = newOptimalPercentDepositedBdv;
+                    console.log(
+                        "New optimal percent deposited bdv: %s",
+                        newOptimalPercentDepositedBdv
                     );
-                    s.sys.silo.assetSettings[lpDist.token].optimalPercentDepositedBdv = newOptimalPercentDepositedBdv;
-                    console.log("New optimal percent deposited bdv: %s", newOptimalPercentDepositedBdv);
                 }
             }
         }

@@ -147,7 +147,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
         LibEvaluate.BeanstalkState memory bs = calcCaseIdAndHandleRain(deltaB);
-    stepSun(bs);
+        stepSun(bs);
     }
 
     function sunSunrise(int256 deltaB, uint256, LibEvaluate.BeanstalkState memory bs) public {
@@ -159,7 +159,7 @@ contract MockSeasonFacet is SeasonFacet {
         stepSun(bs);
     }
 
-    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool ) public {
+    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);

@@ -14,7 +14,6 @@ import {LSDChainlinkOracle} from "contracts/ecosystem/oracles/LSDChainlinkOracle
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {InitPodReferral} from "contracts/beanstalk/init/InitPodReferral.sol";
 
-
 /**
  * @title InitPIXMigration
  * @author Frijo, pocikerim
@@ -26,7 +25,6 @@ import {InitPodReferral} from "contracts/beanstalk/init/InitPodReferral.sol";
  * 5. Updates the tractor version.
  **/
 contract InitPIXMigration is InitWells, InitPodReferral {
-
     // Well parameters.
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
     address internal constant WSTETH = 0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452;
@@ -64,7 +62,7 @@ contract InitPIXMigration is InitWells, InitPodReferral {
         // Initialize the referral system.
         initPodReferral(allowedReferrers);
 
-        // update tractor version. 
+        // update tractor version.
         // Tractor now supports dynamic calldata for contracts,
         // and is backwards compatible with the old version.
         LibTractor._setVersion("1.1.0");

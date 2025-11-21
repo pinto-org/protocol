@@ -14,7 +14,6 @@ import {LibSeedGauge} from "./LibSeedGauge.sol";
  * @dev a token can dynamically change the optimal deposited bdv by via adding an implementation.
  */
 library LibLpDistributionGauge {
-
     /**
      * @notice LpDistributionGaugeData struct.
      * @param enabled Whether the gauge is enabled.
@@ -53,11 +52,10 @@ library LibLpDistributionGauge {
             .optimalPercentDepositedBdv;
         if (delta > 0) {
             // if the new optimal percent deposited bdv is greater than the maximum, set it to the maximum.
-            uint64 max = target > currentOptimalPercentDepositedBdv ? target : uint64(LibSeedGauge.OPTIMAL_DEPOSITED_BDV_PERCENT);
-            if (
-                currentOptimalPercentDepositedBdv + uint64(delta) >
-                max
-            ) {
+            uint64 max = target > currentOptimalPercentDepositedBdv
+                ? target
+                : uint64(LibSeedGauge.OPTIMAL_DEPOSITED_BDV_PERCENT);
+            if (currentOptimalPercentDepositedBdv + uint64(delta) > max) {
                 return max;
             }
             return currentOptimalPercentDepositedBdv + uint64(delta);
