@@ -4,7 +4,7 @@
 
 pragma solidity ^0.8.20;
 
-import {Order} from "./abstract/Order.sol";
+import {Order} from "../market/abstract/Order.sol";
 import {Invariable} from "contracts/beanstalk/Invariable.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
@@ -12,11 +12,10 @@ import {LibMarket} from "contracts/libraries/LibMarket.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 
 /**
- * @title MarketplaceMultiFacet
- * @notice Handles batch (multi*) marketplace operations
- * for pod listings and orders.
+ * @title BatchFacet
+ * @notice Handles batch operations across multiple protocol domains.
  */
-contract MarketplaceMultiFacet is Invariable, Order {
+contract BatchFacet is Invariable, Order {
     /**
      * @notice Parameters for cancelling a pod listing.
      * @param fieldId The field identifier where the plot is located
