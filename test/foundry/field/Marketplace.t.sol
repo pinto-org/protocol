@@ -12,6 +12,54 @@ contract ListingTest is TestHelper {
 
     MockFieldFacet field = MockFieldFacet(BEANSTALK);
 
+    // Events
+    event PodListingCreated(
+        address indexed lister,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 podAmount,
+        uint24 pricePerPod,
+        uint256 maxHarvestableIndex,
+        uint256 minFillAmount,
+        uint8 mode
+    );
+
+    event PodListingCancelled(address indexed lister, uint256 fieldId, uint256 index);
+
+    event PodListingFilled(
+        address indexed filler,
+        address indexed lister,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 podAmount,
+        uint256 costInBeans
+    );
+
+    event PodOrderCreated(
+        address indexed orderer,
+        bytes32 id,
+        uint256 beanAmount,
+        uint256 fieldId,
+        uint24 pricePerPod,
+        uint256 maxPlaceInLine,
+        uint256 minFillAmount
+    );
+
+    event PodOrderCancelled(address indexed orderer, bytes32 id);
+
+    event PodOrderFilled(
+        address indexed filler,
+        address indexed orderer,
+        bytes32 id,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 podAmount,
+        uint256 costInBeans
+    );
+
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
@@ -95,7 +143,7 @@ contract ListingTest is TestHelper {
 
         // Create 3 listings on different plot indices
         IMockFBeanstalk.PodListing[] memory listings = new IMockFBeanstalk.PodListing[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < listings.length; i++) {
             listings[i] = IMockFBeanstalk.PodListing({
                 lister: users[1],
                 fieldId: fieldId,
@@ -109,22 +157,44 @@ contract ListingTest is TestHelper {
             });
         }
 
+        // Expect PodListingCreated events
+        for (uint256 i = 0; i < listings.length; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit PodListingCreated(
+                listings[i].lister,
+                listings[i].fieldId,
+                listings[i].index,
+                listings[i].start,
+                listings[i].podAmount,
+                listings[i].pricePerPod,
+                listings[i].maxHarvestableIndex,
+                listings[i].minFillAmount,
+                uint8(listings[i].mode)
+            );
+        }
+
         bs.multiCreatePodListing(listings);
         vm.stopPrank();
 
         // Verify all created
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < listings.length; i++) {
             assertNotEq(bs.getPodListing(fieldId, plotIndexes[i]), bytes32(0));
         }
 
         // Cancel all 3 using different indices
         IMockFBeanstalk.CancelPodListingParams[]
             memory params = new IMockFBeanstalk.CancelPodListingParams[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < params.length; i++) {
             params[i] = IMockFBeanstalk.CancelPodListingParams({
                 fieldId: fieldId,
                 index: plotIndexes[i]
             });
+        }
+
+        // Expect PodListingCancelled events
+        for (uint256 i = 0; i < params.length; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit PodListingCancelled(users[1], fieldId, plotIndexes[i]);
         }
 
         vm.startPrank(users[1]);
@@ -132,7 +202,7 @@ contract ListingTest is TestHelper {
         vm.stopPrank();
 
         // Verify all cancelled
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < params.length; i++) {
             assertEq(bs.getPodListing(fieldId, plotIndexes[i]), bytes32(0));
         }
     }
@@ -143,7 +213,7 @@ contract ListingTest is TestHelper {
         // Create 3 orders
         IMockFBeanstalk.CreatePodOrderParams[]
             memory params = new IMockFBeanstalk.CreatePodOrderParams[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < params.length; i++) {
             params[i] = IMockFBeanstalk.CreatePodOrderParams({
                 order: IMockFBeanstalk.PodOrder({
                     orderer: users[2],
@@ -156,26 +226,55 @@ contract ListingTest is TestHelper {
             });
         }
 
+        // Expect PodOrderCreated events
+        for (uint256 i = 0; i < params.length; i++) {
+            bytes32 id = keccak256(
+                abi.encodePacked(
+                    params[i].order.orderer,
+                    params[i].order.fieldId,
+                    params[i].order.pricePerPod,
+                    params[i].order.maxPlaceInLine,
+                    params[i].order.minFillAmount
+                )
+            );
+            vm.expectEmit(true, true, true, true);
+            emit PodOrderCreated(
+                params[i].order.orderer,
+                id,
+                params[i].beanAmount,
+                params[i].order.fieldId,
+                params[i].order.pricePerPod,
+                params[i].order.maxPlaceInLine,
+                params[i].order.minFillAmount
+            );
+        }
+
         vm.startPrank(users[2]);
         bytes32[] memory ids = bs.multiCreatePodOrder(params, 0);
 
         // Verify all created
         assertEq(ids.length, 3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < ids.length; i++) {
             assertGt(bs.getPodOrder(ids[i]), 0);
         }
 
         // Cancel all 3
         IMockFBeanstalk.PodOrder[] memory orders = new IMockFBeanstalk.PodOrder[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < orders.length; i++) {
             orders[i] = params[i].order;
+        }
+
+        // Expect PodOrderCancelled events
+        for (uint256 i = 0; i < orders.length; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit PodOrderCancelled(params[i].order.orderer, ids[i]);
         }
 
         bs.multiCancelPodOrder(orders, 0);
         vm.stopPrank();
 
         // Verify all cancelled
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < ids.length; i++) {
             assertEq(bs.getPodOrder(ids[i]), 0);
         }
     }
@@ -199,7 +298,7 @@ contract ListingTest is TestHelper {
 
         // Create 3 listings on different plot indices
         IMockFBeanstalk.PodListing[] memory listings = new IMockFBeanstalk.PodListing[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < listings.length; i++) {
             listings[i] = IMockFBeanstalk.PodListing({
                 lister: users[1],
                 fieldId: fieldId,
@@ -213,22 +312,52 @@ contract ListingTest is TestHelper {
             });
         }
 
+        // Expect PodListingCreated events
+        for (uint256 i = 0; i < listings.length; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit PodListingCreated(
+                listings[i].lister,
+                listings[i].fieldId,
+                listings[i].index,
+                listings[i].start,
+                listings[i].podAmount,
+                listings[i].pricePerPod,
+                listings[i].maxHarvestableIndex,
+                listings[i].minFillAmount,
+                uint8(listings[i].mode)
+            );
+        }
+
         bs.multiCreatePodListing(listings);
         vm.stopPrank();
 
         // Verify all created
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < listings.length; i++) {
             assertNotEq(bs.getPodListing(fieldId, plotIndexes[i]), bytes32(0));
         }
 
         // Fill all 3 listings using multiFillPodListing
         IMockFBeanstalk.FillPodListingParams[]
             memory fillParams = new IMockFBeanstalk.FillPodListingParams[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < fillParams.length; i++) {
             fillParams[i] = IMockFBeanstalk.FillPodListingParams({
                 listing: listings[i],
                 beanAmount: plotSizes[i]
             });
+        }
+
+        // Expect PodListingFilled events
+        for (uint256 i = 0; i < fillParams.length; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit PodListingFilled(
+                users[2],
+                listings[i].lister,
+                listings[i].fieldId,
+                listings[i].index,
+                listings[i].start,
+                plotSizes[i],
+                plotSizes[i]
+            );
         }
 
         vm.startPrank(users[2]);
@@ -236,7 +365,7 @@ contract ListingTest is TestHelper {
         vm.stopPrank();
 
         // Verify all filled (listings cleared after full fill)
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < fillParams.length; i++) {
             assertEq(bs.getPodListing(fieldId, plotIndexes[i]), bytes32(0));
         }
     }
@@ -257,7 +386,7 @@ contract ListingTest is TestHelper {
         // Create 3 orders using multiCreatePodOrder
         IMockFBeanstalk.CreatePodOrderParams[]
             memory orderParams = new IMockFBeanstalk.CreatePodOrderParams[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < orderParams.length; i++) {
             orderParams[i] = IMockFBeanstalk.CreatePodOrderParams({
                 order: IMockFBeanstalk.PodOrder({
                     orderer: users[2],
@@ -270,13 +399,36 @@ contract ListingTest is TestHelper {
             });
         }
 
+        // Expect PodOrderCreated events
+        for (uint256 i = 0; i < orderParams.length; i++) {
+            bytes32 id = keccak256(
+                abi.encodePacked(
+                    orderParams[i].order.orderer,
+                    orderParams[i].order.fieldId,
+                    orderParams[i].order.pricePerPod,
+                    orderParams[i].order.maxPlaceInLine,
+                    orderParams[i].order.minFillAmount
+                )
+            );
+            vm.expectEmit(true, true, true, true);
+            emit PodOrderCreated(
+                orderParams[i].order.orderer,
+                id,
+                orderParams[i].beanAmount,
+                orderParams[i].order.fieldId,
+                orderParams[i].order.pricePerPod,
+                orderParams[i].order.maxPlaceInLine,
+                orderParams[i].order.minFillAmount
+            );
+        }
+
         vm.startPrank(users[2]);
         bytes32[] memory orderIds = bs.multiCreatePodOrder(orderParams, 0);
         vm.stopPrank();
 
         // Verify all created
         assertEq(orderIds.length, 3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < orderIds.length; i++) {
             assertGt(bs.getPodOrder(orderIds[i]), 0);
         }
 
@@ -288,7 +440,7 @@ contract ListingTest is TestHelper {
 
         IMockFBeanstalk.FillPodOrderParams[]
             memory fillParams = new IMockFBeanstalk.FillPodOrderParams[](3);
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < fillParams.length; i++) {
             fillParams[i] = IMockFBeanstalk.FillPodOrderParams({
                 order: orderParams[i].order,
                 index: plotIndexes[i],
@@ -297,12 +449,28 @@ contract ListingTest is TestHelper {
             });
         }
 
+        // Expect PodOrderFilled events
+        for (uint256 i = 0; i < fillParams.length; i++) {
+            uint256 costInBeans = (podAmounts[i] * orderParams[i].order.pricePerPod) / 1000000;
+            vm.expectEmit(true, true, true, true);
+            emit PodOrderFilled(
+                users[1],
+                orderParams[i].order.orderer,
+                orderIds[i],
+                orderParams[i].order.fieldId,
+                plotIndexes[i],
+                0,
+                podAmounts[i],
+                costInBeans
+            );
+        }
+
         vm.startPrank(users[1]);
         bs.multiFillPodOrder(fillParams, 0);
         vm.stopPrank();
 
         // Verify all filled (orders cleared)
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < orderIds.length; i++) {
             assertEq(bs.getPodOrder(orderIds[i]), 0);
         }
     }
