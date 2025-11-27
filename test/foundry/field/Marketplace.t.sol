@@ -37,11 +37,14 @@ contract ListingTest is TestHelper {
         console.log("bs.activeField(): ", bs.activeField());
 
         // sow 1000
-        vm.prank(users[1]);
+        vm.startPrank(users[1]);
         uint256 pods = bs.sow(1000e6, 0, 0);
         console.log("Pods: ", pods);
-        vm.prank(users[2]);
+        vm.stopPrank();
+
+        vm.startPrank(users[2]);
         bs.sow(1000e6, 0, 0);
+        vm.stopPrank();
     }
 
     function testCreatePodListing_InvalidMinFillAmount() public {
@@ -82,9 +85,8 @@ contract ListingTest is TestHelper {
         uint256 fieldId = bs.activeField();
 
         // Sow 2 additional plots to have 3 total plots
-        vm.prank(users[1]);
+        vm.startPrank(users[1]);
         bs.sow(100e6, 0, 0);
-        vm.prank(users[1]);
         bs.sow(100e6, 0, 0);
 
         // Get all plot indices
@@ -107,8 +109,8 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[1]);
         bs.multiCreatePodListing(listings);
+        vm.stopPrank();
 
         // Verify all created
         for (uint256 i = 0; i < 3; i++) {
@@ -125,8 +127,9 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[1]);
+        vm.startPrank(users[1]);
         bs.multiCancelPodListing(params);
+        vm.stopPrank();
 
         // Verify all cancelled
         for (uint256 i = 0; i < 3; i++) {
@@ -153,7 +156,7 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[2]);
+        vm.startPrank(users[2]);
         bytes32[] memory ids = bs.multiCreatePodOrder(params, 0);
 
         // Verify all created
@@ -168,8 +171,8 @@ contract ListingTest is TestHelper {
             orders[i] = params[i].order;
         }
 
-        vm.prank(users[2]);
         bs.multiCancelPodOrder(orders, 0);
+        vm.stopPrank();
 
         // Verify all cancelled
         for (uint256 i = 0; i < 3; i++) {
@@ -181,9 +184,8 @@ contract ListingTest is TestHelper {
         uint256 fieldId = bs.activeField();
 
         // Sow 2 additional plots to have 3 total plots
-        vm.prank(users[1]);
+        vm.startPrank(users[1]);
         bs.sow(100e6, 0, 0);
-        vm.prank(users[1]);
         bs.sow(100e6, 0, 0);
 
         // Get all plot indices
@@ -211,8 +213,8 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[1]);
         bs.multiCreatePodListing(listings);
+        vm.stopPrank();
 
         // Verify all created
         for (uint256 i = 0; i < 3; i++) {
@@ -229,8 +231,9 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[2]);
+        vm.startPrank(users[2]);
         bs.multiFillPodListing(fillParams, 0);
+        vm.stopPrank();
 
         // Verify all filled (listings cleared after full fill)
         for (uint256 i = 0; i < 3; i++) {
@@ -242,10 +245,10 @@ contract ListingTest is TestHelper {
         uint256 fieldId = bs.activeField();
 
         // Sow 2 additional plots to have 3 total plots
-        vm.prank(users[1]);
+        vm.startPrank(users[1]);
         bs.sow(150e6, 0, 0);
-        vm.prank(users[1]);
         bs.sow(150e6, 0, 0);
+        vm.stopPrank();
 
         // Get all plot indices
         uint256[] memory plotIndexes = field.getPlotIndexesFromAccount(users[1], fieldId);
@@ -267,8 +270,9 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[2]);
+        vm.startPrank(users[2]);
         bytes32[] memory orderIds = bs.multiCreatePodOrder(orderParams, 0);
+        vm.stopPrank();
 
         // Verify all created
         assertEq(orderIds.length, 3);
@@ -293,8 +297,9 @@ contract ListingTest is TestHelper {
             });
         }
 
-        vm.prank(users[1]);
+        vm.startPrank(users[1]);
         bs.multiFillPodOrder(fillParams, 0);
+        vm.stopPrank();
 
         // Verify all filled (orders cleared)
         for (uint256 i = 0; i < 3; i++) {
