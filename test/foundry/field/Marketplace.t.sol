@@ -11,6 +11,7 @@ contract ListingTest is TestHelper {
     address[] farmers;
 
     MockFieldFacet field = MockFieldFacet(BEANSTALK);
+    uint256 fieldId;
 
     // Events
     event PodListingCreated(
@@ -93,12 +94,14 @@ contract ListingTest is TestHelper {
         vm.startPrank(users[2]);
         bs.sow(1000e6, 0, 0);
         vm.stopPrank();
+
+        fieldId = bs.activeField();
     }
 
     function testCreatePodListing_InvalidMinFillAmount() public {
         IMockFBeanstalk.PodListing memory podListing = IMockFBeanstalk.PodListing({
             lister: users[1],
-            fieldId: bs.activeField(),
+            fieldId: fieldId,
             index: 0,
             start: 0,
             podAmount: 50000000,
@@ -116,7 +119,7 @@ contract ListingTest is TestHelper {
     function testCreatePodListing_ValidMinFillAmount() public {
         IMockFBeanstalk.PodListing memory podListing = IMockFBeanstalk.PodListing({
             lister: users[1],
-            fieldId: bs.activeField(),
+            fieldId: fieldId,
             index: 0,
             start: 0,
             podAmount: 50000000,
@@ -130,8 +133,6 @@ contract ListingTest is TestHelper {
     }
 
     function testMultiFlow_MultipleListings() public {
-        uint256 fieldId = bs.activeField();
-
         // Sow 2 additional plots to have 3 total plots
         vm.startPrank(users[1]);
         bs.sow(100e6, 0, 0);
@@ -208,8 +209,6 @@ contract ListingTest is TestHelper {
     }
 
     function testMultiFlow_MultipleOrders() public {
-        uint256 fieldId = bs.activeField();
-
         // Create 3 orders
         IMockFBeanstalk.CreatePodOrderParams[]
             memory params = new IMockFBeanstalk.CreatePodOrderParams[](3);
@@ -280,8 +279,6 @@ contract ListingTest is TestHelper {
     }
 
     function testMultiFlow_CreateAndFillMultipleListings() public {
-        uint256 fieldId = bs.activeField();
-
         // Sow 2 additional plots to have 3 total plots
         vm.startPrank(users[1]);
         bs.sow(100e6, 0, 0);
@@ -371,8 +368,6 @@ contract ListingTest is TestHelper {
     }
 
     function testMultiFlow_CreateAndFillMultipleOrders() public {
-        uint256 fieldId = bs.activeField();
-
         // Sow 2 additional plots to have 3 total plots
         vm.startPrank(users[1]);
         bs.sow(150e6, 0, 0);
