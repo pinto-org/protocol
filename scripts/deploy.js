@@ -298,6 +298,7 @@ async function getFacetData() {
       "LibWeather"
     ],
     ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+    ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
     PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
     SeasonGettersFacet: ["LibWellMinting"],
     SiloFacet: ["LibSilo", "LibTokenSilo"],
