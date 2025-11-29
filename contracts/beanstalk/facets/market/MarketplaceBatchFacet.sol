@@ -12,11 +12,11 @@ import {LibMarket} from "contracts/libraries/LibMarket.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 
 /**
- * @title MarketplaceMultiFacet
+ * @title MarketplaceBatchFacet
  * @notice Handles batch (multi*) marketplace operations
  * for pod listings and orders.
  */
-contract MarketplaceMultiFacet is Invariable, Order {
+contract MarketplaceBatchFacet is Invariable, Order {
     /**
      * @notice Parameters for cancelling a pod listing.
      * @param fieldId The field identifier where the plot is located
