@@ -2532,7 +2532,9 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(
+            converts
+        );
 
         // Calculate expected totals dynamically
         uint256 expectedTotal = 0;
@@ -2637,7 +2639,9 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(
+            converts
+        );
 
         // Verify aggregated results (dynamic calculation)
         uint256 expectedTotal = total1 + total2 + total3;
@@ -2772,7 +2776,9 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert with single convert
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(
+            converts
+        );
 
         // Verify results
         assertEq(fromAmount, 10000e6, "Should convert single deposit");
@@ -2870,7 +2876,9 @@ contract ConvertTest is TestHelper {
 
         // Should succeed - AL2L with single deposit is allowed
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(
+            converts
+        );
 
         assertEq(fromAmount, 5000e6, "Should convert 5000 Beans");
         assertEq(toAmount, 5000e6, "Should output 5000 Beans");
