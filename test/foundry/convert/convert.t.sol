@@ -51,6 +51,7 @@ contract ConvertTest is TestHelper {
     );
     // Interfaces.
     MockConvertFacet convert = MockConvertFacet(BEANSTALK);
+    IMockFBeanstalk convertBatch = IMockFBeanstalk(BEANSTALK);
     BeanstalkPrice beanstalkPrice = BeanstalkPrice(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 
     // MockTokens.
@@ -2452,7 +2453,7 @@ contract ConvertTest is TestHelper {
         passGermination();
 
         uint256 numConverts = 3;
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](
             numConverts
         );
 
@@ -2467,7 +2468,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts1 = new uint256[](1);
         amounts1[0] = convertAmounts[0];
 
-        converts[0] = MockConvertFacet.ConvertParams({
+        converts[0] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(
                 LibConvertData.ConvertKind.LAMBDA_LAMBDA,
                 BEAN,
@@ -2485,7 +2486,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts2 = new uint256[](1);
         amounts2[0] = convertAmounts[1];
 
-        converts[1] = MockConvertFacet.ConvertParams({
+        converts[1] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(
                 LibConvertData.ConvertKind.LAMBDA_LAMBDA,
                 BEAN,
@@ -2503,7 +2504,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts3 = new uint256[](1);
         amounts3[0] = convertAmounts[2];
 
-        converts[2] = MockConvertFacet.ConvertParams({
+        converts[2] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(
                 LibConvertData.ConvertKind.LAMBDA_LAMBDA,
                 BEAN,
@@ -2531,7 +2532,7 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convert.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
 
         // Calculate expected totals dynamically
         uint256 expectedTotal = 0;
@@ -2569,7 +2570,7 @@ contract ConvertTest is TestHelper {
 
         // Create 3 converts: [a,b,c], [e,f], [g]
         uint256 numConverts = 3;
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](
             numConverts
         );
 
@@ -2584,7 +2585,7 @@ contract ConvertTest is TestHelper {
         amounts1[2] = 10000e6;
         uint256 total1 = 30000e6;
 
-        converts[0] = MockConvertFacet.ConvertParams({
+        converts[0] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, total1, 0),
             stems: stems1,
             amounts: amounts1,
@@ -2600,7 +2601,7 @@ contract ConvertTest is TestHelper {
         amounts2[1] = 10000e6;
         uint256 total2 = 20000e6;
 
-        converts[1] = MockConvertFacet.ConvertParams({
+        converts[1] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, total2, 0),
             stems: stems2,
             amounts: amounts2,
@@ -2614,7 +2615,7 @@ contract ConvertTest is TestHelper {
         amounts3[0] = 10000e6;
         uint256 total3 = 10000e6;
 
-        converts[2] = MockConvertFacet.ConvertParams({
+        converts[2] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, total3, 0),
             stems: stems3,
             amounts: amounts3,
@@ -2636,7 +2637,7 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convert.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
 
         // Verify aggregated results (dynamic calculation)
         uint256 expectedTotal = total1 + total2 + total3;
@@ -2661,7 +2662,7 @@ contract ConvertTest is TestHelper {
         passGermination();
 
         // PHASE 1: Update each deposit separately [a],[b],[c]
-        MockConvertFacet.ConvertParams[] memory updates = new MockConvertFacet.ConvertParams[](3);
+        IMockFBeanstalk.ConvertParams[] memory updates = new IMockFBeanstalk.ConvertParams[](3);
 
         // Create arrays inline to reduce stack usage
         int96[] memory s1 = new int96[](1);
@@ -2669,7 +2670,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory a1 = new uint256[](1);
         a1[0] = 3000e6;
 
-        updates[0] = MockConvertFacet.ConvertParams({
+        updates[0] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 3000e6, 0),
             stems: s1,
             amounts: a1,
@@ -2681,7 +2682,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory a2 = new uint256[](1);
         a2[0] = 4000e6;
 
-        updates[1] = MockConvertFacet.ConvertParams({
+        updates[1] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 4000e6, 0),
             stems: s2,
             amounts: a2,
@@ -2693,7 +2694,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory a3 = new uint256[](1);
         a3[0] = 3000e6;
 
-        updates[2] = MockConvertFacet.ConvertParams({
+        updates[2] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 3000e6, 0),
             stems: s3,
             amounts: a3,
@@ -2712,12 +2713,12 @@ contract ConvertTest is TestHelper {
 
         // Execute first multiConvert - update separately
         vm.prank(farmers[0]);
-        (, uint256 amt1, , , ) = convert.multiConvert(updates);
+        (, uint256 amt1, , , ) = convertBatch.multiConvert(updates);
 
         assertEq(amt1, 10000e6, "Phase 1: Should update all deposits");
 
         // PHASE 2: Combine all updated deposits [a,b,c]
-        MockConvertFacet.ConvertParams[] memory combines = new MockConvertFacet.ConvertParams[](1);
+        IMockFBeanstalk.ConvertParams[] memory combines = new IMockFBeanstalk.ConvertParams[](1);
 
         int96[] memory cs = new int96[](3);
         cs[0] = 0;
@@ -2729,7 +2730,7 @@ contract ConvertTest is TestHelper {
         ca[1] = 4000e6;
         ca[2] = 3000e6;
 
-        combines[0] = MockConvertFacet.ConvertParams({
+        combines[0] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
             stems: cs,
             amounts: ca,
@@ -2742,7 +2743,7 @@ contract ConvertTest is TestHelper {
 
         // Execute second multiConvert - combine
         vm.prank(farmers[0]);
-        (int96 stem2, uint256 amt2, , , ) = convert.multiConvert(combines);
+        (int96 stem2, uint256 amt2, , , ) = convertBatch.multiConvert(combines);
 
         assertEq(amt2, 10000e6, "Phase 2: Should combine all deposits");
         assertEq(stem2, 0, "Phase 2: Should maintain stem");
@@ -2755,14 +2756,14 @@ contract ConvertTest is TestHelper {
         multipleBeanDepositSetup();
 
         // Create single convert in batch
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](1);
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](1);
 
         int96[] memory stems1 = new int96[](1);
         stems1[0] = int96(0);
         uint256[] memory amounts1 = new uint256[](1);
         amounts1[0] = 10000e6;
 
-        converts[0] = MockConvertFacet.ConvertParams({
+        converts[0] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
             stems: stems1,
             amounts: amounts1,
@@ -2771,7 +2772,7 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert with single convert
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convert.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
 
         // Verify results
         assertEq(fromAmount, 10000e6, "Should convert single deposit");
@@ -2784,11 +2785,11 @@ contract ConvertTest is TestHelper {
      * @notice Test that empty converts array reverts.
      */
     function test_multiConvert_emptyArray_reverts() public {
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](0);
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](0);
 
         vm.prank(farmers[0]);
         vm.expectRevert("ConvertBatch: Empty converts array");
-        convert.multiConvert(converts);
+        convertBatch.multiConvert(converts);
     }
 
     /**
@@ -2797,7 +2798,7 @@ contract ConvertTest is TestHelper {
     function test_multiConvert_allOrNothing() public {
         multipleBeanDepositSetup();
 
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](2);
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](2);
 
         // First convert: Valid
         int96[] memory stems1 = new int96[](1);
@@ -2805,7 +2806,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts1 = new uint256[](1);
         amounts1[0] = 10000e6;
 
-        converts[0] = MockConvertFacet.ConvertParams({
+        converts[0] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
             stems: stems1,
             amounts: amounts1,
@@ -2818,7 +2819,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts2 = new uint256[](1);
         amounts2[0] = 50000e6; // More than available!
 
-        converts[1] = MockConvertFacet.ConvertParams({
+        converts[1] = IMockFBeanstalk.ConvertParams({
             convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 50000e6, 0),
             stems: stems2,
             amounts: amounts2,
@@ -2828,7 +2829,7 @@ contract ConvertTest is TestHelper {
         // Should revert because second convert is invalid
         vm.prank(farmers[0]);
         vm.expectRevert(); // Will revert with insufficient balance or similar
-        convert.multiConvert(converts);
+        convertBatch.multiConvert(converts);
     }
 
     //////////// AL2L RESTRICTION TESTS ////////////
@@ -2841,7 +2842,7 @@ contract ConvertTest is TestHelper {
         multipleBeanDepositSetup();
 
         // Create single AL2L convert
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](1);
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](1);
 
         int96[] memory stems1 = new int96[](1);
         stems1[0] = int96(0);
@@ -2856,7 +2857,7 @@ contract ConvertTest is TestHelper {
             farmers[0]
         );
 
-        converts[0] = MockConvertFacet.ConvertParams({
+        converts[0] = IMockFBeanstalk.ConvertParams({
             convertData: al2lData,
             stems: stems1,
             amounts: amounts1,
@@ -2869,7 +2870,7 @@ contract ConvertTest is TestHelper {
 
         // Should succeed - AL2L with single deposit is allowed
         vm.prank(farmers[0]);
-        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convert.multiConvert(converts);
+        (int96 toStem, uint256 fromAmount, uint256 toAmount, , ) = convertBatch.multiConvert(converts);
 
         assertEq(fromAmount, 5000e6, "Should convert 5000 Beans");
         assertEq(toAmount, 5000e6, "Should output 5000 Beans");
@@ -2898,7 +2899,7 @@ contract ConvertTest is TestHelper {
         passGermination();
 
         // Try to create AL2L converts - one for each deposit
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](
             numDeposits
         );
 
@@ -2921,7 +2922,7 @@ contract ConvertTest is TestHelper {
                 farmers[0]
             );
 
-            converts[i] = MockConvertFacet.ConvertParams({
+            converts[i] = IMockFBeanstalk.ConvertParams({
                 convertData: al2lData,
                 stems: stemArray,
                 amounts: amountArray,
@@ -2932,7 +2933,7 @@ contract ConvertTest is TestHelper {
         // Should revert - AL2L cannot do multiple independent converts
         vm.prank(farmers[0]);
         vm.expectRevert("ConvertBatch: AL2L converts must be done individually");
-        convert.multiConvert(converts);
+        convertBatch.multiConvert(converts);
     }
 
     /**
@@ -2957,7 +2958,7 @@ contract ConvertTest is TestHelper {
         passGermination();
 
         // Try to create single AL2L convert that combines all deposits
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](1);
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](1);
 
         uint256[] memory amounts = new uint256[](numDeposits);
         uint256 totalAmount = 0;
@@ -2973,7 +2974,7 @@ contract ConvertTest is TestHelper {
             farmers[0]
         );
 
-        converts[0] = MockConvertFacet.ConvertParams({
+        converts[0] = IMockFBeanstalk.ConvertParams({
             convertData: al2lData,
             stems: depositStems,
             amounts: amounts,
@@ -2983,6 +2984,6 @@ contract ConvertTest is TestHelper {
         // Should revert - AL2L cannot combine multiple deposits
         vm.prank(farmers[0]);
         vm.expectRevert("Convert: DecreaseBDV only supports updating one deposit.");
-        convert.multiConvert(converts);
+        convertBatch.multiConvert(converts);
     }
 }
