@@ -909,7 +909,7 @@ module.exports = function () {
 
   task(
     "marketplace-batch-functions",
-    "Deploys MarketplaceFacet and BatchFacet"
+    "Deploys MarketplaceFacet and MarketplaceMultiFacet"
   ).setAction(async function () {
     const mock = false;
     let owner;
@@ -921,7 +921,7 @@ module.exports = function () {
     }
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["MarketplaceFacet", "BatchFacet"],
+      facetNames: ["MarketplaceFacet", "MarketplaceMultiFacet"],
       libraryNames: [],
       facetLibraries: {},
       initArgs: [],

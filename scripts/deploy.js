@@ -257,7 +257,7 @@ async function getFacetData() {
     "ConvertFacet",
     "FieldFacet",
     "MarketplaceFacet",
-    "BatchFacet",
+    "MarketplaceMultiFacet",
     "SeasonFacet",
     "SiloFacet",
     "WhitelistFacet",

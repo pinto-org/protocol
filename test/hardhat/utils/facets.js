@@ -17,13 +17,13 @@ const facets = [
   "PipelineConvertFacet",
   "MetadataFacet", // METADATA
   "MarketplaceFacet", // MARKET
+  "MarketplaceMultiFacet", // MARKETPLACE MULTI
   "FieldFacet", // FIELD
   "DepotFacet", // FARM
   "FarmFacet",
   "TokenFacet",
   "TokenSupportFacet",
   "TractorFacet",
-  "BatchFacet", // BATCH OPERATIONS
   "PauseFacet", // DIAMOND
   "OwnershipFacet"
 ];
