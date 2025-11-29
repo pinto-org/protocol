@@ -255,6 +255,7 @@ async function getFacetData() {
     "SiloGettersFacet",
     "LiquidityWeightFacet",
     "ConvertFacet",
+    "ConvertBatchFacet",
     "FieldFacet",
     "MarketplaceFacet",
     "SeasonFacet",

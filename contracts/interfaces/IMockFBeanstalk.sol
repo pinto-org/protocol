@@ -86,6 +86,13 @@ interface IMockFBeanstalk {
         uint256 plenty;
     }
 
+    struct ConvertParams {
+        bytes convertData;
+        int96[] stems;
+        uint256[] amounts;
+        int256 grownStalkSlippage;
+    }
+
     struct DeltaBStorage {
         int256 beforeInputTokenDeltaB;
         int256 afterInputTokenDeltaB;
@@ -765,6 +772,13 @@ interface IMockFBeanstalk {
             uint256 fromBdv,
             uint256 toBdv
         );
+
+    function multiConvert(
+        ConvertParams[] calldata converts
+    )
+        external
+        payable
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv);
 
     function convertInternalE(
         address tokenIn,
