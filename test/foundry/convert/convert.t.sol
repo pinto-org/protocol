@@ -2755,9 +2755,7 @@ contract ConvertTest is TestHelper {
         multipleBeanDepositSetup();
 
         // Create single convert in batch
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
-            1
-        );
+        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](1);
 
         int96[] memory stems1 = new int96[](1);
         stems1[0] = int96(0);
@@ -2765,12 +2763,7 @@ contract ConvertTest is TestHelper {
         amounts1[0] = 10000e6;
 
         converts[0] = MockConvertFacet.ConvertParams({
-            convertData: convertEncoder(
-                LibConvertData.ConvertKind.LAMBDA_LAMBDA,
-                BEAN,
-                10000e6,
-                0
-            ),
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
             stems: stems1,
             amounts: amounts1,
             grownStalkSlippage: 0
@@ -2791,9 +2784,7 @@ contract ConvertTest is TestHelper {
      * @notice Test that empty converts array reverts.
      */
     function test_multiConvert_emptyArray_reverts() public {
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
-            0
-        );
+        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](0);
 
         vm.prank(farmers[0]);
         vm.expectRevert("ConvertBatch: Empty converts array");
@@ -2806,9 +2797,7 @@ contract ConvertTest is TestHelper {
     function test_multiConvert_allOrNothing() public {
         multipleBeanDepositSetup();
 
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
-            2
-        );
+        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](2);
 
         // First convert: Valid
         int96[] memory stems1 = new int96[](1);
@@ -2817,12 +2806,7 @@ contract ConvertTest is TestHelper {
         amounts1[0] = 10000e6;
 
         converts[0] = MockConvertFacet.ConvertParams({
-            convertData: convertEncoder(
-                LibConvertData.ConvertKind.LAMBDA_LAMBDA,
-                BEAN,
-                10000e6,
-                0
-            ),
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
             stems: stems1,
             amounts: amounts1,
             grownStalkSlippage: 0
@@ -2835,12 +2819,7 @@ contract ConvertTest is TestHelper {
         amounts2[0] = 50000e6; // More than available!
 
         converts[1] = MockConvertFacet.ConvertParams({
-            convertData: convertEncoder(
-                LibConvertData.ConvertKind.LAMBDA_LAMBDA,
-                BEAN,
-                50000e6,
-                0
-            ),
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 50000e6, 0),
             stems: stems2,
             amounts: amounts2,
             grownStalkSlippage: 0
@@ -2862,9 +2841,7 @@ contract ConvertTest is TestHelper {
         multipleBeanDepositSetup();
 
         // Create single AL2L convert
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
-            1
-        );
+        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](1);
 
         int96[] memory stems1 = new int96[](1);
         stems1[0] = int96(0);
@@ -2980,9 +2957,7 @@ contract ConvertTest is TestHelper {
         passGermination();
 
         // Try to create single AL2L convert that combines all deposits
-        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](
-            1
-        );
+        MockConvertFacet.ConvertParams[] memory converts = new MockConvertFacet.ConvertParams[](1);
 
         uint256[] memory amounts = new uint256[](numDeposits);
         uint256 totalAmount = 0;

@@ -65,7 +65,10 @@ contract ConvertBatchFacet is ConvertBase, Invariable, ReentrancyGuard {
     function _validateAL2L(ConvertParams[] calldata converts) private {
         for (uint256 i; i < converts.length; ) {
             if (LibConvert.convert(converts[i].convertData).decreaseBDV) {
-                require(converts.length == 1, "ConvertBatch: AL2L converts must be done individually");
+                require(
+                    converts.length == 1,
+                    "ConvertBatch: AL2L converts must be done individually"
+                );
                 return;
             }
             unchecked {
@@ -79,7 +82,10 @@ contract ConvertBatchFacet is ConvertBase, Invariable, ReentrancyGuard {
      */
     function _executeConverts(
         ConvertParams[] calldata converts
-    ) private returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv) {
+    )
+        private
+        returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
+    {
         uint256 len = converts.length;
         for (uint256 i; i < len; ) {
             ConvertParams calldata c = converts[i];

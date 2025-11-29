@@ -212,7 +212,10 @@ contract MockConvertFacet is ConvertFacet {
         // Validate AL2L restriction
         for (uint256 i; i < converts.length; ) {
             if (LibConvert.convert(converts[i].convertData).decreaseBDV) {
-                require(converts.length == 1, "ConvertBatch: AL2L converts must be done individually");
+                require(
+                    converts.length == 1,
+                    "ConvertBatch: AL2L converts must be done individually"
+                );
                 break;
             }
             unchecked {
