@@ -184,5 +184,4 @@ contract MockConvertFacet is ConvertFacet {
         // Encode and store updated gauge data
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(gd);
     }
-
 }
