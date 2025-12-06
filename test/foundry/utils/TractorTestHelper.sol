@@ -8,12 +8,20 @@ import {SowBlueprintBase} from "contracts/ecosystem/tractor/blueprints/SowBluepr
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import "forge-std/console.sol";
 
 contract TractorTestHelper is TestHelper {
     // Add this at the top of the contract
     TractorHelpers internal tractorHelpers;
     SowBlueprint internal sowBlueprint;
     SiloHelpers internal siloHelpers;
+    MowPlantHarvestBlueprint internal mowPlantHarvestBlueprint;
+
+    uint256 public constant DEFAULT_FIELD_ID = 0;
+    uint256 public constant PAYBACK_FIELD_ID = 1;
 
     enum SourceMode {
         PURE_PINTO,
@@ -31,6 +39,10 @@ contract TractorTestHelper is TestHelper {
 
     function setSiloHelpers(address _siloHelpers) internal {
         siloHelpers = SiloHelpers(_siloHelpers);
+    }
+
+    function setMowPlantHarvestBlueprint(address _mowPlantHarvestBlueprint) internal {
+        mowPlantHarvestBlueprint = MowPlantHarvestBlueprint(_mowPlantHarvestBlueprint);
     }
 
     function createRequisitionWithPipeCall(
@@ -62,6 +74,14 @@ contract TractorTestHelper is TestHelper {
                 blueprintHash: blueprintHash,
                 signature: signature
             });
+    }
+
+    function publishAccountRequisition(
+        address account,
+        IMockFBeanstalk.Requisition memory req
+    ) internal {
+        vm.prank(account);
+        bs.publishRequisition(req);
     }
 
     /**
@@ -183,6 +203,8 @@ contract TractorTestHelper is TestHelper {
             });
     }
 
+    //////////////////////////// SowBlueprintv0 ////////////////////////////
+
     // Helper function that takes SowAmounts struct
     function setupSowBlueprintv0Blueprint(
         address account,
@@ -226,8 +248,7 @@ contract TractorTestHelper is TestHelper {
         );
 
         // Publish the requisition
-        vm.prank(account);
-        bs.publishRequisition(req);
+        publishAccountRequisition(account, req);
 
         return (req, params);
     }
@@ -276,7 +297,7 @@ contract TractorTestHelper is TestHelper {
         });
 
         // Create OperatorParams struct
-        SowBlueprintBase.OperatorParams memory opParams = SowBlueprintBase.OperatorParams({
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOps,
             tipAddress: tipAddress,
             operatorTipAmount: operatorTipAmount
@@ -307,5 +328,194 @@ contract TractorTestHelper is TestHelper {
 
         // Return the encoded farm call
         return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    }
+
+    //////////////////////////// MowPlantHarvestBlueprint ////////////////////////////
+
+    function setupMowPlantHarvestBlueprint(
+        address account,
+        SourceMode sourceMode,
+        uint256 minMowAmount,
+        uint256 mintwaDeltaB,
+        uint256 minPlantAmount,
+        uint256 minHarvestAmount,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount,
+        uint256 maxGrownStalkPerBdv
+    )
+        internal
+        returns (
+            IMockFBeanstalk.Requisition memory,
+            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+        )
+    {
+        // build struct params
+        params = createMowPlantHarvestBlueprintStruct(
+            uint8(sourceMode),
+            minMowAmount,
+            mintwaDeltaB,
+            minPlantAmount,
+            minHarvestAmount,
+            tipAddress,
+            mowTipAmount,
+            plantTipAmount,
+            harvestTipAmount,
+            maxGrownStalkPerBdv
+        );
+
+        // create pipe call data
+        bytes memory pipeCallData = createMowPlantHarvestBlueprintCallData(params);
+
+        // create requisition
+        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
+            account,
+            pipeCallData,
+            address(bs)
+        );
+
+        // publish requisition
+        publishAccountRequisition(account, req);
+
+        return (req, params);
+    }
+
+    // Creates and returns the struct params for the mowPlantHarvestBlueprint
+    function createMowPlantHarvestBlueprintStruct(
+        uint8 sourceMode,
+        uint256 minMowAmount,
+        uint256 mintwaDeltaB,
+        uint256 minPlantAmount,
+        uint256 minHarvestAmount,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount,
+        uint256 maxGrownStalkPerBdv
+    ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {
+        // Create default whitelisted operators array with msg.sender
+        address[] memory whitelistedOps = new address[](3);
+        whitelistedOps[0] = msg.sender;
+        whitelistedOps[1] = tipAddress;
+        whitelistedOps[2] = address(this);
+
+        // Create array with single index for the token based on source mode
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+                IMockFBeanstalk(address(bs)).getBeanToken()
+            );
+        } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
+            sourceTokenIndices[0] = type(uint8).max;
+        } else {
+            // LOWEST_SEED
+            sourceTokenIndices[0] = type(uint8).max - 1;
+        }
+
+        // create per-field-id harvest configs
+        MowPlantHarvestBlueprint.FieldHarvestConfig[]
+            memory fieldHarvestConfigs = createFieldHarvestConfigs(minHarvestAmount);
+
+        // Create MowPlantHarvestParams struct
+        MowPlantHarvestBlueprint.MowPlantHarvestParams
+            memory mowPlantHarvestParams = MowPlantHarvestBlueprint.MowPlantHarvestParams({
+                minMowAmount: minMowAmount,
+                mintwaDeltaB: mintwaDeltaB,
+                minPlantAmount: minPlantAmount,
+                fieldHarvestConfigs: fieldHarvestConfigs,
+                sourceTokenIndices: sourceTokenIndices,
+                maxGrownStalkPerBdv: maxGrownStalkPerBdv,
+                slippageRatio: 0.01e18 // 1%
+            });
+
+        // create OperatorParamsExtended struct
+        MowPlantHarvestBlueprint.OperatorParamsExtended
+            memory opParamsExtended = createOperatorParamsExtended(
+                whitelistedOps,
+                tipAddress,
+                mowTipAmount,
+                plantTipAmount,
+                harvestTipAmount
+            );
+
+        return
+            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
+                mowPlantHarvestParams: mowPlantHarvestParams,
+                opParams: opParamsExtended
+            });
+    }
+
+    function createFieldHarvestConfigs(
+        uint256 minHarvestAmount
+    )
+        internal
+        view
+        returns (MowPlantHarvestBlueprint.FieldHarvestConfig[] memory fieldHarvestConfigs)
+    {
+        fieldHarvestConfigs = new MowPlantHarvestBlueprint.FieldHarvestConfig[](2);
+        // default field id
+        fieldHarvestConfigs[0] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+            fieldId: DEFAULT_FIELD_ID,
+            minHarvestAmount: minHarvestAmount
+        });
+        // expected payback field id
+        fieldHarvestConfigs[1] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+            fieldId: PAYBACK_FIELD_ID,
+            minHarvestAmount: minHarvestAmount
+        });
+        return fieldHarvestConfigs;
+    }
+
+    function createMowPlantHarvestBlueprintCallData(
+        MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+    ) internal view returns (bytes memory) {
+        // create the mowPlantHarvestBlueprint pipe call
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(mowPlantHarvestBlueprint),
+            callData: abi.encodeWithSelector(
+                MowPlantHarvestBlueprint.mowPlantHarvestBlueprint.selector,
+                params
+            ),
+            clipboard: hex"0000"
+        });
+
+        // wrap the pipe calls in a farm call
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+
+        // return the encoded farm call
+        return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    }
+
+    function createOperatorParamsExtended(
+        address[] memory whitelistedOps,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount
+    ) internal view returns (MowPlantHarvestBlueprint.OperatorParamsExtended memory) {
+        // create OperatorParams struct
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
+            whitelistedOperators: whitelistedOps,
+            tipAddress: tipAddress,
+            operatorTipAmount: 0 // plain operator tip amount is not used in this blueprint
+        });
+
+        // create OperatorParamsExtended struct
+        MowPlantHarvestBlueprint.OperatorParamsExtended
+            memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
+                opParamsBase: opParams,
+                mowTipAmount: mowTipAmount,
+                plantTipAmount: plantTipAmount,
+                harvestTipAmount: harvestTipAmount
+            });
+
+        return opParamsExtended;
     }
 }

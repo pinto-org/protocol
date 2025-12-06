@@ -3,17 +3,18 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {TractorHelpers} from "../utils/TractorHelpers.sol";
-import {PerFunctionPausable} from "../utils/PerFunctionPausable.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title SowBlueprintBase
  * @author FordPinto, Frijo
- * @notice Base contract for sowing blueprints with shared logic
+ * @notice Base contract for sowing blueprints with shared logic.
+ *         Inherits from BlueprintBase for common blueprint functionality.
  */
-abstract contract SowBlueprintBase is PerFunctionPausable {
+abstract contract SowBlueprintBase is BlueprintBase {
     /**
      * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
@@ -30,17 +31,6 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
 
     /**
      * @notice Struct to hold local variables for the sow operation to avoid stack too deep errors
-     * @param currentTemp Current temperature from Beanstalk
-     * @param availableSoil Amount of soil available for sowing at time of execution
-     * @param beanToken Address of the Bean token
-     * @param pintoLeftToSow Current value of the order counter
-     * @param totalBeansNeeded Total amount of beans needed including tip
-     * @param orderHash Hash of the current blueprint order
-     * @param beansWithdrawn Amount of beans withdrawn from sources
-     * @param tipAddress Address to send tip to
-     * @param account Address of the user's account (current Tractor user), not operator
-     * @param totalAmountToSow Total amount intended to sow
-     * @param withdrawalPlan The plan for withdrawing beans
      */
     struct SowLocalVars {
         address beanToken;
@@ -69,18 +59,6 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     }
 
     /**
-     * @notice Struct to hold operator parameters
-     * @param whitelistedOperators Array of whitelisted operator addresses
-     * @param tipAddress Address to send tip to
-     * @param operatorTipAmount Amount of tip to pay to operator
-     */
-    struct OperatorParams {
-        address[] whitelistedOperators;
-        address tipAddress;
-        int256 operatorTipAmount;
-    }
-
-    /**
      * @notice Struct to hold sow parameters
      * @param sourceTokenIndices Indices of source tokens to withdraw from
      * @param sowAmounts Amounts for sowing
@@ -103,24 +81,20 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     /**
      * @notice Main struct for sow blueprint
      * @param sowParams Parameters related to sowing
-     * @param opParams Parameters related to operators
+     * @param opParams Parameters related to operators (from BlueprintBase)
      */
     struct SowBlueprintStruct {
         SowParams sowParams;
         OperatorParams opParams;
     }
 
-    IBeanstalk immutable beanstalk;
-    TractorHelpers public immutable tractorHelpers;
-    SiloHelpers public immutable siloHelpers;
-
     // Default slippage ratio for LP token withdrawals (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
 
     /**
-     * @notice Struct to hold order info
-     * @param pintoSownCounter Counter for the number of maximum pinto that can be sown from this blueprint. Used for orders that sow over multiple seasons.
-     * @param lastExecutedSeason Last season a blueprint was executed
+     * @notice Blueprint specific struct to hold order info
+     * @param pintoSownCounter Counter for the number of maximum pinto that can be sown from this blueprint
+     * @param lastExecutedSeason Last season this blueprint was executed (moved from BlueprintBase for SowBlueprint-specific tracking)
      */
     struct OrderInfo {
         uint256 pintoSownCounter;
@@ -130,14 +104,15 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     // Combined state mapping for order info
     mapping(bytes32 => OrderInfo) private orderInfo;
 
+    // Silo helpers for withdrawal functionality
+    SiloHelpers public immutable siloHelpers;
+
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
         address _siloHelpers
-    ) PerFunctionPausable(_owner) {
-        beanstalk = IBeanstalk(_beanstalk);
-        tractorHelpers = TractorHelpers(_tractorHelpers);
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
         siloHelpers = SiloHelpers(_siloHelpers);
     }
 
@@ -167,7 +142,7 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     /**
      * @notice Updates the last executed season for a given order hash
      */
-    function updateLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
+    function _updateSowLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
         orderInfo[orderHash].lastExecutedSeason = season;
     }
 
@@ -196,17 +171,10 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
         ) = _validateParamsAndReturnBeanstalkState(params, vars.orderHash, vars.account);
 
         // Check if the executing operator (msg.sender) is whitelisted
-        require(
-            tractorHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
-            "Operator not whitelisted"
-        );
+        _validateOperatorParamsMemory(params.opParams);
 
         // Get tip address. If tip address is not set, set it to the operator
-        if (params.opParams.tipAddress == address(0)) {
-            vars.tipAddress = beanstalk.operator();
-        } else {
-            vars.tipAddress = params.opParams.tipAddress;
-        }
+        vars.tipAddress = _resolveTipAddress(params.opParams.tipAddress);
 
         // if slippage ratio is not set, set a default parameter:
         uint256 slippageRatio = params.sowParams.slippageRatio;
@@ -281,17 +249,15 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
         }
 
         // Update the last executed season for this blueprint
-        updateLastExecutedSeason(vars.orderHash, vars.currentSeason);
+        _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
     }
 
     /**
      * @notice Validates the initial parameters for the sow operation
      */
-    function _validateParams(SowBlueprintStruct memory params) internal view {
-        require(
-            params.sowParams.sourceTokenIndices.length > 0,
-            "Must provide at least one source token"
-        );
+    function _validateSowParams(SowBlueprintStruct memory params) internal view {
+        // Validate source tokens (inline since base version requires calldata)
+        require(params.sowParams.sourceTokenIndices.length > 0, "Must provide at least one source token");
 
         // Require that maxAmountToSowPerSeason > 0
         require(
@@ -341,8 +307,8 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
 
-        _validateParams(params);
-        pintoLeftToSow = _validateBlueprintAndPintoLeftToSow(orderHash);
+        _validateSowParams(params);
+        pintoLeftToSow = _validateBlueprintAndPintoLeftToSow(orderHash, currentSeason);
 
         // If this is the first execution, initialize the counter
         if (pintoLeftToSow == 0) {
@@ -423,14 +389,16 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
      * @notice Gets the pinto left to sow for a given order hash
      */
     function _validateBlueprintAndPintoLeftToSow(
-        bytes32 orderHash
+        bytes32 orderHash,
+        uint32 currentSeason
     ) internal view returns (uint256 pintoLeftToSow) {
-        require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
+        // Check that this blueprint hasn't been executed this season yet
         require(
-            getLastExecutedSeason(orderHash) < beanstalk.time().current,
+            getLastExecutedSeason(orderHash) < currentSeason,
             "Blueprint already executed this season"
         );
 
+        // Blueprint specific validations
         // Verify there's still sow amount available with the counter
         pintoLeftToSow = getPintosLeftToSow(orderHash);
 
@@ -468,5 +436,19 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
         }
 
         return totalAmountToSow;
+    }
+
+    /**
+     * @notice Validates operator parameters (memory version for internal calls)
+     */
+    function _validateOperatorParamsMemory(OperatorParams memory opParams) internal view {
+        bool isWhitelisted = false;
+        for (uint256 i = 0; i < opParams.whitelistedOperators.length; i++) {
+            if (opParams.whitelistedOperators[i] == msg.sender) {
+                isWhitelisted = true;
+                break;
+            }
+        }
+        require(isWhitelisted, "Operator not whitelisted");
     }
 }
