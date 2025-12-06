@@ -51,10 +51,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
         // Deploy TractorHelpers (2 args: beanstalk, beanstalkPrice)
-        tractorHelpers = new TractorHelpers(
-            address(bs),
-            address(beanstalkPrice)
-        );
+        tractorHelpers = new TractorHelpers(address(bs), address(beanstalkPrice));
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SiloHelpers (3 args: beanstalk, tractorHelpers, priceManipulation)

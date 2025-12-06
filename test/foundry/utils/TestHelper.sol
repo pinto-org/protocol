@@ -967,6 +967,5 @@ contract TestHelper is
             nonBeanReserves = 10_000e6;
             setReservesForPrice(BEAN_USDC_WELL, targetPrice, nonBeanReserves, true);
         }
-
     }
 }

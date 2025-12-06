@@ -673,7 +673,6 @@ contract FieldTest is TestHelper {
         bs.transferPlots(farmers[0], farmers[1], activeField, indexes, starts, ends);
     }
 
-
     /////////// Merge plots ///////////
 
     /**

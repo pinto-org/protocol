@@ -257,7 +257,10 @@ abstract contract SowBlueprintBase is BlueprintBase {
      */
     function _validateSowParams(SowBlueprintStruct memory params) internal view {
         // Validate source tokens (inline since base version requires calldata)
-        require(params.sowParams.sourceTokenIndices.length > 0, "Must provide at least one source token");
+        require(
+            params.sowParams.sourceTokenIndices.length > 0,
+            "Must provide at least one source token"
+        );
 
         // Require that maxAmountToSowPerSeason > 0
         require(
