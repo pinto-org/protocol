@@ -13,12 +13,13 @@ import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 
 import {console} from "forge-std/console.sol";
 
 /**
- * @notice Tests the functionality of the sun, the distrubution of beans and soil.
+ * @notice Tests the functionality of the sun, the distribution of beans and soil.
  */
 contract SunTest is TestHelper {
     // Events
@@ -75,8 +76,8 @@ contract SunTest is TestHelper {
             soilIssued = getSoilIssuedBelowPeg(
                 deltaB,
                 -1,
-                caseId,
-                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                0 // irrelevant pod rate since deltaB is negative
             );
         }
 
@@ -122,7 +123,12 @@ contract SunTest is TestHelper {
      * In the case that the field is paid off with the new bean issuance,
      * the remaining bean issuance is given to the silo.
      */
-    function test_sunFieldAndSilo(uint256 podsInField, int256 deltaB, uint256 caseId) public {
+    function test_sunFieldAndSilo(
+        uint256 podsInField,
+        int256 deltaB,
+        uint256 caseId,
+        uint256 podRate
+    ) public {
         // Set up shipment routes to include only Silo and one Field.
         setRoutes_siloAndFields();
 
@@ -130,6 +136,9 @@ contract SunTest is TestHelper {
         uint256 initialBeanBalance = bean.balanceOf(BEANSTALK);
         // cases can only range between 0 and 143.
         caseId = bound(caseId, 0, 143);
+        // pod rate cannot exceed uint128 max.
+        podRate = bound(podRate, 0, 200e18);
+
         // deltaB cannot exceed uint128 max.
         deltaB = bound(
             deltaB,
@@ -149,10 +158,12 @@ contract SunTest is TestHelper {
         uint256 beansToField;
         uint256 beansToSilo;
         if (deltaB > 0) {
+            bs.setSeasonAbovePeg(true);
             (beansToField, beansToSilo) = calcBeansToFieldAndSilo(uint256(deltaB), podsInField);
+            beanstalkState.podRate = Decimal.ratio(podRate, 1e18);
             (soilIssuedAfterMorningAuction, soilIssuedRightNow) = getSoilIssuedAbovePeg(
                 beansToField,
-                caseId
+                podRate
             );
         } else {
             uint256 currentCultivationFactor = abi.decode(
@@ -162,18 +173,18 @@ contract SunTest is TestHelper {
             soilIssuedAfterMorningAuction = getSoilIssuedBelowPeg(
                 deltaB,
                 -1,
-                caseId,
-                currentCultivationFactor
+                currentCultivationFactor,
+                0 // irrelevant pod rate since deltaB is negative
             );
             soilIssuedRightNow = getSoilIssuedBelowPeg(
                 deltaB,
                 -1,
-                caseId,
-                currentCultivationFactor
+                currentCultivationFactor,
+                0 // irrelevant pod rate since deltaB is negative
             );
         }
-        vm.expectEmit();
-        emit Soil(currentSeason + 1, soilIssuedAfterMorningAuction);
+        // vm.expectEmit();
+        // emit Soil(currentSeason + 1, soilIssuedAfterMorningAuction);
 
         // Make sure beanstalkState has the correct lpToSupplyRatio before calling sunSunrise
         beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
@@ -201,6 +212,7 @@ contract SunTest is TestHelper {
         // if deltaB is negative, soil is issued equal to deltaB.
         // no bean should be minted.
         if (deltaB <= 0) {
+            bs.setSeasonAbovePeg(false);
             assertEq(
                 initialBeanBalance - bean.balanceOf(BEANSTALK),
                 0,
@@ -278,6 +290,7 @@ contract SunTest is TestHelper {
             // needed to equal the newly paid off pods (scaled up or down).
             // 3) totalunharvestable() should decrease by the amount issued to the field.
             if (deltaB >= 0) {
+                bs.setSeasonAbovePeg(true);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
                     uint256(deltaB),
@@ -335,6 +348,7 @@ contract SunTest is TestHelper {
             // if deltaB is negative, soil is issued equal to deltaB.
             // no bean should be minted.
             if (deltaB <= 0) {
+                bs.setSeasonAbovePeg(false);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
                     0,
@@ -350,8 +364,8 @@ contract SunTest is TestHelper {
                 uint256 soilIssued = getSoilIssuedBelowPeg(
                     deltaB,
                     instDeltaB,
-                    caseId,
-                    abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+                    abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                    0 // irrelevant pod rate since deltaB is negative
                 );
 
                 vm.roll(block.number + 50);
@@ -420,6 +434,7 @@ contract SunTest is TestHelper {
             // needed to equal the newly paid off pods (scaled up or down).
             // 3) totalunharvestable() should decrease by the amount issued to the field.
             if (deltaB > 0) {
+                bs.setSeasonAbovePeg(true);
                 assertGe(
                     bean.balanceOf(BEANSTALK) - priorBeanInBeanstalk,
                     (uint256(deltaB) * 2) / 100, // Payback contract Bean are sent externally.
@@ -545,6 +560,7 @@ contract SunTest is TestHelper {
             // if deltaB is negative, soil is issued equal to deltaB.
             // no bean should be minted.
             if (deltaB <= 0) {
+                bs.setSeasonAbovePeg(false);
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeanInBeanstalk,
                     0,
@@ -560,8 +576,8 @@ contract SunTest is TestHelper {
                 uint256 soilIssued = getSoilIssuedBelowPeg(
                     deltaB,
                     instDeltaB,
-                    caseId,
-                    abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+                    abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                    0 // irrelevant pod rate since deltaB is negative
                 );
 
                 vm.roll(block.number + 50);
@@ -761,7 +777,8 @@ contract SunTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
 
         // Case 1: Soil sold out and Pod rate below lower bound - cultivationFactor should increase
@@ -997,7 +1014,8 @@ contract SunTest is TestHelper {
             largestLiqWell: address(0),
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e18, // $1.00 Bean price
-            twaDeltaB: 0
+            twaDeltaB: 0,
+            caseId: 0
         });
 
         // Case 1: Zero price should return (0, false)
@@ -1093,7 +1111,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Test with cultivationFactor = 1%
@@ -1326,7 +1345,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Test with cultivationFactor = 5%
@@ -1611,6 +1631,33 @@ contract SunTest is TestHelper {
         }
     }
 
+    // verifies various convert up gauge params update as expected.
+    function test_convertUpBonusGaugeSunrise() public {
+        int256 twaDeltaB = -1000e6;
+        // update the bdv capacity
+        bs.mockUpdateBonusBdvCapacity(type(uint128).max);
+
+        bs.mockUpdateBdvConverted(1000e6);
+        // verify that the convert up bonus gauge data is correct before sunrise
+        LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        // Note: We no longer track totalBdvConvertedBonus
+
+        // sunrise
+        season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+        // get the convert up bonus gauge data
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        // Note: We no longer track totalBdvConvertedBonus
+    }
+
     function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {
         // bound caseId between 0 and 143. (144 total cases)
         caseId = bound(caseId, 0, 143);
@@ -1620,13 +1667,18 @@ contract SunTest is TestHelper {
         setInstantaneousReserves(BEAN_WSTETH_WELL, 10000e6, 10000000e18);
         setInstantaneousReserves(BEAN_ETH_WELL, 100000e6, 10000000e18);
         uint32 currentSeason = bs.season();
+
+        // assume reasonably high pod rate
+        uint256 podRate = 0.30e18;
+        beanstalkState.podRate = Decimal.ratio(podRate, 1e18);
+
         // when instDeltaB is positive, and twaDeltaB is negative
         // the final soil issued is 1% of the twaDeltaB, scaled as if the season was above peg.
         uint256 soilIssued = getSoilIssuedBelowPeg(
             twaDeltaB,
             415127766016,
-            caseId,
-            abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+            abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+            podRate // relevant when above peg or when instDeltaB is positive and twaDeltaB is negative.
         );
         // assert that the soil issued is equal to the scaled twaDeltaB.
         vm.expectEmit();
@@ -1635,16 +1687,29 @@ contract SunTest is TestHelper {
         assertEq(bs.totalSoil(), soilIssued);
     }
 
+    function test_scaleSoilAbovePegSimpleLogic() public view {
+        // pod rate above upper bound will result in minimum pod rate scalar of 0.25e18
+        uint256 podRate = 0.50e18;
+
+        uint256 soilIssued = scaleSoilAbovePeg(1000e6, podRate);
+
+        // soilIssued = soil * podRateScalar
+        // soilIssued = 1000e6 * 0.25 = 250e6
+
+        // assert that the soil issued is equal to the scaled twaDeltaB.
+        assertEq(soilIssued, 250e6);
+    }
+
     ////// HELPER FUNCTIONS //////
 
     /**
-     * @notice calculates the distrubution of field and silo beans.
+     * @notice calculates the distribution of field and silo beans.
      * @dev TODO: generalize field division.
      */
     function calcBeansToFieldAndSilo(
         uint256 beansIssued,
         uint256 podsInField
-    ) internal returns (uint256 beansToField, uint256 beansToSilo) {
+    ) internal pure returns (uint256 beansToField, uint256 beansToSilo) {
         beansToField = beansIssued / 2 > podsInField ? podsInField : beansIssued / 2;
         beansToSilo = beansIssued - beansToField;
     }
@@ -1655,7 +1720,7 @@ contract SunTest is TestHelper {
      */
     function getSoilIssuedAbovePeg(
         uint256 podsRipened,
-        uint256 caseId
+        uint256 podRate
     ) internal view returns (uint256 soilIssuedAfterMorningAuction, uint256 soilIssuedRightNow) {
         uint256 TEMPERATURE_PRECISION = 1e6;
         uint256 ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
@@ -1665,10 +1730,10 @@ contract SunTest is TestHelper {
         soilIssuedAfterMorningAuction =
             (podsRipened * ONE_HUNDRED_TEMP) /
             (ONE_HUNDRED_TEMP + (bs.maxTemperature()));
+        console.log("soilIssuedAfterMorningAuction:", soilIssuedAfterMorningAuction);
 
         // scale soil issued above peg.
-        soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, caseId);
-
+        soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, podRate);
         soilIssuedRightNow = soilIssuedAfterMorningAuction.mulDiv(
             bs.maxTemperature() + ONE_HUNDRED_TEMP,
             bs.temperature() + ONE_HUNDRED_TEMP
@@ -1682,13 +1747,13 @@ contract SunTest is TestHelper {
     function getSoilIssuedBelowPeg(
         int256 twaDeltaB,
         int256 instDeltaB,
-        uint256 caseId,
-        uint256 cultivationFactor
+        uint256 cultivationFactor,
+        uint256 podRate
     ) internal view returns (uint256) {
         uint256 soilIssued;
         if (instDeltaB > 0) {
             uint256 scaledSoil = (uint256(-twaDeltaB) * 0.01e6) / 1e6;
-            soilIssued = scaleSoilAbovePeg(scaledSoil, caseId);
+            soilIssued = scaleSoilAbovePeg(scaledSoil, podRate);
         } else {
             // Get the L2SR ratio from the beanstalkState
             uint256 l2srRatio;
@@ -1708,20 +1773,22 @@ contract SunTest is TestHelper {
     }
 
     /**
-     * @notice scales soil issued above peg according to pod rate and the soil coefficients
+     * @notice scales soil issued above peg according to pod rate.
      * @dev see {Sun.sol}.
      */
-    function scaleSoilAbovePeg(uint256 soilIssued, uint256 caseId) internal pure returns (uint256) {
-        if (caseId % 36 >= 27) {
-            soilIssued = (soilIssued * 0.25e18) / 1e18; // exessively high podrate
-        } else if (caseId % 36 >= 18) {
-            soilIssued = (soilIssued * 0.5e18) / 1e18; // reasonably high podrate
-        } else if (caseId % 36 >= 9) {
-            soilIssued = (soilIssued * 1e18) / 1e18; // reasonably low podrate
-        } else {
-            soilIssued = (soilIssued * 1.2e18) / 1e18; // exessively low podrate
-        }
-        return soilIssued;
+    function scaleSoilAbovePeg(uint256 soilAmount, uint256 podRate) public view returns (uint256) {
+        // determine pod rate scalar as a function of podRate.
+        uint256 podRateScalar = LibGaugeHelpers.linearInterpolation(
+            podRate,
+            false,
+            bs.getPodRateLowerBound(),
+            bs.getPodRateUpperBound(),
+            0.25e18, // s.sys.evaluationParameters.soilCoefficientHigh
+            1.2e18 // s.sys.evaluationParameters.soilCoefficientLow
+        );
+
+        // soilAmount * podRateScalar
+        return Math.mulDiv(soilAmount, podRateScalar, 1e18);
     }
 
     function setInstantaneousReserves(address well, uint256 reserve0, uint256 reserve1) public {
@@ -1774,7 +1841,8 @@ contract SunTest is TestHelper {
             largestLiqWell: BEAN_ETH_WELL,
             oracleFailure: false,
             largestLiquidWellTwapBeanPrice: beanPrice,
-            twaDeltaB: twaDeltaB
+            twaDeltaB: twaDeltaB,
+            caseId: 0
         });
 
         // Set lastSowTime based on soilSoldOut

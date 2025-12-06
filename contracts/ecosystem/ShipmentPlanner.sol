@@ -130,7 +130,7 @@ contract ShipmentPlanner {
         // Scale points by distance to threshold.
         points = (points * paybackRatio) / PRECISION;
 
-        return ShipmentPlan({points: points, cap: beanstalk.totalUnharvestable(fieldId)});
+        return ShipmentPlan({points: points, cap: cap});
     }
 
     /**

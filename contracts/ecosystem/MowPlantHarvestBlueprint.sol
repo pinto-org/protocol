@@ -3,7 +3,8 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
@@ -112,14 +113,20 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         bool shouldHarvest;
         IBeanstalk.Season seasonInfo;
         UserFieldHarvestResults[] userFieldHarvestResults;
-        LibTractorHelpers.WithdrawalPlan plan;
+        LibSiloHelpers.WithdrawalPlan plan;
     }
+
+    // Silo helpers for withdrawal functionality
+    SiloHelpers public immutable siloHelpers;
 
     constructor(
         address _beanstalk,
         address _owner,
-        address _tractorHelpers
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {}
+        address _tractorHelpers,
+        address _siloHelpers
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
+        siloHelpers = SiloHelpers(_siloHelpers);
+    }
 
     /**
      * @notice Main entry point for the mow, plant and harvest blueprint
@@ -446,27 +453,31 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         int256 totalBeanTip,
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio,
-        LibTractorHelpers.WithdrawalPlan memory plan
+        LibSiloHelpers.WithdrawalPlan memory plan
     ) internal {
+        // Create filter params for the withdrawal plan
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxGrownStalkPerBdv = maxGrownStalkPerBdv;
+
         // Check if enough beans are available using getWithdrawalPlan
-        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers
             .getWithdrawalPlanExcludingPlan(
                 account,
                 sourceTokenIndices,
                 uint256(totalBeanTip),
-                maxGrownStalkPerBdv,
+                filterParams,
                 plan // passed in plan is empty
             );
 
         // Execute the withdrawal plan to withdraw the tip amount
-        tractorHelpers.withdrawBeansFromSources(
+        siloHelpers.withdrawBeansFromSources(
             account,
             sourceTokenIndices,
             uint256(totalBeanTip),
-            maxGrownStalkPerBdv,
+            filterParams,
             slippageRatio,
             LibTransfer.To.INTERNAL,
-            plan
+            withdrawalPlan
         );
 
         // Tip the operator with the withdrawn beans

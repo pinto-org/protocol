@@ -5,20 +5,17 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
-import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
-import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {OperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
 import "forge-std/console.sol";
 
-contract MowPlantHarvestBlueprintTest is TractorHelper {
+contract MowPlantHarvestBlueprintTest is TractorTestHelper {
     address[] farmers;
-    PriceManipulation priceManipulation;
     BeanstalkPrice beanstalkPrice;
 
     event Plant(address indexed account, uint256 beans);
@@ -49,28 +46,31 @@ contract MowPlantHarvestBlueprintTest is TractorHelper {
         vm.label(farmers[0], "Farmer 1");
         vm.label(farmers[1], "Farmer 2");
 
-        // Deploy PriceManipulation (unused here but needed for TractorHelpers)
-        priceManipulation = new PriceManipulation(address(bs));
-        vm.label(address(priceManipulation), "PriceManipulation");
-
         // Deploy BeanstalkPrice (unused here but needed for TractorHelpers)
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy TractorHelpers with PriceManipulation address
+        // Deploy TractorHelpers (2 args: beanstalk, beanstalkPrice)
         tractorHelpers = new TractorHelpers(
             address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(priceManipulation)
+            address(beanstalkPrice)
         );
         vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy MowPlantHarvestBlueprint with TractorHelpers address
+        // Deploy SiloHelpers (3 args: beanstalk, tractorHelpers, priceManipulation)
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(tractorHelpers),
+            address(0) // priceManipulation not needed for this test
+        );
+        vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy MowPlantHarvestBlueprint with TractorHelpers and SiloHelpers addresses
         mowPlantHarvestBlueprint = new MowPlantHarvestBlueprint(
             address(bs),
             address(this),
-            address(tractorHelpers)
+            address(tractorHelpers),
+            address(siloHelpers)
         );
         vm.label(address(mowPlantHarvestBlueprint), "MowPlantHarvestBlueprint");
 

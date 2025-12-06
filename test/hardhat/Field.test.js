@@ -29,8 +29,9 @@ describe("newField", function () {
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
 
-    // Advanced block to get temperature to be max temperature (1%).
-    await mine(400);
+    // Set timestamp to be 600 seconds after current to get temperature to be max temperature (1%).
+    await ethers.provider.send("evm_increaseTime", [600]);
+    await ethers.provider.send("evm_mine");
   });
 
   beforeEach(async function () {
@@ -308,13 +309,16 @@ describe("newField", function () {
         if (i == 0) {
           // no rounding
           expect(temperature).to.be.equal(
-            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)));
+            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12))
+          );
         } else if (i == 25) {
           // max temperature
           expect(temperature).to.be.equal(initTemp);
         } else {
           // rounding up to the nearest integer
-        expect(temperature).to.be.equal(BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)).add(1));
+          expect(temperature).to.be.equal(
+            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)).add(1)
+          );
         }
       }
     });
@@ -590,8 +594,9 @@ describe("twoField", function () {
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
 
-    // Advanced block to get temperature to be max temperature (1%).
-    await mine(400);
+    // Set timestamp to be 600 seconds after current to get temperature to be max temperature (1%).
+    await ethers.provider.send("evm_increaseTime", [600]);
+    await ethers.provider.send("evm_mine");
   });
 
   beforeEach(async function () {

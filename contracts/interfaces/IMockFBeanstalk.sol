@@ -7,6 +7,8 @@ pragma solidity ^0.8.4;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+
 interface IMockFBeanstalk {
     enum CounterUpdateType {
         INCREASE,
@@ -125,8 +127,9 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        uint256 minSoilSownDemand;
-        bytes32[60] buffer;
+        uint256 supplyPodDemandScalar;
+        uint256 initialSoilPodDemandScalar;
+        bytes32[59] buffer;
     }
 
     struct Facet {
@@ -283,6 +286,11 @@ interface IMockFBeanstalk {
         bool oracleFailure;
     }
 
+    struct ContractData {
+        uint256 key;
+        bytes value;
+    }
+
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();
@@ -322,7 +330,9 @@ interface IMockFBeanstalk {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
     event DeltaB(int256 deltaB);
     event DepositApproval(
@@ -494,6 +504,7 @@ interface IMockFBeanstalk {
     event URI(string _uri, uint256 indexed _id);
     event Unpause(uint256 timestamp, uint256 timePassed);
     event UpdateAverageStalkPerBdvPerSeason(uint256 newStalkPerBdvPerSeason);
+    event UpdateMaxTotalGaugePoints(uint256 newMaxTotalGaugePoints);
     event UpdateGaugeSettings(
         address indexed token,
         bytes4 gpSelector,
@@ -1166,7 +1177,9 @@ interface IMockFBeanstalk {
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB);
 
-    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) external view returns (address publisher, uint256 count);
 
     function getReceiver(address owner) external view returns (address);
 
@@ -1612,6 +1625,8 @@ interface IMockFBeanstalk {
 
     function setBpf(uint128 bpf) external;
 
+    function setTotalStalkE(uint256 amount) external;
+
     function setChangeInSoilDemand(uint256 changeInSoilDemand) external;
 
     function setCurrentSeasonE(uint32 _season) external;
@@ -1636,6 +1651,10 @@ interface IMockFBeanstalk {
 
     function setSoilE(uint256 amount) external;
 
+    function setReferrerPercentageE(uint128 percentage) external;
+
+    function setRefereePercentageE(uint128 percentage) external;
+
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
     function setSunriseBlock(uint256 _block) external;
@@ -1645,6 +1664,8 @@ interface IMockFBeanstalk {
     function setUsdEthPrice(uint256 price) external;
 
     function setYieldE(uint256 t) external;
+
+    function setBeansSownE(uint128 amount) external;
 
     function setCultivationFactor(uint256 cultivationFactor) external;
 
@@ -1681,7 +1702,7 @@ interface IMockFBeanstalk {
 
     function stemTipForToken(address token) external view returns (int96 _stemTip);
 
-    function stepGauge() external;
+    function stepSeedGauge() external;
 
     function sunSunrise(int256 deltaB, uint256 caseId, BeanstalkState memory bs) external;
 
@@ -1744,6 +1765,12 @@ interface IMockFBeanstalk {
     function tractor(
         Requisition memory requisition,
         bytes memory operatorData
+    ) external payable returns (bytes[] memory results);
+
+    function tractorDynamicData(
+        Requisition calldata requisition,
+        bytes memory operatorData,
+        ContractData[] memory operatorDynamicData
     ) external payable returns (bytes[] memory results);
 
     function transferDeposit(
@@ -1899,6 +1926,7 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
+
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1910,12 +1938,26 @@ interface IMockFBeanstalk {
 
     function wrapEth(uint256 amount, uint8 mode) external payable;
 
+    function getMaxTotalGaugePoints() external view returns (uint256);
+
+    function setOverallConvertCapacityUsedForBlock(uint256 capacity) external;
+
     function downPenalizedGrownStalk(
         address well,
         uint256 bdvToConvert,
         uint256 grownStalkToConvert,
         uint256 fromAmount
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256);
+
+    function getPegCrossStem(address token) external view returns (int96);
+
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256);
+
+    function mockUpdateBdvConverted(uint256 bdvConverted) external;
+
+    function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external;
 
     function setLastSeasonAndThisSeasonBeanSown(
         uint128 lastSeasonBeanSown,
@@ -1943,4 +1985,32 @@ interface IMockFBeanstalk {
     ) external view returns (uint256 amountIn);
 
     function setPenaltyRatio(uint256 penaltyRatio) external;
+
+    function setSeasonAbovePeg(bool abovePeg) external;
+
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256 bonusStalkPerBdv, uint256 remainingCapacity);
+
+    function mockUpdateStalkPerBdvBonus(uint256 newStalkPerBdvBonus) external;
+
+    function mockUpdateLastConvertBonusTaken(uint256 newLastConvertBonusTaken) external;
+
+    function mockStepGauges(LibEvaluate.BeanstalkState memory bs) external;
+
+    function mockUpdateStalkPerBdvPerSeasonForToken(
+        address token,
+        uint40 stalkEarnedPerSeason
+    ) external;
+
+    function mowAll(address account) external;
+
+    function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
+
+    function getSeedsForToken(address token) external view returns (uint256 seeds);
+
+    function setReferralEligibility(address referrer, bool eligible) external;
+
+    function getTractorData(uint256 key) external view returns (bytes memory);
 }

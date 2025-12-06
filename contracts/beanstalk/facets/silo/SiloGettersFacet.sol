@@ -222,7 +222,7 @@ contract SiloGettersFacet is ReentrancyGuard {
     //////////////////////// SILO: TOTALS ////////////////////////
 
     /**
-     * @notice Returns the total supply of Stalk. Does NOT include Grown Stalk.
+     * @notice Returns the total supply of Stalk. Does NOT include unmown Grown Stalk.
      */
     function totalStalk() external view returns (uint256) {
         return s.sys.silo.stalk;
@@ -764,5 +764,9 @@ contract SiloGettersFacet is ReentrancyGuard {
         address well
     ) external view returns (address, uint256) {
         return LibWell.getNonBeanTokenAndIndexFromWell(well);
+    }
+
+    function getSeedsForToken(address token) external view returns (uint256) {
+        return s.sys.silo.assetSettings[token].stalkEarnedPerSeason;
     }
 }

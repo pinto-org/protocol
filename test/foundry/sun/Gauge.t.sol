@@ -5,7 +5,7 @@ pragma abicoder v2;
 import {TestHelper, IMockFBeanstalk, MockToken, C, IWell} from "test/foundry/utils/TestHelper.sol";
 import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 import {MockLiquidityWeight} from "contracts/mocks/MockLiquidityWeight.sol";
-import {GaugePriceThreshold} from "contracts/ecosystem/GaugePriceThreshold.sol";
+import {GaugePriceThreshold} from "contracts/ecosystem/gaugePoints/GaugePriceThreshold.sol";
 
 /**
  * @notice Tests the functionality of the gauge.
@@ -89,7 +89,7 @@ contract GaugeTest is TestHelper {
      * @notice verifies that the bean to max LP properly scales up.
      * @dev these tests verify the specific scalar implementation.
      * Changing the scalar implementation will most likely break these tests.
-     * See {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}.
+     * See {LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled}.
      */
     function test_beanToMaxLP_scaled(
         uint256 initBeanToMaxLPRatio,
@@ -133,7 +133,7 @@ contract GaugeTest is TestHelper {
     /**
      * @notice verifies getters with no supply.
      */
-    function test_L2SRNoSupply() public {
+    function test_L2SRNoSupply() public view {
         assertEq(bs.getLiquidityToSupplyRatio(), 0, "invalid liq to supply ratio");
         assertEq(bs.getTotalUsdLiquidity(), 0, "invalid total liq");
         assertEq(bs.getTotalWeightedUsdLiquidity(), 0, "invalid total weighted liq");
@@ -306,7 +306,7 @@ contract GaugeTest is TestHelper {
         // verify that the gauge points remain unchanged.
         assertEq(
             uint256(postLpSettings.gaugePoints),
-            uint256(lpSettings.gaugePoints),
+            bs.getMaxTotalGaugePoints(),
             "invalid lp gauge points"
         );
 
@@ -341,7 +341,7 @@ contract GaugeTest is TestHelper {
             totalStalk,
             (totalBdv * avgGsPerBdvPerSeason) / 1e6,
             1e12,
-            "invalid distrubution"
+            "invalid distribution"
         );
 
         // rounding should occur such that totalBdv * avgGsPerBdvPerSeason > totalStalk.
@@ -407,9 +407,11 @@ contract GaugeTest is TestHelper {
         // verify that stalk issued to LP is porportional to gauge point %.
         uint256 avgGrownStalkPerBdvPerSeason = bs.getAverageGrownStalkPerBdvPerSeason();
         uint256 totalStalk = totalDepositedBdv * avgGrownStalkPerBdvPerSeason;
+
         for (uint i; i < tokens.length; i++) {
             if (tokens[i] == BEAN) continue;
-            uint256 percentGaugePoints = (postSettings[i].gaugePoints * 1e18) / totalGaugePoints;
+            uint256 percentGaugePoints = (uint256(postSettings[i].gaugePoints) * 1e18) /
+                totalGaugePoints;
             uint256 tokenDepositedBdv = bs.getTotalDepositedBdv(tokens[i]);
             uint256 stalkToLp = postSettings[i].stalkEarnedPerSeason * tokenDepositedBdv;
             // precise within 1e-6.
@@ -460,7 +462,7 @@ contract GaugeTest is TestHelper {
         uint256 gaugePoints,
         uint256 optimalPercentDepositedBdv,
         uint256 percentOfDepositedBdv
-    ) public {
+    ) public view {
         gaugePoints = bound(gaugePoints, 1e18, 1000e18);
         optimalPercentDepositedBdv = bound(optimalPercentDepositedBdv, 0.01e6, 100e6);
         percentOfDepositedBdv = bound(percentOfDepositedBdv, 0.01e6, 100e6);
@@ -517,7 +519,6 @@ contract GaugeTest is TestHelper {
         );
 
         assertGe(newGaugePoints, 0, "newGaugePoints < 0");
-        assertLe(newGaugePoints, 1000e18, "newGaugePoints > 1000e18");
 
         uint256 deltaGaugePoints;
         if (newGaugePoints > gaugePoints) {
@@ -606,7 +607,7 @@ contract GaugeTest is TestHelper {
     }
 
     /**
-     * @notice initializes the LP<>LP distrubution.
+     * @notice initializes the LP<>LP distribution.
      * @dev the function updates the gaugePointSelector to a gauge point implementation
      * that stays constant for testing purposes.
      */

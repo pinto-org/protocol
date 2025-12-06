@@ -5,7 +5,7 @@
 pragma solidity ^0.8.20;
 import {AppStorage, LibAppStorage} from "../../libraries/LibAppStorage.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
 import {LibWhitelist} from "../../libraries/Silo/LibWhitelist.sol";
@@ -48,8 +48,6 @@ contract InitPI11 {
     }
 
     function init() external {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-
         // Update the convertDownPenaltyGauge with new data structure
         Gauge memory convertDownPenaltyGauge = Gauge(
             abi.encode(
@@ -141,7 +139,7 @@ contract InitPI11 {
     }
 
     // Helper function to validate total allocations don't exceed 100%
-    function _validateTotalAllocations(TokenAllocation[] memory newAllocations) internal view {
+    function _validateTotalAllocations(TokenAllocation[] memory newAllocations) internal pure {
         uint256 totalPercent = 0;
         for (uint256 i = 0; i < newAllocations.length; i++) {
             totalPercent += newAllocations[i].optimalPercentDepositedBdv;

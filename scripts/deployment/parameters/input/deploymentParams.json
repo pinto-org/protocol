@@ -212,7 +212,8 @@
       "nonBeanToken": "0x4200000000000000000000000000000000000006",
       "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
       "wellFunctionData": "0x",
-      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f41c1de71aa9cede63741a8da",
+      "wellSalt": "0x0000000000000000000000000000000000000000000000000000000000000010",
+      "proxySalt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f41c1de71aa9cede63741a8da",
       "name": "PINTO:WETH Constant Product 2 Upgradeable Well",
       "symbol": "U-PINTOWETHCP2w"
     },
@@ -220,7 +221,8 @@
       "nonBeanToken": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
       "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
       "wellFunctionData": "0x",
-      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f934b9bc011434f813a1ae920",
+      "wellSalt": "0x0000000000000000000000000000000000000000000000000000000000000010",
+      "proxySalt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f934b9bc011434f813a1ae920",
       "name": "PINTO:CBETH Constant Product 2 Upgradeable Well",
       "symbol": "U-PINTOCBETHCP2w"
     },
@@ -228,7 +230,8 @@
       "nonBeanToken": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
       "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
       "wellFunctionData": "0x",
-      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f26706e0b89538f1d727b857a",
+      "wellSalt": "0x0000000000000000000000000000000000000000000000000000000000000010",
+      "proxySalt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8f26706e0b89538f1d727b857a",
       "name": "PINTO:CBBTC Constant Product 2 Upgradeable Well",
       "symbol": "U-PINTOCBBTCCP2w"
     },
@@ -236,7 +239,8 @@
       "nonBeanToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "wellFunctionTarget": "0xBA51055a97b40d7f41f3F64b57469b5D45B67c87",
       "wellFunctionData": "0x00000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000006",
-      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8fa6788115197ecbb19d0b0ad7",
+      "wellSalt": "0x0000000000000000000000000000000000000000000000000000000000000010",
+      "proxySalt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8fa6788115197ecbb19d0b0ad7",
       "name": "PINTO:USDC Stable 2 Upgradeable Well",
       "symbol": "U-PINTOUSDCS2w"
     },
@@ -244,7 +248,8 @@
       "nonBeanToken": "0x1C61629598e4a901136a81BC138E5828dc150d67",
       "wellFunctionTarget": "0xBA510C289fD067EBbA41335afa11F0591940d6fe",
       "wellFunctionData": "0x",
-      "salt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8feb59fd26e03e60c2ee9c4a55",
+      "wellSalt": "0x0000000000000000000000000000000000000000000000000000000000000010",
+      "proxySalt": "0xd1a0d188e861ed9d15773a2f3574a2e94134ba8feb59fd26e03e60c2ee9c4a55",
       "name": "PINTO:WSOL Constant Product 2 Upgradeable Well",
       "symbol": "U-PINTOWSOLCP2w"
     }

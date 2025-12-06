@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 import "../../libraries/LibAppStorage.sol";
 import {LibUpdate} from "../../libraries/LibUpdate.sol";
 import {Weather} from "../facets/sun/abstract/Weather.sol";
-import {LibGauge} from "../../libraries/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 /**
  * @title InitPI8
  * @dev Updates parameters for pinto improvement 8.
@@ -18,16 +18,16 @@ contract InitPI8 {
     function init() external {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
-        // Update min soil sown demand.
-        s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
-        emit LibUpdate.UpdatedExtEvaluationParameters(
-            s.sys.season.current,
-            s.sys.extEvaluationParameters
-        );
+        // Update min soil sown demand. note: was removed in PI9
+        // s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
+        // emit LibUpdate.UpdatedExtEvaluationParameters(
+        //     s.sys.season.current,
+        //     s.sys.extEvaluationParameters
+        // );
 
         uint256 oldMaxBeanMaxLpGpPerBdvRatio = s.sys.seedGauge.beanToMaxLpGpPerBdvRatio;
         // get current crop ratio
-        uint256 oldMaxBeanMaxLpGpPerBdvScaled = LibGauge.getBeanToMaxLpGpPerBdvRatioScaled(
+        uint256 oldMaxBeanMaxLpGpPerBdvScaled = LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled(
             s.sys.seedGauge.beanToMaxLpGpPerBdvRatio
         );
 

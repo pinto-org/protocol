@@ -35,7 +35,7 @@ contract CasesTest is TestHelper {
     // These are the variables that beanstalk measures upon sunrise.
     // (placed in storage due to stack too deep).
     uint256 price; // 0 = below peg, 1 = above peg, 2 = Q
-    uint256 podRate; // 0 = Extremely low, 1 = Reasonbly Low, 2 = Reasonably High, 3 = Extremely High
+    uint256 podRate; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     uint256 changeInSoilDemand; // 0 = Decreasing, 1 = steady, 2 = Inc
     uint256 l2SR; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     int256 deltaB;
@@ -52,15 +52,15 @@ contract CasesTest is TestHelper {
         // Initialize well to balances. (1000 BEAN/ETH)
         addLiquidityToWell(well, 10000e6, 10 ether);
 
-        // call well to wsteth/bean to initalize the well.
+        // call well to wsteth/bean to initialize the well.
         // avoids errors due to gas limits.
         addLiquidityToWell(BEAN_WSTETH_WELL, 10e6, .01 ether);
     }
 
     /**
      * @notice tests every case of weather that can happen in beanstalk, 0 - 143.
-     * @dev See {LibCases.sol} for more infomation.
-     * This test verifies general invarients regarding the cases,
+     * @dev See {LibCases.sol} for more information.
+     * This test verifies general invariants regarding the cases,
      * (i.e how beanstalk should generally react to its state)
      * and does not test the correctness of the magnitude of change.
      * Assumes BeanToMaxGpPerBdvRatio is < 0.
@@ -72,6 +72,10 @@ contract CasesTest is TestHelper {
         // set temperature to 100%, for better testing.
         console.log("setting max temp to 100%");
         bs.setMaxTemp(100e6);
+
+        // set beanSown to be above min threshold so that we can measure change in soil demand.
+        bs.setSoilE(1000e6);
+        bs.setBeansSownE(300e6);
 
         uint256 initialTemperature = bs.maxTemperature();
         uint256 initialBeanToMaxLpGpPerBdvRatio = bs.getBeanToMaxLpGpPerBdvRatio();
@@ -88,8 +92,10 @@ contract CasesTest is TestHelper {
         emit BeanToMaxLpGpPerBdvRatioChange(1, caseId, 0);
 
         uint256 prevTemp = bs.maxTemperature();
-        (uint256 updatedCaseId, ) = season.mockcalcCaseIdAndHandleRain(deltaB);
-        require(updatedCaseId == caseId, "CaseId did not match");
+        require(
+            season.mockcalcCaseIdAndHandleRain(deltaB).caseId == caseId,
+            "CaseId did not match"
+        );
         (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
 
         // verify that the prevSeasonTemp is set.
@@ -542,6 +548,52 @@ contract CasesTest is TestHelper {
     }
 
     /**
+     * @notice if the soil sown in the season is below the minimum demand threshold,
+     * of max(min(50, soil issued), soilIssued *5%) demand is considered decreasing.
+     */
+    function testDeltaPodDemandDecreasingBelowThreshold(
+        uint256 soilSown,
+        uint256 initialSoil,
+        uint256 beanSupply
+    ) public {
+        // init total supply = 10k beans
+        uint256 beanSupply = bound(beanSupply, 10_000e6, 10_000_000e6);
+        // mint beanSupply to increase
+        deal(address(bean), address(1), beanSupply);
+        beanSupply = bean.totalSupply();
+        // bound initial soil to 0 - beanSupply
+        initialSoil = bound(initialSoil, 4, beanSupply);
+
+        uint256 minDemandThreshold = calcMinSoilDemandThreshold(initialSoil);
+
+        // soil sown is less than the min threshold to measure demand
+        soilSown = bound(soilSown, 0, minDemandThreshold - 1);
+
+        // set podrate to reasonably high,
+        // as we want to verify temp changes as a function of soil demand.
+        season.setPodRate(RES_HIGH);
+        season.setPrice(ABOVE_PEG, well);
+
+        // 10% temp for easier testing.
+        bs.setMaxTempE(10e6);
+        // set initial soil
+        bs.setSoilE(initialSoil);
+
+        // calc caseId  (deltaB, beanSown==dsoil)
+        season.calcCaseIdE(1, uint128(soilSown));
+
+        // if soil sown is below the threshold, demand is decreasing.
+        // beanstalk should record this season's sow time,
+        // and set it as last sow time for next season.
+        IMockFBeanstalk.Weather memory w = bs.weather();
+        assertEq(uint256(w.thisSowTime), type(uint32).max);
+        uint256 steadyDemand;
+        // reasonably high pod rate, above peg price, soil demand decreasing
+        // so temperature should stay the same, see https://docs.pinto.money/advanced/cases
+        assertEq(10e6 - uint256(w.temp), 0, "delta temp is not 0%");
+    }
+
+    /**
      * @notice Extracts and normalizes the individual evaluation components from a caseId
      * @param caseId The full case ID
      * @return podRateCase The normalized pod rate evaluation (0, 1, 2, or 3 from original 0, 9, 18, or 27)
@@ -553,7 +605,7 @@ contract CasesTest is TestHelper {
         uint256 caseId
     )
         public
-        view
+        pure
         returns (
             uint256 podRateCase,
             uint256 priceCase,
@@ -575,6 +627,21 @@ contract CasesTest is TestHelper {
 
         if (caseId >= 1000) {
             podRateCase = 4;
+        }
+    }
+
+    function calcMinSoilDemandThreshold(
+        uint256 initialSoil
+    ) internal pure returns (uint256 minDemandThreshold) {
+        uint256 minBeanSown = 50e6;
+        // if initial soil is less than the minimum amount of beans to measure demand,
+        // set the threshold to the initial soil (all soil must be sown to measure demand)
+        if (initialSoil < minBeanSown) {
+            return initialSoil;
+        } else {
+            // else, use min(minBeanSown, x% of soil)
+            uint256 soilBasedThreshold = (initialSoil * 0.05e6) / 1e6;
+            return soilBasedThreshold > minBeanSown ? minBeanSown : soilBasedThreshold;
         }
     }
 

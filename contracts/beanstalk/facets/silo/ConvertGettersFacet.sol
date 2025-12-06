@@ -9,6 +9,9 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {C} from "contracts/C.sol";
 
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
@@ -174,5 +177,76 @@ contract ConvertGettersFacet {
         uint256 rate
     ) external view returns (uint256 amountIn) {
         return LibConvert.getMaxAmountInAtRate(tokenIn, tokenOut, rate);
+    }
+
+    /**
+     * @notice Returns the bonus stalk per bdv and the maximum convert capacity.
+     */
+    function getConvertStalkPerBdvBonusAndMaximumCapacity()
+        external
+        view
+        returns (uint256, uint256)
+    {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        return (gv.bonusStalkPerBdv, gv.maxConvertCapacity);
+    }
+
+    /**
+     * @notice Returns the bonus stalk per bdv and the remaining convert capacity.
+     */
+    function getConvertStalkPerBdvBonusAndRemainingCapacity()
+        external
+        view
+        returns (uint256, uint256)
+    {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        uint256 convertCapacity = LibConvert.getConvertCapacity(gv.maxConvertCapacity);
+
+        if (gd.bdvConvertedThisSeason >= convertCapacity) {
+            return (gv.bonusStalkPerBdv, 0);
+        }
+
+        return (gv.bonusStalkPerBdv, convertCapacity - gd.bdvConvertedThisSeason);
+    }
+
+    /**
+     * @notice Returns the base bonus stalk per bdv for the current season.
+     */
+    function getCalculatedBonusStalkPerBdv() external view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+        return gv.bonusStalkPerBdv;
+    }
+
+    /**
+     * @notice Returns the amount of grown stalk gained from the convert up bonus.
+     * @param bdvToConvert The resulting bdv of the convert.
+     * @param grownStalk The initial grown stalk of the deposit.
+     * @return bdvCapacityUsed The amount of bdv that got the bonus.
+     * @return grownStalkGained The amount of grown stalk gained from the bonus.
+     */
+    function stalkBonus(
+        uint256 bdvToConvert,
+        uint256 grownStalk
+    ) external view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
+        return LibConvert.stalkBonus(bdvToConvert, grownStalk);
     }
 }

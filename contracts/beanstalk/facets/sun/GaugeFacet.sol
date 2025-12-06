@@ -10,10 +10,17 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {C} from "contracts/C.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
+import {LibGaugeLogic} from "contracts/libraries/Gauge/LibGaugeLogic.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
+import {LibMinting} from "contracts/libraries/Minting/LibMinting.sol";
+import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -39,6 +46,18 @@ interface IGaugeFacet {
         bytes memory,
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory);
+
+    function convertUpBonusGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory);
+
+    function lpDistributionUpdateGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external returns (bytes memory, bytes memory);
 }
 
 /**
@@ -48,6 +67,8 @@ interface IGaugeFacet {
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
     uint256 internal constant MAX_PENALTY_RATIO = 1e18;
+
+    // Convert Bonus Gauge Constants are defined in LibGaugeHelpers
 
     // Cultivation Factor Gauge Constants //
     uint256 internal constant SOIL_ALMOST_SOLD_OUT = type(uint32).max - 1;
@@ -165,7 +186,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @notice the convert down penalty gauge adds a penalty when converting down, in certain cases.
      * The penalty can be split into two parts:
      * 1) a mint penalty, which is applied when the system is below value target.
-     * 2) a subseqently penalty that decays over the course of N seasons.
+     * 2) a subsequently penalty that decays over the course of N seasons.
      *
      * @dev returned penalty ratio has 18 decimal precision.
      */
@@ -288,22 +309,108 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         return (abi.encode(gv), abi.encode(gd));
     }
 
+    /**
+     * @notice Calculates the stalk per bdv the protocol is willing to issue along with the
+     * corresponding bdv capacity.
+     * @return value
+     *  The gauge value is encoded as LibGaugeHelpers.ConvertBonusGaugeValue.
+     * @return gaugeData
+     *  The gaugeData are encoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData.
+     */
+    function convertUpBonusGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory) {
+        LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
+
+        // Decode Gauge Value and Data.
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            gaugeData,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        if (bs.twaDeltaB > 0) {
+            // If twaDeltaB is positive, reset capacity, bonus, capacity factor, and maxTwaDeltaB (no convert up bonus)
+            gv.maxConvertCapacity = 0;
+            gv.bonusStalkPerBdv = 0;
+            gv.convertCapacityFactor = 0;
+
+            // reset Convert maxTwaDeltaB.
+            gd.maxTwaDeltaB = 0;
+        } else {
+            // Update maxTwaDeltaB if current -twaDeltaB is larger.
+            if (uint256(-bs.twaDeltaB) > gd.maxTwaDeltaB) {
+                gd.maxTwaDeltaB = uint256(-bs.twaDeltaB);
+            }
+
+            (
+                LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
+                LibGaugeHelpers.ConvertDemand cd
+            ) = LibGaugeHelpers.getCapacityUtilizationAndConvertDemand(
+                    gd.bdvConvertedThisSeason,
+                    gd.bdvConvertedLastSeason,
+                    gv.maxConvertCapacity
+                );
+
+            (gv.convertCapacityFactor, gd.lastConvertBonusTaken) = LibGaugeHelpers
+                .updateConvertCapacityFactor(gv, gd, cbu, cd, bs.lpToSupplyRatio.value);
+
+            // Calculate target seasons based on podRate.
+            uint256 targetSeasons = LibGaugeHelpers.linearInterpolation(
+                bs.podRate.value,
+                false,
+                s.sys.evaluationParameters.podRateLowerBound,
+                s.sys.evaluationParameters.podRateUpperBound,
+                gd.minSeasonTarget,
+                gd.maxSeasonTarget
+            );
+
+            // Calculate convert capacity
+            // `twaDeltaB` and `targetSeasons` have 6 decimal precision.
+            // `convertCapacityFactor` has 8 decimal precision.
+            // 6 + 8 - 6 = 8 decimal precision.
+            uint256 maxConvertCapacity = (gd.maxTwaDeltaB * gv.convertCapacityFactor) /
+                targetSeasons /
+                100;
+
+            if (maxConvertCapacity < gd.minMaxConvertCapacity) {
+                maxConvertCapacity = gd.minMaxConvertCapacity;
+            }
+            gv.maxConvertCapacity = maxConvertCapacity;
+
+            // update the bonus stalk per bdv.
+            gv.bonusStalkPerBdv = LibGaugeHelpers.updateBonusStalkPerBdv(
+                gv.bonusStalkPerBdv,
+                cbu,
+                cd
+            );
+        }
+
+        // always reset bdv converted tracking for next season
+        gd.bdvConvertedLastSeason = gd.bdvConvertedThisSeason;
+        gd.bdvConvertedThisSeason = 0;
+
+        return (abi.encode(gv), abi.encode(gd));
+    }
+
+    /**
+     * @notice Updates the `optimalPercentDepositedBdv` for a list of whitelisted tokens.
+     * @dev
+     */
+    function lpDistributionUpdateGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external returns (bytes memory, bytes memory) {
+        return LibGaugeLogic.lpDistributionGauge(value, systemData, gaugeData);
+    }
+
     /// GAUGE ADD/REMOVE/UPDATE ///
-
-    // function addGauge(GaugeId gaugeId, Gauge memory gauge) external {
-    //     LibDiamond.enforceIsContractOwner();
-    //     LibGaugeHelpers.addGauge(gaugeId, gauge);
-    // }
-
-    // function removeGauge(GaugeId gaugeId) external {
-    //     LibDiamond.enforceIsContractOwner();
-    //     LibGaugeHelpers.removeGauge(gaugeId);
-    // }
-
-    // function updateGauge(GaugeId gaugeId, Gauge memory gauge) external {
-    //     LibDiamond.enforceIsContractOwner();
-    //     LibGaugeHelpers.updateGauge(gaugeId, gauge);
-    // }
 
     function getGauge(GaugeId gaugeId) external view returns (Gauge memory) {
         return s.sys.gaugeData.gauges[gaugeId];
@@ -319,22 +426,24 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     /**
      * @notice returns the result of calling a gauge.
+     * @dev does not support stateful gauges.
      */
     function getGaugeResult(
         Gauge memory gauge,
         bytes memory systemData
     ) external view returns (bytes memory, bytes memory) {
-        return LibGaugeHelpers.getGaugeResult(gauge, systemData);
+        return LibGaugeHelpers.getStatelessGaugeResult(gauge, systemData);
     }
 
     /**
      * @notice returns the result of calling a gauge by its id.
+     * @dev does not support stateful gauges.
      */
     function getGaugeIdResult(
         GaugeId gaugeId,
         bytes memory systemData
     ) external view returns (bytes memory, bytes memory) {
         Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
-        return LibGaugeHelpers.getGaugeResult(g, systemData);
+        return LibGaugeHelpers.getStatelessGaugeResult(g, systemData);
     }
 }

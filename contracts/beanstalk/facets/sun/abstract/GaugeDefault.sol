@@ -18,9 +18,6 @@ abstract contract GaugeDefault {
     uint256 private constant MAX_GAUGE_POINTS = 1000e18;
     uint256 private constant MAX_PERCENT = 100e6;
 
-    uint256 private constant UPPER_THRESHOLD = 10050;
-    uint256 private constant LOWER_THRESHOLD = 9950;
-    uint256 private constant THRESHOLD_PRECISION = 10000;
     uint256 private constant EXCESSIVELY_FAR = 66.666666e6;
     uint256 private constant RELATIVELY_FAR = 33.333333e6;
     uint256 private constant RELATIVELY_CLOSE = 10e6;
@@ -67,15 +64,9 @@ abstract contract GaugeDefault {
                 false
             );
 
-            // gauge points cannot go above MAX_GAUGE_POINTS.
-            if (deltaPoints + currentGaugePoints < MAX_GAUGE_POINTS) {
-                return currentGaugePoints + deltaPoints;
-            } else {
-                // Cap gaugePoints to MAX_GAUGE_POINTS if it exceeds.
-                return MAX_GAUGE_POINTS;
-            }
+            return currentGaugePoints + deltaPoints;
         } else {
-            // If % of deposited BDV is .5% within range of optimal,
+            // If % of deposited BDV is 10% within range of optimal,
             // keep gauge points the same.
             return currentGaugePoints;
         }

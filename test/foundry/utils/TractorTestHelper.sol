@@ -1,0 +1,521 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.6.0 <0.9.0;
+pragma abicoder v2;
+
+import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
+import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {SowBlueprintBase} from "contracts/ecosystem/tractor/blueprints/SowBlueprintBase.sol";
+import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
+import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import "forge-std/console.sol";
+
+contract TractorTestHelper is TestHelper {
+    // Add this at the top of the contract
+    TractorHelpers internal tractorHelpers;
+    SowBlueprint internal sowBlueprint;
+    SiloHelpers internal siloHelpers;
+    MowPlantHarvestBlueprint internal mowPlantHarvestBlueprint;
+
+    uint256 public constant DEFAULT_FIELD_ID = 0;
+    uint256 public constant PAYBACK_FIELD_ID = 1;
+
+    enum SourceMode {
+        PURE_PINTO,
+        LOWEST_PRICE,
+        LOWEST_SEED
+    }
+
+    function setTractorHelpers(address _tractorHelpers) internal {
+        tractorHelpers = TractorHelpers(_tractorHelpers);
+    }
+
+    function setSowBlueprintv0(address _sowBlueprintv0) internal {
+        sowBlueprint = SowBlueprint(_sowBlueprintv0);
+    }
+
+    function setSiloHelpers(address _siloHelpers) internal {
+        siloHelpers = SiloHelpers(_siloHelpers);
+    }
+
+    function setMowPlantHarvestBlueprint(address _mowPlantHarvestBlueprint) internal {
+        mowPlantHarvestBlueprint = MowPlantHarvestBlueprint(_mowPlantHarvestBlueprint);
+    }
+
+    function createRequisitionWithPipeCall(
+        address account,
+        bytes memory pipeCallData,
+        address beanstalkAddress
+    ) internal returns (IMockFBeanstalk.Requisition memory) {
+        // Create the blueprint
+        IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
+            publisher: account,
+            data: pipeCallData,
+            operatorPasteInstrs: new bytes32[](0),
+            maxNonce: type(uint256).max,
+            startTime: block.timestamp,
+            endTime: type(uint256).max
+        });
+
+        // Get the blueprint hash
+        bytes32 blueprintHash = IMockFBeanstalk(beanstalkAddress).getBlueprintHash(blueprint);
+
+        // Get the stored private key and sign
+        uint256 privateKey = getPrivateKey(account);
+        bytes memory signature = signBlueprint(blueprintHash, privateKey);
+
+        // Create and return the requisition
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: signature
+            });
+    }
+
+    function publishAccountRequisition(
+        address account,
+        IMockFBeanstalk.Requisition memory req
+    ) internal {
+        vm.prank(account);
+        bs.publishRequisition(req);
+    }
+
+    /**
+     * @notice Create a requisition for ERC1271 contract publishers (no ECDSA signing)
+     * @dev For ERC1271, the signature is validated by the contract itself via isValidSignature()
+     */
+    function createRequisitionWithPipeCallERC1271(
+        address contractPublisher,
+        bytes memory pipeCallData,
+        address beanstalkAddress
+    ) internal view returns (IMockFBeanstalk.Requisition memory) {
+        // Create the blueprint
+        IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
+            publisher: contractPublisher,
+            data: pipeCallData,
+            operatorPasteInstrs: new bytes32[](0),
+            maxNonce: type(uint256).max,
+            startTime: block.timestamp,
+            endTime: type(uint256).max
+        });
+
+        // Get the blueprint hash
+        bytes32 blueprintHash = IMockFBeanstalk(beanstalkAddress).getBlueprintHash(blueprint);
+
+        // For ERC1271, we provide a dummy signature
+        // The actual validation happens in the contract's isValidSignature() method
+        bytes memory dummySignature = new bytes(65);
+
+        // Create and return the requisition
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: dummySignature
+            });
+    }
+
+    function executeRequisition(
+        address user,
+        IMockFBeanstalk.Requisition memory req,
+        address beanstalkAddress
+    ) internal {
+        vm.prank(user);
+        IMockFBeanstalk(beanstalkAddress).tractor(
+            IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature),
+            ""
+        );
+    }
+
+    // Helper function to sign blueprints
+    function signBlueprint(bytes32 hash, uint256 pk) internal returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, hash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /**
+     * @notice Helper function to setup a blueprint for withdrawing beans
+     */
+    function setupWithdrawBeansBlueprint(
+        address account,
+        uint256 withdrawAmount,
+        uint8[] memory sourceTokenIndices,
+        uint256 maxGrownStalkPerBdv,
+        LibTransfer.To mode
+    ) internal returns (IMockFBeanstalk.Requisition memory) {
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        filterParams.maxGrownStalkPerBdv = maxGrownStalkPerBdv;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        // Create the withdrawBeansFromSources pipe call
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(siloHelpers),
+            callData: abi.encodeWithSelector(
+                SiloHelpers.withdrawBeansFromSources.selector,
+                account,
+                sourceTokenIndices,
+                withdrawAmount,
+                filterParams,
+                0.01e18, // 1%
+                uint8(mode),
+                emptyPlan
+            ),
+            clipboard: hex"0000"
+        });
+
+        // Wrap the pipe calls in a farm call
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+
+        // Encode the advancedFarm call
+        bytes memory data = abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+
+        // Create the blueprint
+        IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
+            publisher: account,
+            data: data,
+            operatorPasteInstrs: new bytes32[](0),
+            maxNonce: type(uint256).max,
+            startTime: block.timestamp,
+            endTime: type(uint256).max
+        });
+
+        // Get the blueprint hash
+        bytes32 blueprintHash = bs.getBlueprintHash(blueprint);
+
+        // Get the stored private key and sign
+        uint256 privateKey = getPrivateKey(account);
+        bytes memory signature = signBlueprint(blueprintHash, privateKey);
+
+        // Create and return the requisition
+        return
+            IMockFBeanstalk.Requisition({
+                blueprint: blueprint,
+                blueprintHash: blueprintHash,
+                signature: signature
+            });
+    }
+
+    //////////////////////////// SowBlueprintv0 ////////////////////////////
+
+    // Helper function that takes SowAmounts struct
+    function setupSowBlueprintv0Blueprint(
+        address account,
+        SourceMode sourceMode,
+        SowBlueprintBase.SowAmounts memory sowAmounts,
+        uint256 minTemp,
+        int256 operatorTipAmount,
+        address tipAddress,
+        uint256 maxPodlineLength,
+        uint256 maxGrownStalkLimitPerBdv,
+        uint256 runBlocksAfterSunrise
+    )
+        public
+        returns (
+            IMockFBeanstalk.Requisition memory,
+            SowBlueprintBase.SowBlueprintStruct memory params
+        )
+    {
+        // Create the SowBlueprintStruct using the helper function
+        params = createSowBlueprintStruct(
+            uint8(sourceMode),
+            sowAmounts,
+            minTemp,
+            operatorTipAmount,
+            tipAddress,
+            maxPodlineLength,
+            maxGrownStalkLimitPerBdv,
+            runBlocksAfterSunrise,
+            address(tractorHelpers),
+            address(bs)
+        );
+
+        // Create the pipe call data
+        bytes memory pipeCallData = createSowBlueprintv0CallData(params);
+
+        // Create the requisition using the pipe call data
+        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
+            account,
+            pipeCallData,
+            address(bs)
+        );
+
+        // Publish the requisition
+        publishAccountRequisition(account, req);
+
+        return (req, params);
+    }
+
+    // Helper function to create SowBlueprintStruct
+    function createSowBlueprintStruct(
+        uint8 sourceMode,
+        SowBlueprintBase.SowAmounts memory sowAmounts,
+        uint256 minTemp,
+        int256 operatorTipAmount,
+        address tipAddress,
+        uint256 maxPodlineLength,
+        uint256 maxGrownStalkLimitPerBdv,
+        uint256 runBlocksAfterSunrise,
+        address tractorHelpersAddress,
+        address bsAddress
+    ) internal view returns (SowBlueprintBase.SowBlueprintStruct memory) {
+        // Create default whitelisted operators array with msg.sender
+        address[] memory whitelistedOps = new address[](3);
+        whitelistedOps[0] = msg.sender;
+        whitelistedOps[1] = tipAddress;
+        whitelistedOps[2] = address(this);
+
+        // Create array with single index for the token based on source mode
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
+            sourceTokenIndices[0] = TractorHelpers(tractorHelpersAddress).getTokenIndex(
+                IMockFBeanstalk(bsAddress).getBeanToken()
+            );
+        } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
+            sourceTokenIndices[0] = type(uint8).max;
+        } else {
+            // LOWEST_SEED
+            sourceTokenIndices[0] = type(uint8).max - 1;
+        }
+
+        // Create SowParams struct
+        SowBlueprintBase.SowParams memory sowParams = SowBlueprintBase.SowParams({
+            sourceTokenIndices: sourceTokenIndices,
+            sowAmounts: sowAmounts,
+            minTemp: minTemp,
+            maxPodlineLength: maxPodlineLength,
+            maxGrownStalkPerBdv: maxGrownStalkLimitPerBdv,
+            runBlocksAfterSunrise: runBlocksAfterSunrise,
+            slippageRatio: 0.01e18 // 1%
+        });
+
+        // Create OperatorParams struct
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
+            whitelistedOperators: whitelistedOps,
+            tipAddress: tipAddress,
+            operatorTipAmount: operatorTipAmount
+        });
+
+        return SowBlueprintBase.SowBlueprintStruct({sowParams: sowParams, opParams: opParams});
+    }
+
+    // Helper to create the calldata for sowBlueprint
+    function createSowBlueprintv0CallData(
+        SowBlueprintBase.SowBlueprintStruct memory params
+    ) internal view returns (bytes memory) {
+        // Create the sowBlueprint pipe call
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(sowBlueprint),
+            callData: abi.encodeWithSelector(SowBlueprint.sowBlueprint.selector, params),
+            clipboard: hex"0000"
+        });
+
+        // Wrap the pipe calls in a farm call
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+
+        // Return the encoded farm call
+        return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    }
+
+    //////////////////////////// MowPlantHarvestBlueprint ////////////////////////////
+
+    function setupMowPlantHarvestBlueprint(
+        address account,
+        SourceMode sourceMode,
+        uint256 minMowAmount,
+        uint256 mintwaDeltaB,
+        uint256 minPlantAmount,
+        uint256 minHarvestAmount,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount,
+        uint256 maxGrownStalkPerBdv
+    )
+        internal
+        returns (
+            IMockFBeanstalk.Requisition memory,
+            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+        )
+    {
+        // build struct params
+        params = createMowPlantHarvestBlueprintStruct(
+            uint8(sourceMode),
+            minMowAmount,
+            mintwaDeltaB,
+            minPlantAmount,
+            minHarvestAmount,
+            tipAddress,
+            mowTipAmount,
+            plantTipAmount,
+            harvestTipAmount,
+            maxGrownStalkPerBdv
+        );
+
+        // create pipe call data
+        bytes memory pipeCallData = createMowPlantHarvestBlueprintCallData(params);
+
+        // create requisition
+        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
+            account,
+            pipeCallData,
+            address(bs)
+        );
+
+        // publish requisition
+        publishAccountRequisition(account, req);
+
+        return (req, params);
+    }
+
+    // Creates and returns the struct params for the mowPlantHarvestBlueprint
+    function createMowPlantHarvestBlueprintStruct(
+        uint8 sourceMode,
+        uint256 minMowAmount,
+        uint256 mintwaDeltaB,
+        uint256 minPlantAmount,
+        uint256 minHarvestAmount,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount,
+        uint256 maxGrownStalkPerBdv
+    ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {
+        // Create default whitelisted operators array with msg.sender
+        address[] memory whitelistedOps = new address[](3);
+        whitelistedOps[0] = msg.sender;
+        whitelistedOps[1] = tipAddress;
+        whitelistedOps[2] = address(this);
+
+        // Create array with single index for the token based on source mode
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
+                IMockFBeanstalk(address(bs)).getBeanToken()
+            );
+        } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
+            sourceTokenIndices[0] = type(uint8).max;
+        } else {
+            // LOWEST_SEED
+            sourceTokenIndices[0] = type(uint8).max - 1;
+        }
+
+        // create per-field-id harvest configs
+        MowPlantHarvestBlueprint.FieldHarvestConfig[]
+            memory fieldHarvestConfigs = createFieldHarvestConfigs(minHarvestAmount);
+
+        // Create MowPlantHarvestParams struct
+        MowPlantHarvestBlueprint.MowPlantHarvestParams
+            memory mowPlantHarvestParams = MowPlantHarvestBlueprint.MowPlantHarvestParams({
+                minMowAmount: minMowAmount,
+                mintwaDeltaB: mintwaDeltaB,
+                minPlantAmount: minPlantAmount,
+                fieldHarvestConfigs: fieldHarvestConfigs,
+                sourceTokenIndices: sourceTokenIndices,
+                maxGrownStalkPerBdv: maxGrownStalkPerBdv,
+                slippageRatio: 0.01e18 // 1%
+            });
+
+        // create OperatorParamsExtended struct
+        MowPlantHarvestBlueprint.OperatorParamsExtended
+            memory opParamsExtended = createOperatorParamsExtended(
+                whitelistedOps,
+                tipAddress,
+                mowTipAmount,
+                plantTipAmount,
+                harvestTipAmount
+            );
+
+        return
+            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
+                mowPlantHarvestParams: mowPlantHarvestParams,
+                opParams: opParamsExtended
+            });
+    }
+
+    function createFieldHarvestConfigs(
+        uint256 minHarvestAmount
+    )
+        internal
+        view
+        returns (MowPlantHarvestBlueprint.FieldHarvestConfig[] memory fieldHarvestConfigs)
+    {
+        fieldHarvestConfigs = new MowPlantHarvestBlueprint.FieldHarvestConfig[](2);
+        // default field id
+        fieldHarvestConfigs[0] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+            fieldId: DEFAULT_FIELD_ID,
+            minHarvestAmount: minHarvestAmount
+        });
+        // expected payback field id
+        fieldHarvestConfigs[1] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+            fieldId: PAYBACK_FIELD_ID,
+            minHarvestAmount: minHarvestAmount
+        });
+        return fieldHarvestConfigs;
+    }
+
+    function createMowPlantHarvestBlueprintCallData(
+        MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+    ) internal view returns (bytes memory) {
+        // create the mowPlantHarvestBlueprint pipe call
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(mowPlantHarvestBlueprint),
+            callData: abi.encodeWithSelector(
+                MowPlantHarvestBlueprint.mowPlantHarvestBlueprint.selector,
+                params
+            ),
+            clipboard: hex"0000"
+        });
+
+        // wrap the pipe calls in a farm call
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+
+        // return the encoded farm call
+        return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
+    }
+
+    function createOperatorParamsExtended(
+        address[] memory whitelistedOps,
+        address tipAddress,
+        int256 mowTipAmount,
+        int256 plantTipAmount,
+        int256 harvestTipAmount
+    ) internal view returns (MowPlantHarvestBlueprint.OperatorParamsExtended memory) {
+        // create OperatorParams struct
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
+            whitelistedOperators: whitelistedOps,
+            tipAddress: tipAddress,
+            operatorTipAmount: 0 // plain operator tip amount is not used in this blueprint
+        });
+
+        // create OperatorParamsExtended struct
+        MowPlantHarvestBlueprint.OperatorParamsExtended
+            memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
+                opParamsBase: opParams,
+                mowTipAmount: mowTipAmount,
+                plantTipAmount: plantTipAmount,
+                harvestTipAmount: harvestTipAmount
+            });
+
+        return opParamsExtended;
+    }
+}

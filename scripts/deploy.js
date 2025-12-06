@@ -268,7 +268,8 @@ async function getFacetData() {
 
   // A list of public libraries that need to be deployed separately.
   libraryNames = [
-    "LibGauge",
+    "LibTokenSilo",
+    "LibSeedGauge",
     "LibIncentive",
     "LibConvert",
     "LibWellMinting",
@@ -286,7 +287,7 @@ async function getFacetData() {
   // MockFacets will be deployed with the same public libraries.
   facetLibraries = {
     SeasonFacet: [
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibWellMinting",
       "LibGerminate",
@@ -296,7 +297,7 @@ async function getFacetData() {
       "LibWeather"
     ],
     ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-    PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+    PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
     SeasonGettersFacet: ["LibWellMinting"],
     SiloFacet: ["LibSilo", "LibTokenSilo"],
     ClaimFacet: ["LibSilo", "LibTokenSilo"]
@@ -305,7 +306,9 @@ async function getFacetData() {
   // A mapping of external libraries to external libraries that need to be linked.
   // note: if a library depends on another library, the dependency will need to come
   // before itself in `libraryNames`
-  libraryLinks = {};
+  libraryLinks = {
+    LibConvert: ["LibTokenSilo"]
+  };
 
   return [facets, libraryNames, facetLibraries, libraryLinks];
 }
