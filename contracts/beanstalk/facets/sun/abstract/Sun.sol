@@ -19,7 +19,7 @@ import {LibDibbler} from "contracts/libraries/LibDibbler.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {Gauge} from "contracts/beanstalk/storage/System.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**

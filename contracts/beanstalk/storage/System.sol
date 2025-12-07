@@ -18,7 +18,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param referralBeanSownEligibilityThreshold The number of beans that a user will need to sow to be eligible for referral rewards.
  * @param initialSoil The amount of Soil at the start of the season.
+ * @param referrerPercentage The percentage of pods that a user will gain for successfully referring a user to sow. 18 decimal precision.
+ * @param refereePercentage The percentage of pods that a user will gain for successfully being referred by a user to sow. 18 decimal precision.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -54,8 +57,11 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
+    uint128 referralBeanSownEligibilityThreshold;
     uint128 initialSoil;
-    bytes32[15] _buffer_0;
+    uint128 referrerPercentage;
+    uint128 refereePercentage;
+    bytes32[14] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;
@@ -178,7 +184,7 @@ struct Weather {
  * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should have the highest incentive,
- * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
+ * and that beans will have the minimum seeds ratio. see {LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled}
  */
 struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;
@@ -348,10 +354,18 @@ struct Implementation {
     bytes data;
 }
 
+/**
+ * @notice Stores the data for the gauges.
+ * @param gaugeIds The ids of the gauges.
+ * @param gauges The gauges.
+ * @param stateful Whether the gauge is stateful.
+ * @param _buffer Reserved storage for future expansion.
+ */
 struct GaugeData {
     GaugeId[] gaugeIds;
     mapping(GaugeId => Gauge) gauges;
-    bytes32[16] _buffer;
+    mapping(GaugeId => bool) stateful;
+    bytes32[15] _buffer;
 }
 
 /**
@@ -503,5 +517,6 @@ enum ShipmentRecipient {
 enum GaugeId {
     CULTIVATION_FACTOR,
     CONVERT_DOWN_PENALTY,
-    CONVERT_UP_BONUS
+    CONVERT_UP_BONUS,
+    LP_DISTRIBUTION
 }

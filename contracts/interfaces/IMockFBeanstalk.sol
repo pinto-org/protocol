@@ -308,6 +308,11 @@ interface IMockFBeanstalk {
         bool oracleFailure;
     }
 
+    struct ContractData {
+        uint256 key;
+        bytes value;
+    }
+
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();
@@ -1179,7 +1184,9 @@ interface IMockFBeanstalk {
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB);
 
-    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) external view returns (address publisher, uint256 count);
 
     function getReceiver(address owner) external view returns (address);
 
@@ -1651,6 +1658,10 @@ interface IMockFBeanstalk {
 
     function setSoilE(uint256 amount) external;
 
+    function setReferrerPercentageE(uint128 percentage) external;
+
+    function setRefereePercentageE(uint128 percentage) external;
+
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
     function setSunriseBlock(uint256 _block) external;
@@ -1698,7 +1709,7 @@ interface IMockFBeanstalk {
 
     function stemTipForToken(address token) external view returns (int96 _stemTip);
 
-    function stepGauge() external;
+    function stepSeedGauge() external;
 
     function sunSunrise(int256 deltaB, uint256 caseId, BeanstalkState memory bs) external;
 
@@ -1761,6 +1772,12 @@ interface IMockFBeanstalk {
     function tractor(
         Requisition memory requisition,
         bytes memory operatorData
+    ) external payable returns (bytes[] memory results);
+
+    function tractorDynamicData(
+        Requisition calldata requisition,
+        bytes memory operatorData,
+        ContractData[] memory operatorDynamicData
     ) external payable returns (bytes[] memory results);
 
     function transferDeposit(
@@ -1916,6 +1933,7 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
+
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1998,4 +2016,8 @@ interface IMockFBeanstalk {
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
 
     function getSeedsForToken(address token) external view returns (uint256 seeds);
+
+    function setReferralEligibility(address referrer, bool eligible) external;
+
+    function getTractorData(uint256 key) external view returns (bytes memory);
 }

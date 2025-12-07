@@ -2055,6 +2055,49 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "referrerIndex",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "referrerPods",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "referee",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "refereeIndex",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "refereePods",
+        "type": "uint256"
+      }
+    ],
+    "name": "SowReferral",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "activeField",
     "outputs": [
@@ -2112,6 +2155,19 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "delegate",
+        "type": "address"
+      }
+    ],
+    "name": "delegateReferralRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "fieldCount",
     "outputs": [
@@ -2132,6 +2188,57 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBeanSownEligibilityThreshold",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "getBeansSownForReferral",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "getDelegate",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -2192,6 +2299,32 @@
         "internalType": "struct FieldFacet.Plot[]",
         "name": "plots",
         "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getRefereePercentage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getReferrerPercentage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -2293,6 +2426,25 @@
       }
     ],
     "name": "isHarvesting",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "isValidReferrer",
     "outputs": [
       {
         "internalType": "bool",
@@ -2456,6 +2608,55 @@
       }
     ],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "beans",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minTemperature",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minSoil",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum LibTransfer.From",
+        "name": "mode",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "referral",
+        "type": "address"
+      }
+    ],
+    "name": "sowWithReferral",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "pods",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "referrerPods",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refereePods",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -10631,6 +10832,40 @@
   {
     "inputs": [
       {
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "systemData",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "gaugeData",
+        "type": "bytes"
+      }
+    ],
+    "name": "lpDistributionUpdateGauge",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "value",
         "type": "uint256"
@@ -11309,6 +11544,50 @@
       }
     ],
     "name": "setPrevSeasonAndCultivationTemp",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint128",
+        "name": "percentage",
+        "type": "uint128"
+      }
+    ],
+    "name": "setRefereePercentageE",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "eligible",
+        "type": "bool"
+      }
+    ],
+    "name": "setReferralEligibility",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint128",
+        "name": "percentage",
+        "type": "uint128"
+      }
+    ],
+    "name": "setReferrerPercentageE",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -12603,7 +12882,7 @@
   },
   {
     "inputs": [],
-    "name": "stepGauge",
+    "name": "stepSeedGauge",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

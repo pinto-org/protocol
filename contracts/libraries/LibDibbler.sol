@@ -15,7 +15,7 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
-import {LibGaugeHelpers} from "./LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "./Gauge/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
 
 /**
@@ -69,14 +69,31 @@ library LibDibbler {
      */
     event SoilSoldOut(uint256 secondsSinceStart);
 
+    /**
+     * @notice Emitted from {LibDibbler._sow} when an `account` sows Beans for Pods, and has a referral.
+     * @param referrer The account that referred the `account`
+     * @param referee The account that was referred by the `referrer`
+     * @param referrerPods The amount of Pods associated with the referral
+     * @param refereePods The amount of Pods associated with the referee
+     */
+    event SowReferral(
+        address indexed referrer,
+        uint256 referrerIndex,
+        uint256 referrerPods,
+        address indexed referee,
+        uint256 refereeIndex,
+        uint256 refereePods
+    );
+
     //////////////////// SOW ////////////////////
 
     function sowWithMin(
         uint256 beans,
         uint256 minTemperature,
         uint256 minSoil,
-        LibTransfer.From mode
-    ) internal returns (uint256 pods) {
+        LibTransfer.From mode,
+        address referral
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
         // `soil` is the remaining Soil
         (uint256 soil, uint256 _morningTemperature, bool abovePeg) = _totalSoilAndTemperature();
 
@@ -89,7 +106,13 @@ library LibDibbler {
         }
 
         // 1 Bean is Sown in 1 Soil, i.e. soil = beans
-        pods = _sow(soil, _morningTemperature, abovePeg, mode);
+        (pods, referrerPods, refereePods) = _sow(
+            soil,
+            _morningTemperature,
+            abovePeg,
+            mode,
+            referral
+        );
     }
 
     /**
@@ -100,11 +123,17 @@ library LibDibbler {
         uint256 beans,
         uint256 _morningTemperature,
         bool peg,
-        LibTransfer.From mode
-    ) internal returns (uint256 pods) {
+        LibTransfer.From mode,
+        address referrer
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, LibTractor._user(), mode);
-        pods = sow(beans, _morningTemperature, LibTractor._user(), peg);
+        address user = LibTractor._user();
+        beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, user, mode);
+        (pods, ) = sow(beans, _morningTemperature, user, peg, true);
+        updateReferralEligibility(user, beans);
+        if (isValidReferral(referrer, user)) {
+            (referrerPods, refereePods) = sowBonus(beans, _morningTemperature, referrer, user, peg);
+        }
         s.sys.beanSown += SafeCast.toUint128(beans);
     }
 
@@ -135,8 +164,9 @@ library LibDibbler {
         uint256 beans,
         uint256 _morningTemperature,
         address account,
-        bool abovePeg
-    ) internal returns (uint256) {
+        bool abovePeg,
+        bool useSoil
+    ) internal returns (uint256, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 activeField = s.sys.activeField;
 
@@ -158,10 +188,17 @@ library LibDibbler {
         require(pods > 0, "Pods must be greater than 0");
 
         // In the case of an overflow, its equivalent to having no soil left.
-        if (s.sys.soil < soilUsed) {
-            s.sys.soil = 0;
+        if (useSoil) {
+            if (s.sys.soil < soilUsed) {
+                s.sys.soil = 0;
+            } else {
+                s.sys.soil = s.sys.soil.sub(uint128(soilUsed));
+            }
         } else {
-            s.sys.soil = s.sys.soil.sub(uint128(soilUsed));
+            // beans are set to 0, as soil is not being consumed.
+            // this is equivalent to creating a plot without sowing.
+            // currently, this is used in the Pod Referral system.
+            beans = 0;
         }
 
         uint256 index = s.sys.fields[activeField].pods;
@@ -175,7 +212,7 @@ library LibDibbler {
 
         s.sys.fields[activeField].pods += pods;
         _saveSowTime();
-        return pods;
+        return (pods, index);
     }
 
     /**
@@ -465,5 +502,81 @@ library LibDibbler {
                 ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /
             SOLD_OUT_PRECISION +
             soilSoldOutThreshold;
+    }
+
+    // REFERRAL BONUS //
+
+    /**
+     * @notice internal function for sowing referral plots.
+     */
+    function sowBonus(
+        uint256 beans,
+        uint256 _morningTemperature,
+        address referrer,
+        address referee,
+        bool peg
+    ) internal returns (uint256 referrerPods, uint256 refereePods) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        if (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0) {
+            uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
+            uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
+            uint256 referrerIndex;
+            uint256 refereeIndex;
+            if (refereeBeans > 0) {
+                (refereePods, refereeIndex) = sow(
+                    refereeBeans,
+                    _morningTemperature,
+                    referee,
+                    peg,
+                    false
+                );
+            }
+            if (referrerBeans > 0) {
+                (referrerPods, referrerIndex) = sow(
+                    referrerBeans,
+                    _morningTemperature,
+                    referrer,
+                    peg,
+                    false
+                );
+            }
+            emit SowReferral(
+                referrer,
+                referrerIndex,
+                referrerPods,
+                referee,
+                refereeIndex,
+                refereePods
+            );
+        }
+        return (referrerPods, refereePods);
+    }
+
+    /**
+     * @notice internal function for checking if a referral is valid.
+     * a valid referral is one where the referral address is not the zero address and not the sower's address,
+     * AND the referral address is eligible to be a referrer.
+     */
+    function isValidReferral(address referrer, address referee) internal view returns (bool) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 af = s.sys.activeField;
+        return
+            s.accts[referrer].fields[af].referral.eligibility == true &&
+            referrer != referee &&
+            referrer != address(0);
+    }
+
+    function updateReferralEligibility(address user, uint256 beanSown) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 af = s.sys.activeField;
+        // increment the number of beans the user has sown for referrals.
+        s.accts[user].fields[af].referral.beans += uint128(beanSown);
+        // if the user is not eligible already, increment their eligibility sown
+        if (
+            !s.accts[user].fields[af].referral.eligibility &&
+            s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold
+        ) {
+            s.accts[user].fields[af].referral.eligibility = true;
+        }
     }
 }
