@@ -445,9 +445,10 @@ abstract contract SowBlueprintBase is BlueprintBase {
      * @notice Validates operator parameters (memory version for internal calls)
      */
     function _validateOperatorParamsMemory(OperatorParams memory opParams) internal view {
+        address currentOperator = beanstalk.operator();
         bool isWhitelisted = false;
         for (uint256 i = 0; i < opParams.whitelistedOperators.length; i++) {
-            if (opParams.whitelistedOperators[i] == msg.sender) {
+            if (opParams.whitelistedOperators[i] == currentOperator) {
                 isWhitelisted = true;
                 break;
             }
