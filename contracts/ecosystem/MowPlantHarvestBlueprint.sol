@@ -22,7 +22,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @dev Key for operator-provided harvest data in transient storage
      * The key format is: HARVEST_DATA_KEY + fieldId
      */
-    uint256 public constant HARVEST_DATA_KEY = uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
+    uint256 public constant HARVEST_DATA_KEY =
+        uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
 
     /**
      * @notice Main struct for mow, plant and harvest blueprint
@@ -368,25 +369,25 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         userFieldHarvestResults = new UserFieldHarvestResults[](fieldHarvestConfigs.length);
         for (uint256 i = 0; i < fieldHarvestConfigs.length; i++) {
             uint256 fieldId = fieldHarvestConfigs[i].fieldId;
-            
+
             // Read operator-provided data from transient storage
             bytes memory operatorData = beanstalk.getTractorData(HARVEST_DATA_KEY + fieldId);
-            
+
             // Operator must provide harvest data for each configured field
             require(
                 operatorData.length > 0,
                 "MowPlantHarvestBlueprint: Missing operator harvest data"
             );
-            
+
             // Decode operator-provided harvest data
             OperatorHarvestData memory harvestData = abi.decode(
                 operatorData,
                 (OperatorHarvestData)
             );
-            
+
             // Validate the operator-provided data
             _validateOperatorHarvestData(account, fieldId, harvestData);
-            
+
             // Use validated operator data
             userFieldHarvestResults[i] = UserFieldHarvestResults({
                 fieldId: fieldId,
@@ -397,7 +398,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestResults);
     }
-
 
     /**
      * @notice Validates operator-provided harvest data
@@ -416,23 +416,20 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             harvestData.fieldId == expectedFieldId,
             "MowPlantHarvestBlueprint: Field ID mismatch"
         );
-        
+
         uint256 harvestableIndex = beanstalk.harvestableIndex(harvestData.fieldId);
         uint256 calculatedTotalPods = 0;
-        
+
         for (uint256 i = 0; i < harvestData.harvestablePlotIndexes.length; i++) {
             uint256 plotIndex = harvestData.harvestablePlotIndexes[i];
             uint256 plotPods = beanstalk.plot(account, harvestData.fieldId, plotIndex);
-            
+
             // Verify plot exists and belongs to account
             require(plotPods > 0, "MowPlantHarvestBlueprint: Invalid plot index");
-            
+
             // Verify plot is harvestable (at least partially)
-            require(
-                plotIndex < harvestableIndex,
-                "MowPlantHarvestBlueprint: Plot not harvestable"
-            );
-            
+            require(plotIndex < harvestableIndex, "MowPlantHarvestBlueprint: Plot not harvestable");
+
             // Calculate actual harvestable pods for this plot
             if (plotIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
@@ -442,15 +439,13 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                 calculatedTotalPods += harvestableIndex - plotIndex;
             }
         }
-        
+
         // Verify operator's total matches calculated total
         require(
             calculatedTotalPods == harvestData.totalHarvestablePods,
             "MowPlantHarvestBlueprint: Invalid total harvestable pods"
         );
     }
-
-
 
     /**
      * @dev validates the parameters for the mow, plant and harvest operation

@@ -164,14 +164,14 @@ contract TractorTestHelper is TestHelper {
         uint256[] memory fieldIds
     ) internal view returns (IMockFBeanstalk.ContractData[] memory dynamicData) {
         dynamicData = new IMockFBeanstalk.ContractData[](fieldIds.length);
-        
+
         for (uint256 i = 0; i < fieldIds.length; i++) {
             uint256 fieldId = fieldIds[i];
-            
+
             // Get harvestable plot data
-            MowPlantHarvestBlueprint.OperatorHarvestData memory harvestData = 
-                _getOperatorHarvestData(account, fieldId);
-            
+            MowPlantHarvestBlueprint.OperatorHarvestData
+                memory harvestData = _getOperatorHarvestData(account, fieldId);
+
             // Create ContractData with key = HARVEST_DATA_KEY + fieldId
             uint256 key = mowPlantHarvestBlueprint.HARVEST_DATA_KEY() + fieldId;
             dynamicData[i] = IMockFBeanstalk.ContractData({
@@ -192,23 +192,23 @@ contract TractorTestHelper is TestHelper {
         // Get plot indexes for the account
         uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, fieldId);
         uint256 harvestableIndex = bs.harvestableIndex(fieldId);
-        
+
         if (plotIndexes.length == 0) {
             harvestData.fieldId = fieldId;
             harvestData.harvestablePlotIndexes = new uint256[](0);
             harvestData.totalHarvestablePods = 0;
             return harvestData;
         }
-        
+
         // Temporary array to collect harvestable plots
         uint256[] memory tempPlots = new uint256[](plotIndexes.length);
         uint256 harvestableCount = 0;
         uint256 totalPods = 0;
-        
+
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             uint256 plotIndex = plotIndexes[i];
             uint256 plotPods = bs.plot(account, fieldId, plotIndex);
-            
+
             if (plotIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
                 tempPlots[harvestableCount] = plotIndex;
@@ -221,13 +221,13 @@ contract TractorTestHelper is TestHelper {
                 harvestableCount++;
             }
         }
-        
+
         // Resize to actual count
         uint256[] memory harvestablePlots = new uint256[](harvestableCount);
         for (uint256 i = 0; i < harvestableCount; i++) {
             harvestablePlots[i] = tempPlots[i];
         }
-        
+
         harvestData.fieldId = fieldId;
         harvestData.harvestablePlotIndexes = harvestablePlots;
         harvestData.totalHarvestablePods = totalPods;

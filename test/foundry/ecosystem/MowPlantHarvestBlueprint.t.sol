@@ -165,7 +165,9 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Pre-calculate harvest data BEFORE expectRevert (to avoid consuming the expectation)
-        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
+            state.user
+        );
 
         // Try to execute before the last minutes of the season, expect revert
         vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
@@ -213,7 +215,9 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Pre-calculate harvest data BEFORE expectRevert
-        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
+            state.user
+        );
 
         // Execute requisition, expect revert
         vm.expectRevert("Min plant amount must be greater than plant tip amount");
@@ -244,7 +248,9 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Pre-calculate harvest data BEFORE expectRevert
-        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
+            state.user
+        );
 
         // Execute requisition, expect revert
         vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
@@ -321,7 +327,9 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Pre-calculate harvest data BEFORE expectRevert
-        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
+            state.user
+        );
 
         // Execute requisition, expect revert
         vm.expectRevert("Min harvest amount must be greater than harvest tip amount");
@@ -614,5 +622,3 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         executeRequisitionWithDynamicData(operator, req, address(bs), dynamicData);
     }
 }
-
-
