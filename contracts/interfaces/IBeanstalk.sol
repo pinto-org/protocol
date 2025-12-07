@@ -224,6 +224,8 @@ interface IBeanstalk {
 
     function tractorUser() external view returns (address payable);
 
+    function getTractorData(uint256 key) external view returns (bytes memory);
+
     function transferDeposits(
         address sender,
         address recipient,

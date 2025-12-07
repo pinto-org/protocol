@@ -19,6 +19,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     uint256 public constant MINUTES_AFTER_SUNRISE = 55 minutes;
 
     /**
+     * @dev Key for operator-provided harvest data in transient storage
+     * The key format is: HARVEST_DATA_KEY + fieldId
+     */
+    uint256 public constant HARVEST_DATA_KEY = uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
+
+    /**
      * @notice Main struct for mow, plant and harvest blueprint
      * @param mowPlantHarvestParams Parameters related to mow, plant and harvest
      * @param opParams Parameters related to operators
@@ -48,6 +54,19 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256 fieldId;
         uint256 totalHarvestablePods;
         uint256[] harvestablePlots;
+    }
+
+    /**
+     * @notice Struct for operator-provided harvest data via dynamic calldata
+     * @dev Operator passes this via tractorDynamicData to avoid on-chain plot iteration
+     * @param fieldId The field ID this data is for
+     * @param harvestablePlotIndexes Array of harvestable plot indexes
+     * @param totalHarvestablePods Pre-calculated total harvestable pods
+     */
+    struct OperatorHarvestData {
+        uint256 fieldId;
+        uint256[] harvestablePlotIndexes;
+        uint256 totalHarvestablePods;
     }
 
     /**
@@ -314,8 +333,10 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
     /**
      * @notice helper function to get the user state to compare against parameters
-     * @dev Increasing the total claimable stalk when planting or harvesting does not really matter
-     * since we mow by default if we plant or harvest
+     * @dev Uses operator-provided harvest data from transient storage.
+     * Reverts if no data is provided.
+     * Increasing the total claimable stalk when planting or harvesting does not really matter
+     * since we mow by default if we plant or harvest.
      */
     function _getUserState(
         address account,
@@ -343,64 +364,93 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // check if user has plantable beans
         totalPlantableBeans = beanstalk.balanceOfEarnedBeans(account);
 
-        // for every field id, check if user has harvestable beans and append results
+        // for every field id, read operator-provided harvest data via dynamic calldata
         userFieldHarvestResults = new UserFieldHarvestResults[](fieldHarvestConfigs.length);
         for (uint256 i = 0; i < fieldHarvestConfigs.length; i++) {
-            userFieldHarvestResults[i] = _userHarvestablePods(
-                account,
-                fieldHarvestConfigs[i].fieldId
+            uint256 fieldId = fieldHarvestConfigs[i].fieldId;
+            
+            // Read operator-provided data from transient storage
+            bytes memory operatorData = beanstalk.getTractorData(HARVEST_DATA_KEY + fieldId);
+            
+            // Operator must provide harvest data for each configured field
+            require(
+                operatorData.length > 0,
+                "MowPlantHarvestBlueprint: Missing operator harvest data"
             );
+            
+            // Decode operator-provided harvest data
+            OperatorHarvestData memory harvestData = abi.decode(
+                operatorData,
+                (OperatorHarvestData)
+            );
+            
+            // Validate the operator-provided data
+            _validateOperatorHarvestData(account, fieldId, harvestData);
+            
+            // Use validated operator data
+            userFieldHarvestResults[i] = UserFieldHarvestResults({
+                fieldId: fieldId,
+                totalHarvestablePods: harvestData.totalHarvestablePods,
+                harvestablePlots: harvestData.harvestablePlotIndexes
+            });
         }
 
         return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestResults);
     }
 
+
     /**
-     * @notice Helper function to get the total harvestable pods and plots for a user for a given field
-     * @param account The address of the user
-     * @param fieldId The field ID to check for harvestable pods
-     * @return userFieldHarvestResults A struct containing the total harvestable pods and plots for the given field
+     * @notice Validates operator-provided harvest data
+     * @dev Ensures plots exist, belong to the account, and are actually harvestable
+     * @param account The account that owns the plots
+     * @param expectedFieldId The field ID we expect the data to be for
+     * @param harvestData Operator-provided harvest data to validate
      */
-    function _userHarvestablePods(
+    function _validateOperatorHarvestData(
         address account,
-        uint256 fieldId
-    ) internal view returns (UserFieldHarvestResults memory userFieldHarvestResults) {
-        // get field info and plot count directly
-        uint256[] memory plotIndexes = beanstalk.getPlotIndexesFromAccount(account, fieldId);
-        uint256 harvestableIndex = beanstalk.harvestableIndex(fieldId);
-
-        if (plotIndexes.length == 0) return userFieldHarvestResults;
-
-        // initialize array with full length and init field id
-        userFieldHarvestResults.fieldId = fieldId;
-        uint256[] memory harvestablePlots = new uint256[](plotIndexes.length);
-        uint256 harvestableCount;
-
-        // single loop to process all plot indexes directly
-        for (uint256 i = 0; i < plotIndexes.length; i++) {
-            uint256 startIndex = plotIndexes[i];
-            uint256 plotPods = beanstalk.plot(account, fieldId, startIndex);
-
-            if (startIndex + plotPods <= harvestableIndex) {
+        uint256 expectedFieldId,
+        OperatorHarvestData memory harvestData
+    ) internal view {
+        // Verify operator provided data for the correct field
+        require(
+            harvestData.fieldId == expectedFieldId,
+            "MowPlantHarvestBlueprint: Field ID mismatch"
+        );
+        
+        uint256 harvestableIndex = beanstalk.harvestableIndex(harvestData.fieldId);
+        uint256 calculatedTotalPods = 0;
+        
+        for (uint256 i = 0; i < harvestData.harvestablePlotIndexes.length; i++) {
+            uint256 plotIndex = harvestData.harvestablePlotIndexes[i];
+            uint256 plotPods = beanstalk.plot(account, harvestData.fieldId, plotIndex);
+            
+            // Verify plot exists and belongs to account
+            require(plotPods > 0, "MowPlantHarvestBlueprint: Invalid plot index");
+            
+            // Verify plot is harvestable (at least partially)
+            require(
+                plotIndex < harvestableIndex,
+                "MowPlantHarvestBlueprint: Plot not harvestable"
+            );
+            
+            // Calculate actual harvestable pods for this plot
+            if (plotIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
-                harvestablePlots[harvestableCount] = startIndex;
-                userFieldHarvestResults.totalHarvestablePods += plotPods;
-                harvestableCount++;
-            } else if (startIndex < harvestableIndex) {
+                calculatedTotalPods += plotPods;
+            } else {
                 // Partially harvestable
-                harvestablePlots[harvestableCount] = startIndex;
-                userFieldHarvestResults.totalHarvestablePods += harvestableIndex - startIndex;
-                harvestableCount++;
+                calculatedTotalPods += harvestableIndex - plotIndex;
             }
         }
-
-        // resize array to actual harvestable plots count
-        assembly {
-            mstore(harvestablePlots, harvestableCount)
-        }
-        // assign the harvestable plots to the user field harvest params
-        userFieldHarvestResults.harvestablePlots = harvestablePlots;
+        
+        // Verify operator's total matches calculated total
+        require(
+            calculatedTotalPods == harvestData.totalHarvestablePods,
+            "MowPlantHarvestBlueprint: Invalid total harvestable pods"
+        );
     }
+
+
 
     /**
      * @dev validates the parameters for the mow, plant and harvest operation

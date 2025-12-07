@@ -164,13 +164,16 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
             MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
         );
 
+        // Pre-calculate harvest data BEFORE expectRevert (to avoid consuming the expectation)
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+
         // Try to execute before the last minutes of the season, expect revert
         vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
-        executeRequisition(state.operator, req, address(bs));
+        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
 
         // Try to execute after in last minutes of the season
         vm.warp(bs.getNextSeasonStart() - 1 seconds);
-        executeRequisition(state.operator, req, address(bs));
+        executeWithHarvestData(state.operator, state.user, req);
 
         // assert all grown stalk was mowed
         uint256 userGrownStalkAfterMow = bs.balanceOfGrownStalk(state.user, state.beanToken);
@@ -209,9 +212,12 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
             MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
         );
 
+        // Pre-calculate harvest data BEFORE expectRevert
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+
         // Execute requisition, expect revert
         vm.expectRevert("Min plant amount must be greater than plant tip amount");
-        executeRequisition(state.operator, req, address(bs));
+        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
     }
 
     function test_mowPlantHarvestBlueprint_plant_revertWhenInsufficientPlantableBeans() public {
@@ -237,9 +243,12 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
             MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
         );
 
+        // Pre-calculate harvest data BEFORE expectRevert
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+
         // Execute requisition, expect revert
         vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
-        executeRequisition(state.operator, req, address(bs));
+        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
     }
 
     function test_mowPlantHarvestBlueprint_plant_success() public {
@@ -274,7 +283,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         // Execute requisition, expect plant event
         vm.expectEmit();
         emit Plant(state.user, 1933023687);
-        executeRequisition(state.operator, req, address(bs));
+        executeWithHarvestData(state.operator, state.user, req);
 
         // Verify state changes after successful plant
         uint256 userTotalStalkAfterPlant = bs.balanceOfStalk(state.user);
@@ -311,9 +320,12 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
             MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
         );
 
+        // Pre-calculate harvest data BEFORE expectRevert
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(state.user);
+
         // Execute requisition, expect revert
         vm.expectRevert("Min harvest amount must be greater than harvest tip amount");
-        executeRequisition(state.operator, req, address(bs));
+        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
     }
 
     function test_mowPlantHarvestBlueprint_harvest_partialHarvest() public {
@@ -354,7 +366,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         // Execute requisition, expect harvest event
         vm.expectEmit();
         emit Harvest(state.user, bs.activeField(), harvestablePlots, 488088481);
-        executeRequisition(state.operator, req, address(bs));
+        executeWithHarvestData(state.operator, state.user, req);
 
         // Verify state changes after partial harvest
         uint256 userTotalBdvAfterHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
@@ -403,7 +415,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         // Execute requisition, expect harvest event
         vm.expectEmit();
         emit Harvest(state.user, bs.activeField(), harvestablePlots, 1000100000);
-        executeRequisition(state.operator, req, address(bs));
+        executeWithHarvestData(state.operator, state.user, req);
 
         // Verify state changes after full harvest
         uint256 userTotalBdvAfterHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
@@ -469,7 +481,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         vm.expectEmit();
         emit Harvest(state.user, DEFAULT_FIELD_ID, field0HarvestablePlots, 1000100000);
         emit Harvest(state.user, PAYBACK_FIELD_ID, field1HarvestablePlots, 250e6);
-        executeRequisition(state.operator, req, address(bs));
+        executeWithHarvestData(state.operator, state.user, req);
 
         // Verify state changes after full harvest
         uint256 userTotalBdvAfterHarvest = bs.balanceOfDepositedBdv(state.user, state.beanToken);
@@ -575,4 +587,32 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         advanceSeason();
         advanceSeason();
     }
+
+    /**
+     * @notice Get harvest dynamic data for both fields
+     * @dev Must be called BEFORE vm.expectRevert to avoid consuming the revert expectation
+     */
+    function getHarvestDynamicDataForUser(
+        address user
+    ) internal view returns (IMockFBeanstalk.ContractData[] memory) {
+        uint256[] memory fieldIds = new uint256[](2);
+        fieldIds[0] = DEFAULT_FIELD_ID;
+        fieldIds[1] = PAYBACK_FIELD_ID;
+        return createHarvestDynamicData(user, fieldIds);
+    }
+
+    /**
+     * @notice Execute a requisition with harvest dynamic data for both fields
+     * @dev Creates harvest data for DEFAULT_FIELD_ID (0) and PAYBACK_FIELD_ID (1)
+     */
+    function executeWithHarvestData(
+        address operator,
+        address user,
+        IMockFBeanstalk.Requisition memory req
+    ) internal {
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(user);
+        executeRequisitionWithDynamicData(operator, req, address(bs), dynamicData);
+    }
 }
+
+

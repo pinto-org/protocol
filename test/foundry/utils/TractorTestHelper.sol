@@ -11,6 +11,7 @@ import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import "forge-std/console.sol";
 
 contract TractorTestHelper is TestHelper {
@@ -129,6 +130,107 @@ contract TractorTestHelper is TestHelper {
             IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature),
             ""
         );
+    }
+
+    /**
+     * @notice Execute a requisition with dynamic contract data
+     * @param user The operator executing the requisition
+     * @param req The requisition to execute
+     * @param beanstalkAddress The Beanstalk address
+     * @param dynamicData Array of ContractData for transient storage
+     */
+    function executeRequisitionWithDynamicData(
+        address user,
+        IMockFBeanstalk.Requisition memory req,
+        address beanstalkAddress,
+        IMockFBeanstalk.ContractData[] memory dynamicData
+    ) internal {
+        vm.prank(user);
+        IMockFBeanstalk(beanstalkAddress).tractorDynamicData(
+            IMockFBeanstalk.Requisition(req.blueprint, req.blueprintHash, req.signature),
+            "",
+            dynamicData
+        );
+    }
+
+    /**
+     * @notice Create ContractData for harvest operations
+     * @param account The account to query harvestable plots for
+     * @param fieldIds Array of field IDs to create harvest data for
+     * @return dynamicData Array of ContractData containing harvest information
+     */
+    function createHarvestDynamicData(
+        address account,
+        uint256[] memory fieldIds
+    ) internal view returns (IMockFBeanstalk.ContractData[] memory dynamicData) {
+        dynamicData = new IMockFBeanstalk.ContractData[](fieldIds.length);
+        
+        for (uint256 i = 0; i < fieldIds.length; i++) {
+            uint256 fieldId = fieldIds[i];
+            
+            // Get harvestable plot data
+            MowPlantHarvestBlueprint.OperatorHarvestData memory harvestData = 
+                _getOperatorHarvestData(account, fieldId);
+            
+            // Create ContractData with key = HARVEST_DATA_KEY + fieldId
+            uint256 key = mowPlantHarvestBlueprint.HARVEST_DATA_KEY() + fieldId;
+            dynamicData[i] = IMockFBeanstalk.ContractData({
+                key: key,
+                value: abi.encode(harvestData)
+            });
+        }
+    }
+
+    /**
+     * @notice Calculate harvestable plots for a given account and field
+     * @dev Simulates what operator would calculate off-chain
+     */
+    function _getOperatorHarvestData(
+        address account,
+        uint256 fieldId
+    ) internal view returns (MowPlantHarvestBlueprint.OperatorHarvestData memory harvestData) {
+        // Get plot indexes for the account
+        uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, fieldId);
+        uint256 harvestableIndex = bs.harvestableIndex(fieldId);
+        
+        if (plotIndexes.length == 0) {
+            harvestData.fieldId = fieldId;
+            harvestData.harvestablePlotIndexes = new uint256[](0);
+            harvestData.totalHarvestablePods = 0;
+            return harvestData;
+        }
+        
+        // Temporary array to collect harvestable plots
+        uint256[] memory tempPlots = new uint256[](plotIndexes.length);
+        uint256 harvestableCount = 0;
+        uint256 totalPods = 0;
+        
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 plotIndex = plotIndexes[i];
+            uint256 plotPods = bs.plot(account, fieldId, plotIndex);
+            
+            if (plotIndex + plotPods <= harvestableIndex) {
+                // Fully harvestable
+                tempPlots[harvestableCount] = plotIndex;
+                totalPods += plotPods;
+                harvestableCount++;
+            } else if (plotIndex < harvestableIndex) {
+                // Partially harvestable
+                tempPlots[harvestableCount] = plotIndex;
+                totalPods += harvestableIndex - plotIndex;
+                harvestableCount++;
+            }
+        }
+        
+        // Resize to actual count
+        uint256[] memory harvestablePlots = new uint256[](harvestableCount);
+        for (uint256 i = 0; i < harvestableCount; i++) {
+            harvestablePlots[i] = tempPlots[i];
+        }
+        
+        harvestData.fieldId = fieldId;
+        harvestData.harvestablePlotIndexes = harvestablePlots;
+        harvestData.totalHarvestablePods = totalPods;
     }
 
     // Helper function to sign blueprints
