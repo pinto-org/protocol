@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {PerFunctionPausable} from "contracts/ecosystem/tractor/utils/PerFunctionPausable.sol";
-import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 
 /**
  * @title BlueprintBase

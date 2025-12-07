@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
-import {TractorHelpers} from "../utils/TractorHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
@@ -31,6 +30,17 @@ abstract contract SowBlueprintBase is BlueprintBase {
 
     /**
      * @notice Struct to hold local variables for the sow operation to avoid stack too deep errors
+     * @param beanToken Address of the Bean token
+     * @param availableSoil Amount of soil available for sowing at time of execution
+     * @param currentSeason Current season number from Beanstalk
+     * @param pintoLeftToSow Current value of the order counter
+     * @param totalBeansNeeded Total amount of beans needed including tip
+     * @param orderHash Hash of the current blueprint order
+     * @param beansWithdrawn Amount of beans withdrawn from sources
+     * @param tipAddress Address to send tip to
+     * @param account Address of the user's account (current Tractor user), not operator
+     * @param totalAmountToSow Total amount intended to sow
+     * @param withdrawalPlan The plan for withdrawing beans
      */
     struct SowLocalVars {
         address beanToken;
