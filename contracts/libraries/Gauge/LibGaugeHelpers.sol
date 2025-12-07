@@ -6,6 +6,7 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {C} from "contracts/C.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title LibGaugeHelpers
@@ -182,21 +183,21 @@ library LibGaugeHelpers {
      * @dev Returns g.value if the call fails.
      */
     function callGaugeId(GaugeId gaugeId, bytes memory systemData) internal {
+        console.log("Calling gaugeId: %s", uint256(gaugeId));
         AppStorage storage s = LibAppStorage.diamondStorage();
-        Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
+        // gs = `gauge storage`
+        Gauge storage gs = s.sys.gaugeData.gauges[gaugeId];
 
         // if the gauge is stateful, call the stateful gauge result.
-        bytes memory value;
-        bytes memory data;
         if (s.sys.gaugeData.stateful[gaugeId]) {
-            (value, data) = getStatefulGaugeResult(g, systemData);
+            (gs.value, gs.data) = getStatefulGaugeResult(gs, systemData);
         } else {
-            (value, data) = getStatelessGaugeResult(g, systemData);
+            (gs.value, gs.data) = getStatelessGaugeResult(gs, systemData);
         }
 
         // emit change in gauge value and data
-        emit Engaged(gaugeId, s.sys.gaugeData.gauges[gaugeId].value);
-        emit EngagedData(gaugeId, s.sys.gaugeData.gauges[gaugeId].data);
+        emit Engaged(gaugeId, gs.value);
+        emit EngagedData(gaugeId, gs.data);
     }
 
     /**
