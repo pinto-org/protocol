@@ -16,7 +16,6 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
  * @title Mock Convert Facet
  **/
 contract MockConvertFacet is ConvertFacet {
-    using LibRedundantMath256 for uint256;
     using SafeERC20 for IERC20;
 
     event MockConvert(uint256 stalkRemoved, uint256 bdvRemoved);
