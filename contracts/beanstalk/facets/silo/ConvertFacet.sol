@@ -11,7 +11,6 @@ import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
  * @title ConvertFacet handles converting Deposited assets within the Silo.
  **/
 contract ConvertFacet is ConvertBase {
-
     /**
      * @notice convert allows a user to convert a deposit to another deposit,
      * given that the conversion is supported by the ConvertFacet.
