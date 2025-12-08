@@ -13,7 +13,7 @@ import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 
 /**
  * @title MarketplaceBatchFacet
- * @notice Handles batch (multi*) marketplace operations
+ * @notice Handles batch marketplace operations
  * for pod listings and orders.
  */
 contract MarketplaceBatchFacet is Invariable, Order {
@@ -71,7 +71,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
      * @dev Emits individual PodListingCreated events for each listing.
      * @param podListings Array of pod listings to create
      */
-    function multiCreatePodListing(
+    function batchCreatePodListing(
         PodListing[] calldata podListings
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         address user = LibTractor._user();
@@ -89,7 +89,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
      * @param params Array of fill parameters for each listing
      * @param mode The transfer mode for the filler's bean payments
      */
-    function multiFillPodListing(
+    function batchFillPodListing(
         FillPodListingParams[] calldata params,
         LibTransfer.From mode
     ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant {
@@ -113,7 +113,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
      * @dev Emits individual PodListingCancelled events for each listing.
      * @param params Array of cancellation parameters for each listing
      */
-    function multiCancelPodListing(
+    function batchCancelPodListing(
         CancelPodListingParams[] calldata params
     ) external payable fundsSafu noNetFlow noSupplyChange nonReentrant {
         address user = LibTractor._user();
@@ -135,7 +135,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
      * @param mode The transfer mode for locking beans in orders
      * @return ids Array of order IDs created
      */
-    function multiCreatePodOrder(
+    function batchCreatePodOrder(
         CreatePodOrderParams[] calldata params,
         LibTransfer.From mode
     )
@@ -169,7 +169,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
      * @param params Array of fill parameters for each order
      * @param mode The transfer mode for receiving beans from orders
      */
-    function multiFillPodOrder(
+    function batchFillPodOrder(
         FillPodOrderParams[] calldata params,
         LibTransfer.To mode
     ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant {
@@ -194,7 +194,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
      * @param podOrders Array of pod orders to cancel
      * @param mode The transfer mode for returning beans to the orderer
      */
-    function multiCancelPodOrder(
+    function batchCancelPodOrder(
         PodOrder[] calldata podOrders,
         LibTransfer.To mode
     ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant {

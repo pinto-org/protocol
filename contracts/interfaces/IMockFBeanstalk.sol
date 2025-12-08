@@ -760,11 +760,11 @@ interface IMockFBeanstalk {
 
     function cancelPodListing(uint256 fieldId, uint256 index) external payable;
 
-    function multiCancelPodListing(CancelPodListingParams[] memory params) external payable;
+    function batchCancelPodListing(CancelPodListingParams[] memory params) external payable;
 
     function cancelPodOrder(PodOrder memory podOrder, uint8 mode) external payable;
 
-    function multiCancelPodOrder(PodOrder[] memory podOrders, uint8 mode) external payable;
+    function batchCancelPodOrder(PodOrder[] memory podOrders, uint8 mode) external payable;
 
     function cappedReservesDeltaB(address well) external view returns (int256 deltaB);
 
@@ -814,7 +814,7 @@ interface IMockFBeanstalk {
 
     function createPodListing(PodListing memory podListing) external payable;
 
-    function multiCreatePodListing(PodListing[] memory podListings) external payable;
+    function batchCreatePodListing(PodListing[] memory podListings) external payable;
 
     function createPodOrder(
         PodOrder memory podOrder,
@@ -822,7 +822,7 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable returns (bytes32 id);
 
-    function multiCreatePodOrder(
+    function batchCreatePodOrder(
         CreatePodOrderParams[] memory params,
         uint8 mode
     ) external payable returns (bytes32[] memory ids);
@@ -921,7 +921,7 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
-    function multiFillPodListing(FillPodListingParams[] memory params, uint8 mode) external payable;
+    function batchFillPodListing(FillPodListingParams[] memory params, uint8 mode) external payable;
 
     function fillPodOrder(
         PodOrder memory podOrder,
@@ -931,7 +931,7 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
-    function multiFillPodOrder(FillPodOrderParams[] memory params, uint8 mode) external payable;
+    function batchFillPodOrder(FillPodOrderParams[] memory params, uint8 mode) external payable;
 
     function floodHarvestablePods() external view returns (uint256);
 

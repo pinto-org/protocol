@@ -174,7 +174,7 @@ contract ListingTest is TestHelper {
             );
         }
 
-        bs.multiCreatePodListing(listings);
+        bs.batchCreatePodListing(listings);
         vm.stopPrank();
 
         // Verify all created
@@ -199,7 +199,7 @@ contract ListingTest is TestHelper {
         }
 
         vm.startPrank(users[1]);
-        bs.multiCancelPodListing(params);
+        bs.batchCancelPodListing(params);
         vm.stopPrank();
 
         // Verify all cancelled
@@ -249,7 +249,7 @@ contract ListingTest is TestHelper {
         }
 
         vm.startPrank(users[2]);
-        bytes32[] memory ids = bs.multiCreatePodOrder(params, 0);
+        bytes32[] memory ids = bs.batchCreatePodOrder(params, 0);
 
         // Verify all created
         assertEq(ids.length, 3);
@@ -269,7 +269,7 @@ contract ListingTest is TestHelper {
             emit PodOrderCancelled(params[i].order.orderer, ids[i]);
         }
 
-        bs.multiCancelPodOrder(orders, 0);
+        bs.batchCancelPodOrder(orders, 0);
         vm.stopPrank();
 
         // Verify all cancelled
@@ -325,7 +325,7 @@ contract ListingTest is TestHelper {
             );
         }
 
-        bs.multiCreatePodListing(listings);
+        bs.batchCreatePodListing(listings);
         vm.stopPrank();
 
         // Verify all created
@@ -333,7 +333,7 @@ contract ListingTest is TestHelper {
             assertNotEq(bs.getPodListing(fieldId, plotIndexes[i]), bytes32(0));
         }
 
-        // Fill all 3 listings using multiFillPodListing
+        // Fill all 3 listings using batchFillPodListing
         IMockFBeanstalk.FillPodListingParams[]
             memory fillParams = new IMockFBeanstalk.FillPodListingParams[](3);
         for (uint256 i = 0; i < fillParams.length; i++) {
@@ -358,7 +358,7 @@ contract ListingTest is TestHelper {
         }
 
         vm.startPrank(users[2]);
-        bs.multiFillPodListing(fillParams, 0);
+        bs.batchFillPodListing(fillParams, 0);
         vm.stopPrank();
 
         // Verify all filled (listings cleared after full fill)
@@ -378,7 +378,7 @@ contract ListingTest is TestHelper {
         uint256[] memory plotIndexes = field.getPlotIndexesFromAccount(users[1], fieldId);
         require(plotIndexes.length >= 3, "Not enough plots");
 
-        // Create 3 orders using multiCreatePodOrder
+        // Create 3 orders using batchCreatePodOrder
         IMockFBeanstalk.CreatePodOrderParams[]
             memory orderParams = new IMockFBeanstalk.CreatePodOrderParams[](3);
         for (uint256 i = 0; i < orderParams.length; i++) {
@@ -418,7 +418,7 @@ contract ListingTest is TestHelper {
         }
 
         vm.startPrank(users[2]);
-        bytes32[] memory orderIds = bs.multiCreatePodOrder(orderParams, 0);
+        bytes32[] memory orderIds = bs.batchCreatePodOrder(orderParams, 0);
         vm.stopPrank();
 
         // Verify all created
@@ -427,7 +427,7 @@ contract ListingTest is TestHelper {
             assertGt(bs.getPodOrder(orderIds[i]), 0);
         }
 
-        // Fill all 3 orders using multiFillPodOrder
+        // Fill all 3 orders using batchFillPodOrder
         uint256[] memory podAmounts = new uint256[](3);
         podAmounts[0] = 100000000;
         podAmounts[1] = 100100101;
@@ -461,7 +461,7 @@ contract ListingTest is TestHelper {
         }
 
         vm.startPrank(users[1]);
-        bs.multiFillPodOrder(fillParams, 0);
+        bs.batchFillPodOrder(fillParams, 0);
         vm.stopPrank();
 
         // Verify all filled (orders cleared)

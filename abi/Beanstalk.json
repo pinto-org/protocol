@@ -3769,7 +3769,7 @@
         "type": "tuple[]"
       }
     ],
-    "name": "multiCancelPodListing",
+    "name": "batchCancelPodListing",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -3814,7 +3814,7 @@
         "type": "uint8"
       }
     ],
-    "name": "multiCancelPodOrder",
+    "name": "batchCancelPodOrder",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -3874,7 +3874,7 @@
         "type": "tuple[]"
       }
     ],
-    "name": "multiCreatePodListing",
+    "name": "batchCreatePodListing",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -3931,7 +3931,7 @@
         "type": "uint8"
       }
     ],
-    "name": "multiCreatePodOrder",
+    "name": "batchCreatePodOrder",
     "outputs": [
       {
         "internalType": "bytes32[]",
@@ -4014,7 +4014,7 @@
         "type": "uint8"
       }
     ],
-    "name": "multiFillPodListing",
+    "name": "batchFillPodListing",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -4081,7 +4081,7 @@
         "type": "uint8"
       }
     ],
-    "name": "multiFillPodOrder",
+    "name": "batchFillPodOrder",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
