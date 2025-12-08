@@ -18,7 +18,6 @@ import {LibPipelineConvert} from "contracts/libraries/Convert/LibPipelineConvert
  * ConvertFacet and ConvertBatchFacet.
  */
 abstract contract ConvertBase is Invariable, ReentrancyGuard {
-
     event Convert(
         address indexed account,
         address fromToken,
