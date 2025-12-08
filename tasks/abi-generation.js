@@ -33,6 +33,7 @@ function generateDiamondABI(outputFileName, includeMocks = false) {
       files.push("contracts/libraries/Silo/LibFlood.sol");
       files.push("contracts/libraries/Sun/LibWeather.sol");
       files.push("contracts/libraries/Convert/LibConvert.sol");
+      files.push("contracts/libraries/Gauge/LibGaugeHelpers.sol");
     }
 
     files.forEach((file) => {
