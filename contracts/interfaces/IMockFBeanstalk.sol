@@ -783,6 +783,22 @@ interface IMockFBeanstalk {
             uint256 toBdv
         );
 
+    function convertWithStalkSlippage(
+        bytes memory convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        int256 grownStalkSlippage
+    )
+        external
+        payable
+        returns (
+            int96 toStem,
+            uint256 fromAmount,
+            uint256 toAmount,
+            uint256 fromBdv,
+            uint256 toBdv
+        );
+
     function multiConvert(
         ConvertParams[] calldata converts
     ) external payable returns (ConvertOutput[] memory convertOutputs);

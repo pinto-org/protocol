@@ -4,7 +4,6 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IMockFBeanstalk, C} from "test/foundry/utils/TestHelper.sol";
 import {IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
-import {MockConvertFacet} from "contracts/mocks/mockFacets/MockConvertFacet.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
@@ -50,8 +49,7 @@ contract ConvertTest is TestHelper {
         uint256 bdvConverted
     );
     // Interfaces.
-    MockConvertFacet convert = MockConvertFacet(BEANSTALK);
-    IMockFBeanstalk convertBatch = IMockFBeanstalk(BEANSTALK);
+    IMockFBeanstalk convert = IMockFBeanstalk(BEANSTALK);
     BeanstalkPrice beanstalkPrice = BeanstalkPrice(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 
     // MockTokens.
@@ -2538,7 +2536,7 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convertBatch.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
 
         int96 toStem = outputs[outputs.length - 1].toStem;
         uint256 fromAmount;
@@ -2658,7 +2656,7 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convertBatch.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
 
         int96 toStem = outputs[outputs.length - 1].toStem;
         uint256 fromAmount;
@@ -2742,7 +2740,7 @@ contract ConvertTest is TestHelper {
 
         // Execute first multiConvert - update separately
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs1 = convertBatch.multiConvert(updates);
+        IMockFBeanstalk.ConvertOutput[] memory outputs1 = convert.multiConvert(updates);
         uint256 amt1;
         for (uint256 i; i < outputs1.length; ++i) {
             amt1 += outputs1[i].fromAmount;
@@ -2776,7 +2774,7 @@ contract ConvertTest is TestHelper {
 
         // Execute second multiConvert - combine
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs2 = convertBatch.multiConvert(combines);
+        IMockFBeanstalk.ConvertOutput[] memory outputs2 = convert.multiConvert(combines);
         int96 stem2 = outputs2[0].toStem;
         uint256 amt2 = outputs2[0].fromAmount;
 
@@ -2807,7 +2805,7 @@ contract ConvertTest is TestHelper {
 
         // Execute multiConvert with single convert
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convertBatch.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
         int96 toStem = outputs[0].toStem;
         uint256 fromAmount = outputs[0].fromAmount;
         uint256 toAmount = outputs[0].toAmount;
@@ -2827,7 +2825,7 @@ contract ConvertTest is TestHelper {
 
         vm.prank(farmers[0]);
         vm.expectRevert("ConvertBatch: Empty converts array");
-        convertBatch.multiConvert(converts);
+        convert.multiConvert(converts);
     }
 
     /**
@@ -2867,7 +2865,7 @@ contract ConvertTest is TestHelper {
         // Should revert because second convert is invalid
         vm.prank(farmers[0]);
         vm.expectRevert(); // Will revert with insufficient balance or similar
-        convertBatch.multiConvert(converts);
+        convert.multiConvert(converts);
     }
 
     //////////// AL2L RESTRICTION TESTS ////////////
@@ -2908,7 +2906,7 @@ contract ConvertTest is TestHelper {
 
         // Should succeed - AL2L with single deposit is allowed
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convertBatch.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
         int96 toStem = outputs[0].toStem;
         uint256 fromAmount = outputs[0].fromAmount;
         uint256 toAmount = outputs[0].toAmount;
@@ -2973,7 +2971,7 @@ contract ConvertTest is TestHelper {
 
         // Should succeed - AL2L can do multiple independent converts
         vm.prank(farmers[0]);
-        convertBatch.multiConvert(converts);
+        convert.multiConvert(converts);
     }
 
     /**
@@ -3024,6 +3022,6 @@ contract ConvertTest is TestHelper {
         // Should revert - AL2L cannot combine multiple deposits
         vm.prank(farmers[0]);
         vm.expectRevert("Convert: DecreaseBDV only supports updating one deposit.");
-        convertBatch.multiConvert(converts);
+        convert.multiConvert(converts);
     }
 }
