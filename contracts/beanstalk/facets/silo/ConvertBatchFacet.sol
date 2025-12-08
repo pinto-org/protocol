@@ -5,8 +5,6 @@
 pragma solidity ^0.8.20;
 
 import {ConvertBase} from "./abstract/ConvertBase.sol";
-import {Invariable} from "contracts/beanstalk/Invariable.sol";
-import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 
@@ -16,7 +14,7 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
  * @dev Enables farmers to convert multiple deposits in a single transaction,
  * reducing gas costs compared to multiple individual convert calls.
  */
-contract ConvertBatchFacet is ConvertBase, Invariable, ReentrancyGuard {
+contract ConvertBatchFacet is ConvertBase {
     using LibConvertData for bytes;
 
     /**

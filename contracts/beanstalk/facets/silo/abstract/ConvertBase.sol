@@ -5,6 +5,8 @@
 pragma solidity ^0.8.20;
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Invariable} from "contracts/beanstalk/Invariable.sol";
+import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
@@ -17,7 +19,7 @@ import {LibPipelineConvert} from "contracts/libraries/Convert/LibPipelineConvert
  * @notice Abstract contract containing internal convert logic shared between
  * ConvertFacet and ConvertBatchFacet.
  */
-abstract contract ConvertBase {
+abstract contract ConvertBase is Invariable, ReentrancyGuard {
     using LibConvertData for bytes;
     using SafeCast for uint256;
 

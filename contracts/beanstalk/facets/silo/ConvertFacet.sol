@@ -7,8 +7,6 @@ pragma solidity ^0.8.20;
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {C} from "contracts/C.sol";
 import {ConvertBase} from "./abstract/ConvertBase.sol";
-import {Invariable} from "contracts/beanstalk/Invariable.sol";
-import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {LibRedundantMath32} from "contracts/libraries/Math/LibRedundantMath32.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
@@ -17,7 +15,7 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 /**
  * @title ConvertFacet handles converting Deposited assets within the Silo.
  **/
-contract ConvertFacet is ConvertBase, Invariable, ReentrancyGuard {
+contract ConvertFacet is ConvertBase {
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
     using LibRedundantMath256 for uint256;
