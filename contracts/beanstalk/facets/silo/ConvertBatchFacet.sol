@@ -52,27 +52,7 @@ contract ConvertBatchFacet is ConvertBase {
         returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv)
     {
         require(converts.length > 0, "ConvertBatch: Empty converts array");
-        _validateAL2L(converts);
         return _executeConverts(converts);
-    }
-
-    /**
-     * @notice Validates AL2L (Anti-Lambda-Lambda) batch restrictions.
-     * @dev AL2L converts can only update one deposit at a time.
-     */
-    function _validateAL2L(ConvertParams[] calldata converts) private {
-        for (uint256 i; i < converts.length; ) {
-            if (LibConvert.convert(converts[i].convertData).decreaseBDV) {
-                require(
-                    converts.length == 1,
-                    "ConvertBatch: AL2L converts must be done individually"
-                );
-                return;
-            }
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     /**

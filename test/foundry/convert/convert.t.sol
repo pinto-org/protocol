@@ -2886,10 +2886,10 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice Test AL2L cannot update multiple independent deposits.
-     * @dev This tests requirement #4 part 2: AL2L CANNOT do (1) multiple times [a],[b],[c].
+     * @notice Test AL2L can update multiple independent deposits in a batch.
+     * @dev This tests that AL2L CAN do (1) multiple times [a],[b],[c].
      */
-    function test_multiConvert_AL2L_multipleDeposits_reverts() public {
+    function test_multiConvert_multiple_AL2L_succeeds() public {
         // Create deposits at different stems
         uint256 numDeposits = 3;
         uint256 depositAmount = 10000e6;
@@ -2938,9 +2938,8 @@ contract ConvertTest is TestHelper {
             });
         }
 
-        // Should revert - AL2L cannot do multiple independent converts
+        // Should succeed - AL2L can do multiple independent converts
         vm.prank(farmers[0]);
-        vm.expectRevert("ConvertBatch: AL2L converts must be done individually");
         convertBatch.multiConvert(converts);
     }
 
