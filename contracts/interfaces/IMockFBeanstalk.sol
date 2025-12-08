@@ -8,6 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 
 interface IMockFBeanstalk {
     enum CounterUpdateType {
@@ -84,6 +85,22 @@ interface IMockFBeanstalk {
     struct ClaimPlentyData {
         address token;
         uint256 plenty;
+    }
+
+    struct ConvertParams {
+        bytes convertData;
+        int96[] stems;
+        uint256[] amounts;
+        int256 grownStalkSlippage;
+    }
+
+    struct ConvertOutput {
+        LibConvertData.ConvertKind convertKind;
+        int96 toStem;
+        uint256 fromAmount;
+        uint256 toAmount;
+        uint256 fromBdv;
+        uint256 toBdv;
     }
 
     struct DeltaBStorage {
@@ -765,6 +782,26 @@ interface IMockFBeanstalk {
             uint256 fromBdv,
             uint256 toBdv
         );
+
+    function convertWithStalkSlippage(
+        bytes memory convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        int256 grownStalkSlippage
+    )
+        external
+        payable
+        returns (
+            int96 toStem,
+            uint256 fromAmount,
+            uint256 toAmount,
+            uint256 fromBdv,
+            uint256 toBdv
+        );
+
+    function multiConvert(
+        ConvertParams[] calldata converts
+    ) external payable returns (ConvertOutput[] memory convertOutputs);
 
     function convertInternalE(
         address tokenIn,
