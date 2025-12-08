@@ -57,7 +57,14 @@ contract ConvertBatchFacet is ConvertBase {
      */
     function multiConvert(
         ConvertParams[] calldata converts
-    ) external payable fundsSafu noSupplyChange nonReentrant returns (ConvertOutput[] memory convertOutputs) {
+    )
+        external
+        payable
+        fundsSafu
+        noSupplyChange
+        nonReentrant
+        returns (ConvertOutput[] memory convertOutputs)
+    {
         require(converts.length > 0, "ConvertBatch: Empty converts array");
         return _executeConverts(converts);
     }

@@ -2602,7 +2602,12 @@ contract ConvertTest is TestHelper {
             amounts1[2] = 10000e6;
 
             converts[0] = IMockFBeanstalk.ConvertParams({
-                convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, total1, 0),
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    total1,
+                    0
+                ),
                 stems: stems1,
                 amounts: amounts1,
                 grownStalkSlippage: 0
@@ -2619,7 +2624,12 @@ contract ConvertTest is TestHelper {
             amounts2[1] = 10000e6;
 
             converts[1] = IMockFBeanstalk.ConvertParams({
-                convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, total2, 0),
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    total2,
+                    0
+                ),
                 stems: stems2,
                 amounts: amounts2,
                 grownStalkSlippage: 0
@@ -2634,7 +2644,12 @@ contract ConvertTest is TestHelper {
             amounts3[0] = 10000e6;
 
             converts[2] = IMockFBeanstalk.ConvertParams({
-                convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, total3, 0),
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    total3,
+                    0
+                ),
                 stems: stems3,
                 amounts: amounts3,
                 grownStalkSlippage: 0
