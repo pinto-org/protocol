@@ -720,7 +720,15 @@ module.exports = function () {
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
-      facetNames: ["GaugeFacet", "GaugeGettersFacet", "SeasonFacet", "FieldFacet", "TractorFacet"],
+      facetNames: [
+        "GaugeFacet",
+        "GaugeGettersFacet",
+        "SeasonFacet",
+        "FieldFacet",
+        "TractorFacet",
+        "MarketplaceFacet",
+        "MarketplaceBatchFacet"
+      ],
       libraryNames: [
         "LibSeedGauge",
         "LibEvaluate",
@@ -944,28 +952,6 @@ module.exports = function () {
       facetNames: [],
       initArgs: [],
       initFacetName: "InitSetHighSeeds",
-      object: !mock,
-      verbose: true,
-      account: owner
-    });
-  });
-
-  task("dynamic-tractor-data", "deploys the dynamic tractor upgrade").setAction(async function () {
-    const mock = false;
-    let owner;
-    if (mock) {
-      await hre.run("updateOracleTimeouts");
-      owner = await impersonateSigner(L2_PCM);
-      await mintEth(owner.address);
-    } else {
-      owner = (await ethers.getSigners())[0];
-    }
-    await upgradeWithNewFacets({
-      diamondAddress: L2_PINTO,
-      facetNames: ["TractorFacet"],
-      libraryNames: [],
-      facetLibraries: {},
-      initArgs: [],
       object: !mock,
       verbose: true,
       account: owner

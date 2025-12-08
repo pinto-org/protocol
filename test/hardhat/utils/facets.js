@@ -17,6 +17,7 @@ const facets = [
   "PipelineConvertFacet",
   "MetadataFacet", // METADATA
   "MarketplaceFacet", // MARKET
+  "MarketplaceBatchFacet", // MARKETPLACE BATCH
   "FieldFacet", // FIELD
   "DepotFacet", // FARM
   "FarmFacet",
