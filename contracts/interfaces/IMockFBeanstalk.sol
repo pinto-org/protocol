@@ -799,7 +799,7 @@ interface IMockFBeanstalk {
             uint256 toBdv
         );
 
-    function multiConvert(
+    function batchConvert(
         ConvertParams[] calldata converts
     ) external payable returns (ConvertOutput[] memory convertOutputs);
 

@@ -55,7 +55,7 @@ contract ConvertBatchFacet is ConvertBase {
      * @param converts Array of convert parameters for each operation
      * @return convertOutputs Array of results for each convert operation
      */
-    function multiConvert(
+    function batchConvert(
         ConvertParams[] calldata converts
     )
         external

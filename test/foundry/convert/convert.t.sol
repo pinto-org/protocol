@@ -2424,10 +2424,10 @@ contract ConvertTest is TestHelper {
     //////////// BATCH CONVERT ////////////
 
     /**
-     * @notice Test multiConvert with multiple separate L2L converts.
+     * @notice Test batchConvert with multiple separate L2L converts.
      * @dev Tests [a],[b],[c] scenario - updating 3 independent deposits.
      */
-    function test_multiConvert_multipleIndependentConverts() public {
+    function test_batchConvert_multipleIndependentConverts() public {
         // Create 3 deposits at different stems
         bean.mint(farmers[0], 30000e6);
 
@@ -2534,9 +2534,9 @@ contract ConvertTest is TestHelper {
             );
         }
 
-        // Execute multiConvert
+        // Execute batchConvert
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
 
         int96 toStem = outputs[outputs.length - 1].toStem;
         uint256 fromAmount;
@@ -2559,10 +2559,10 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice Test multiConvert combining different groupings of deposits.
+     * @notice Test batchConvert combining different groupings of deposits.
      * @dev Tests [a,b,c], [e,f], [g] scenario - combining 3, 2, and 1 deposits respectively.
      */
-    function test_multiConvert_combineGroupings() public {
+    function test_batchConvert_combineGroupings() public {
         // Setup: Create 7 deposits (a,b,c,d,e,f,g) at different stems
         // We'll use deposits a,b,c,e,f,g (skipping d for the test)
         uint256 numDeposits = 7;
@@ -2669,9 +2669,9 @@ contract ConvertTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit Convert(farmers[0], BEAN, BEAN, total3, total3, total3, total3);
 
-        // Execute multiConvert
+        // Execute batchConvert
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
 
         int96 toStem = outputs[outputs.length - 1].toStem;
         uint256 fromAmount;
@@ -2691,10 +2691,10 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice Test multiConvert with update PDV then combine pattern.
+     * @notice Test batchConvert with update PDV then combine pattern.
      * @dev Tests [a],[b],[c] then [a,b,c] - first update 3 deposits separately, then combine them.
      */
-    function test_multiConvert_updateThenCombine() public {
+    function test_batchConvert_updateThenCombine() public {
         multipleBeanDepositSetup();
 
         // Add one more deposit for total of 3
@@ -2753,9 +2753,9 @@ contract ConvertTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit Convert(farmers[0], BEAN, BEAN, 3000e6, 3000e6, 3000e6, 3000e6);
 
-        // Execute first multiConvert - update separately
+        // Execute first batchConvert - update separately
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs1 = convert.multiConvert(updates);
+        IMockFBeanstalk.ConvertOutput[] memory outputs1 = convert.batchConvert(updates);
         uint256 amt1;
         for (uint256 i; i < outputs1.length; ++i) {
             amt1 += outputs1[i].fromAmount;
@@ -2787,9 +2787,9 @@ contract ConvertTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit Convert(farmers[0], BEAN, BEAN, 10000e6, 10000e6, 10000e6, 10000e6);
 
-        // Execute second multiConvert - combine
+        // Execute second batchConvert - combine
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs2 = convert.multiConvert(combines);
+        IMockFBeanstalk.ConvertOutput[] memory outputs2 = convert.batchConvert(combines);
         int96 stem2 = outputs2[0].toStem;
         uint256 amt2 = outputs2[0].fromAmount;
 
@@ -2798,9 +2798,9 @@ contract ConvertTest is TestHelper {
     }
 
     /**
-     * @notice Test multiConvert with single convert (edge case).
+     * @notice Test batchConvert with single convert (edge case).
      */
-    function test_multiConvert_singleConvert() public {
+    function test_batchConvert_singleConvert() public {
         multipleBeanDepositSetup();
 
         // Create single convert in batch
@@ -2818,9 +2818,9 @@ contract ConvertTest is TestHelper {
             grownStalkSlippage: 0
         });
 
-        // Execute multiConvert with single convert
+        // Execute batchConvert with single convert
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
         int96 toStem = outputs[0].toStem;
         uint256 fromAmount = outputs[0].fromAmount;
         uint256 toAmount = outputs[0].toAmount;
@@ -2835,18 +2835,18 @@ contract ConvertTest is TestHelper {
     /**
      * @notice Test that empty converts array reverts.
      */
-    function test_multiConvert_emptyArray_reverts() public {
+    function test_batchConvert_emptyArray_reverts() public {
         IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](0);
 
         vm.prank(farmers[0]);
         vm.expectRevert("ConvertBatch: Empty converts array");
-        convert.multiConvert(converts);
+        convert.batchConvert(converts);
     }
 
     /**
      * @notice Test all-or-nothing behavior - if one convert fails, entire batch reverts.
      */
-    function test_multiConvert_allOrNothing() public {
+    function test_batchConvert_allOrNothing() public {
         multipleBeanDepositSetup();
 
         IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](2);
@@ -2880,7 +2880,7 @@ contract ConvertTest is TestHelper {
         // Should revert because second convert is invalid
         vm.prank(farmers[0]);
         vm.expectRevert(); // Will revert with insufficient balance or similar
-        convert.multiConvert(converts);
+        convert.batchConvert(converts);
     }
 
     //////////// AL2L RESTRICTION TESTS ////////////
@@ -2889,7 +2889,7 @@ contract ConvertTest is TestHelper {
      * @notice Test AL2L (Anti-Lambda-Lambda) can update a single deposit.
      * @dev This tests requirement #4 part 1: AL2L CAN do (1) - update single deposit [a].
      */
-    function test_multiConvert_AL2L_singleDeposit() public {
+    function test_batchConvert_AL2L_singleDeposit() public {
         multipleBeanDepositSetup();
 
         // Create single AL2L convert
@@ -2921,7 +2921,7 @@ contract ConvertTest is TestHelper {
 
         // Should succeed - AL2L with single deposit is allowed
         vm.prank(farmers[0]);
-        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.multiConvert(converts);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
         int96 toStem = outputs[0].toStem;
         uint256 fromAmount = outputs[0].fromAmount;
         uint256 toAmount = outputs[0].toAmount;
@@ -2935,7 +2935,7 @@ contract ConvertTest is TestHelper {
      * @notice Test AL2L can update multiple independent deposits in a batch.
      * @dev This tests that AL2L CAN do (1) multiple times [a],[b],[c].
      */
-    function test_multiConvert_multiple_AL2L_succeeds() public {
+    function test_batchConvert_multiple_AL2L_succeeds() public {
         // Create deposits at different stems
         uint256 numDeposits = 3;
         uint256 depositAmount = 10000e6;
@@ -2986,14 +2986,14 @@ contract ConvertTest is TestHelper {
 
         // Should succeed - AL2L can do multiple independent converts
         vm.prank(farmers[0]);
-        convert.multiConvert(converts);
+        convert.batchConvert(converts);
     }
 
     /**
      * @notice Test AL2L cannot combine multiple deposits.
      * @dev This tests requirement #4 part 3: AL2L CANNOT do (2) and (3) - combine deposits [a,b,c].
      */
-    function test_multiConvert_AL2L_combineDeposits_reverts() public {
+    function test_batchConvert_AL2L_combineDeposits_reverts() public {
         // Create deposits
         uint256 numDeposits = 3;
         uint256 depositAmount = 10000e6;
@@ -3037,6 +3037,6 @@ contract ConvertTest is TestHelper {
         // Should revert - AL2L cannot combine multiple deposits
         vm.prank(farmers[0]);
         vm.expectRevert("Convert: DecreaseBDV only supports updating one deposit.");
-        convert.multiConvert(converts);
+        convert.batchConvert(converts);
     }
 }

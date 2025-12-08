@@ -7404,7 +7404,7 @@
         "type": "tuple[]"
       }
     ],
-    "name": "multiConvert",
+    "name": "batchConvert",
     "outputs": [
       {
         "components": [
