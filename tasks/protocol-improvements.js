@@ -906,4 +906,33 @@ module.exports = function () {
       account: owner
     });
   });
+
+  task(
+    "convert-batch-functions",
+    "Deploys ConvertBatchFacet"
+  ).setAction(async function () {
+    const mock = false;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["ConvertBatchFacet"],
+      libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
+      facetLibraries: {
+        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"]
+      },
+      linkedLibraries: {
+        LibConvert: "LibTokenSilo"
+      },
+      initArgs: [],
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
 };
