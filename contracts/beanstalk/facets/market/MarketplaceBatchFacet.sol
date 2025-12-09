@@ -156,12 +156,7 @@ contract MarketplaceBatchFacet is Invariable, Order {
             totalBeanAmount += params[i].beanAmount;
         }
 
-        LibTransfer.receiveToken(
-            BeanstalkERC20(s.sys.bean),
-            totalBeanAmount,
-            user,
-            mode
-        );
+        LibTransfer.receiveToken(BeanstalkERC20(s.sys.bean), totalBeanAmount, user, mode);
 
         for (uint256 i; i < params.length; i++) {
             ids[i] = _createPodOrder(params[i].order, params[i].beanAmount);
