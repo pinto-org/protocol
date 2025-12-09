@@ -149,15 +149,22 @@ contract MarketplaceBatchFacet is Invariable, Order {
     {
         address user = LibTractor._user();
         ids = new bytes32[](params.length);
+        uint256 totalBeanAmount;
+
         for (uint256 i; i < params.length; i++) {
             require(params[i].order.orderer == user, "Marketplace: Non-user create order.");
-            uint256 beanAmount = LibTransfer.receiveToken(
-                BeanstalkERC20(s.sys.bean),
-                params[i].beanAmount,
-                user,
-                mode
-            );
-            ids[i] = _createPodOrder(params[i].order, beanAmount);
+            totalBeanAmount += params[i].beanAmount;
+        }
+
+        LibTransfer.receiveToken(
+            BeanstalkERC20(s.sys.bean),
+            totalBeanAmount,
+            user,
+            mode
+        );
+
+        for (uint256 i; i < params.length; i++) {
+            ids[i] = _createPodOrder(params[i].order, params[i].beanAmount);
         }
     }
 
