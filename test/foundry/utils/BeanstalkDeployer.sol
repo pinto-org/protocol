@@ -45,6 +45,7 @@ contract BeanstalkDeployer is Utils {
         "LiquidityWeightFacet",
         "SiloGettersFacet",
         "ConvertGettersFacet",
+        "ConvertBatchFacet",
         "MetadataFacet",
         "DepotFacet",
         "MarketplaceFacet",

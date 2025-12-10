@@ -8048,6 +8048,79 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "convertData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "int96[]",
+            "name": "stems",
+            "type": "int96[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "int256",
+            "name": "grownStalkSlippage",
+            "type": "int256"
+          }
+        ],
+        "internalType": "struct ConvertBatchFacet.ConvertParams[]",
+        "name": "converts",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "batchConvert",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum LibConvertData.ConvertKind",
+            "name": "convertKind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "int96",
+            "name": "toStem",
+            "type": "int96"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fromAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fromBdv",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toBdv",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ConvertBatchFacet.ConvertOutput[]",
+        "name": "convertOutputs",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {

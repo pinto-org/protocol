@@ -4,7 +4,6 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IMockFBeanstalk, C} from "test/foundry/utils/TestHelper.sol";
 import {IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
-import {MockConvertFacet} from "contracts/mocks/mockFacets/MockConvertFacet.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
@@ -50,7 +49,7 @@ contract ConvertTest is TestHelper {
         uint256 bdvConverted
     );
     // Interfaces.
-    MockConvertFacet convert = MockConvertFacet(BEANSTALK);
+    IMockFBeanstalk convert = IMockFBeanstalk(BEANSTALK);
     BeanstalkPrice beanstalkPrice = BeanstalkPrice(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 
     // MockTokens.
@@ -2420,5 +2419,624 @@ contract ConvertTest is TestHelper {
 
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
+    }
+
+    //////////// BATCH CONVERT ////////////
+
+    /**
+     * @notice Test batchConvert with multiple separate L2L converts.
+     * @dev Tests [a],[b],[c] scenario - updating 3 independent deposits.
+     */
+    function test_batchConvert_multipleIndependentConverts() public {
+        // Create 3 deposits at different stems
+        bean.mint(farmers[0], 30000e6);
+
+        vm.startPrank(farmers[0]);
+
+        // First deposit
+        int96 stem0 = bs.stemTipForToken(BEAN);
+        bs.deposit(BEAN, 10000e6, 0);
+
+        // Second deposit (advance season first)
+        season.siloSunrise(0);
+        int96 stem1 = bs.stemTipForToken(BEAN);
+        bs.deposit(BEAN, 10000e6, 0);
+
+        // Third deposit (advance season first)
+        season.siloSunrise(0);
+        int96 stem2 = bs.stemTipForToken(BEAN);
+        bs.deposit(BEAN, 10000e6, 0);
+
+        vm.stopPrank();
+        passGermination();
+
+        uint256 numConverts = 3;
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](
+            numConverts
+        );
+
+        uint256[] memory convertAmounts = new uint256[](numConverts);
+        convertAmounts[0] = 3000e6;
+        convertAmounts[1] = 4000e6;
+        convertAmounts[2] = 2000e6;
+
+        {
+            // First convert: Update first deposit
+            int96[] memory stems1 = new int96[](1);
+            stems1[0] = stem0;
+            uint256[] memory amounts1 = new uint256[](1);
+            amounts1[0] = convertAmounts[0];
+
+            converts[0] = IMockFBeanstalk.ConvertParams({
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    convertAmounts[0],
+                    0
+                ),
+                stems: stems1,
+                amounts: amounts1,
+                grownStalkSlippage: 0
+            });
+        }
+
+        {
+            // Second convert: Update second deposit
+            int96[] memory stems2 = new int96[](1);
+            stems2[0] = stem1; // Second deposit stem
+            uint256[] memory amounts2 = new uint256[](1);
+            amounts2[0] = convertAmounts[1];
+
+            converts[1] = IMockFBeanstalk.ConvertParams({
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    convertAmounts[1],
+                    0
+                ),
+                stems: stems2,
+                amounts: amounts2,
+                grownStalkSlippage: 0
+            });
+        }
+
+        {
+            // Third convert: Update third deposit
+            int96[] memory stems3 = new int96[](1);
+            stems3[0] = stem2; // Third deposit stem
+            uint256[] memory amounts3 = new uint256[](1);
+            amounts3[0] = convertAmounts[2];
+
+            converts[2] = IMockFBeanstalk.ConvertParams({
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    convertAmounts[2],
+                    0
+                ),
+                stems: stems3,
+                amounts: amounts3,
+                grownStalkSlippage: 0
+            });
+        }
+
+        // Expect Convert events for each convert operation
+        for (uint256 i = 0; i < numConverts; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit Convert(
+                farmers[0],
+                BEAN,
+                BEAN,
+                convertAmounts[i],
+                convertAmounts[i],
+                convertAmounts[i], // bdv equals amount for Bean
+                convertAmounts[i]
+            );
+        }
+
+        // Execute batchConvert
+        vm.prank(farmers[0]);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
+
+        int96 toStem = outputs[outputs.length - 1].toStem;
+        uint256 fromAmount;
+        uint256 toAmount;
+        for (uint256 i; i < outputs.length; ++i) {
+            fromAmount += outputs[i].fromAmount;
+            toAmount += outputs[i].toAmount;
+        }
+
+        // Calculate expected totals dynamically
+        uint256 expectedTotal = 0;
+        for (uint256 i = 0; i < convertAmounts.length; i++) {
+            expectedTotal += convertAmounts[i];
+        }
+
+        // Verify aggregated results
+        assertEq(fromAmount, expectedTotal, "Total fromAmount should match sum");
+        assertEq(toAmount, expectedTotal, "Total toAmount should match sum");
+        assertEq(toStem, stem2, "Last convert's toStem");
+    }
+
+    /**
+     * @notice Test batchConvert combining different groupings of deposits.
+     * @dev Tests [a,b,c], [e,f], [g] scenario - combining 3, 2, and 1 deposits respectively.
+     */
+    function test_batchConvert_combineGroupings() public {
+        // Setup: Create 7 deposits (a,b,c,d,e,f,g) at different stems
+        // We'll use deposits a,b,c,e,f,g (skipping d for the test)
+        uint256 numDeposits = 7;
+        bean.mint(farmers[0], numDeposits * 10000e6);
+
+        // Create deposits across different seasons and track their stems
+        int96[] memory allStems = new int96[](numDeposits);
+        vm.startPrank(farmers[0]);
+        for (uint i = 0; i < allStems.length; i++) {
+            // Get current stem before deposit
+            allStems[i] = bs.stemTipForToken(BEAN);
+            bs.deposit(BEAN, 10000e6, 0);
+            if (i < allStems.length - 1) season.siloSunrise(0); // Move to next season
+        }
+        vm.stopPrank();
+        passGermination();
+
+        // Create 3 converts: [a,b,c], [e,f], [g]
+        uint256 numConverts = 3;
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](
+            numConverts
+        );
+
+        uint256 total1 = 30000e6;
+        uint256 total2 = 20000e6;
+        uint256 total3 = 10000e6;
+
+        {
+            // Convert 1: Combine deposits a,b,c (3 deposits)
+            int96[] memory stems1 = new int96[](3);
+            stems1[0] = allStems[0]; // Deposit a
+            stems1[1] = allStems[1]; // Deposit b
+            stems1[2] = allStems[2]; // Deposit c
+            uint256[] memory amounts1 = new uint256[](3);
+            amounts1[0] = 10000e6;
+            amounts1[1] = 10000e6;
+            amounts1[2] = 10000e6;
+
+            converts[0] = IMockFBeanstalk.ConvertParams({
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    total1,
+                    0
+                ),
+                stems: stems1,
+                amounts: amounts1,
+                grownStalkSlippage: 0
+            });
+        }
+
+        {
+            // Convert 2: Combine deposits e,f (2 deposits)
+            int96[] memory stems2 = new int96[](2);
+            stems2[0] = allStems[4]; // Deposit e (skipping d at index 3)
+            stems2[1] = allStems[5]; // Deposit f
+            uint256[] memory amounts2 = new uint256[](2);
+            amounts2[0] = 10000e6;
+            amounts2[1] = 10000e6;
+
+            converts[1] = IMockFBeanstalk.ConvertParams({
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    total2,
+                    0
+                ),
+                stems: stems2,
+                amounts: amounts2,
+                grownStalkSlippage: 0
+            });
+        }
+
+        {
+            // Convert 3: Single deposit g (1 deposit)
+            int96[] memory stems3 = new int96[](1);
+            stems3[0] = allStems[6]; // Deposit g
+            uint256[] memory amounts3 = new uint256[](1);
+            amounts3[0] = 10000e6;
+
+            converts[2] = IMockFBeanstalk.ConvertParams({
+                convertData: convertEncoder(
+                    LibConvertData.ConvertKind.LAMBDA_LAMBDA,
+                    BEAN,
+                    total3,
+                    0
+                ),
+                stems: stems3,
+                amounts: amounts3,
+                grownStalkSlippage: 0
+            });
+        }
+
+        // Cache expected toStem to avoid stack too deep
+        int96 expectedToStem = allStems[6];
+
+        // Expect Convert events for each convert group
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, total1, total1, total1, total1);
+
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, total2, total2, total2, total2);
+
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, total3, total3, total3, total3);
+
+        // Execute batchConvert
+        vm.prank(farmers[0]);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
+
+        int96 toStem = outputs[outputs.length - 1].toStem;
+        uint256 fromAmount;
+        uint256 toAmount;
+        for (uint256 i; i < outputs.length; ++i) {
+            fromAmount += outputs[i].fromAmount;
+            toAmount += outputs[i].toAmount;
+        }
+
+        // Verify aggregated results (dynamic calculation)
+        uint256 expectedTotal = total1 + total2 + total3;
+        assertEq(fromAmount, expectedTotal, "Should process all deposits");
+        assertEq(toAmount, expectedTotal, "Should create equivalent amount");
+        // For L2L, the toStem is based on grown stalk, which for the last convert (deposit g)
+        // will result in a stem based on that deposit's grown stalk
+        assertEq(toStem, expectedToStem, "L2L should preserve stem based on grown stalk");
+    }
+
+    /**
+     * @notice Test batchConvert with update PDV then combine pattern.
+     * @dev Tests [a],[b],[c] then [a,b,c] - first update 3 deposits separately, then combine them.
+     */
+    function test_batchConvert_updateThenCombine() public {
+        multipleBeanDepositSetup();
+
+        // Add one more deposit for total of 3
+        bean.mint(farmers[0], 10000e6);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, 10000e6, 0);
+        passGermination();
+
+        // PHASE 1: Update each deposit separately [a],[b],[c]
+        IMockFBeanstalk.ConvertParams[] memory updates = new IMockFBeanstalk.ConvertParams[](3);
+
+        // Create arrays inline to reduce stack usage
+        int96[] memory s1 = new int96[](1);
+        s1[0] = 0;
+        uint256[] memory a1 = new uint256[](1);
+        a1[0] = 3000e6;
+
+        updates[0] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 3000e6, 0),
+            stems: s1,
+            amounts: a1,
+            grownStalkSlippage: 0
+        });
+
+        int96[] memory s2 = new int96[](1);
+        s2[0] = 0;
+        uint256[] memory a2 = new uint256[](1);
+        a2[0] = 4000e6;
+
+        updates[1] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 4000e6, 0),
+            stems: s2,
+            amounts: a2,
+            grownStalkSlippage: 0
+        });
+
+        int96[] memory s3 = new int96[](1);
+        s3[0] = 0;
+        uint256[] memory a3 = new uint256[](1);
+        a3[0] = 3000e6;
+
+        updates[2] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 3000e6, 0),
+            stems: s3,
+            amounts: a3,
+            grownStalkSlippage: 0
+        });
+
+        // Expect events for Phase 1 - each update emits a Convert event
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, 3000e6, 3000e6, 3000e6, 3000e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, 4000e6, 4000e6, 4000e6, 4000e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, 3000e6, 3000e6, 3000e6, 3000e6);
+
+        // Execute first batchConvert - update separately
+        vm.prank(farmers[0]);
+        IMockFBeanstalk.ConvertOutput[] memory outputs1 = convert.batchConvert(updates);
+        uint256 amt1;
+        for (uint256 i; i < outputs1.length; ++i) {
+            amt1 += outputs1[i].fromAmount;
+        }
+
+        assertEq(amt1, 10000e6, "Phase 1: Should update all deposits");
+
+        // PHASE 2: Combine all updated deposits [a,b,c]
+        IMockFBeanstalk.ConvertParams[] memory combines = new IMockFBeanstalk.ConvertParams[](1);
+
+        int96[] memory cs = new int96[](3);
+        cs[0] = 0;
+        cs[1] = 0;
+        cs[2] = 0;
+
+        uint256[] memory ca = new uint256[](3);
+        ca[0] = 3000e6;
+        ca[1] = 4000e6;
+        ca[2] = 3000e6;
+
+        combines[0] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
+            stems: cs,
+            amounts: ca,
+            grownStalkSlippage: 0
+        });
+
+        // Expect event for Phase 2 - combine emits a single Convert event
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, 10000e6, 10000e6, 10000e6, 10000e6);
+
+        // Execute second batchConvert - combine
+        vm.prank(farmers[0]);
+        IMockFBeanstalk.ConvertOutput[] memory outputs2 = convert.batchConvert(combines);
+        int96 stem2 = outputs2[0].toStem;
+        uint256 amt2 = outputs2[0].fromAmount;
+
+        assertEq(amt2, 10000e6, "Phase 2: Should combine all deposits");
+        assertEq(stem2, 0, "Phase 2: Should maintain stem");
+    }
+
+    /**
+     * @notice Test batchConvert with single convert (edge case).
+     */
+    function test_batchConvert_singleConvert() public {
+        multipleBeanDepositSetup();
+
+        // Create single convert in batch
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](1);
+
+        int96[] memory stems1 = new int96[](1);
+        stems1[0] = int96(0);
+        uint256[] memory amounts1 = new uint256[](1);
+        amounts1[0] = 10000e6;
+
+        converts[0] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
+            stems: stems1,
+            amounts: amounts1,
+            grownStalkSlippage: 0
+        });
+
+        // Execute batchConvert with single convert
+        vm.prank(farmers[0]);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
+        int96 toStem = outputs[0].toStem;
+        uint256 fromAmount = outputs[0].fromAmount;
+        uint256 toAmount = outputs[0].toAmount;
+
+        // Verify results
+        assertEq(fromAmount, 10000e6, "Should convert single deposit");
+        assertEq(toAmount, 10000e6, "Should create single deposit");
+        // L2L convert keeps same stem (stem 0), so toStem should be 0
+        assertEq(toStem, 0, "L2L should keep same stem");
+    }
+
+    /**
+     * @notice Test that empty converts array reverts.
+     */
+    function test_batchConvert_emptyArray_reverts() public {
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](0);
+
+        vm.prank(farmers[0]);
+        vm.expectRevert("ConvertBatch: Empty converts array");
+        convert.batchConvert(converts);
+    }
+
+    /**
+     * @notice Test all-or-nothing behavior - if one convert fails, entire batch reverts.
+     */
+    function test_batchConvert_allOrNothing() public {
+        multipleBeanDepositSetup();
+
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](2);
+
+        // First convert: Valid
+        int96[] memory stems1 = new int96[](1);
+        stems1[0] = int96(0);
+        uint256[] memory amounts1 = new uint256[](1);
+        amounts1[0] = 10000e6;
+
+        converts[0] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 10000e6, 0),
+            stems: stems1,
+            amounts: amounts1,
+            grownStalkSlippage: 0
+        });
+
+        // Second convert: Invalid (trying to convert more than available)
+        int96[] memory stems2 = new int96[](1);
+        stems2[0] = bs.stemTipForToken(BEAN);
+        uint256[] memory amounts2 = new uint256[](1);
+        amounts2[0] = 50000e6; // More than available!
+
+        converts[1] = IMockFBeanstalk.ConvertParams({
+            convertData: convertEncoder(LibConvertData.ConvertKind.LAMBDA_LAMBDA, BEAN, 50000e6, 0),
+            stems: stems2,
+            amounts: amounts2,
+            grownStalkSlippage: 0
+        });
+
+        // Should revert because second convert is invalid
+        vm.prank(farmers[0]);
+        vm.expectRevert(); // Will revert with insufficient balance or similar
+        convert.batchConvert(converts);
+    }
+
+    //////////// AL2L RESTRICTION TESTS ////////////
+
+    /**
+     * @notice Test AL2L (Anti-Lambda-Lambda) can update a single deposit.
+     * @dev This tests requirement #4 part 1: AL2L CAN do (1) - update single deposit [a].
+     */
+    function test_batchConvert_AL2L_singleDeposit() public {
+        multipleBeanDepositSetup();
+
+        // Create single AL2L convert
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](1);
+
+        int96[] memory stems1 = new int96[](1);
+        stems1[0] = int96(0);
+        uint256[] memory amounts1 = new uint256[](1);
+        amounts1[0] = 5000e6; // Convert half of first deposit
+
+        // AL2L encoding: (kind, amount, token, account)
+        bytes memory al2lData = abi.encode(
+            LibConvertData.ConvertKind.ANTI_LAMBDA_LAMBDA,
+            5000e6,
+            BEAN,
+            farmers[0]
+        );
+
+        converts[0] = IMockFBeanstalk.ConvertParams({
+            convertData: al2lData,
+            stems: stems1,
+            amounts: amounts1,
+            grownStalkSlippage: 0
+        });
+
+        // Expect Convert event for AL2L
+        vm.expectEmit(true, true, true, true);
+        emit Convert(farmers[0], BEAN, BEAN, 5000e6, 5000e6, 5000e6, 5000e6);
+
+        // Should succeed - AL2L with single deposit is allowed
+        vm.prank(farmers[0]);
+        IMockFBeanstalk.ConvertOutput[] memory outputs = convert.batchConvert(converts);
+        int96 toStem = outputs[0].toStem;
+        uint256 fromAmount = outputs[0].fromAmount;
+        uint256 toAmount = outputs[0].toAmount;
+
+        assertEq(fromAmount, 5000e6, "Should convert 5000 Beans");
+        assertEq(toAmount, 5000e6, "Should output 5000 Beans");
+        assertEq(toStem, 0, "AL2L should maintain stem");
+    }
+
+    /**
+     * @notice Test AL2L can update multiple independent deposits in a batch.
+     * @dev This tests that AL2L CAN do (1) multiple times [a],[b],[c].
+     */
+    function test_batchConvert_multiple_AL2L_succeeds() public {
+        // Create deposits at different stems
+        uint256 numDeposits = 3;
+        uint256 depositAmount = 10000e6;
+        bean.mint(farmers[0], numDeposits * depositAmount);
+
+        // Create deposits and track stems
+        int96[] memory stems = new int96[](numDeposits);
+        vm.startPrank(farmers[0]);
+        for (uint i = 0; i < numDeposits; i++) {
+            stems[i] = bs.stemTipForToken(BEAN);
+            bs.deposit(BEAN, depositAmount, 0);
+            if (i < numDeposits - 1) season.siloSunrise(0);
+        }
+        vm.stopPrank();
+        passGermination();
+
+        // Try to create AL2L converts - one for each deposit
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](
+            numDeposits
+        );
+
+        uint256[] memory convertAmounts = new uint256[](numDeposits);
+        convertAmounts[0] = 3000e6;
+        convertAmounts[1] = 4000e6;
+        convertAmounts[2] = 3000e6;
+
+        // Create AL2L convert for each deposit
+        for (uint i = 0; i < numDeposits; i++) {
+            int96[] memory stemArray = new int96[](1);
+            stemArray[0] = stems[i];
+            uint256[] memory amountArray = new uint256[](1);
+            amountArray[0] = convertAmounts[i];
+
+            bytes memory al2lData = abi.encode(
+                LibConvertData.ConvertKind.ANTI_LAMBDA_LAMBDA,
+                convertAmounts[i],
+                BEAN,
+                farmers[0]
+            );
+
+            converts[i] = IMockFBeanstalk.ConvertParams({
+                convertData: al2lData,
+                stems: stemArray,
+                amounts: amountArray,
+                grownStalkSlippage: 0
+            });
+        }
+
+        // Should succeed - AL2L can do multiple independent converts
+        vm.prank(farmers[0]);
+        convert.batchConvert(converts);
+    }
+
+    /**
+     * @notice Test AL2L cannot combine multiple deposits.
+     * @dev This tests requirement #4 part 3: AL2L CANNOT do (2) and (3) - combine deposits [a,b,c].
+     */
+    function test_batchConvert_AL2L_combineDeposits_reverts() public {
+        // Create deposits
+        uint256 numDeposits = 3;
+        uint256 depositAmount = 10000e6;
+        bean.mint(farmers[0], numDeposits * depositAmount);
+
+        // Create deposits and track stems
+        int96[] memory depositStems = new int96[](numDeposits);
+        vm.startPrank(farmers[0]);
+        for (uint i = 0; i < numDeposits; i++) {
+            depositStems[i] = bs.stemTipForToken(BEAN);
+            bs.deposit(BEAN, depositAmount, 0);
+            if (i < numDeposits - 1) season.siloSunrise(0);
+        }
+        vm.stopPrank();
+        passGermination();
+
+        // Try to create single AL2L convert that combines all deposits
+        IMockFBeanstalk.ConvertParams[] memory converts = new IMockFBeanstalk.ConvertParams[](1);
+
+        uint256[] memory amounts = new uint256[](numDeposits);
+        uint256 totalAmount = 0;
+        for (uint i = 0; i < numDeposits; i++) {
+            amounts[i] = depositAmount;
+            totalAmount += depositAmount;
+        }
+
+        bytes memory al2lData = abi.encode(
+            LibConvertData.ConvertKind.ANTI_LAMBDA_LAMBDA,
+            totalAmount,
+            BEAN,
+            farmers[0]
+        );
+
+        converts[0] = IMockFBeanstalk.ConvertParams({
+            convertData: al2lData,
+            stems: depositStems,
+            amounts: amounts,
+            grownStalkSlippage: 0
+        });
+
+        // Should revert - AL2L cannot combine multiple deposits
+        vm.prank(farmers[0]);
+        vm.expectRevert("Convert: DecreaseBDV only supports updating one deposit.");
+        convert.batchConvert(converts);
     }
 }

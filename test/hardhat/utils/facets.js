@@ -13,6 +13,7 @@ const facets = [
   "BDVFacet",
   "OracleFacet",
   "ConvertFacet", // CONVERT
+  "ConvertBatchFacet", // CONVERT BATCH
   "ConvertGettersFacet",
   "PipelineConvertFacet",
   "MetadataFacet", // METADATA
