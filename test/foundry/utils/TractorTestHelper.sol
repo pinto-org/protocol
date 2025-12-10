@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
+import {SowBlueprintBase} from "contracts/ecosystem/tractor/blueprints/SowBlueprintBase.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
@@ -186,7 +187,7 @@ contract TractorTestHelper is TestHelper {
     function setupSowBlueprintv0Blueprint(
         address account,
         SourceMode sourceMode,
-        SowBlueprint.SowAmounts memory sowAmounts,
+        SowBlueprintBase.SowAmounts memory sowAmounts,
         uint256 minTemp,
         int256 operatorTipAmount,
         address tipAddress,
@@ -195,7 +196,10 @@ contract TractorTestHelper is TestHelper {
         uint256 runBlocksAfterSunrise
     )
         public
-        returns (IMockFBeanstalk.Requisition memory, SowBlueprint.SowBlueprintStruct memory params)
+        returns (
+            IMockFBeanstalk.Requisition memory,
+            SowBlueprintBase.SowBlueprintStruct memory params
+        )
     {
         // Create the SowBlueprintStruct using the helper function
         params = createSowBlueprintStruct(
@@ -231,7 +235,7 @@ contract TractorTestHelper is TestHelper {
     // Helper function to create SowBlueprintStruct
     function createSowBlueprintStruct(
         uint8 sourceMode,
-        SowBlueprint.SowAmounts memory sowAmounts,
+        SowBlueprintBase.SowAmounts memory sowAmounts,
         uint256 minTemp,
         int256 operatorTipAmount,
         address tipAddress,
@@ -240,7 +244,7 @@ contract TractorTestHelper is TestHelper {
         uint256 runBlocksAfterSunrise,
         address tractorHelpersAddress,
         address bsAddress
-    ) internal view returns (SowBlueprint.SowBlueprintStruct memory) {
+    ) internal view returns (SowBlueprintBase.SowBlueprintStruct memory) {
         // Create default whitelisted operators array with msg.sender
         address[] memory whitelistedOps = new address[](3);
         whitelistedOps[0] = msg.sender;
@@ -261,7 +265,7 @@ contract TractorTestHelper is TestHelper {
         }
 
         // Create SowParams struct
-        SowBlueprint.SowParams memory sowParams = SowBlueprint.SowParams({
+        SowBlueprintBase.SowParams memory sowParams = SowBlueprintBase.SowParams({
             sourceTokenIndices: sourceTokenIndices,
             sowAmounts: sowAmounts,
             minTemp: minTemp,
@@ -272,18 +276,18 @@ contract TractorTestHelper is TestHelper {
         });
 
         // Create OperatorParams struct
-        SowBlueprint.OperatorParams memory opParams = SowBlueprint.OperatorParams({
+        SowBlueprintBase.OperatorParams memory opParams = SowBlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOps,
             tipAddress: tipAddress,
             operatorTipAmount: operatorTipAmount
         });
 
-        return SowBlueprint.SowBlueprintStruct({sowParams: sowParams, opParams: opParams});
+        return SowBlueprintBase.SowBlueprintStruct({sowParams: sowParams, opParams: opParams});
     }
 
     // Helper to create the calldata for sowBlueprint
     function createSowBlueprintv0CallData(
-        SowBlueprint.SowBlueprintStruct memory params
+        SowBlueprintBase.SowBlueprintStruct memory params
     ) internal view returns (bytes memory) {
         // Create the sowBlueprint pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);

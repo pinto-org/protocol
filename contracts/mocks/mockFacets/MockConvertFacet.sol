@@ -9,7 +9,7 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**

@@ -219,6 +219,28 @@ interface IMockFBeanstalk {
         uint256 minFillAmount;
     }
 
+    struct CancelPodListingParams {
+        uint256 fieldId;
+        uint256 index;
+    }
+
+    struct FillPodListingParams {
+        PodListing listing;
+        uint256 beanAmount;
+    }
+
+    struct CreatePodOrderParams {
+        PodOrder order;
+        uint256 beanAmount;
+    }
+
+    struct FillPodOrderParams {
+        PodOrder order;
+        uint256 index;
+        uint256 start;
+        uint256 amount;
+    }
+
     struct Rain {
         uint256 pods;
         uint256 roots;
@@ -301,6 +323,11 @@ interface IMockFBeanstalk {
         D256 podRate;
         address largestLiqWell;
         bool oracleFailure;
+    }
+
+    struct ContractData {
+        uint256 key;
+        bytes value;
     }
 
     error AddressEmptyCode(address target);
@@ -750,7 +777,11 @@ interface IMockFBeanstalk {
 
     function cancelPodListing(uint256 fieldId, uint256 index) external payable;
 
+    function batchCancelPodListing(CancelPodListingParams[] memory params) external payable;
+
     function cancelPodOrder(PodOrder memory podOrder, uint8 mode) external payable;
+
+    function batchCancelPodOrder(PodOrder[] memory podOrders, uint8 mode) external payable;
 
     function cappedReservesDeltaB(address well) external view returns (int256 deltaB);
 
@@ -820,11 +851,18 @@ interface IMockFBeanstalk {
 
     function createPodListing(PodListing memory podListing) external payable;
 
+    function batchCreatePodListing(PodListing[] memory podListings) external payable;
+
     function createPodOrder(
         PodOrder memory podOrder,
         uint256 beanAmount,
         uint8 mode
     ) external payable returns (bytes32 id);
+
+    function batchCreatePodOrder(
+        CreatePodOrderParams[] memory params,
+        uint8 mode
+    ) external payable returns (bytes32[] memory ids);
 
     function cumulativeCurrentDeltaB(address[] memory pools) external view returns (int256 deltaB);
 
@@ -920,6 +958,8 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
+    function batchFillPodListing(FillPodListingParams[] memory params, uint8 mode) external payable;
+
     function fillPodOrder(
         PodOrder memory podOrder,
         uint256 index,
@@ -927,6 +967,8 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint8 mode
     ) external payable;
+
+    function batchFillPodOrder(FillPodOrderParams[] memory params, uint8 mode) external payable;
 
     function floodHarvestablePods() external view returns (uint256);
 
@@ -1179,7 +1221,9 @@ interface IMockFBeanstalk {
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB);
 
-    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) external view returns (address publisher, uint256 count);
 
     function getReceiver(address owner) external view returns (address);
 
@@ -1651,6 +1695,10 @@ interface IMockFBeanstalk {
 
     function setSoilE(uint256 amount) external;
 
+    function setReferrerPercentageE(uint128 percentage) external;
+
+    function setRefereePercentageE(uint128 percentage) external;
+
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
     function setSunriseBlock(uint256 _block) external;
@@ -1698,7 +1746,7 @@ interface IMockFBeanstalk {
 
     function stemTipForToken(address token) external view returns (int96 _stemTip);
 
-    function stepGauge() external;
+    function stepSeedGauge() external;
 
     function sunSunrise(int256 deltaB, uint256 caseId, BeanstalkState memory bs) external;
 
@@ -1761,6 +1809,12 @@ interface IMockFBeanstalk {
     function tractor(
         Requisition memory requisition,
         bytes memory operatorData
+    ) external payable returns (bytes[] memory results);
+
+    function tractorDynamicData(
+        Requisition calldata requisition,
+        bytes memory operatorData,
+        ContractData[] memory operatorDynamicData
     ) external payable returns (bytes[] memory results);
 
     function transferDeposit(
@@ -1916,6 +1970,7 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
+
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1998,4 +2053,8 @@ interface IMockFBeanstalk {
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
 
     function getSeedsForToken(address token) external view returns (uint256 seeds);
+
+    function setReferralEligibility(address referrer, bool eligible) external;
+
+    function getTractorData(uint256 key) external view returns (bytes memory);
 }

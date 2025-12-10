@@ -49,6 +49,7 @@ contract BeanstalkDeployer is Utils {
         "MetadataFacet",
         "DepotFacet",
         "MarketplaceFacet",
+        "MarketplaceBatchFacet",
         "ClaimFacet",
         "OracleFacet",
         "GaugeGettersFacet",
