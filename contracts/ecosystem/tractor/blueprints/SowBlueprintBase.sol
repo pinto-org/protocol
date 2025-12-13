@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "../utils/SiloHelpers.sol";
