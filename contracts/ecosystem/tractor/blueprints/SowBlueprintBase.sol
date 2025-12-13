@@ -97,9 +97,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
         OperatorParams opParams;
     }
 
-    // Default slippage ratio for LP token withdrawals (1%)
-    uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
-
     /**
      * @notice Blueprint specific struct to hold order info
      * @param pintoSownCounter Counter for the number of maximum pinto that can be sown from this blueprint
@@ -109,6 +106,9 @@ abstract contract SowBlueprintBase is BlueprintBase {
         uint256 pintoSownCounter;
         uint32 lastExecutedSeason;
     }
+
+    // Default slippage ratio for LP token withdrawals (1%)
+    uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
 
     // Combined state mapping for order info
     mapping(bytes32 => OrderInfo) private orderInfo;
@@ -139,20 +139,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
      */
     function getLastExecutedSeason(bytes32 orderHash) public view returns (uint32) {
         return orderInfo[orderHash].lastExecutedSeason;
-    }
-
-    /**
-     * @notice Updates the pinto left to sow counter for a given order hash
-     */
-    function updatePintoLeftToSowCounter(bytes32 orderHash, uint256 newCounter) internal {
-        orderInfo[orderHash].pintoSownCounter = newCounter;
-    }
-
-    /**
-     * @notice Updates the last executed season for a given order hash
-     */
-    function _updateSowLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
-        orderInfo[orderHash].lastExecutedSeason = season;
     }
 
     /**
@@ -259,6 +245,20 @@ abstract contract SowBlueprintBase is BlueprintBase {
 
         // Update the last executed season for this blueprint
         _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
+    }
+
+    /**
+     * @notice Updates the pinto left to sow counter for a given order hash
+     */
+    function updatePintoLeftToSowCounter(bytes32 orderHash, uint256 newCounter) internal {
+        orderInfo[orderHash].pintoSownCounter = newCounter;
+    }
+
+    /**
+     * @notice Updates the last executed season for a given order hash
+     */
+    function _updateSowLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
+        orderInfo[orderHash].lastExecutedSeason = season;
     }
 
     /**
