@@ -165,9 +165,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
             vars.withdrawalPlan
         ) = _validateParamsAndReturnBeanstalkState(params, vars.orderHash, vars.account);
 
-        // Check if the executing operator (msg.sender) is whitelisted
-        _validateOperatorParamsMemory(params.opParams);
-
         // Get tip address. If tip address is not set, set it to the operator
         vars.tipAddress = _resolveTipAddress(params.opParams.tipAddress);
 
@@ -448,20 +445,5 @@ abstract contract SowBlueprintBase is BlueprintBase {
         }
 
         return totalAmountToSow;
-    }
-
-    /**
-     * @notice Validates operator parameters (memory version for internal calls)
-     */
-    function _validateOperatorParamsMemory(OperatorParams memory opParams) internal view {
-        address currentOperator = beanstalk.operator();
-        bool isWhitelisted = false;
-        for (uint256 i = 0; i < opParams.whitelistedOperators.length; i++) {
-            if (opParams.whitelistedOperators[i] == currentOperator) {
-                isWhitelisted = true;
-                break;
-            }
-        }
-        require(isWhitelisted, "Operator not whitelisted");
     }
 }
