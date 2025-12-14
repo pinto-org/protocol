@@ -118,7 +118,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @dev Used to avoid stack too deep errors
      */
     struct MowPlantHarvestLocalVars {
-        bytes32 orderHash;
         address account;
         address tipAddress;
         address beanToken;
@@ -156,7 +155,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         MowPlantHarvestLocalVars memory vars;
 
         // Validate
-        vars.orderHash = beanstalk.getCurrentBlueprintHash();
         vars.account = beanstalk.tractorUser();
         vars.tipAddress = params.opParams.opParamsBase.tipAddress;
         // Cache the current season struct
@@ -169,9 +167,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             vars.shouldHarvest,
             vars.userFieldHarvestResults
         ) = _getAndValidateUserState(vars.account, vars.seasonInfo.timestamp, params);
-
-        // validate blueprint
-        _validateBlueprint(vars.orderHash, vars.seasonInfo.current);
 
         // validate order params and revert early if invalid
         _validateParams(params);
@@ -237,9 +232,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             params.mowPlantHarvestParams.slippageRatio,
             vars.plan // passed in plan is empty
         );
-
-        // Update the last executed season for this blueprint
-        _updateLastExecutedSeason(vars.orderHash, vars.seasonInfo.current);
     }
 
     /**
