@@ -445,13 +445,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         );
 
         // Check if enough beans are available using getWithdrawalPlan
-        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers
-            .getWithdrawalPlan(
-                account,
-                sourceTokenIndices,
-                uint256(totalBeanTip),
-                filterParams
-            );
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers.getWithdrawalPlan(
+            account,
+            sourceTokenIndices,
+            uint256(totalBeanTip),
+            filterParams
+        );
 
         // Execute the withdrawal plan to withdraw the tip amount
         siloHelpers.withdrawBeansFromSources(
