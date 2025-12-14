@@ -129,7 +129,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         bool shouldHarvest;
         IBeanstalk.Season seasonInfo;
         UserFieldHarvestResults[] userFieldHarvestResults;
-        LibSiloHelpers.WithdrawalPlan plan;
     }
 
     // Silo helpers for withdrawal functionality
@@ -229,8 +228,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             params.mowPlantHarvestParams.sourceTokenIndices,
             vars.totalBeanTip,
             params.mowPlantHarvestParams.maxGrownStalkPerBdv,
-            params.mowPlantHarvestParams.slippageRatio,
-            vars.plan // passed in plan is empty
+            params.mowPlantHarvestParams.slippageRatio
         );
     }
 
@@ -431,7 +429,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param totalBeanTip The total tip for mowing, planting and harvesting
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
-     * @param plan The withdrawal plan to use, or null to generate one
      */
     function _enforceWithdrawalPlanAndTip(
         address account,
@@ -440,8 +437,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint8[] memory sourceTokenIndices,
         int256 totalBeanTip,
         uint256 maxGrownStalkPerBdv,
-        uint256 slippageRatio,
-        LibSiloHelpers.WithdrawalPlan memory plan
+        uint256 slippageRatio
     ) internal {
         // Create filter params for the withdrawal plan
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
@@ -450,12 +446,11 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Check if enough beans are available using getWithdrawalPlan
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers
-            .getWithdrawalPlanExcludingPlan(
+            .getWithdrawalPlan(
                 account,
                 sourceTokenIndices,
                 uint256(totalBeanTip),
-                filterParams,
-                plan // passed in plan is empty
+                filterParams
             );
 
         // Execute the withdrawal plan to withdraw the tip amount
