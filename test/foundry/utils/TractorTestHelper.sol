@@ -196,14 +196,12 @@ contract TractorTestHelper is TestHelper {
         if (plotIndexes.length == 0) {
             harvestData.fieldId = fieldId;
             harvestData.harvestablePlotIndexes = new uint256[](0);
-            harvestData.totalHarvestablePods = 0;
             return harvestData;
         }
 
         // Temporary array to collect harvestable plots
         uint256[] memory tempPlots = new uint256[](plotIndexes.length);
         uint256 harvestableCount = 0;
-        uint256 totalPods = 0;
 
         for (uint256 i = 0; i < plotIndexes.length; i++) {
             uint256 plotIndex = plotIndexes[i];
@@ -212,12 +210,10 @@ contract TractorTestHelper is TestHelper {
             if (plotIndex + plotPods <= harvestableIndex) {
                 // Fully harvestable
                 tempPlots[harvestableCount] = plotIndex;
-                totalPods += plotPods;
                 harvestableCount++;
             } else if (plotIndex < harvestableIndex) {
                 // Partially harvestable
                 tempPlots[harvestableCount] = plotIndex;
-                totalPods += harvestableIndex - plotIndex;
                 harvestableCount++;
             }
         }
@@ -230,7 +226,6 @@ contract TractorTestHelper is TestHelper {
 
         harvestData.fieldId = fieldId;
         harvestData.harvestablePlotIndexes = harvestablePlots;
-        harvestData.totalHarvestablePods = totalPods;
     }
 
     // Helper function to sign blueprints
