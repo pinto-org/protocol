@@ -193,7 +193,10 @@ abstract contract SowBlueprintBase is BlueprintBase {
         uint256 sowCounter = pintoRemainingAfterSow;
         // if `pintoRemainingAfterSow` is less than the min amount to sow per season,
         // the order has completed, and should emit a SowOrderComplete event
-        if (pintoRemainingAfterSow == 0 || pintoRemainingAfterSow < params.sowParams.sowAmounts.minAmountToSowPerSeason) {
+        if (
+            pintoRemainingAfterSow == 0 ||
+            pintoRemainingAfterSow < params.sowParams.sowAmounts.minAmountToSowPerSeason
+        ) {
             if (pintoRemainingAfterSow == 0) {
                 // If the pinto remaining after sow is 0,
                 // set the sow counter to max to indicate completion

@@ -214,7 +214,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
                 // Validate post-harvest: revert if harvested amount is below minimum threshold
                 require(
-                    harvestedBeans >= params.mowPlantHarvestParams.fieldHarvestConfigs[i].minHarvestAmount,
+                    harvestedBeans >=
+                        params.mowPlantHarvestParams.fieldHarvestConfigs[i].minHarvestAmount,
                     "MowPlantHarvestBlueprint: Harvested amount below minimum threshold"
                 );
 
@@ -280,9 +281,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             previousSeasonTimestamp
         );
         shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
-        shouldHarvest = _checkHarvestConditions(
-            userFieldHarvestResults
-        );
+        shouldHarvest = _checkHarvestConditions(userFieldHarvestResults);
 
         require(
             shouldMow || shouldPlant || shouldHarvest,
@@ -387,10 +386,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             );
 
             // Verify operator provided data for the correct field
-            require(
-                harvestData.fieldId == fieldId,
-                "MowPlantHarvestBlueprint: Field ID mismatch"
-            );
+            require(harvestData.fieldId == fieldId, "MowPlantHarvestBlueprint: Field ID mismatch");
 
             // Use operator data - validation happens in harvest() call
             userFieldHarvestResults[i] = UserFieldHarvestResults({
