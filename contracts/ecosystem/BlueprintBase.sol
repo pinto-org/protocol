@@ -31,6 +31,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
 
     // Contracts
     IBeanstalk public immutable beanstalk;
+    address public immutable beanToken;
     TractorHelpers public immutable tractorHelpers;
 
     constructor(
@@ -39,6 +40,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
         address _tractorHelpers
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
+        beanToken = beanstalk.getBeanToken();
         tractorHelpers = TractorHelpers(_tractorHelpers);
     }
 

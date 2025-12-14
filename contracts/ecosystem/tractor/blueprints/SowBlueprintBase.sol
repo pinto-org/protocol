@@ -381,9 +381,9 @@ abstract contract SowBlueprintBase is BlueprintBase {
      */
     function getAndValidateBeanstalkState(
         SowParams memory params
-    ) internal view returns (uint256 availableSoil, address beanToken, uint32 currentSeason) {
+    ) internal view returns (uint256 availableSoil, address beanToken_, uint32 currentSeason) {
         availableSoil = beanstalk.totalSoil();
-        beanToken = beanstalk.getBeanToken();
+        beanToken_ = beanToken;
         currentSeason = beanstalk.time().current;
 
         // Check temperature and soil requirements

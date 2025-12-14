@@ -183,7 +183,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         vars.tipAddress = _resolveTipAddress(vars.tipAddress);
 
         // cache bean token
-        vars.beanToken = beanstalk.getBeanToken();
+        vars.beanToken = beanToken;
 
         // Mow, Plant and Harvest
         // Check if user should harvest or plant
