@@ -608,7 +608,7 @@ contract TractorTestHelper is TestHelper {
         // create OperatorParamsExtended struct
         MowPlantHarvestBlueprint.OperatorParamsExtended
             memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
-                opParamsBase: opParams,
+                baseOpParams: opParams,
                 mowTipAmount: mowTipAmount,
                 plantTipAmount: plantTipAmount,
                 harvestTipAmount: harvestTipAmount

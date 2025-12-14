@@ -107,7 +107,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param harvestTipAmount Amount of tip to pay to operator for harvesting
      */
     struct OperatorParamsExtended {
-        OperatorParams opParamsBase;
+        OperatorParams baseOpParams;
         int256 mowTipAmount;
         int256 plantTipAmount;
         int256 harvestTipAmount;
@@ -156,7 +156,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Validate
         vars.account = beanstalk.tractorUser();
-        vars.tipAddress = params.opParams.opParamsBase.tipAddress;
+        vars.tipAddress = params.opParams.baseOpParams.tipAddress;
         // Cache the current season struct
         vars.seasonInfo = beanstalk.time();
 
@@ -396,7 +396,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal view {
         // Shared validations
         _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
-        _validateOperatorParams(params.opParams.opParamsBase);
+        _validateOperatorParams(params.opParams.baseOpParams);
 
         // Blueprint specific validations
         // Validate that minPlantAmount and minHarvestAmount result in profit after their respective tips
