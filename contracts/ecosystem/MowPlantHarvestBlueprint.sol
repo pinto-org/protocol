@@ -501,8 +501,9 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         LibSiloHelpers.WithdrawalPlan memory plan
     ) internal {
         // Create filter params for the withdrawal plan
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = maxGrownStalkPerBdv;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            maxGrownStalkPerBdv
+        );
 
         // Check if enough beans are available using getWithdrawalPlan
         LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers

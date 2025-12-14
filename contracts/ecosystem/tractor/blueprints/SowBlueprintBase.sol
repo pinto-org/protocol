@@ -175,8 +175,9 @@ abstract contract SowBlueprintBase is BlueprintBase {
         }
 
         // Execute the withdrawal plan
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            params.sowParams.maxGrownStalkPerBdv
+        );
 
         vars.beansWithdrawn = siloHelpers.withdrawBeansFromSources(
             vars.account,
@@ -339,8 +340,9 @@ abstract contract SowBlueprintBase is BlueprintBase {
         }
 
         // Check if enough beans are available using getWithdrawalPlan
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            params.sowParams.maxGrownStalkPerBdv
+        );
 
         plan = siloHelpers.getWithdrawalPlanExcludingPlan(
             blueprintPublisher,

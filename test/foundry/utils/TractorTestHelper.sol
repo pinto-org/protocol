@@ -249,8 +249,9 @@ contract TractorTestHelper is TestHelper {
         uint256 maxGrownStalkPerBdv,
         LibTransfer.To mode
     ) internal returns (IMockFBeanstalk.Requisition memory) {
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = maxGrownStalkPerBdv;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            maxGrownStalkPerBdv
+        );
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         // Create the withdrawBeansFromSources pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
