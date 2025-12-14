@@ -336,7 +336,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     /**
      * @notice helper function to get the user state to compare against parameters
      * @dev Uses operator-provided harvest data from transient storage.
-     * Reverts if no data is provided.
+     * If no data is provided for a field, treats it as no harvestable pods.
      * Increasing the total claimable stalk when planting or harvesting does not really matter
      * since we mow by default if we plant or harvest.
      */
@@ -374,11 +374,15 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             // Read operator-provided data from transient storage
             bytes memory operatorData = beanstalk.getTractorData(HARVEST_DATA_KEY + fieldId);
 
-            // Operator must provide harvest data for each configured field
-            require(
-                operatorData.length > 0,
-                "MowPlantHarvestBlueprint: Missing operator harvest data"
-            );
+            // If operator didn't provide data for this field, treat as no harvestable pods
+            if (operatorData.length == 0) {
+                userFieldHarvestResults[i] = UserFieldHarvestResults({
+                    fieldId: fieldId,
+                    totalHarvestablePods: 0,
+                    harvestablePlots: new uint256[](0)
+                });
+                continue;
+            }
 
             // Decode operator-provided harvest data
             OperatorHarvestData memory harvestData = abi.decode(
