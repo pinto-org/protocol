@@ -556,12 +556,12 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256 fieldId,
         uint256[] calldata arrayIndexes
     ) external view returns (uint256[] memory plotIndexes) {
-        uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        uint256 accountPlotIndexesLength = s.accts[account].fields[fieldId].plotIndexes.length;
         plotIndexes = new uint256[](arrayIndexes.length);
 
         for (uint256 i = 0; i < arrayIndexes.length; i++) {
-            require(arrayIndexes[i] < accountPlotIndexes.length, "Field: Index out of bounds");
-            plotIndexes[i] = accountPlotIndexes[arrayIndexes[i]];
+            require(arrayIndexes[i] < accountPlotIndexesLength, "Field: Index out of bounds");
+            plotIndexes[i] = s.accts[account].fields[fieldId].plotIndexes[arrayIndexes[i]];
         }
     }
 
@@ -574,13 +574,13 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256 startIndex,
         uint256 endIndex
     ) external view returns (uint256[] memory plotIndexes) {
-        uint256[] memory accountPlotIndexes = s.accts[account].fields[fieldId].plotIndexes;
+        uint256 accountPlotIndexesLength = s.accts[account].fields[fieldId].plotIndexes.length;
         require(startIndex < endIndex, "Field: Invalid range");
-        require(endIndex <= accountPlotIndexes.length, "Field: End index out of bounds");
+        require(endIndex <= accountPlotIndexesLength, "Field: End index out of bounds");
 
         plotIndexes = new uint256[](endIndex - startIndex);
         for (uint256 i = 0; i < plotIndexes.length; i++) {
-            plotIndexes[i] = accountPlotIndexes[startIndex + i];
+            plotIndexes[i] = s.accts[account].fields[fieldId].plotIndexes[startIndex + i];
         }
     }
 
