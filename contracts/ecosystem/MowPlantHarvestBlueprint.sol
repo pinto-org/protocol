@@ -168,7 +168,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         ) = _getAndValidateUserState(vars.account, vars.seasonInfo.timestamp, params);
 
         // validate order params and revert early if invalid
-        _validateParams(params);
+        _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
+        _validateOperatorParams(params.opParams.baseOpParams);
 
         // if tip address is not set, set it to the operator
         vars.tipAddress = _resolveTipAddress(vars.tipAddress);
@@ -386,38 +387,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestResults);
-    }
-
-    /**
-     * @dev validates the parameters for the mow, plant and harvest operation
-     */
-    function _validateParams(MowPlantHarvestBlueprintStruct calldata params) internal view {
-        // Shared validations
-        _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
-        _validateOperatorParams(params.opParams.baseOpParams);
-
-        // Blueprint specific validations
-        // Validate that minPlantAmount and minHarvestAmount result in profit after their respective tips
-        if (params.opParams.plantTipAmount >= 0) {
-            require(
-                params.mowPlantHarvestParams.minPlantAmount >
-                    uint256(params.opParams.plantTipAmount),
-                "Min plant amount must be greater than plant tip amount"
-            );
-        }
-        if (params.opParams.harvestTipAmount >= 0) {
-            uint256 totalMinHarvestAmount;
-            for (uint256 i = 0; i < params.mowPlantHarvestParams.fieldHarvestConfigs.length; i++) {
-                totalMinHarvestAmount += params
-                    .mowPlantHarvestParams
-                    .fieldHarvestConfigs[i]
-                    .minHarvestAmount;
-            }
-            require(
-                totalMinHarvestAmount > uint256(params.opParams.harvestTipAmount),
-                "Min harvest amount must be greater than harvest tip amount"
-            );
-        }
     }
 
     /**
