@@ -21,6 +21,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     /**
      * @dev Key for operator-provided harvest data in transient storage
      * The key format is: HARVEST_DATA_KEY + fieldId
+     * Hash: 0x57c0c06c01076b3dedd361eef555163669978891b716ce6c5ef1355fc8ab5a36
      */
     uint256 public constant HARVEST_DATA_KEY =
         uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
