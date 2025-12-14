@@ -131,7 +131,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
 
     /////////////////////////// TESTS ///////////////////////////
 
-    function test_mowPlantHarvestBlueprint_smartMow() public {
+    function test_mowPlantHarvestBlueprint_Mow() public {
         // Setup test state
         // setupPlant: false, setupHarvest: false, abovePeg: true
         TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, false, true);

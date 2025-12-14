@@ -266,7 +266,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         ) = _getUserState(account, params.mowPlantHarvestParams.fieldHarvestConfigs);
 
         // validate params - only revert if none of the conditions are met
-        shouldMow = _checkSmartMowConditions(
+        shouldMow = _checkMowConditions(
             params.mowPlantHarvestParams.mintwaDeltaB,
             params.mowPlantHarvestParams.minMowAmount,
             totalClaimableStalk,
@@ -284,14 +284,14 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Check smart mow conditions to trigger a mow
-     * @dev A smart mow happens when:
+     * @notice Check mow conditions to trigger a mow
+     * @dev A mow happens when:
      * - `MINUTES_AFTER_SUNRISE` has passed since the last sunrise call
      * - The protocol is about to start the next season above the value target.
      * - The user has enough claimable stalk such as he gets more yield.
-     * @return bool True if the user should smart mow, false otherwise
+     * @return bool True if the user should mow, false otherwise
      */
-    function _checkSmartMowConditions(
+    function _checkMowConditions(
         uint256 mintwaDeltaB,
         uint256 minMowAmount,
         uint256 totalClaimableStalk,
