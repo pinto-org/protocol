@@ -189,27 +189,25 @@ abstract contract SowBlueprintBase is BlueprintBase {
             vars.withdrawalPlan
         );
 
-        // Update the counter
-        // If this will use up all remaining amount, set to max to indicate completion
-        if (vars.pintoLeftToSow - vars.totalAmountToSow == 0) {
-            updatePintoLeftToSowCounter(vars.orderHash, type(uint256).max);
-            // Order filled completely, emit event as such
-            emit SowOrderComplete(vars.orderHash, vars.account, vars.totalAmountToSow, 0);
-        } else {
-            uint256 amountUnfulfilled = vars.pintoLeftToSow - vars.totalAmountToSow;
-            updatePintoLeftToSowCounter(vars.orderHash, amountUnfulfilled);
-
-            // If the min sow per season is greater than the amount unfulfilled, this order will
-            // never be able to execute again, so emit event as such
-            if (amountUnfulfilled < params.sowParams.sowAmounts.minAmountToSowPerSeason) {
-                emit SowOrderComplete(
-                    vars.orderHash,
-                    vars.account,
-                    params.sowParams.sowAmounts.totalAmountToSow - amountUnfulfilled,
-                    amountUnfulfilled
-                );
+        uint256 pintoRemainingAfterSow = vars.pintoLeftToSow - vars.totalAmountToSow;
+        uint256 sowCounter = pintoRemainingAfterSow;
+        // if `pintoRemainingAfterSow` is less than the min amount to sow per season,
+        // the order has completed, and should emit a SowOrderComplete event
+        if (pintoRemainingAfterSow < params.sowParams.sowAmounts.minAmountToSowPerSeason) {
+            if (pintoRemainingAfterSow == 0) {
+                // If the pinto remaining after sow is 0,
+                // set the sow counter to max to indicate completion
+                // (as `0` in `sowCounter` implies an uninitialized counter)
+                sowCounter = type(uint256).max;
             }
+            emit SowOrderComplete(
+                vars.orderHash,
+                vars.account,
+                params.sowParams.sowAmounts.totalAmountToSow - pintoRemainingAfterSow,
+                pintoRemainingAfterSow
+            );
         }
+        updatePintoLeftToSowCounter(vars.orderHash, sowCounter);
 
         // Tip the operator
         tractorHelpers.tip(
