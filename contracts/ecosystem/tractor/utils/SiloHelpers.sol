@@ -499,7 +499,9 @@ contract SiloHelpers {
         view
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            uint256(int256(type(int96).max))
+        );
         filterParams.minStem = minStem;
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         return getDepositStemsAndAmountsToWithdraw(account, token, amount, filterParams, emptyPlan);
