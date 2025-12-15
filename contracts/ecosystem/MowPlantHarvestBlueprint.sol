@@ -441,13 +441,28 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         if (canOptimize) {
             // CASE 1: Harvest covers full tip (most gas efficient - no withdraw call needed)
             if (totalHarvestedBeans >= tipAmount) {
-                _tipFromHarvestedOnly(account, tipAddress, _beanToken, totalBeanTip, totalHarvestedBeans, tipAmount);
+                _tipFromHarvestedOnly(
+                    account,
+                    tipAddress,
+                    _beanToken,
+                    totalBeanTip,
+                    totalHarvestedBeans,
+                    tipAmount
+                );
                 return;
             }
 
             // CASE 2: Need to combine harvested beans + planted beans
             if (totalPlantedBeans > 0 && totalHarvestedBeans + totalPlantedBeans >= tipAmount) {
-                _tipFromPlantedAndHarvested(account, tipAddress, _beanToken, totalBeanTip, totalHarvestedBeans, tipAmount, plantedStem);
+                _tipFromPlantedAndHarvested(
+                    account,
+                    tipAddress,
+                    _beanToken,
+                    totalBeanTip,
+                    totalHarvestedBeans,
+                    tipAmount,
+                    plantedStem
+                );
                 return;
             }
         }
