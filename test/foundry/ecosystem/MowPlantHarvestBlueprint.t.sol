@@ -191,39 +191,6 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
     }
 
-    function test_mowPlantHarvestBlueprint_plant_revertWhenMinPlantAmountLessThanTip() public {
-        // Setup test state for planting
-        // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, false, true);
-
-        // assert that the user has earned beans
-        assertGt(bs.balanceOfEarnedBeans(state.user), 0, "user should have earned beans to plant");
-
-        // Setup blueprint with minPlantAmount less than plant tip amount
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
-            state.user, // account
-            SourceMode.PURE_PINTO, // sourceMode for tip
-            1 * STALK_DECIMALS, // minMowAmount (1 stalk)
-            10e6, // mintwaDeltaB
-            1e6, // minPlantAmount < 10e6 (plant tip amount)
-            UNEXECUTABLE_MIN_HARVEST_AMOUNT, // minHarvestAmount (for all fields)
-            state.operator, // tipAddress
-            state.mowTipAmount, // mowTipAmount
-            state.plantTipAmount, // plantTipAmount
-            state.harvestTipAmount, // harvestTipAmount
-            MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
-        );
-
-        // Pre-calculate harvest data BEFORE expectRevert
-        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
-            state.user
-        );
-
-        // Execute requisition, expect revert
-        vm.expectRevert("Min plant amount must be greater than plant tip amount");
-        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
-    }
-
     function test_mowPlantHarvestBlueprint_plant_revertWhenInsufficientPlantableBeans() public {
         // Setup test state for planting
         // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
@@ -297,43 +264,6 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
 
         assertGt(userTotalStalkAfterPlant, userTotalStalkBeforePlant, "userTotalStalk increase");
         assertGt(userTotalBdvAfterPlant, userTotalBdvBeforePlant, "userTotalBdv increase");
-    }
-
-    function test_mowPlantHarvestBlueprint_harvest_revertWhenMinHarvestAmountLessThanTip() public {
-        // Setup test state for harvesting
-        // setupPlant: false, setupHarvest: true, twoFields: true, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true, true);
-
-        // advance season to print beans
-        advanceSeason();
-
-        // assert user has harvestable pods
-        (uint256 totalHarvestablePods, ) = _userHarvestablePods(state.user, DEFAULT_FIELD_ID);
-        assertGt(totalHarvestablePods, 0, "user should have harvestable pods to harvest");
-
-        // Setup blueprint with minHarvestAmount less than harvest tip amount
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
-            state.user, // account
-            SourceMode.PURE_PINTO, // sourceMode for tip
-            1 * STALK_DECIMALS, // minMowAmount (1 stalk)
-            10e6, // mintwaDeltaB
-            11e6, // minPlantAmount
-            1e6, // minHarvestAmount < 10e6 (harvest tip amount) (for all fields)
-            state.operator, // tipAddress
-            state.mowTipAmount, // mowTipAmount
-            state.plantTipAmount, // plantTipAmount
-            state.harvestTipAmount, // harvestTipAmount
-            MAX_GROWN_STALK_PER_BDV // maxGrownStalkPerBdv
-        );
-
-        // Pre-calculate harvest data BEFORE expectRevert
-        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
-            state.user
-        );
-
-        // Execute requisition, expect revert
-        vm.expectRevert("Min harvest amount must be greater than harvest tip amount");
-        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
     }
 
     function test_mowPlantHarvestBlueprint_harvest_partialHarvest() public {

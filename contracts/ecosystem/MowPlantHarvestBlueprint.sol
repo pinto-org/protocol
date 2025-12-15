@@ -124,6 +124,9 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         int256 totalBeanTip;
         uint256 totalClaimableStalk;
         uint256 totalPlantableBeans;
+        uint256 totalHarvestedBeans;
+        uint256 totalPlantedBeans;
+        int96 plantedStem;
         bool shouldMow;
         bool shouldPlant;
         bool shouldHarvest;
@@ -190,7 +193,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Plant if the conditions are met
         if (vars.shouldPlant) {
-            beanstalk.plant();
+            vars.totalPlantedBeans = beanstalk.plant();
+            vars.plantedStem = beanstalk.getHighestNonGerminatingStem(vars.beanToken);
             vars.totalBeanTip += params.opParams.plantTipAmount;
         }
 
@@ -214,20 +218,23 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                     "MowPlantHarvestBlueprint: Harvested amount below minimum threshold"
                 );
 
-                // Deposit the harvested beans into the silo
-                beanstalk.deposit(vars.beanToken, harvestedBeans, LibTransfer.From.INTERNAL);
+                // Accumulate harvested beans
+                vars.totalHarvestedBeans += harvestedBeans;
             }
             // tip for harvesting includes all specified fields
             vars.totalBeanTip += params.opParams.harvestTipAmount;
         }
 
-        // Enforce the withdrawal plan and tip the total bean amount
-        _enforceWithdrawalPlanAndTip(
+        // Handle tip payment
+        _handleTip(
             vars.account,
             vars.tipAddress,
             vars.beanToken,
             params.mowPlantHarvestParams.sourceTokenIndices,
             vars.totalBeanTip,
+            vars.totalHarvestedBeans,
+            vars.totalPlantedBeans,
+            vars.plantedStem,
             params.mowPlantHarvestParams.maxGrownStalkPerBdv,
             params.mowPlantHarvestParams.slippageRatio
         );
@@ -390,6 +397,140 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
+     * @notice Handles tip payment
+     * @dev Optimizes gas by using freshly obtained Pinto for tips when possible:
+     *      1. If harvested beans >= tip: Use harvested beans only (most efficient)
+     *      2. If harvested + planted >= tip: Use harvested first, withdraw remainder from planted deposit
+     *      3. Otherwise: Fallback to full withdrawal plan
+     * @param account The account to withdraw for
+     * @param tipAddress The address to send the tip to
+     * @param _beanToken The cached bean token address
+     * @param sourceTokenIndices The indices of the source tokens to withdraw from
+     * @param totalBeanTip The total tip for mowing, planting and harvesting
+     * @param totalHarvestedBeans Total beans harvested in this transaction (in internal balance)
+     * @param totalPlantedBeans Total beans planted in this transaction (deposited by plant())
+     * @param plantedStem The stem of the planted deposit (for withdrawal if needed)
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal
+     */
+    function _handleTip(
+        address account,
+        address tipAddress,
+        address _beanToken,
+        uint8[] memory sourceTokenIndices,
+        int256 totalBeanTip,
+        uint256 totalHarvestedBeans,
+        uint256 totalPlantedBeans,
+        int96 plantedStem,
+        uint256 maxGrownStalkPerBdv,
+        uint256 slippageRatio
+    ) internal {
+        uint256 tipAmount = totalBeanTip > 0 ? uint256(totalBeanTip) : 0;
+
+        if (tipAmount == 0) {
+            // Just deposit any harvested beans
+            if (totalHarvestedBeans > 0) {
+                beanstalk.deposit(_beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
+            }
+            return;
+        }
+
+        // Check if we can optimize (tip token resolves to Pinto)
+        bool canOptimize = _resolvedSourceIsPinto(sourceTokenIndices, _beanToken);
+
+        if (canOptimize) {
+            // CASE 1: Harvest covers full tip (most gas efficient - no withdraw call needed)
+            if (totalHarvestedBeans >= tipAmount) {
+                _tipFromHarvestedOnly(account, tipAddress, _beanToken, totalBeanTip, totalHarvestedBeans, tipAmount);
+                return;
+            }
+
+            // CASE 2: Need to combine harvested beans + planted beans
+            if (totalPlantedBeans > 0 && totalHarvestedBeans + totalPlantedBeans >= tipAmount) {
+                _tipFromPlantedAndHarvested(account, tipAddress, _beanToken, totalBeanTip, totalHarvestedBeans, tipAmount, plantedStem);
+                return;
+            }
+        }
+
+        // FALLBACK: Deposit all harvested beans first, then use withdrawal plan for tip
+        if (totalHarvestedBeans > 0) {
+            beanstalk.deposit(_beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
+        }
+
+        _enforceWithdrawalPlanAndTip(
+            account,
+            tipAddress,
+            _beanToken,
+            sourceTokenIndices,
+            totalBeanTip,
+            maxGrownStalkPerBdv,
+            slippageRatio
+        );
+    }
+
+    /**
+     * @notice Handles tip payment using only harvested beans (CASE 1 - most gas efficient)
+     */
+    function _tipFromHarvestedOnly(
+        address account,
+        address tipAddress,
+        address _beanToken,
+        int256 totalBeanTip,
+        uint256 totalHarvestedBeans,
+        uint256 tipAmount
+    ) internal {
+        // Pay tip from harvested beans (already in internal balance)
+        tractorHelpers.tip(
+            _beanToken,
+            account,
+            tipAddress,
+            totalBeanTip,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
+        );
+
+        // Deposit remaining harvested beans to silo
+        uint256 remaining = totalHarvestedBeans - tipAmount;
+        if (remaining > 0) {
+            beanstalk.deposit(_beanToken, remaining, LibTransfer.From.INTERNAL);
+        }
+    }
+
+    /**
+     * @notice Handles tip payment using harvested + planted beans (CASE 2)
+     * @dev Uses all harvested beans first, then withdraws remainder from planted deposit
+     */
+    function _tipFromPlantedAndHarvested(
+        address account,
+        address tipAddress,
+        address _beanToken,
+        int256 totalBeanTip,
+        uint256 totalHarvestedBeans,
+        uint256 tipAmount,
+        int96 plantedStem
+    ) internal {
+        // Calculate how much to withdraw from planted deposit
+        uint256 tipFromPlant = tipAmount - totalHarvestedBeans;
+
+        // Withdraw needed amount from planted deposit
+        int96[] memory stems = new int96[](1);
+        stems[0] = plantedStem;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = tipFromPlant;
+        beanstalk.withdrawDeposits(_beanToken, stems, amounts, LibTransfer.To.INTERNAL);
+
+        // Now all tip amount is in internal balance, pay the tip
+        tractorHelpers.tip(
+            _beanToken,
+            account,
+            tipAddress,
+            totalBeanTip,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
+        );
+    }
+
+    /**
      * @notice Helper function that creates a withdrawal plan and tips the operator the total bean tip amount
      * @param account The account to withdraw for
      * @param tipAddress The address to send the tip to
@@ -441,5 +582,43 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             LibTransfer.From.INTERNAL,
             LibTransfer.To.INTERNAL
         );
+    }
+
+    /**
+     * @notice Checks if the resolved first source token is Pinto
+     * @dev Handles both direct token indices and strategy-based indices (LOWEST_PRICE_STRATEGY, LOWEST_SEED_STRATEGY)
+     * @param sourceTokenIndices The indices of the source tokens to withdraw from
+     * @param _beanToken The cached bean token address
+     * @return True if the first resolved source token is Pinto
+     */
+    function _resolvedSourceIsPinto(
+        uint8[] memory sourceTokenIndices,
+        address _beanToken
+    ) internal view returns (bool) {
+        if (sourceTokenIndices.length == 0) return false;
+
+        uint8 firstIdx = sourceTokenIndices[0];
+
+        // LOWEST_PRICE_STRATEGY = type(uint8).max
+        if (firstIdx == type(uint8).max) {
+            // For price strategy, check if Pinto is the lowest priced token
+            (uint8[] memory priceIndices, ) = tractorHelpers.getTokensAscendingPrice();
+            if (priceIndices.length == 0) return false;
+            address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
+            if (priceIndices[0] >= tokens.length) return false;
+            return tokens[priceIndices[0]] == _beanToken;
+        }
+
+        // LOWEST_SEED_STRATEGY = type(uint8).max - 1
+        if (firstIdx == type(uint8).max - 1) {
+            // For seed strategy, check if Pinto is the lowest seeded token
+            (address lowestSeedToken, ) = tractorHelpers.getLowestSeedToken();
+            return lowestSeedToken == _beanToken;
+        }
+
+        // Direct index - check if it points to Pinto
+        address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
+        if (firstIdx >= tokens.length) return false;
+        return tokens[firstIdx] == _beanToken;
     }
 }
