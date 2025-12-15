@@ -119,18 +119,14 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      */
     struct MowPlantHarvestLocalVars {
         address account;
-        address tipAddress;
         address beanToken;
         int256 totalBeanTip;
-        uint256 totalClaimableStalk;
-        uint256 totalPlantableBeans;
         uint256 totalHarvestedBeans;
         uint256 totalPlantedBeans;
         int96 plantedStem;
         bool shouldMow;
         bool shouldPlant;
         bool shouldHarvest;
-        IBeanstalk.Season seasonInfo;
         UserFieldHarvestResults[] userFieldHarvestResults;
     }
 
@@ -158,9 +154,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Validate
         vars.account = beanstalk.tractorUser();
-        vars.tipAddress = params.opParams.baseOpParams.tipAddress;
-        // Cache the current season struct
-        vars.seasonInfo = beanstalk.time();
+        vars.beanToken = beanToken;
 
         // get the user state from the protocol and validate against params
         (
@@ -168,17 +162,14 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             vars.shouldPlant,
             vars.shouldHarvest,
             vars.userFieldHarvestResults
-        ) = _getAndValidateUserState(vars.account, vars.seasonInfo.timestamp, params);
+        ) = _getAndValidateUserState(vars.account, beanstalk.time().timestamp, params);
 
         // validate order params and revert early if invalid
         _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
         _validateOperatorParams(params.opParams.baseOpParams);
 
-        // if tip address is not set, set it to the operator
-        vars.tipAddress = _resolveTipAddress(vars.tipAddress);
-
-        // cache bean token
-        vars.beanToken = beanToken;
+        // resolve tip address (defaults to operator if not set)
+        address tipAddress = _resolveTipAddress(params.opParams.baseOpParams.tipAddress);
 
         // Mow, Plant and Harvest
         // Check if user should harvest or plant
@@ -228,7 +219,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // Handle tip payment
         _handleTip(
             vars.account,
-            vars.tipAddress,
+            tipAddress,
             vars.beanToken,
             params.mowPlantHarvestParams.sourceTokenIndices,
             vars.totalBeanTip,
