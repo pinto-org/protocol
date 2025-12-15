@@ -229,8 +229,9 @@ contract ConvertUpBlueprint is PerFunctionPausable {
 
         // First withdraw Beans from which to tip Operator (using a newer deposit burns less stalk)
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = params.convertUpParams.maxGrownStalkPerBdv;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            params.convertUpParams.maxGrownStalkPerBdv
+        );
         if (opParams.operatorTipAmount > 0) {
             siloHelpers.withdrawBeansFromSources(
                 vars.account,
@@ -369,8 +370,9 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         }
 
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
-        filterParams.maxGrownStalkPerBdv = params.convertUpParams.maxGrownStalkPerBdv;
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            params.convertUpParams.maxGrownStalkPerBdv
+        );
 
         // for conversions, beans and germinating deposits are excluded
         filterParams.excludeBean = true;
