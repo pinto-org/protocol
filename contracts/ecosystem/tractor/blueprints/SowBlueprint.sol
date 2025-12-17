@@ -13,8 +13,9 @@ contract SowBlueprint is SowBlueprintBase {
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
-        address _siloHelpers
-    ) SowBlueprintBase(_beanstalk, _owner, _tractorHelpers, _siloHelpers) {}
+        address _siloHelpers,
+        address _gasCostCalculator
+    ) SowBlueprintBase(_beanstalk, _owner, _tractorHelpers, _siloHelpers, _gasCostCalculator) {}
 
     /**
      * @notice Sows beans using specified source tokens in order of preference

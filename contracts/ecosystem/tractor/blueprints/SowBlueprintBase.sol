@@ -7,6 +7,7 @@ import {TractorHelpers} from "../utils/TractorHelpers.sol";
 import {PerFunctionPausable} from "../utils/PerFunctionPausable.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "../utils/SiloHelpers.sol";
+import {GasCostCalculator} from "../utils/GasCostCalculator.sol";
 
 /**
  * @title SowBlueprintBase
@@ -73,11 +74,15 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
      * @param whitelistedOperators Array of whitelisted operator addresses
      * @param tipAddress Address to send tip to
      * @param operatorTipAmount Amount of tip to pay to operator
+     * @param useDynamicFee Whether to use dynamic gas-based fee calculation
+     * @param feeMarginBps Additional margin for dynamic fee in basis points (0 = no margin, 1000 = 10%)
      */
     struct OperatorParams {
         address[] whitelistedOperators;
         address tipAddress;
         int256 operatorTipAmount;
+        bool useDynamicFee;
+        uint256 feeMarginBps;
     }
 
     /**
@@ -113,6 +118,7 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
     IBeanstalk immutable beanstalk;
     TractorHelpers public immutable tractorHelpers;
     SiloHelpers public immutable siloHelpers;
+    GasCostCalculator public immutable gasCostCalculator;
 
     // Default slippage ratio for LP token withdrawals (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -134,11 +140,13 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
-        address _siloHelpers
+        address _siloHelpers,
+        address _gasCostCalculator
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
         tractorHelpers = TractorHelpers(_tractorHelpers);
         siloHelpers = SiloHelpers(_siloHelpers);
+        gasCostCalculator = GasCostCalculator(_gasCostCalculator);
     }
 
     /**
@@ -177,6 +185,7 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
      * @param referral Referral address (address(0) for no referral)
      */
     function _sowBlueprintInternal(SowBlueprintStruct memory params, address referral) internal {
+        uint256 startGas = gasleft();
         // Initialize local variables
         SowLocalVars memory vars;
 
@@ -250,12 +259,41 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
             }
         }
 
-        // Tip the operator
+        // Calculate total tip amount including dynamic fee (use scope to avoid stack too deep)
+        int256 totalTipAmount = params.opParams.operatorTipAmount;
+        if (params.opParams.useDynamicFee) {
+            // Gas measurement tamamla
+            uint256 gasUsedBeforeFee = startGas - gasleft();
+            // Fee calculation ve withdrawal için estimation ekle
+            uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
+            uint256 dynamicFee = gasCostCalculator.calculateFeeInPinto(estimatedTotalGas, params.opParams.feeMarginBps);
+            require(dynamicFee <= uint256(type(int256).max), "SowBlueprintBase: fee overflow");
+
+            // Withdraw the additional fee from sources (external call - done first)
+            LibSiloHelpers.FilterParams memory feeFilterParams = LibSiloHelpers.getDefaultFilterParams();
+            feeFilterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
+
+            // Fee withdrawal için empty plan oluştur
+            LibSiloHelpers.WithdrawalPlan memory emptyFeeWithdrawalPlan;
+            siloHelpers.withdrawBeansFromSources(
+                vars.account,
+                params.sowParams.sourceTokenIndices,
+                dynamicFee,
+                feeFilterParams,
+                slippageRatio,
+                LibTransfer.To.INTERNAL,
+                emptyFeeWithdrawalPlan
+            );
+            
+            totalTipAmount += int256(dynamicFee);
+        }
+
+        // Tip the operator (external call - done after state updates and fee withdrawal)
         tractorHelpers.tip(
             vars.beanToken,
             vars.account,
             vars.tipAddress,
-            params.opParams.operatorTipAmount,
+            totalTipAmount,
             LibTransfer.From.INTERNAL,
             LibTransfer.To.INTERNAL
         );

@@ -99,6 +99,17 @@ module.exports = function () {
         await siloHelpersContract.deployed();
         console.log("SiloHelpers deployed to:", siloHelpersContract.address);
 
+        // Deploy GasCostCalculator
+        console.log("Deploying GasCostCalculator...");
+        const GasCostCalculator = await ethers.getContractFactory("GasCostCalculator", deployer);
+        const gasCostCalculator = await GasCostCalculator.deploy(
+          L2_PINTO, // beanstalk address
+          await deployer.getAddress(), // owner address
+          50000 // baseGasOverhead (will be measured in step 6)
+        );
+        await gasCostCalculator.deployed();
+        console.log("GasCostCalculator deployed to:", gasCostCalculator.address);
+
         // Deploy ConvertUpBlueprint with linked library and actual helper addresses
         console.log("Deploying ConvertUpBlueprint with linked libraries...");
         const ConvertUpBlueprint = await ethers.getContractFactory("ConvertUpBlueprint", {
@@ -112,7 +123,8 @@ module.exports = function () {
           await deployer.getAddress(), // owner address
           tractorHelpersContract.address, // tractorHelpers address
           siloHelpersContract.address, // siloHelpers address
-          PINTO_PRICE_CONTRACT
+          PINTO_PRICE_CONTRACT,
+          gasCostCalculator.address // gasCostCalculator address
         );
         await convertUpBlueprint.deployed();
 
@@ -122,6 +134,7 @@ module.exports = function () {
         console.log("SiloHelpers:", siloHelpersContract.address);
         console.log("TractorHelpers:", tractorHelpersContract.address);
         console.log("LibSiloHelpers:", libSiloHelpers.address);
+        console.log("GasCostCalculator:", gasCostCalculator.address);
         console.log("ConvertUpBlueprint:", convertUpBlueprint.address);
         console.log("-----------------------------------");
       } catch (error) {
@@ -158,17 +171,6 @@ module.exports = function () {
     await siloHelpersContract.deployed();
     console.log("SiloHelpers deployed to:", siloHelpersContract.address);
 
-    // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
-    const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
-    const sowBlueprintContract = await sowBlueprint.deploy(
-      L2_PINTO,
-      "PINTO_PRICE_CONTRACT", // price contract
-      await owner.getAddress(), // owner address
-      siloHelpersContract.address // siloHelpers contract address
-    );
-    await sowBlueprintContract.deployed();
-    console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
-
     // deploy tractor helpers
     const tractorHelpers = await ethers.getContractFactory("TractorHelpers");
     const tractorHelpersContract = await tractorHelpers.deploy(
@@ -178,6 +180,29 @@ module.exports = function () {
     await tractorHelpersContract.deployed();
     console.log("TractorHelpers deployed to:", tractorHelpersContract.address);
 
+    // Deploy GasCostCalculator
+    console.log("Deploying GasCostCalculator...");
+    const gasCostCalculator = await ethers.getContractFactory("GasCostCalculator");
+    const gasCostCalculatorContract = await gasCostCalculator.deploy(
+      L2_PINTO,
+      await owner.getAddress(),
+      50000 // baseGasOverhead
+    );
+    await gasCostCalculatorContract.deployed();
+    console.log("GasCostCalculator deployed to:", gasCostCalculatorContract.address);
+
+    // Deploy SowBlueprint (not SowBlueprintv0)
+    const sowBlueprint = await ethers.getContractFactory("SowBlueprint");
+    const sowBlueprintContract = await sowBlueprint.deploy(
+      L2_PINTO,
+      await owner.getAddress(),
+      tractorHelpersContract.address, // tractorHelpers
+      siloHelpersContract.address, // siloHelpers
+      gasCostCalculatorContract.address // gasCostCalculator
+    );
+    await sowBlueprintContract.deployed();
+    console.log("SowBlueprint deployed to:", sowBlueprintContract.address);
+
     // Deploy ConvertUpBlueprint and connect it to the existing helpers
     const convertUpBlueprint = await ethers.getContractFactory("ConvertUpBlueprint");
     const convertUpBlueprintContract = await convertUpBlueprint.deploy(
@@ -185,7 +210,8 @@ module.exports = function () {
       await owner.getAddress(), // owner address
       tractorHelpersContract.address, // tractorHelpers contract address
       siloHelpersContract.address, // siloHelpers contract address
-      "PINTO_PRICE_CONTRACT" // price contract
+      "PINTO_PRICE_CONTRACT", // price contract
+      gasCostCalculatorContract.address // gasCostCalculator address
     );
     await convertUpBlueprintContract.deployed();
     console.log("ConvertUpBlueprint deployed to:", convertUpBlueprintContract.address);

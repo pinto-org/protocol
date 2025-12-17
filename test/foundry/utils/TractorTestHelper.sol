@@ -279,7 +279,9 @@ contract TractorTestHelper is TestHelper {
         SowBlueprintBase.OperatorParams memory opParams = SowBlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOps,
             tipAddress: tipAddress,
-            operatorTipAmount: operatorTipAmount
+            operatorTipAmount: operatorTipAmount,
+            useDynamicFee: false,
+            feeMarginBps: 0
         });
 
         return SowBlueprintBase.SowBlueprintStruct({sowParams: sowParams, opParams: opParams});
