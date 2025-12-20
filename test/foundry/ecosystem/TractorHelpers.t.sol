@@ -208,7 +208,7 @@ contract TractorHelpersTest is TractorTestHelper {
         uint256 blockOverride
     ) internal returns (address testWallet, address PINTO_DIAMOND, address PINTO) {
         testWallet = 0xFb94D3404c1d3D9D6F08f79e58041d5EA95AccfA;
-        uint256 forkBlock = blockOverride > 0 ? blockOverride : 25040000; // Use override if provided
+        uint256 forkBlock = blockOverride > 0 ? blockOverride : 39701594; // Use override if provided
         vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock);
 
         PINTO_DIAMOND = address(0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f);
