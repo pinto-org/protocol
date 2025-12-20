@@ -705,11 +705,7 @@ contract SiloHelpers {
 
         // If token is LP and we have deposits, calculate Bean amount from LP
         if (totalAmount > 0) {
-            return
-                IWell(token).getRemoveLiquidityOneTokenOut(
-                    totalAmount,
-                    IERC20(beanToken)
-                );
+            return IWell(token).getRemoveLiquidityOneTokenOut(totalAmount, IERC20(beanToken));
         }
 
         return 0;
