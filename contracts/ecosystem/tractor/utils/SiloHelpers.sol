@@ -22,10 +22,10 @@ contract SiloHelpers {
     IBeanstalk immutable beanstalk;
     TractorHelpers immutable tractorHelpers;
     IPriceManipulation immutable priceManipulation;
+    address immutable beanToken;
 
     struct WithdrawLocalVars {
         address[] whitelistedTokens;
-        address beanToken;
         uint256 remainingBeansNeeded;
         uint256 amountWithdrawn;
         int96[] stems;
@@ -45,7 +45,6 @@ contract SiloHelpers {
 
     struct WithdrawBeansLocalVars {
         uint256 amountWithdrawn;
-        address beanToken;
         address sourceToken;
         address nonBeanToken;
         uint256 totalLPAmount;
@@ -73,6 +72,7 @@ contract SiloHelpers {
         beanstalk = IBeanstalk(_beanstalk);
         tractorHelpers = TractorHelpers(_tractorHelpers);
         priceManipulation = IPriceManipulation(_priceManipulation);
+        beanToken = beanstalk.getBeanToken();
     }
 
     /**
@@ -181,7 +181,6 @@ contract SiloHelpers {
 
         WithdrawLocalVars memory vars;
         vars.whitelistedTokens = getWhitelistStatusAddresses();
-        vars.beanToken = beanstalk.getBeanToken();
         vars.remainingBeansNeeded = targetAmount;
 
         // Handle strategy cases when firsrt element is a strategy
@@ -197,7 +196,7 @@ contract SiloHelpers {
         } else if (filterParams.seedDifference != 0) {
             // if the seed difference is not 0, we need to filter the tokens based on the seed difference
 
-            uint256 beanSeeds = beanstalk.getSeedsForToken(vars.beanToken);
+            uint256 beanSeeds = beanstalk.getSeedsForToken(beanToken);
             uint8[] memory filteredTokenIndices = new uint8[](tokenIndices.length);
             uint8 index = 0;
             for (uint256 i = 0; i < tokenIndices.length; i++) {
@@ -244,7 +243,7 @@ contract SiloHelpers {
             filterParams.maxStem = stemTip - int96(int256(filterParams.lowGrownStalkPerBdv));
 
             // If source is bean token, calculate direct withdrawal
-            if (sourceToken == vars.beanToken) {
+            if (sourceToken == beanToken) {
                 (
                     vars.stems,
                     vars.amounts,
@@ -300,7 +299,7 @@ contract SiloHelpers {
                     // Calculate how many beans we can get from the available LP tokens
                     beansAvailable = IWell(sourceToken).getRemoveLiquidityOneTokenOut(
                         vars.availableAmount,
-                        IERC20(vars.beanToken)
+                        IERC20(beanToken)
                     );
                 } else {
                     // If enough LP was available, it means there was enough to fulfill the full amount
@@ -398,14 +397,13 @@ contract SiloHelpers {
         }
 
         vars.amountWithdrawn = 0;
-        vars.beanToken = beanstalk.getBeanToken();
 
         // Execute withdrawal plan
         for (vars.i = 0; vars.i < plan.sourceTokens.length; vars.i++) {
             vars.sourceToken = plan.sourceTokens[vars.i];
 
             // Skip Bean token for price manipulation check since it's not a Well
-            if (vars.sourceToken != vars.beanToken) {
+            if (vars.sourceToken != beanToken) {
                 // Check for price manipulation in the Well
                 (vars.nonBeanToken, ) = IBeanstalk(beanstalk).getNonBeanTokenAndIndexFromWell(
                     vars.sourceToken
@@ -417,7 +415,7 @@ contract SiloHelpers {
             }
 
             // If source is bean token, withdraw directly
-            if (vars.sourceToken == vars.beanToken) {
+            if (vars.sourceToken == beanToken) {
                 beanstalk.withdrawDeposits(
                     vars.sourceToken,
                     plan.stems[vars.i],
@@ -453,7 +451,7 @@ contract SiloHelpers {
                 IERC20(vars.sourceToken).approve(vars.sourceToken, vars.totalLPAmount);
                 IWell(vars.sourceToken).removeLiquidityOneToken(
                     vars.totalLPAmount,
-                    IERC20(vars.beanToken),
+                    IERC20(beanToken),
                     plan.availableBeans[vars.i],
                     address(this),
                     type(uint256).max
@@ -462,14 +460,14 @@ contract SiloHelpers {
                 // Transfer from this contract's external balance to the user's internal/external balance depending on mode
                 if (mode == LibTransfer.To.INTERNAL) {
                     // approve spending of Beans from this contract's external balance
-                    IERC20(vars.beanToken).approve(address(beanstalk), plan.availableBeans[vars.i]);
+                    IERC20(beanToken).approve(address(beanstalk), plan.availableBeans[vars.i]);
                     beanstalk.sendTokenToInternalBalance(
-                        vars.beanToken,
+                        beanToken,
                         account,
                         plan.availableBeans[vars.i]
                     );
                 } else {
-                    IERC20(vars.beanToken).transfer(account, plan.availableBeans[vars.i]);
+                    IERC20(beanToken).transfer(account, plan.availableBeans[vars.i]);
                 }
                 vars.amountWithdrawn += plan.availableBeans[vars.i];
             }
@@ -499,7 +497,9 @@ contract SiloHelpers {
         view
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams();
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            uint256(int256(type(int96).max))
+        );
         filterParams.minStem = minStem;
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         return getDepositStemsAndAmountsToWithdraw(account, token, amount, filterParams, emptyPlan);
@@ -668,7 +668,7 @@ contract SiloHelpers {
      */
     function getTokenIndex(address token) public view returns (uint8 index) {
         // This relies on the assumption that the Bean token is whitelisted first
-        if (token == beanstalk.getBeanToken()) {
+        if (token == beanToken) {
             return 0;
         }
         address[] memory whitelistedTokens = getWhitelistStatusAddresses();
@@ -699,7 +699,7 @@ contract SiloHelpers {
         }
 
         // If token is Bean, return total amount
-        if (token == beanstalk.getBeanToken()) {
+        if (token == beanToken) {
             return totalAmount;
         }
 
@@ -708,7 +708,7 @@ contract SiloHelpers {
             return
                 IWell(token).getRemoveLiquidityOneTokenOut(
                     totalAmount,
-                    IERC20(beanstalk.getBeanToken())
+                    IERC20(beanToken)
                 );
         }
 
