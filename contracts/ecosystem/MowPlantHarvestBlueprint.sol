@@ -215,7 +215,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         // Handle tip payment
-        _handleTip(
+        handlePintosAndTip(
             vars.account,
             tipAddress,
             params.mowPlantHarvestParams.sourceTokenIndices,
@@ -400,7 +400,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @param slippageRatio The price slippage ratio for a lp token withdrawal
      */
-    function _handleTip(
+    function handlePintosAndTip(
         address account,
         address tipAddress,
         uint8[] memory sourceTokenIndices,
@@ -422,9 +422,9 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         // Check if we can optimize (tip token resolves to Pinto)
-        bool canOptimize = _resolvedSourceIsPinto(sourceTokenIndices);
+        bool tipWIthPinto = _resolvedSourceIsPinto(sourceTokenIndices);
 
-        if (canOptimize) {
+        if (tipWIthPinto) {
             // CASE 1: Harvest covers full tip (most gas efficient - no withdraw call needed)
             if (totalHarvestedBeans >= tipAmount) {
                 _tipFromHarvestedOnly(
