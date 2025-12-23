@@ -264,6 +264,13 @@ interface IBeanstalk {
         uint256[] calldata sortedDepositIds
     ) external payable;
 
+    function withdrawDeposit(
+        address token,
+        int96 stem,
+        uint256 amount,
+        LibTransfer.To mode
+    ) external payable;
+
     function withdrawDeposits(
         address token,
         int96[] calldata stems,

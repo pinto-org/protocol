@@ -384,11 +384,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Handles tip payment
-     * @dev Optimizes gas by using freshly obtained Pinto for tips when possible:
-     *      1. If harvested beans >= tip: Use harvested beans only (most efficient)
-     *      2. If harvested + planted >= tip: Use harvested first, withdraw remainder from planted deposit
-     *      3. Otherwise: Fallback to full withdrawal plan
+     * @notice Handles tip payment with optimized Pinto flow
+     * @dev Optimizes gas by using freshly obtained Pinto for tips when possible.
+     *      All Pinto-based tip paths converge to a single tip() call at the end.
+     *      1. If harvested beans >= tip: Deposit excess, tip from harvested
+     *      2. If harvested + planted >= tip: Withdraw needed from planted, tip from both
+     *      3. Otherwise: Withdraw all planted + use withdrawal plan for remainder, then tip
      * @param account The account to withdraw for
      * @param tipAddress The address to send the tip to
      * @param sourceTokenIndices The indices of the source tokens to withdraw from
@@ -412,8 +413,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     ) internal {
         uint256 tipAmount = totalBeanTip > 0 ? uint256(totalBeanTip) : 0;
 
+        // Zero tip case - just deposit harvested beans
         if (tipAmount == 0) {
-            // Just deposit any harvested beans
             if (totalHarvestedBeans > 0) {
                 beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
             }
@@ -421,103 +422,98 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         // Check if we can optimize (tip token resolves to Pinto)
-        bool tipWIthPinto = _resolvedSourceIsPinto(sourceTokenIndices);
+        bool tipWithPinto = _resolvedSourceIsPinto(sourceTokenIndices);
 
-        if (tipWIthPinto) {
-            // CASE 1: Harvest covers full tip (most gas efficient - no withdraw call needed)
+        if (tipWithPinto) {
             if (totalHarvestedBeans >= tipAmount) {
-                _tipFromHarvestedOnly(
-                    account,
-                    tipAddress,
-                    totalBeanTip,
-                    totalHarvestedBeans,
-                    tipAmount
-                );
-                return;
+                // CASE 1: Harvested covers full tip (most gas efficient)
+                // Deposit excess harvested beans to silo
+                uint256 remaining = totalHarvestedBeans - tipAmount;
+                if (remaining > 0) {
+                    beanstalk.deposit(beanToken, remaining, LibTransfer.From.INTERNAL);
+                }
+                // tipAmount is already in internal balance from harvest
+            } else if (totalHarvestedBeans + totalPlantedBeans >= tipAmount) {
+                // CASE 2: Harvested + Planted covers tip
+                // Withdraw only what we need from planted deposit
+                uint256 neededFromPlant = tipAmount - totalHarvestedBeans;
+                beanstalk.withdrawDeposit(beanToken, plantedStem, neededFromPlant, LibTransfer.To.INTERNAL);
+                // Now tipAmount is in internal balance (harvested + withdrawn from planted)
+            } else {
+                // CASE 3: Need withdrawal plan for remainder
+                // First, withdraw ALL planted beans (they're already deposited by plant())
+                if (totalPlantedBeans > 0) {
+                    beanstalk.withdrawDeposit(beanToken, plantedStem, totalPlantedBeans, LibTransfer.To.INTERNAL);
+                }
+                // Calculate how much more we need from other sources
+                uint256 stillNeeded = tipAmount - totalHarvestedBeans - totalPlantedBeans;
+                // Withdraw only the remaining needed amount (no unnecessary deposit)
+                _withdrawBeansOnly(account, sourceTokenIndices, stillNeeded, maxGrownStalkPerBdv, slippageRatio);
+                // Now tipAmount is in internal balance
             }
 
-            // CASE 2: Need to combine harvested beans + planted beans
-            if (totalPlantedBeans > 0 && totalHarvestedBeans + totalPlantedBeans >= tipAmount) {
-                _tipFromPlantedAndHarvested(
-                    account,
-                    tipAddress,
-                    totalBeanTip,
-                    totalHarvestedBeans,
-                    tipAmount,
-                    plantedStem
-                );
-                return;
+            tractorHelpers.tip(
+                beanToken,
+                account,
+                tipAddress,
+                totalBeanTip,
+                LibTransfer.From.INTERNAL,
+                LibTransfer.To.INTERNAL
+            );
+        } else {
+            // Non-Pinto tip - deposit harvested and use full withdrawal plan with tip
+            if (totalHarvestedBeans > 0) {
+                beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
             }
+            _enforceWithdrawalPlanAndTip(
+                account,
+                tipAddress,
+                sourceTokenIndices,
+                totalBeanTip,
+                maxGrownStalkPerBdv,
+                slippageRatio
+            );
         }
+    }
 
-        // FALLBACK: Deposit all harvested beans first, then use withdrawal plan for tip
-        if (totalHarvestedBeans > 0) {
-            beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
-        }
+    /**
+     * @notice Helper function that withdraws beans from sources without tipping
+     * @dev Used when we need to supplement harvested/planted beans with additional withdrawals
+     * @param account The account to withdraw for
+     * @param sourceTokenIndices The indices of the source tokens to withdraw from
+     * @param amount The amount of beans to withdraw
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal
+     */
+    function _withdrawBeansOnly(
+        address account,
+        uint8[] memory sourceTokenIndices,
+        uint256 amount,
+        uint256 maxGrownStalkPerBdv,
+        uint256 slippageRatio
+    ) internal {
+        // Create filter params for the withdrawal plan
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            maxGrownStalkPerBdv
+        );
 
-        _enforceWithdrawalPlanAndTip(
+        // Get withdrawal plan for the needed amount
+        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers.getWithdrawalPlan(
             account,
-            tipAddress,
             sourceTokenIndices,
-            totalBeanTip,
-            maxGrownStalkPerBdv,
-            slippageRatio
-        );
-    }
-
-    /**
-     * @notice Handles tip payment using only harvested beans (CASE 1 - most gas efficient)
-     */
-    function _tipFromHarvestedOnly(
-        address account,
-        address tipAddress,
-        int256 totalBeanTip,
-        uint256 totalHarvestedBeans,
-        uint256 tipAmount
-    ) internal {
-        // Pay tip from harvested beans (already in internal balance)
-        tractorHelpers.tip(
-            beanToken,
-            account,
-            tipAddress,
-            totalBeanTip,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
+            amount,
+            filterParams
         );
 
-        // Deposit remaining harvested beans to silo
-        uint256 remaining = totalHarvestedBeans - tipAmount;
-        if (remaining > 0) {
-            beanstalk.deposit(beanToken, remaining, LibTransfer.From.INTERNAL);
-        }
-    }
-
-    /**
-     * @notice Handles tip payment using harvested + planted beans (CASE 2)
-     * @dev Uses all harvested beans first, then withdraws remainder from planted deposit
-     */
-    function _tipFromPlantedAndHarvested(
-        address account,
-        address tipAddress,
-        int256 totalBeanTip,
-        uint256 totalHarvestedBeans,
-        uint256 tipAmount,
-        int96 plantedStem
-    ) internal {
-        // Calculate how much to withdraw from planted deposit
-        uint256 tipFromPlant = tipAmount - totalHarvestedBeans;
-
-        // Withdraw needed amount from planted deposit
-        beanstalk.withdrawDeposit(beanToken, plantedStem, tipFromPlant, LibTransfer.To.INTERNAL);
-
-        // Now all tip amount is in internal balance, pay the tip
-        tractorHelpers.tip(
-            beanToken,
+        // Execute the withdrawal plan
+        siloHelpers.withdrawBeansFromSources(
             account,
-            tipAddress,
-            totalBeanTip,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
+            sourceTokenIndices,
+            amount,
+            filterParams,
+            slippageRatio,
+            LibTransfer.To.INTERNAL,
+            withdrawalPlan
         );
     }
 
