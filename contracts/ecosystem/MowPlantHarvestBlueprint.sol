@@ -437,18 +437,34 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                 // CASE 2: Harvested + Planted covers tip
                 // Withdraw only what we need from planted deposit
                 uint256 neededFromPlant = tipAmount - totalHarvestedBeans;
-                beanstalk.withdrawDeposit(beanToken, plantedStem, neededFromPlant, LibTransfer.To.INTERNAL);
+                beanstalk.withdrawDeposit(
+                    beanToken,
+                    plantedStem,
+                    neededFromPlant,
+                    LibTransfer.To.INTERNAL
+                );
                 // Now tipAmount is in internal balance (harvested + withdrawn from planted)
             } else {
                 // CASE 3: Need withdrawal plan for remainder
                 // First, withdraw ALL planted beans (they're already deposited by plant())
                 if (totalPlantedBeans > 0) {
-                    beanstalk.withdrawDeposit(beanToken, plantedStem, totalPlantedBeans, LibTransfer.To.INTERNAL);
+                    beanstalk.withdrawDeposit(
+                        beanToken,
+                        plantedStem,
+                        totalPlantedBeans,
+                        LibTransfer.To.INTERNAL
+                    );
                 }
                 // Calculate how much more we need from other sources
                 uint256 stillNeeded = tipAmount - totalHarvestedBeans - totalPlantedBeans;
                 // Withdraw only the remaining needed amount (no unnecessary deposit)
-                _withdrawBeansOnly(account, sourceTokenIndices, stillNeeded, maxGrownStalkPerBdv, slippageRatio);
+                _withdrawBeansOnly(
+                    account,
+                    sourceTokenIndices,
+                    stillNeeded,
+                    maxGrownStalkPerBdv,
+                    slippageRatio
+                );
                 // Now tipAmount is in internal balance
             }
 
