@@ -166,7 +166,7 @@ interface IBeanstalk {
 
     function operator() external view returns (address);
 
-    function plant() external payable returns (uint256);
+    function plant() external payable returns (uint256 beans, int96 stem);
 
     function totalDeltaB() external view returns (int256);
 

@@ -182,8 +182,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Plant if the conditions are met
         if (vars.shouldPlant) {
-            vars.totalPlantedBeans = beanstalk.plant();
-            vars.plantedStem = beanstalk.getHighestNonGerminatingStem(beanToken);
+            (vars.totalPlantedBeans, vars.plantedStem) = beanstalk.plant();
             vars.totalBeanTip += params.opParams.plantTipAmount;
         }
 
