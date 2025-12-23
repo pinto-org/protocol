@@ -26,6 +26,10 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     uint256 public constant HARVEST_DATA_KEY =
         uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
 
+    // Special token index values for withdrawal strategies (mirrors SiloHelpers constants)
+    uint8 private constant LOWEST_PRICE_STRATEGY = type(uint8).max;
+    uint8 private constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
+
     /**
      * @notice Main struct for mow, plant and harvest blueprint
      * @param mowPlantHarvestParams Parameters related to mow, plant and harvest
@@ -590,8 +594,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         uint8 firstIdx = sourceTokenIndices[0];
 
-        // LOWEST_PRICE_STRATEGY = type(uint8).max
-        if (firstIdx == type(uint8).max) {
+        if (firstIdx == LOWEST_PRICE_STRATEGY) {
             // For price strategy, check if Pinto is the lowest priced token
             (uint8[] memory priceIndices, ) = tractorHelpers.getTokensAscendingPrice();
             if (priceIndices.length == 0) return false;
@@ -600,8 +603,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             return tokens[priceIndices[0]] == beanToken;
         }
 
-        // LOWEST_SEED_STRATEGY = type(uint8).max - 1
-        if (firstIdx == type(uint8).max - 1) {
+        if (firstIdx == LOWEST_SEED_STRATEGY) {
             // For seed strategy, check if Pinto is the lowest seeded token
             (address lowestSeedToken, ) = tractorHelpers.getLowestSeedToken();
             return lowestSeedToken == beanToken;
