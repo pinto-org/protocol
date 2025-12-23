@@ -16,8 +16,8 @@ import {IPriceManipulation} from "contracts/interfaces/IPriceManipulation.sol";
  */
 contract SiloHelpers {
     // Special token index values for withdrawal strategies
-    uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
-    uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
+    uint8 public constant LOWEST_PRICE_STRATEGY = type(uint8).max;
+    uint8 public constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
 
     IBeanstalk immutable beanstalk;
     TractorHelpers immutable tractorHelpers;
