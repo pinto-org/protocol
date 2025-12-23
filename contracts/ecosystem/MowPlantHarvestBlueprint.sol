@@ -26,7 +26,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     uint256 public constant HARVEST_DATA_KEY =
         uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
 
-
     /**
      * @notice Main struct for mow, plant and harvest blueprint
      * @param mowPlantHarvestParams Parameters related to mow, plant and harvest
