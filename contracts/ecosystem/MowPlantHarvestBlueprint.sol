@@ -591,6 +591,13 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         uint8 firstIdx = sourceTokenIndices[0];
 
+        // Direct index - check if it points to Pinto
+        if (firstIdx < siloHelpers.LOWEST_PRICE_STRATEGY()) {
+            address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
+            if (firstIdx >= tokens.length) return false;
+            return tokens[firstIdx] == beanToken;
+        }
+
         if (firstIdx == siloHelpers.LOWEST_PRICE_STRATEGY()) {
             // For price strategy, check if Pinto is the lowest priced token
             (uint8[] memory priceIndices, ) = tractorHelpers.getTokensAscendingPrice();
@@ -606,9 +613,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             return lowestSeedToken == beanToken;
         }
 
-        // Direct index - check if it points to Pinto
-        address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
-        if (firstIdx >= tokens.length) return false;
-        return tokens[firstIdx] == beanToken;
+        return false;
     }
 }
