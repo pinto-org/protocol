@@ -6,7 +6,6 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {C} from "contracts/C.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title LibGaugeHelpers
@@ -183,7 +182,6 @@ library LibGaugeHelpers {
      * @dev Returns g.value if the call fails.
      */
     function callGaugeId(GaugeId gaugeId, bytes memory systemData) internal {
-        console.log("Calling gaugeId: %s", uint256(gaugeId));
         AppStorage storage s = LibAppStorage.diamondStorage();
         // gs = `gauge storage`
         Gauge storage gs = s.sys.gaugeData.gauges[gaugeId];
