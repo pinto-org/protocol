@@ -508,11 +508,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256 tipFromPlant = tipAmount - totalHarvestedBeans;
 
         // Withdraw needed amount from planted deposit
-        int96[] memory stems = new int96[](1);
-        stems[0] = plantedStem;
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = tipFromPlant;
-        beanstalk.withdrawDeposits(beanToken, stems, amounts, LibTransfer.To.INTERNAL);
+        beanstalk.withdrawDeposit(beanToken, plantedStem, tipFromPlant, LibTransfer.To.INTERNAL);
 
         // Now all tip amount is in internal balance, pay the tip
         tractorHelpers.tip(
