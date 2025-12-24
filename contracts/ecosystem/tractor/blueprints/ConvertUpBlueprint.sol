@@ -2,9 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {TractorHelpers} from "../utils/TractorHelpers.sol";
-import {PerFunctionPausable} from "../utils/PerFunctionPausable.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {BeanstalkPrice} from "../../price/BeanstalkPrice.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
@@ -16,9 +14,9 @@ import {SiloHelpers} from "../utils/SiloHelpers.sol";
  * @title ConvertUpBlueprint
  * @author FordPinto, Frijo
  * @notice Contract for converting up with Tractor, with a number of conditions
- * @dev This contract always converts up to Bean token, which is obtained from beanstalk.getBeanToken()
+ * @dev This contract always converts up to Bean token (stored as immutable from BlueprintBase)
  */
-contract ConvertUpBlueprint is PerFunctionPausable {
+contract ConvertUpBlueprint is BlueprintBase {
     /**
      * @notice Event emitted when a convert up order is complete, or no longer executable due to remaining bdv being less than min convert per season
      * @param blueprintHash The hash of the blueprint
@@ -61,7 +59,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
      */
     struct ConvertUpBlueprintStruct {
         ConvertUpParams convertUpParams;
-        OperatorParams opParams;
+        BlueprintBase.OperatorParams opParams;
     }
 
     /**
@@ -107,20 +105,6 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         LibSiloHelpers.Mode lowStalkDeposits; // USE (0): use low stalk deposit. OMIT (1): omit low stalk deposits. USE_LAST (2): use low stalk deposits last.
     }
 
-    /**
-     * @notice Struct to hold operator parameters
-     * @param whitelistedOperators Array of whitelisted operator addresses
-     * @param tipAddress Address to send tip to
-     * @param operatorTipAmount Amount of tip to pay to operator
-     */
-    struct OperatorParams {
-        address[] whitelistedOperators;
-        address tipAddress;
-        int256 operatorTipAmount;
-    }
-
-    IBeanstalk immutable beanstalk;
-    TractorHelpers public immutable tractorHelpers;
     BeanstalkPrice public immutable beanstalkPrice;
     SiloHelpers public immutable siloHelpers;
 
@@ -146,9 +130,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         address _tractorHelpers,
         address _siloHelpers,
         address _beanstalkPrice
-    ) PerFunctionPausable(_owner) {
-        beanstalk = IBeanstalk(_beanstalk);
-        tractorHelpers = TractorHelpers(_tractorHelpers);
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
         siloHelpers = SiloHelpers(_siloHelpers);
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
     }
@@ -180,18 +162,10 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         );
 
         // Check if the executing operator (msg.sender) is whitelisted
-        require(
-            tractorHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
-            "Operator not whitelisted"
-        );
-
-        // Create memory copy of opParams to make it writable
-        OperatorParams memory opParams = params.opParams;
+        _validateOperatorParams(params.opParams);
 
         // If tip address is not set, set it to the operator
-        if (opParams.tipAddress == address(0)) {
-            opParams.tipAddress = beanstalk.operator();
-        }
+        address tipAddress = _resolveTipAddress(params.opParams.tipAddress);
 
         // Get current BDV left to convert
         vars.beansLeftToConvert = getBeansLeftToConvert(vars.orderHash);
@@ -232,11 +206,11 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
             params.convertUpParams.maxGrownStalkPerBdv
         );
-        if (opParams.operatorTipAmount > 0) {
+        if (params.opParams.operatorTipAmount > 0) {
             siloHelpers.withdrawBeansFromSources(
                 vars.account,
                 params.convertUpParams.sourceTokenIndices,
-                uint256(opParams.operatorTipAmount),
+                uint256(params.opParams.operatorTipAmount),
                 filterParams,
                 slippageRatio,
                 LibTransfer.To.INTERNAL,
@@ -263,8 +237,6 @@ contract ConvertUpBlueprint is PerFunctionPausable {
             emptyPlan
         );
 
-        address beanToken = beanstalk.getBeanToken();
-
         // Execute the conversion using Beanstalk's convert function
         vars.amountBeansConverted = executeConvertUp(
             vars,
@@ -287,8 +259,8 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         tractorHelpers.tip(
             beanToken,
             vars.account,
-            opParams.tipAddress,
-            opParams.operatorTipAmount,
+            tipAddress,
+            params.opParams.operatorTipAmount,
             LibTransfer.From.INTERNAL,
             LibTransfer.To.INTERNAL
         );
@@ -474,6 +446,7 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     /**
      * @notice Executes the convert up operation using Beanstalk's convert function
      * @param vars Local variables containing the necessary data for execution
+     * @param beanToken The address of the Bean token (inherited from BlueprintBase)
      * @param slippageRatio Slippage tolerance ratio for the conversion
      * @param maxGrownStalkPerBdvPenalty Maximum grown stalk per BDV penalty to accept
      * @return totalAmountConverted The total amount converted across all token types
