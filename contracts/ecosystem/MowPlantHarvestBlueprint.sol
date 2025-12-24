@@ -214,7 +214,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         // Handle tip payment
-        handlePintosAndTip(
+        handleBeansAndTip(
             vars.account,
             tipAddress,
             params.mowPlantHarvestParams.sourceTokenIndices,
@@ -384,9 +384,9 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Handles tip payment with optimized Pinto flow
-     * @dev Optimizes gas by using freshly obtained Pinto for tips when possible.
-     *      All Pinto-based tip paths converge to a single tip() call at the end.
+     * @notice Handles tip payment with optimized Bean flow
+     * @dev Optimizes gas by using freshly obtained Bean for tips when possible.
+     *      All Bean-based tip paths converge to a single tip() call at the end.
      *      1. If harvested beans >= tip: Deposit excess, tip from harvested
      *      2. If harvested + planted >= tip: Withdraw needed from planted, tip from both
      *      3. Otherwise: Withdraw all planted + use withdrawal plan for remainder, then tip
@@ -400,7 +400,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @param slippageRatio The price slippage ratio for a lp token withdrawal
      */
-    function handlePintosAndTip(
+    function handleBeansAndTip(
         address account,
         address tipAddress,
         uint8[] memory sourceTokenIndices,
@@ -421,10 +421,10 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             return;
         }
 
-        // Check if we can optimize (tip token resolves to Pinto)
-        bool tipWithPinto = _resolvedSourceIsPinto(sourceTokenIndices);
+        // Check if we can optimize (tip token resolves to Bean)
+        bool tipWithBean = _resolvedSourceIsBean(sourceTokenIndices);
 
-        if (tipWithPinto) {
+        if (tipWithBean) {
             if (totalHarvestedBeans >= tipAmount) {
                 // CASE 1: Harvested covers full tip (most gas efficient)
                 // Deposit excess harvested beans to silo
@@ -477,7 +477,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                 LibTransfer.To.INTERNAL
             );
         } else {
-            // Non-Pinto tip - deposit harvested and use full withdrawal plan with tip
+            // Non-Bean tip - deposit harvested and use full withdrawal plan with tip
             if (totalHarvestedBeans > 0) {
                 beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
             }
@@ -586,19 +586,19 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Checks if the resolved first source token is Pinto
+     * @notice Checks if the resolved first source token is Bean
      * @dev Handles both direct token indices and strategy-based indices (LOWEST_PRICE_STRATEGY, LOWEST_SEED_STRATEGY)
      * @param sourceTokenIndices The indices of the source tokens to withdraw from
-     * @return True if the first resolved source token is Pinto
+     * @return True if the first resolved source token is Bean
      */
-    function _resolvedSourceIsPinto(
+    function _resolvedSourceIsBean(
         uint8[] memory sourceTokenIndices
     ) internal view returns (bool) {
         if (sourceTokenIndices.length == 0) return false;
 
         uint8 firstIdx = sourceTokenIndices[0];
 
-        // Direct index - check if it points to Pinto
+        // Direct index - check if it points to Bean
         if (firstIdx < siloHelpers.LOWEST_PRICE_STRATEGY()) {
             address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
             if (firstIdx >= tokens.length) return false;
@@ -606,7 +606,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         if (firstIdx == siloHelpers.LOWEST_PRICE_STRATEGY()) {
-            // For price strategy, check if Pinto is the lowest priced token
+            // For price strategy, check if Bean is the lowest priced token
             (uint8[] memory priceIndices, ) = tractorHelpers.getTokensAscendingPrice();
             if (priceIndices.length == 0) return false;
             address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
@@ -615,7 +615,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         if (firstIdx == siloHelpers.LOWEST_SEED_STRATEGY()) {
-            // For seed strategy, check if Pinto is the lowest seeded token
+            // For seed strategy, check if Bean is the lowest seeded token
             (address lowestSeedToken, ) = tractorHelpers.getLowestSeedToken();
             return lowestSeedToken == beanToken;
         }
