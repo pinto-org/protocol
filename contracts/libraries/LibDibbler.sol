@@ -203,11 +203,7 @@ library LibDibbler {
 
         uint256 index = s.sys.fields[activeField].pods;
 
-        s.accts[account].fields[activeField].plots[index] = pods;
-        s.accts[account].fields[activeField].plotIndexes.push(index);
-        s.accts[account].fields[activeField].piIndex[index] =
-            s.accts[account].fields[activeField].plotIndexes.length -
-            1;
+        insertPlot(account, activeField, index, pods);
         emit Sow(account, activeField, index, beans, pods);
 
         s.sys.fields[activeField].pods += pods;
@@ -441,6 +437,18 @@ library LibDibbler {
                     morningTemperature()
                 );
         }
+    }
+
+    /**
+     * @notice inserts a plot into an account, adds the index to the plotIndex list and updates the piIndex mapping.
+     */
+    function insertPlot(address account, uint256 fieldId, uint256 index, uint256 amount) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.accts[account].fields[fieldId].plots[index] = amount;
+        s.accts[account].fields[fieldId].plotIndexes.push(index);
+        s.accts[account].fields[fieldId].piIndex[index] =
+            s.accts[account].fields[fieldId].plotIndexes.length -
+            1;
     }
 
     /**
