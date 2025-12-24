@@ -384,12 +384,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Handles tip payment with optimized Bean flow
-     * @dev Optimizes gas by using freshly obtained Bean for tips when possible.
-     *      All Bean-based tip paths converge to a single tip() call at the end.
-     *      1. If harvested beans >= tip: Deposit excess, tip from harvested
-     *      2. If harvested + planted >= tip: Withdraw needed from planted, tip from both
-     *      3. Otherwise: Withdraw all planted + use withdrawal plan for remainder, then tip
+     * @notice Handles tip payment
      * @param account The account to withdraw for
      * @param tipAddress The address to send the tip to
      * @param sourceTokenIndices The indices of the source tokens to withdraw from
@@ -411,85 +406,48 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio
     ) internal {
-        uint256 tipAmount = totalBeanTip > 0 ? uint256(totalBeanTip) : 0;
+        int256 toDeposit = int256(totalHarvestedBeans) - totalBeanTip;
 
-        // Zero tip case - just deposit harvested beans
-        if (tipAmount == 0) {
-            if (totalHarvestedBeans > 0) {
-                beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
-            }
-            return;
-        }
+        if (toDeposit < 0) {
+            uint256 neededFromPlanted = uint256(-toDeposit);
+            uint256 withdrawFromPlanted = neededFromPlanted < totalPlantedBeans
+                ? neededFromPlanted
+                : totalPlantedBeans;
 
-        // Check if we can optimize (tip token resolves to Bean)
-        bool tipWithBean = _resolvedSourceIsBean(sourceTokenIndices);
-
-        if (tipWithBean) {
-            if (totalHarvestedBeans >= tipAmount) {
-                // CASE 1: Harvested covers full tip (most gas efficient)
-                // Deposit excess harvested beans to silo
-                uint256 remaining = totalHarvestedBeans - tipAmount;
-                if (remaining > 0) {
-                    beanstalk.deposit(beanToken, remaining, LibTransfer.From.INTERNAL);
-                }
-                // tipAmount is already in internal balance from harvest
-            } else if (totalHarvestedBeans + totalPlantedBeans >= tipAmount) {
-                // CASE 2: Harvested + Planted covers tip
-                // Withdraw only what we need from planted deposit
-                uint256 neededFromPlant = tipAmount - totalHarvestedBeans;
+            if (withdrawFromPlanted > 0) {
                 beanstalk.withdrawDeposit(
                     beanToken,
                     plantedStem,
-                    neededFromPlant,
+                    withdrawFromPlanted,
                     LibTransfer.To.INTERNAL
                 );
-                // Now tipAmount is in internal balance (harvested + withdrawn from planted)
-            } else {
-                // CASE 3: Need withdrawal plan for remainder
-                // First, withdraw ALL planted beans (they're already deposited by plant())
-                if (totalPlantedBeans > 0) {
-                    beanstalk.withdrawDeposit(
-                        beanToken,
-                        plantedStem,
-                        totalPlantedBeans,
-                        LibTransfer.To.INTERNAL
-                    );
-                }
-                // Calculate how much more we need from other sources
-                uint256 stillNeeded = tipAmount - totalHarvestedBeans - totalPlantedBeans;
-                // Withdraw only the remaining needed amount (no unnecessary deposit)
+            }
+
+            // If planted wasn't enough, withdraw from other sources
+            uint256 remainingNeeded = neededFromPlanted - withdrawFromPlanted;
+            if (remainingNeeded > 0) {
                 _withdrawBeansOnly(
                     account,
                     sourceTokenIndices,
-                    stillNeeded,
+                    remainingNeeded,
                     maxGrownStalkPerBdv,
                     slippageRatio
                 );
-                // Now tipAmount is in internal balance
             }
-
-            tractorHelpers.tip(
-                beanToken,
-                account,
-                tipAddress,
-                totalBeanTip,
-                LibTransfer.From.INTERNAL,
-                LibTransfer.To.INTERNAL
-            );
-        } else {
-            // Non-Bean tip - deposit harvested and use full withdrawal plan with tip
-            if (totalHarvestedBeans > 0) {
-                beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
-            }
-            _enforceWithdrawalPlanAndTip(
-                account,
-                tipAddress,
-                sourceTokenIndices,
-                totalBeanTip,
-                maxGrownStalkPerBdv,
-                slippageRatio
-            );
         }
+
+        if (toDeposit > 0) {
+            beanstalk.deposit(beanToken, uint256(toDeposit), LibTransfer.From.INTERNAL);
+        }
+
+        tractorHelpers.tip(
+            beanToken,
+            account,
+            tipAddress,
+            totalBeanTip,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
+        );
     }
 
     /**
@@ -533,93 +491,4 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         );
     }
 
-    /**
-     * @notice Helper function that creates a withdrawal plan and tips the operator the total bean tip amount
-     * @param account The account to withdraw for
-     * @param tipAddress The address to send the tip to
-     * @param sourceTokenIndices The indices of the source tokens to withdraw from
-     * @param totalBeanTip The total tip for mowing, planting and harvesting
-     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
-     * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
-     */
-    function _enforceWithdrawalPlanAndTip(
-        address account,
-        address tipAddress,
-        uint8[] memory sourceTokenIndices,
-        int256 totalBeanTip,
-        uint256 maxGrownStalkPerBdv,
-        uint256 slippageRatio
-    ) internal {
-        // Create filter params for the withdrawal plan
-        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
-            maxGrownStalkPerBdv
-        );
-
-        // Check if enough beans are available using getWithdrawalPlan
-        LibSiloHelpers.WithdrawalPlan memory withdrawalPlan = siloHelpers.getWithdrawalPlan(
-            account,
-            sourceTokenIndices,
-            uint256(totalBeanTip),
-            filterParams
-        );
-
-        // Execute the withdrawal plan to withdraw the tip amount
-        siloHelpers.withdrawBeansFromSources(
-            account,
-            sourceTokenIndices,
-            uint256(totalBeanTip),
-            filterParams,
-            slippageRatio,
-            LibTransfer.To.INTERNAL,
-            withdrawalPlan
-        );
-
-        // Tip the operator with the withdrawn beans
-        tractorHelpers.tip(
-            beanToken,
-            account,
-            tipAddress,
-            totalBeanTip,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
-        );
-    }
-
-    /**
-     * @notice Checks if the resolved first source token is Bean
-     * @dev Handles both direct token indices and strategy-based indices (LOWEST_PRICE_STRATEGY, LOWEST_SEED_STRATEGY)
-     * @param sourceTokenIndices The indices of the source tokens to withdraw from
-     * @return True if the first resolved source token is Bean
-     */
-    function _resolvedSourceIsBean(
-        uint8[] memory sourceTokenIndices
-    ) internal view returns (bool) {
-        if (sourceTokenIndices.length == 0) return false;
-
-        uint8 firstIdx = sourceTokenIndices[0];
-
-        // Direct index - check if it points to Bean
-        if (firstIdx < siloHelpers.LOWEST_PRICE_STRATEGY()) {
-            address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
-            if (firstIdx >= tokens.length) return false;
-            return tokens[firstIdx] == beanToken;
-        }
-
-        if (firstIdx == siloHelpers.LOWEST_PRICE_STRATEGY()) {
-            // For price strategy, check if Bean is the lowest priced token
-            (uint8[] memory priceIndices, ) = tractorHelpers.getTokensAscendingPrice();
-            if (priceIndices.length == 0) return false;
-            address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
-            if (priceIndices[0] >= tokens.length) return false;
-            return tokens[priceIndices[0]] == beanToken;
-        }
-
-        if (firstIdx == siloHelpers.LOWEST_SEED_STRATEGY()) {
-            // For seed strategy, check if Bean is the lowest seeded token
-            (address lowestSeedToken, ) = tractorHelpers.getLowestSeedToken();
-            return lowestSeedToken == beanToken;
-        }
-
-        return false;
-    }
 }
