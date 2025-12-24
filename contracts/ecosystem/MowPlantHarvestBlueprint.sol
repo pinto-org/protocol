@@ -490,5 +490,4 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             withdrawalPlan
         );
     }
-
 }
