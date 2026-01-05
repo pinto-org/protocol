@@ -61,7 +61,9 @@ struct System {
     uint128 initialSoil;
     uint128 referrerPercentage;
     uint128 refereePercentage;
-    bytes32[14] _buffer_0;
+    uint128 maximumReferralPods;
+    uint128 totalReferralPods;
+    bytes32[13] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;

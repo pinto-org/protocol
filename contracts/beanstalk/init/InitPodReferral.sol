@@ -16,9 +16,11 @@ contract InitPodReferral {
     /// @notice Emitted when the referral percentage is changed (with 1e18 precision)
     event ReferralPercentageChanged(uint128 newReferrerPercentage);
     event RefereePercentageChanged(uint128 newRefereePercentage);
+    event MaximumReferralPodsChanged(uint128 newMaximumReferralPods);
 
     uint128 internal constant INIT_REFERRER_PERCENTAGE = 0.1e18; // 10%
     uint128 internal constant INIT_REFEREE_PERCENTAGE = 0.1e18; // 10%
+    uint128 internal constant MAXIMUM_REFERRAL_PODS = 100_000_000e6; // maximum number of pods that can be earned from the referral system.
 
     /**
      * @notice Initialize the Pod referral system.
@@ -27,6 +29,7 @@ contract InitPodReferral {
     function initPodReferral(address[] memory allowedReferrers) internal {
         updateReferrerPercentage(INIT_REFERRER_PERCENTAGE);
         updateRefereePercentage(INIT_REFEREE_PERCENTAGE);
+        setMaximumReferralPods(MAXIMUM_REFERRAL_PODS);
         initializeReferrers(allowedReferrers);
     }
 
@@ -40,6 +43,12 @@ contract InitPodReferral {
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.sys.refereePercentage = newRefereePercentage;
         emit RefereePercentageChanged(newRefereePercentage);
+    }
+
+    function setMaximumReferralPods(uint128 newMaximumReferralPods) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.maximumReferralPods = newMaximumReferralPods;
+        emit MaximumReferralPodsChanged(newMaximumReferralPods);
     }
 
     function initializeReferrers(address[] memory allowedReferrers) internal {

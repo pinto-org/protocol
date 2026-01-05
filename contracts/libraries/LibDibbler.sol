@@ -129,7 +129,7 @@ library LibDibbler {
         AppStorage storage s = LibAppStorage.diamondStorage();
         address user = LibTractor._user();
         beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, user, mode);
-        (pods, ) = sow(beans, _morningTemperature, user, peg, true);
+        (pods, ) = sow(beans, _morningTemperature, user, peg, true, false);
         updateReferralEligibility(user, beans);
         if (isValidReferral(referrer, user)) {
             (referrerPods, refereePods) = sowBonus(beans, _morningTemperature, referrer, user, peg);
@@ -165,10 +165,10 @@ library LibDibbler {
         uint256 _morningTemperature,
         address account,
         bool abovePeg,
-        bool useSoil
+        bool useSoil,
+        bool isReferral
     ) internal returns (uint256, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 activeField = s.sys.activeField;
 
         uint256 pods;
         uint256 soilUsed;
@@ -183,6 +183,15 @@ library LibDibbler {
             // below peg, beans are used directly.
             soilUsed = beans;
             pods = beansToPods(soilUsed, _morningTemperature);
+        }
+        if (isReferral) {
+            // note: referral system is disabled once s.sys.totalReferralPods == s.sys.maximumReferralPods.
+            // total referral pods should never exceed the maximum referral pods.
+            uint256 maxReferralPods = s.sys.maximumReferralPods - s.sys.totalReferralPods;
+            if(pods > maxReferralPods) {
+                pods = maxReferralPods;
+            }
+            s.sys.totalReferralPods += uint128(pods);
         }
 
         require(pods > 0, "Pods must be greater than 0");
@@ -200,19 +209,27 @@ library LibDibbler {
             // currently, this is used in the Pod Referral system.
             beans = 0;
         }
+    
+        // cache the time in which the plot was sown, if most of the soil was sown into.
+        _saveSowTime();
+        return  (pods, addPlotToAccount(account, beans, pods));
+    }
 
-        uint256 index = s.sys.fields[activeField].pods;
-
+    function addPlotToAccount(
+        address account,
+        uint256 beans,
+        uint256 pods
+    ) internal returns (uint256 index) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 activeField = s.sys.activeField;
+        index = s.sys.fields[activeField].pods;
         s.accts[account].fields[activeField].plots[index] = pods;
         s.accts[account].fields[activeField].plotIndexes.push(index);
         s.accts[account].fields[activeField].piIndex[index] =
             s.accts[account].fields[activeField].plotIndexes.length -
             1;
-        emit Sow(account, activeField, index, beans, pods);
-
         s.sys.fields[activeField].pods += pods;
-        _saveSowTime();
-        return (pods, index);
+        emit Sow(account, activeField, index, beans, pods);
     }
 
     /**
@@ -517,7 +534,7 @@ library LibDibbler {
         bool peg
     ) internal returns (uint256 referrerPods, uint256 refereePods) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        if (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0) {
+        if (s.sys.totalReferralPods < s.sys.maximumReferralPods && (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0)) {
             uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
             uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
             uint256 referrerIndex;
@@ -528,7 +545,8 @@ library LibDibbler {
                     _morningTemperature,
                     referee,
                     peg,
-                    false
+                    false,
+                    true
                 );
             }
             if (referrerBeans > 0) {
@@ -537,7 +555,8 @@ library LibDibbler {
                     _morningTemperature,
                     referrer,
                     peg,
-                    false
+                    false,
+                    true
                 );
             }
             emit SowReferral(
