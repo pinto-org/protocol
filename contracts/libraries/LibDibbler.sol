@@ -188,7 +188,7 @@ library LibDibbler {
             // note: referral system is disabled once s.sys.totalReferralPods == s.sys.maximumReferralPods.
             // total referral pods should never exceed the maximum referral pods.
             uint256 maxReferralPods = s.sys.maximumReferralPods - s.sys.totalReferralPods;
-            if(pods > maxReferralPods) {
+            if (pods > maxReferralPods) {
                 pods = maxReferralPods;
             }
             s.sys.totalReferralPods += uint128(pods);
@@ -209,10 +209,10 @@ library LibDibbler {
             // currently, this is used in the Pod Referral system.
             beans = 0;
         }
-    
+
         // cache the time in which the plot was sown, if most of the soil was sown into.
         _saveSowTime();
-        return  (pods, addPlotToAccount(account, beans, pods));
+        return (pods, addPlotToAccount(account, beans, pods));
     }
 
     function addPlotToAccount(
@@ -534,7 +534,10 @@ library LibDibbler {
         bool peg
     ) internal returns (uint256 referrerPods, uint256 refereePods) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        if (s.sys.totalReferralPods < s.sys.maximumReferralPods && (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0)) {
+        if (
+            s.sys.totalReferralPods < s.sys.maximumReferralPods &&
+            (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0)
+        ) {
             uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
             uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
             uint256 referrerIndex;
