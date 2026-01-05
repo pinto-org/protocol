@@ -7,7 +7,7 @@ pragma solidity ^0.8.20;
 import "contracts/beanstalk/facets/sun/SeasonFacet.sol";
 import {AssetSettings, Deposited, Field, GerminationSide, GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
@@ -16,7 +16,7 @@ import {ShipmentRecipient} from "contracts/beanstalk/storage/System.sol";
 import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {LibWeather} from "contracts/libraries/Sun/LibWeather.sol";
 
 /**
@@ -159,7 +159,7 @@ contract MockSeasonFacet is SeasonFacet {
         stepSun(bs);
     }
 
-    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) public {
+    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
@@ -453,7 +453,7 @@ contract MockSeasonFacet is SeasonFacet {
             (uint256)
         );
         Gauge memory g = s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR];
-        (bytes memory newCultivationFactorBytes, ) = LibGaugeHelpers.getGaugeResult(
+        (bytes memory newCultivationFactorBytes, ) = LibGaugeHelpers.getStatelessGaugeResult(
             g,
             abi.encode(bs)
         );
@@ -468,15 +468,15 @@ contract MockSeasonFacet is SeasonFacet {
     function mockStepGauge() external {
         (
             uint256 maxLpGpPerBdv,
-            LibGauge.LpGaugePointData[] memory lpGpData,
+            LibSeedGauge.LpGaugePointData[] memory lpGpData,
             uint256 totalLpBdv
-        ) = LibGauge.updateGaugePoints();
+        ) = LibSeedGauge.updateGaugePoints();
         if (totalLpBdv == type(uint256).max) return;
-        LibGauge.updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalLpBdv);
+        LibSeedGauge.updateGrownStalkEarnedPerSeason(maxLpGpPerBdv, lpGpData, totalLpBdv);
     }
 
-    function stepGauge() external {
-        LibGauge.stepGauge();
+    function stepSeedGauge() external {
+        LibSeedGauge.stepSeedGauge();
     }
 
     function mockSetAverageGrownStalkPerBdvPerSeason(
@@ -490,7 +490,7 @@ contract MockSeasonFacet is SeasonFacet {
      * @dev used to test the updateGrownStalkPerSeason updating.
      */
     function mockUpdateAverageGrownStalkPerBdvPerSeason() external {
-        LibGauge.updateGrownStalkEarnedPerSeason(0, new LibGauge.LpGaugePointData[](0), 0);
+        LibSeedGauge.updateGrownStalkEarnedPerSeason(0, new LibSeedGauge.LpGaugePointData[](0), 0);
     }
 
     function gaugePointsNoChange(
@@ -526,7 +526,7 @@ contract MockSeasonFacet is SeasonFacet {
     }
 
     function mockUpdateAverageStalkPerBdvPerSeason() external {
-        LibGauge.updateAverageStalkPerBdvPerSeason();
+        LibSeedGauge.updateAverageStalkPerBdvPerSeason();
     }
 
     function mockStartSop() internal {
