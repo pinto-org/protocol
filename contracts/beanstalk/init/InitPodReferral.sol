@@ -39,7 +39,7 @@ contract InitPodReferral {
     function updateRefereePercentage(uint128 newRefereePercentage) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.sys.refereePercentage = newRefereePercentage;
-        emit ReferralPercentageChanged(newRefereePercentage);
+        emit RefereePercentageChanged(newRefereePercentage);
     }
 
     function initializeReferrers(address[] memory allowedReferrers) internal {
