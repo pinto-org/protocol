@@ -4,7 +4,7 @@ const {
   L2_PINTO,
   L2_PCM,
   PINTO,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   addressToNameMap
 } = require("../test/hardhat/utils/constants.js");
 
@@ -91,7 +91,7 @@ module.exports = function () {
   });
 
   task("pumps", async function () {
-    const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL_BASE);
+    const well = await ethers.getContractAt("IWell", PINTO_CBBTC_WELL_BASE);
     const pumps = await well.pumps();
     console.log(pumps);
   });
@@ -126,12 +126,43 @@ module.exports = function () {
           console.log("- Encode Type:", currentImpl.encodeType);
           console.log("- Current Data:", currentImpl.data);
 
-          const newImpl = {
-            target: currentImpl.target,
-            selector: currentImpl.selector,
-            encodeType: currentImpl.encodeType,
-            data: ethers.utils.hexZeroPad(ethers.utils.hexlify(86400 * 365), 32) // 365 day oracle timeout
-          };
+          let newImpl;
+          // if the implementation is the default implementation, update the timeout to 365 days.
+          if (currentImpl.encodeType === "0x00") {
+            newImpl = {
+              target: currentImpl.target,
+              selector: currentImpl.selector,
+              encodeType: currentImpl.encodeType,
+              // LSDChainlinkOracle expects data to be (address ethOracle, uint256 ethTimeout, address xEthOracle, uint256 xEthTimeout)
+              // We'll keep addresses the same, update both timeouts to 365 days (in seconds = 86400*365)
+              data:
+                currentImpl.data && currentImpl.data.length >= 128
+                  ? (() => {
+                      // Decode current data to extract oracles and then rebuild with new timeout
+                      const abi = ethers.utils.defaultAbiCoder;
+                      const [ethOracle, , xEthOracle] = abi.decode(
+                        ["address", "uint256", "address", "uint256"],
+                        currentImpl.data
+                      );
+                      const timeout = ethers.BigNumber.from(86400 * 365);
+                      return abi.encode(
+                        ["address", "uint256", "address", "uint256"],
+                        [ethOracle, timeout, xEthOracle, timeout]
+                      );
+                    })()
+                  : ethers.utils.hexZeroPad(ethers.utils.hexlify(86400 * 365), 32)
+            };
+          } else {
+            newImpl = {
+              target: currentImpl.target,
+              selector: currentImpl.selector,
+              encodeType: currentImpl.encodeType,
+              data: ethers.utils.hexZeroPad(ethers.utils.hexlify(86400 * 365), 32) // 365 day oracle timeout
+            };
+          }
+
+          // if the implementation is the LSD chainlink implementation, we need to update 2 timeouts.
+          // this is checked by checking if the encode type is 0x00. This does not future proof.
 
           console.log("\nNew implementation:");
           console.log("- Target:", newImpl.target);

@@ -13,10 +13,12 @@ const facets = [
   "BDVFacet",
   "OracleFacet",
   "ConvertFacet", // CONVERT
+  "ConvertBatchFacet", // CONVERT BATCH
   "ConvertGettersFacet",
   "PipelineConvertFacet",
   "MetadataFacet", // METADATA
   "MarketplaceFacet", // MARKET
+  "MarketplaceBatchFacet", // MARKETPLACE BATCH
   "FieldFacet", // FIELD
   "DepotFacet", // FARM
   "FarmFacet",
@@ -30,7 +32,7 @@ const facets = [
 ///////////////// Pinto Library List //////////////////
 // A list of public libraries that need to be deployed separately.
 const libraryNames = [
-  "LibGauge",
+  "LibSeedGauge",
   "LibIncentive",
   "LibConvert",
   "LibWellMinting",
@@ -47,7 +49,7 @@ const libraryNames = [
 // A mapping of facet to public library names that will be linked to it.
 const facetLibraries = {
   SeasonFacet: [
-    "LibGauge",
+    "LibSeedGauge",
     "LibIncentive",
     "LibWellMinting",
     "LibGerminate",
