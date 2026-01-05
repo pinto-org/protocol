@@ -14,12 +14,12 @@ import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 
 import {console} from "forge-std/console.sol";
 
 /**
- * @notice Tests the functionality of the sun, the distrubution of beans and soil.
+ * @notice Tests the functionality of the sun, the distribution of beans and soil.
  */
 contract SunTest is TestHelper {
     // Events
@@ -1703,7 +1703,7 @@ contract SunTest is TestHelper {
     ////// HELPER FUNCTIONS //////
 
     /**
-     * @notice calculates the distrubution of field and silo beans.
+     * @notice calculates the distribution of field and silo beans.
      * @dev TODO: generalize field division.
      */
     function calcBeansToFieldAndSilo(

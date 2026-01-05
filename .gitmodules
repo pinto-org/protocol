@@ -13,3 +13,6 @@
 [submodule "lib/prb-math"]
 	path = lib/prb-math
 	url = https://github.com/paulrberg/prb-math
+[submodule "lib/transience"]
+	path = lib/transience
+	url = https://github.com/ethereum-optimism/transience

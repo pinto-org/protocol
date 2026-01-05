@@ -26,9 +26,9 @@ async function updateBeanstalkForUI(verbose = true) {
   await upgradeWithNewFacets({
     diamondAddress: BEANSTALK,
     facetNames: ["SeasonFacet", "SeasonGettersFacet"],
-    libraryNames: ["LibGauge", "LibIncentive", "LibWellMinting", "LibGerminate"],
+    libraryNames: ["LibSeedGauge", "LibIncentive", "LibWellMinting", "LibGerminate"],
     facetLibraries: {
-      SeasonFacet: ["LibGauge", "LibIncentive", "LibWellMinting", "LibGerminate"],
+      SeasonFacet: ["LibSeedGauge", "LibIncentive", "LibWellMinting", "LibGerminate"],
       SeasonGettersFacet: ["LibWellMinting"]
     },
     initArgs: [],

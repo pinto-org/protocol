@@ -8,8 +8,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import "contracts/libraries/Math/LibRedundantMath256.sol";
 import "contracts/beanstalk/facets/field/FieldFacet.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+
 /**
  * @title Mock Field Facet
  **/
@@ -187,7 +188,7 @@ contract MockFieldFacet is FieldFacet {
         bool abovePeg
     ) external returns (uint256 pods) {
         s.sys.weather.temp = maxTemperature;
-        pods = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg);
+        (pods, ) = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true);
         return pods;
     }
 
@@ -230,5 +231,17 @@ contract MockFieldFacet is FieldFacet {
             cultivationTemp,
             prevSeasonTemp
         );
+    }
+
+    function setReferrerPercentageE(uint128 percentage) public {
+        s.sys.referrerPercentage = percentage;
+    }
+
+    function setRefereePercentageE(uint128 percentage) public {
+        s.sys.refereePercentage = percentage;
+    }
+
+    function setReferralEligibility(address referrer, bool eligible) public {
+        s.accts[referrer].fields[s.sys.activeField].referral.eligibility = eligible;
     }
 }
