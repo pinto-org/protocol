@@ -62,7 +62,7 @@ contract InitPIXMigration is InitWells, InitPodReferral {
 
         // Fetch the allowed referrers from the helper storage.
         bytes memory value = IHelperStorage(helperStorage).getValue(key);
-        if(value.length > 0) {
+        if (value.length > 0) {
             address[] memory allowedReferrers = abi.decode(value, (address[]));
             // Initialize the referral system.
             initPodReferral(allowedReferrers);
