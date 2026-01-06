@@ -36,7 +36,6 @@ abstract contract Sun is Oracle, Distribution {
     uint256 internal constant SOIL_PRECISION = 1e6;
     uint256 internal constant ONE_HUNDRED_SCALAR = 100 * C.PRECISION; // 100%
 
-
     /**
      * @notice Emitted during Sunrise when Beanstalk adjusts the amount of available Soil.
      * @param season The Season in which Soil was adjusted.
@@ -109,14 +108,16 @@ abstract contract Sun is Oracle, Distribution {
      * @dev To calculate the amount of Soil to issue, Beanstalk first calculates the number
      * of Harvestable Pods that would result in the same number of Beans as were minted to the Field.
      * It then scales this number based on the pod rate and cultivation factor.
-     * 
+     *
      * When the pod referral system is enabled, the protocol assumes that all Sows within the Season
      * utilizes the referral system, and adjusts the soil issuance accordingly.
      */
     function setSoilAbovePeg(uint256 newHarvestable, Decimal.D256 memory podRate) internal {
-        // scale the temperature 
+        // scale the temperature
         uint256 newSoil = newHarvestable.mul(LibDibbler.ONE_HUNDRED_TEMP).div(
-            (LibDibbler.ONE_HUNDRED_TEMP + s.sys.weather.temp) * (ONE_HUNDRED_SCALAR + s.sys.referrerPercentage + s.sys.refereePercentage) /  ONE_HUNDRED_SCALAR
+            ((LibDibbler.ONE_HUNDRED_TEMP + s.sys.weather.temp) *
+                (ONE_HUNDRED_SCALAR + s.sys.referrerPercentage + s.sys.refereePercentage)) /
+                ONE_HUNDRED_SCALAR
         );
         setSoil(scaleSoilAbovePeg(newSoil, podRate));
     }
