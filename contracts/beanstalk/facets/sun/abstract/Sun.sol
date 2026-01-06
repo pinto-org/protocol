@@ -34,7 +34,7 @@ abstract contract Sun is Oracle, Distribution {
     using Decimal for Decimal.D256;
 
     uint256 internal constant SOIL_PRECISION = 1e6;
-    uint256 internal constant ONE_HUNDRED_SCALAR = 100 * SOIL_PRECISION;
+    uint256 internal constant ONE_HUNDRED_SCALAR = 100 * C.PRECISION; // 100%
 
 
     /**
