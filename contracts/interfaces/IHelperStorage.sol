@@ -7,7 +7,7 @@ pragma solidity ^0.8.20;
 /**
  * @title IHelperStorage
  * @notice An interface for a helper contract for Diamond initialization.
- * @dev EIP-2535 Diamonds allow for a delegate call from an arbitary contract to be invoked during initialization.
+ * @dev EIP-2535 Diamonds allow for a delegate call from an arbitrary contract to be invoked during initialization.
  * There are instances where values are not immediately available, nor able to be fetched on-chain.
  * This interface provides a standard way to set and get values prior to a diamondCut.
  **/

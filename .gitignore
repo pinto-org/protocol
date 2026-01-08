@@ -31,3 +31,7 @@ lib/
 
 # task outputs
 tasks/requisition/
+
+# hardhat cache
+hardhat-cache/
+cache_hardhat/

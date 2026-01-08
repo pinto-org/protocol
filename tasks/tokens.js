@@ -8,7 +8,7 @@ const {
   PINTO_DIAMOND_DEPLOYER,
   PINTO_WETH_WELL_BASE,
   PINTO_CBETH_WELL_BASE,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   PINTO_USDC_WELL_BASE,
   PINTO_WSOL_WELL_BASE,
   nameToAddressMap,
@@ -16,7 +16,7 @@ const {
   addressToBalanceSlotMap
 } = require("../test/hardhat/utils/constants.js");
 
-module.exports = function() {
+module.exports = function () {
   task("mintEth", "Mints eth to specified account")
     .addParam("account")
     .setAction(async (taskArgs) => {
@@ -101,7 +101,7 @@ module.exports = function() {
       const wells = [
         PINTO_WETH_WELL_BASE,
         PINTO_CBETH_WELL_BASE,
-        PINTO_CBTC_WELL_BASE,
+        PINTO_CBBTC_WELL_BASE,
         PINTO_USDC_WELL_BASE,
         PINTO_WSOL_WELL_BASE
       ];
