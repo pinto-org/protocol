@@ -36,7 +36,8 @@ contract InitPIXMigration is InitWells, InitPodReferral {
         0x00ee4d9e32976f40b38d99d1c3eee5ca2e3ae06d24630a6df69a9a8b7c8b4500;
 
     // Gauge parameters.
-    int64 internal constant DELTA = 1111111;
+    // target full migration in 360 seasons (~15 days)
+    int64 internal constant DELTA = 92_593;
     uint64 internal constant TARGET = 33333333;
 
     // Asset parameters.

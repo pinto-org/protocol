@@ -19,8 +19,8 @@ contract InitPodReferral {
     event TargetReferralPodsChanged(uint128 newTargetReferralPods);
 
     uint128 internal constant INIT_REFERRER_PERCENTAGE = 0.1e6; // 10%
-    uint128 internal constant INIT_REFEREE_PERCENTAGE = 0.1e6; // 10%
-    uint128 internal constant MAXIMUM_REFERRAL_PODS = 100_000_000e6; // maximum number of pods that can be earned from the referral system.
+    uint128 internal constant INIT_REFEREE_PERCENTAGE = 0.05e6; // 5%
+    uint128 internal constant MAXIMUM_REFERRAL_PODS = 2_000_000e6; // maximum number of pods that can be earned from the referral system.
 
     /**
      * @notice Initialize the Pod referral system.
