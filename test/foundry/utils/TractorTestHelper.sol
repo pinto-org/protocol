@@ -168,15 +168,14 @@ contract TractorTestHelper is TestHelper {
         for (uint256 i = 0; i < fieldIds.length; i++) {
             uint256 fieldId = fieldIds[i];
 
-            // Get harvestable plot data
-            MowPlantHarvestBlueprint.OperatorHarvestData
-                memory harvestData = _getOperatorHarvestData(account, fieldId);
+            // Get harvestable plot indexes
+            uint256[] memory harvestablePlotIndexes = _getHarvestablePlotIndexes(account, fieldId);
 
             // Create ContractData with key = HARVEST_DATA_KEY + fieldId
             uint256 key = mowPlantHarvestBlueprint.HARVEST_DATA_KEY() + fieldId;
             dynamicData[i] = IMockFBeanstalk.ContractData({
                 key: key,
-                value: abi.encode(harvestData)
+                value: abi.encode(harvestablePlotIndexes)
             });
         }
     }
@@ -184,19 +183,18 @@ contract TractorTestHelper is TestHelper {
     /**
      * @notice Calculate harvestable plots for a given account and field
      * @dev Simulates what operator would calculate off-chain
+     * @return harvestablePlotIndexes Array of harvestable plot indexes
      */
-    function _getOperatorHarvestData(
+    function _getHarvestablePlotIndexes(
         address account,
         uint256 fieldId
-    ) internal view returns (MowPlantHarvestBlueprint.OperatorHarvestData memory harvestData) {
+    ) internal view returns (uint256[] memory) {
         // Get plot indexes for the account
         uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, fieldId);
         uint256 harvestableIndex = bs.harvestableIndex(fieldId);
 
         if (plotIndexes.length == 0) {
-            harvestData.fieldId = fieldId;
-            harvestData.harvestablePlotIndexes = new uint256[](0);
-            return harvestData;
+            return new uint256[](0);
         }
 
         // Temporary array to collect harvestable plots
@@ -224,8 +222,7 @@ contract TractorTestHelper is TestHelper {
             harvestablePlots[i] = tempPlots[i];
         }
 
-        harvestData.fieldId = fieldId;
-        harvestData.harvestablePlotIndexes = harvestablePlots;
+        return harvestablePlots;
     }
 
     // Helper function to sign blueprints

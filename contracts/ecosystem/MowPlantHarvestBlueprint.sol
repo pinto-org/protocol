@@ -56,16 +56,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256[] harvestablePlots;
     }
 
-    /**
-     * @notice Struct for operator-provided harvest data via dynamic calldata
-     * @dev Operator passes this via tractorDynamicData to avoid on-chain plot iteration
-     * @param fieldId The field ID this data is for
-     * @param harvestablePlotIndexes Array of harvestable plot indexes
-     */
-    struct OperatorHarvestData {
-        uint256 fieldId;
-        uint256[] harvestablePlotIndexes;
-    }
 
     /**
      * @notice Struct to hold mow, plant and harvest parameters
@@ -364,19 +354,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                 continue;
             }
 
-            // Decode operator-provided harvest data
-            OperatorHarvestData memory harvestData = abi.decode(
-                operatorData,
-                (OperatorHarvestData)
-            );
+            // Decode operator-provided harvestable plot indexes
+            uint256[] memory harvestablePlotIndexes = abi.decode(operatorData, (uint256[]));
 
-            // Verify operator provided data for the correct field
-            require(harvestData.fieldId == fieldId, "MowPlantHarvestBlueprint: Field ID mismatch");
-
-            // Use operator data - validation happens in harvest() call
             userFieldHarvestResults[i] = UserFieldHarvestResults({
                 fieldId: fieldId,
-                harvestablePlots: harvestData.harvestablePlotIndexes
+                harvestablePlots: harvestablePlotIndexes
             });
         }
 
