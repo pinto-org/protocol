@@ -1095,5 +1095,4 @@ contract FieldTest is TestHelper {
         sowAmountForFarmerWithReferral(farmers[0], 100e6, farmers[1]);
         assertFalse(field.isReferralSystemEnabled(), "Referral system should be disabled");
     }
-
 }
