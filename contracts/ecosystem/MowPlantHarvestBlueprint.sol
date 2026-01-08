@@ -70,7 +70,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     /**
      * @notice Struct to hold mow, plant and harvest parameters
      * @param minMowAmount The minimum total claimable stalk threshold to mow
-     * @param mintwaDeltaB The minimum twaDeltaB to mow if the protocol
+     * @param minTwaDeltaB The minimum twaDeltaB to mow if the protocol
      * is close to starting the next season above the value target
      * @param minPlantAmount The earned beans threshold to plant
      * @param fieldHarvestConfigs Array of field-specific harvest configurations
@@ -84,7 +84,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     struct MowPlantHarvestParams {
         // Mow
         uint256 minMowAmount;
-        uint256 mintwaDeltaB;
+        uint256 minTwaDeltaB;
         // Plant
         uint256 minPlantAmount;
         // Harvest, per field id
@@ -260,7 +260,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // validate params - only revert if none of the conditions are met
         shouldMow = _checkMowConditions(
-            params.mowPlantHarvestParams.mintwaDeltaB,
+            params.mowPlantHarvestParams.minTwaDeltaB,
             params.mowPlantHarvestParams.minMowAmount,
             totalClaimableStalk,
             previousSeasonTimestamp
@@ -285,7 +285,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @return bool True if the user should mow, false otherwise
      */
     function _checkMowConditions(
-        uint256 mintwaDeltaB,
+        uint256 minTwaDeltaB,
         uint256 minMowAmount,
         uint256 totalClaimableStalk,
         uint256 previousSeasonTimestamp
@@ -294,7 +294,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // if the totalDeltaB and totalClaimableStalk are both greater than the min amount, return true
         // This also guards against double dipping the blueprint after planting or harvesting since stalk will be 0
-        return totalClaimableStalk > minMowAmount && beanstalk.totalDeltaB() > int256(mintwaDeltaB);
+        return totalClaimableStalk > minMowAmount && beanstalk.totalDeltaB() > int256(minTwaDeltaB);
     }
 
     /**
@@ -406,48 +406,76 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio
     ) internal {
-        int256 toDeposit = int256(totalHarvestedBeans) - totalBeanTip;
+        // Check if tip source is Bean - enables direct use of harvested/planted beans
+        bool tipWithBean = _resolvedSourceIsBean(sourceTokenIndices);
 
-        if (toDeposit < 0) {
-            uint256 neededFromPlanted = uint256(-toDeposit);
-            uint256 withdrawFromPlanted = neededFromPlanted < totalPlantedBeans
-                ? neededFromPlanted
-                : totalPlantedBeans;
+        if (tipWithBean) {
+            // Bean tip flow: use harvested/planted beans directly without extra withdrawals
+            int256 toDeposit = int256(totalHarvestedBeans) - totalBeanTip;
 
-            if (withdrawFromPlanted > 0) {
-                beanstalk.withdrawDeposit(
-                    beanToken,
-                    plantedStem,
-                    withdrawFromPlanted,
-                    LibTransfer.To.INTERNAL
-                );
+            if (toDeposit < 0) {
+                uint256 neededFromPlanted = uint256(-toDeposit);
+                uint256 withdrawFromPlanted = neededFromPlanted < totalPlantedBeans
+                    ? neededFromPlanted
+                    : totalPlantedBeans;
+
+                if (withdrawFromPlanted > 0) {
+                    beanstalk.withdrawDeposit(
+                        beanToken,
+                        plantedStem,
+                        withdrawFromPlanted,
+                        LibTransfer.To.INTERNAL
+                    );
+                }
+
+                // If planted wasn't enough, withdraw from other sources
+                uint256 remainingNeeded = neededFromPlanted - withdrawFromPlanted;
+                if (remainingNeeded > 0) {
+                    _withdrawBeansOnly(
+                        account,
+                        sourceTokenIndices,
+                        remainingNeeded,
+                        maxGrownStalkPerBdv,
+                        slippageRatio
+                    );
+                }
             }
 
-            // If planted wasn't enough, withdraw from other sources
-            uint256 remainingNeeded = neededFromPlanted - withdrawFromPlanted;
-            if (remainingNeeded > 0) {
-                _withdrawBeansOnly(
-                    account,
-                    sourceTokenIndices,
-                    remainingNeeded,
-                    maxGrownStalkPerBdv,
-                    slippageRatio
-                );
+            if (toDeposit > 0) {
+                beanstalk.deposit(beanToken, uint256(toDeposit), LibTransfer.From.INTERNAL);
             }
-        }
 
-        if (toDeposit > 0) {
-            beanstalk.deposit(beanToken, uint256(toDeposit), LibTransfer.From.INTERNAL);
-        }
+            tractorHelpers.tip(
+                beanToken,
+                account,
+                tipAddress,
+                totalBeanTip,
+                LibTransfer.From.INTERNAL,
+                LibTransfer.To.INTERNAL
+            );
+        } else {
+            // Non-Bean source: deposit harvested beans back, then withdraw tip from user's deposits
+            if (totalHarvestedBeans > 0) {
+                beanstalk.deposit(beanToken, totalHarvestedBeans, LibTransfer.From.INTERNAL);
+            }
 
-        tractorHelpers.tip(
-            beanToken,
-            account,
-            tipAddress,
-            totalBeanTip,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
-        );
+            _withdrawBeansOnly(
+                account,
+                sourceTokenIndices,
+                uint256(totalBeanTip),
+                maxGrownStalkPerBdv,
+                slippageRatio
+            );
+
+            tractorHelpers.tip(
+                beanToken,
+                account,
+                tipAddress,
+                totalBeanTip,
+                LibTransfer.From.INTERNAL,
+                LibTransfer.To.INTERNAL
+            );
+        }
     }
 
     /**
@@ -489,5 +517,41 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             LibTransfer.To.INTERNAL,
             withdrawalPlan
         );
+    }
+
+    /**
+     * @notice Checks if the resolved first source token is Bean
+     * @dev Handles both direct token indices and strategy-based indices (LOWEST_PRICE_STRATEGY, LOWEST_SEED_STRATEGY)
+     * @param sourceTokenIndices The indices of the source tokens to withdraw from
+     * @return True if the first resolved source token is Bean
+     */
+    function _resolvedSourceIsBean(
+        uint8[] memory sourceTokenIndices
+    ) internal view returns (bool) {
+        uint8 firstIdx = sourceTokenIndices[0];
+
+        // Direct index - check if it points to Bean
+        if (firstIdx < siloHelpers.LOWEST_PRICE_STRATEGY()) {
+            address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
+            if (firstIdx >= tokens.length) return false;
+            return tokens[firstIdx] == beanToken;
+        }
+
+        if (firstIdx == siloHelpers.LOWEST_PRICE_STRATEGY()) {
+            // For price strategy, check if Bean is the lowest priced token
+            (uint8[] memory priceIndices, ) = tractorHelpers.getTokensAscendingPrice();
+            if (priceIndices.length == 0) return false;
+            address[] memory tokens = siloHelpers.getWhitelistStatusAddresses();
+            if (priceIndices[0] >= tokens.length) return false;
+            return tokens[priceIndices[0]] == beanToken;
+        }
+
+        if (firstIdx == siloHelpers.LOWEST_SEED_STRATEGY()) {
+            // For seed strategy, check if Bean is the lowest seeded token
+            (address lowestSeedToken, ) = tractorHelpers.getLowestSeedToken();
+            return lowestSeedToken == beanToken;
+        }
+
+        return false;
     }
 }

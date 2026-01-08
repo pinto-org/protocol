@@ -434,7 +434,7 @@ contract TractorTestHelper is TestHelper {
         address account,
         SourceMode sourceMode,
         uint256 minMowAmount,
-        uint256 mintwaDeltaB,
+        uint256 minTwaDeltaB,
         uint256 minPlantAmount,
         uint256 minHarvestAmount,
         address tipAddress,
@@ -453,7 +453,7 @@ contract TractorTestHelper is TestHelper {
         params = createMowPlantHarvestBlueprintStruct(
             uint8(sourceMode),
             minMowAmount,
-            mintwaDeltaB,
+            minTwaDeltaB,
             minPlantAmount,
             minHarvestAmount,
             tipAddress,
@@ -483,7 +483,7 @@ contract TractorTestHelper is TestHelper {
     function createMowPlantHarvestBlueprintStruct(
         uint8 sourceMode,
         uint256 minMowAmount,
-        uint256 mintwaDeltaB,
+        uint256 minTwaDeltaB,
         uint256 minPlantAmount,
         uint256 minHarvestAmount,
         address tipAddress,
@@ -519,7 +519,7 @@ contract TractorTestHelper is TestHelper {
         MowPlantHarvestBlueprint.MowPlantHarvestParams
             memory mowPlantHarvestParams = MowPlantHarvestBlueprint.MowPlantHarvestParams({
                 minMowAmount: minMowAmount,
-                mintwaDeltaB: mintwaDeltaB,
+                minTwaDeltaB: minTwaDeltaB,
                 minPlantAmount: minPlantAmount,
                 fieldHarvestConfigs: fieldHarvestConfigs,
                 sourceTokenIndices: sourceTokenIndices,
