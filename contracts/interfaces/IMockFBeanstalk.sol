@@ -1417,7 +1417,7 @@ interface IMockFBeanstalk {
 
     function mockBDVIncrease(uint256 amount) external pure returns (uint256);
 
-    function mockcalcCaseIdAndHandleRain(
+    function mockCalcCaseIdAndHandleRain(
         int256 deltaB
     ) external returns (uint256 caseId, BeanstalkState memory bs);
 
@@ -1465,8 +1465,6 @@ interface IMockFBeanstalk {
 
     function mockUpdateAverageGrownStalkPerBdvPerSeason() external;
 
-    function mockUpdateAverageStalkPerBdvPerSeason() external;
-
     function mockUpdateLiquidityWeight(
         address token,
         address newLiquidityWeightImplementation,
@@ -1491,14 +1489,6 @@ interface IMockFBeanstalk {
         bytes4 gaugePointSelector,
         bytes4 liquidityWeightSelector,
         uint128 gaugePoints,
-        uint64 optimalPercentDepositedBdv
-    ) external;
-
-    function mockinitializeGaugeForToken(
-        address token,
-        bytes4 gaugePointSelector,
-        bytes4 liquidityWeightSelector,
-        uint96 gaugePoints,
         uint64 optimalPercentDepositedBdv
     ) external;
 
@@ -1650,6 +1640,7 @@ interface IMockFBeanstalk {
     function seasonTime() external view returns (uint64);
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) external;
+    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) external;
 
     function setAbovePegE(bool peg) external;
 
@@ -2057,4 +2048,16 @@ interface IMockFBeanstalk {
     function setReferralEligibility(address referrer, bool eligible) external;
 
     function getTractorData(uint256 key) external view returns (bytes memory);
+
+    function setTargetReferralPods(uint128 amount) external;
+
+    function setTotalReferralPods(uint128 amount) external;
+
+    function sowWithReferral(
+        uint256 bean,
+        uint256 minTemperature,
+        uint256 minSoil,
+        uint8 mode,
+        address referrer
+    ) external payable returns (uint256 pods, uint256 referrerPods, uint256 refereePods);
 }

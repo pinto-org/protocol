@@ -379,7 +379,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.weather.lastDeltaSoil = uint128(_lastDeltaSoil);
         s.sys.beanSown = beanSown;
         s.sys.soil = endSoil;
-        mockcalcCaseIdAndHandleRain(deltaB);
+        mockCalcCaseIdAndHandleRain(deltaB);
     }
 
     function resetSeasonStart(uint256 amount) public {
@@ -414,8 +414,6 @@ contract MockSeasonFacet is SeasonFacet {
     function mockSetMilestoneSeason(address token, uint32 season) external {
         s.sys.silo.assetSettings[token].milestoneSeason = season;
     }
-
-    //constants for old seeds values
 
     function lastDeltaSoil() external view returns (uint256) {
         return uint256(s.sys.weather.lastDeltaSoil);
@@ -501,19 +499,6 @@ contract MockSeasonFacet is SeasonFacet {
         return currentGaugePoints;
     }
 
-    function mockinitializeGaugeForToken(
-        address token,
-        bytes4 gaugePointSelector,
-        bytes4 liquidityWeightSelector,
-        uint96,
-        uint64 optimalPercentDepositedBdv
-    ) external {
-        AssetSettings storage ss = s.sys.silo.assetSettings[token];
-        ss.gaugePointImplementation.selector = gaugePointSelector;
-        ss.liquidityWeightImplementation.selector = liquidityWeightSelector;
-        ss.optimalPercentDepositedBdv = optimalPercentDepositedBdv;
-    }
-
     function mockEndTotalGerminationForToken(address token) external {
         // increment total deposited and amounts for each token.
         GerminationSide side = LibGerminate.getSeasonGerminationSide();
@@ -523,10 +508,6 @@ contract MockSeasonFacet is SeasonFacet {
             s.sys.silo.germinating[side][token].bdv
         );
         delete s.sys.silo.germinating[side][token];
-    }
-
-    function mockUpdateAverageStalkPerBdvPerSeason() external {
-        LibSeedGauge.updateAverageStalkPerBdvPerSeason();
     }
 
     function mockStartSop() internal {
@@ -688,7 +669,7 @@ contract MockSeasonFacet is SeasonFacet {
     /**
      * @notice mock updates case id and beanstalk state. disables oracle failure.
      */
-    function mockcalcCaseIdAndHandleRain(
+    function mockCalcCaseIdAndHandleRain(
         int256 deltaB
     ) public returns (LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();

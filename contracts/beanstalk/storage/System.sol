@@ -22,6 +22,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param initialSoil The amount of Soil at the start of the season.
  * @param referrerPercentage The percentage of pods that a user will gain for successfully referring a user to sow. 18 decimal precision.
  * @param refereePercentage The percentage of pods that a user will gain for successfully being referred by a user to sow. 18 decimal precision.
+ * @param targetReferralPods The maximum number of referral pods that can be issued before the referral system is disabled.
+ * @param totalReferralPods The total number of referral pods that have been issued.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -61,7 +63,7 @@ struct System {
     uint128 initialSoil;
     uint128 referrerPercentage;
     uint128 refereePercentage;
-    uint128 maximumReferralPods;
+    uint128 targetReferralPods;
     uint128 totalReferralPods;
     bytes32[13] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;

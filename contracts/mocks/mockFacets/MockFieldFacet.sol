@@ -244,4 +244,12 @@ contract MockFieldFacet is FieldFacet {
     function setReferralEligibility(address referrer, bool eligible) public {
         s.accts[referrer].fields[s.sys.activeField].referral.eligibility = eligible;
     }
+
+    function setTargetReferralPods(uint128 amount) external {
+        s.sys.targetReferralPods = amount;
+    }
+
+    function setTotalReferralPods(uint128 amount) external {
+        s.sys.totalReferralPods = amount;
+    }
 }

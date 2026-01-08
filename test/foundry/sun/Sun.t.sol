@@ -39,14 +39,16 @@ contract SunTest is TestHelper {
     // largestLiqWell = address(0)
     // oracleFailure = false
     LibEvaluate.BeanstalkState beanstalkState;
+    address[] farmers;
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
+        farmers = createUsers(2);
     }
 
     /**
      * @notice tests bean issuance with only the silo.
-     * @dev 100% of new bean signorage should be issued to the silo.
+     * @dev 100% of new bean seigniorage should be issued to the silo.
      */
     function test_sunOnlySilo(int256 deltaB, uint256 caseId, uint256 blocksToRoll) public {
         uint32 currentSeason = bs.season();
@@ -1700,9 +1702,75 @@ contract SunTest is TestHelper {
         assertEq(soilIssued, 250e6);
     }
 
+    /// REFERRAL SYSTEM TESTS ///
+    
+    // When the system is above peg, and the pod referral system is enabled, 
+    // the soil issued should be scaled down such that the total number of pods
+    // issued is equal to the total number of pods that would be issued if the pod referral system was disabled.
+    function test_referralSystem(uint256 referrerPercentage, uint256 refereePercentage, uint256 deltaB, uint256 temperature) public {
+        deltaB = bound(deltaB, 1000e6, 1_000_000e6);
+        temperature = bound(temperature, 0, 100e6);
+
+        bs.setMaxTempE(uint32(temperature)); // 100% temperature
+        
+        // set a non-zero podline 
+        bs.incrementTotalPodsE(0, 1e18);
+
+        // set a non-zero targetReferralPods
+        bs.setTargetReferralPods(1e18);
+
+        // call sunrise with a positive twaDeltaB (all other parameters are irrelevant)
+        bs.seedGaugeSunSunrise(int256(deltaB), 3);
+        
+
+        uint256 soilWithoutReferralScalar = bs.initialSoil();
+        // sow everything, cache the pods gained. 
+        uint256 podsWithoutReferral = sowAmountForFarmer(farmers[0], soilWithoutReferralScalar);
+
+        // limit totalReferralPercentage between 0 and 100
+        referrerPercentage = bound(referrerPercentage, 0, 500e6);
+        refereePercentage = bound(refereePercentage, 0, 500e6);
+        // set the referral system to totalReferralPercentage
+        bs.setReferrerPercentageE(uint128(referrerPercentage));
+        // set the referee system to totalReferralPercentage
+        bs.setRefereePercentageE(uint128(refereePercentage));
+        // revert temperature.
+        bs.setMaxTempE(uint32(temperature)); // 100% temperature
+
+        // call sunrise with a positive twaDeltaB (all other parameters are irrelevant)
+        bs.seedGaugeSunSunrise(int256(deltaB), 3);
+        uint256 soilWithReferralScalar = bs.initialSoil();
+        bs.setReferralEligibility(farmers[1], true);
+        (uint256 podsWithReferral, uint256 referrerPods, uint256 refereePods) = sowAmountForFarmerWithReferral(farmers[0], soilWithReferralScalar, farmers[1]);
+
+        // without the soil referral system, the soil issued would be greater than the soil issued with the referral system.
+        // we attempt to verify that the soil issued with the referral system is equal to the soil issued without the referral system.
+        // thus, the equivalent soil is the soil without the referral system, scaled down. 
+        uint256 equivalentSoil = (soilWithoutReferralScalar * 1e12 / (1e6 + referrerPercentage + refereePercentage)) / 1e6;
+
+        assertEq(1e12 / (1e6 + referrerPercentage + refereePercentage), soilWithReferralScalar * 1e6 / soilWithoutReferralScalar);
+        
+        // precision loss scales with amount of soil issued.
+        if (soilWithReferralScalar > 10e6) { 
+            assertApproxEqRel(equivalentSoil, soilWithReferralScalar, 0.0000001e18, "soil with referral should be equal to soil without referral");
+        } else { 
+            assertApproxEqAbs(equivalentSoil, soilWithReferralScalar, 2, "soil with referral should be equal to soil without referral");
+        }
+
+        uint256 totalPodsReferral = podsWithReferral + referrerPods + refereePods;
+
+        // verify that the total pods issued with the referral system is approximately equal to the total pods issued without the referral system.
+        // based on the size of the soil issued, we use a different tolerance.
+        if (podsWithoutReferral > 10e6) { 
+            assertApproxEqRel(podsWithoutReferral, totalPodsReferral, 0.00001e18, "soil with referral should be equal to soil without referral");
+        } else { 
+            assertApproxEqAbs(podsWithoutReferral, totalPodsReferral, 2, "soil with referral should be equal to soil without referral");
+        }
+    }
+
     ////// HELPER FUNCTIONS //////
 
-    /**
+    /** 
      * @notice calculates the distribution of field and silo beans.
      * @dev TODO: generalize field division.
      */

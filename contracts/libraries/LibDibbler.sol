@@ -131,7 +131,7 @@ library LibDibbler {
         beans = LibTransfer.burnToken(IBean(s.sys.bean), beans, user, mode);
         (pods, ) = sow(beans, _morningTemperature, user, peg, true, false);
         updateReferralEligibility(user, beans);
-        if (isValidReferral(referrer, user)) {
+        if (isValidReferral(referrer, user) && isReferralSystemEnabled()) {
             (referrerPods, refereePods) = sowBonus(beans, _morningTemperature, referrer, user, peg);
         }
         s.sys.beanSown += SafeCast.toUint128(beans);
@@ -185,9 +185,9 @@ library LibDibbler {
             pods = beansToPods(soilUsed, _morningTemperature);
         }
         if (isReferral) {
-            // note: referral system is disabled once s.sys.totalReferralPods == s.sys.maximumReferralPods.
-            // total referral pods should never exceed the maximum referral pods.
-            uint256 maxReferralPods = s.sys.maximumReferralPods - s.sys.totalReferralPods;
+            // note: referral system is disabled once s.sys.totalReferralPods == s.sys.targetReferralPods.
+            // total referral pods should never exceed the total referral pods.
+            uint256 maxReferralPods = s.sys.targetReferralPods - s.sys.totalReferralPods;
             if (pods > maxReferralPods) {
                 pods = maxReferralPods;
             }
@@ -534,43 +534,32 @@ library LibDibbler {
         bool peg
     ) internal returns (uint256 referrerPods, uint256 refereePods) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        if (
-            s.sys.totalReferralPods < s.sys.maximumReferralPods &&
-            (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0)
-        ) {
-            uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION;
-            uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION;
-            uint256 referrerIndex;
-            uint256 refereeIndex;
-            if (refereeBeans > 0) {
-                (refereePods, refereeIndex) = sow(
-                    refereeBeans,
-                    _morningTemperature,
-                    referee,
-                    peg,
-                    false,
-                    true
-                );
-            }
-            if (referrerBeans > 0) {
-                (referrerPods, referrerIndex) = sow(
-                    referrerBeans,
-                    _morningTemperature,
-                    referrer,
-                    peg,
-                    false,
-                    true
-                );
-            }
-            emit SowReferral(
-                referrer,
-                referrerIndex,
-                referrerPods,
+        uint256 referrerBeans = (beans * s.sys.referrerPercentage) / C.PRECISION_6;
+        uint256 refereeBeans = (beans * s.sys.refereePercentage) / C.PRECISION_6;
+        uint256 referrerIndex;
+        uint256 refereeIndex;
+        if (refereeBeans > 0) {
+            (refereePods, refereeIndex) = sow(
+                refereeBeans,
+                _morningTemperature,
                 referee,
-                refereeIndex,
-                refereePods
+                peg,
+                false,
+                true
             );
         }
+        // note we re-verify the total referralPods has not been reached intra transaction.
+        if (referrerBeans > 0 && s.sys.totalReferralPods < s.sys.targetReferralPods) {
+            (referrerPods, referrerIndex) = sow(
+                referrerBeans,
+                _morningTemperature,
+                referrer,
+                peg,
+                false,
+                true
+            );
+        }
+        emit SowReferral(referrer, referrerIndex, referrerPods, referee, refereeIndex, refereePods);
         return (referrerPods, refereePods);
     }
 
@@ -586,6 +575,16 @@ library LibDibbler {
             s.accts[referrer].fields[af].referral.eligibility == true &&
             referrer != referee &&
             referrer != address(0);
+    }
+
+    /**
+     * @notice internal function for checking if the referral system is enabled.
+     */
+    function isReferralSystemEnabled() internal view returns (bool) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return
+            s.sys.totalReferralPods < s.sys.targetReferralPods &&
+            (s.sys.referrerPercentage != 0 || s.sys.refereePercentage != 0);
     }
 
     function updateReferralEligibility(address user, uint256 beanSown) internal {

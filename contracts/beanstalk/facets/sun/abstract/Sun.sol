@@ -113,11 +113,16 @@ abstract contract Sun is Oracle, Distribution {
      * utilizes the referral system, and adjusts the soil issuance accordingly.
      */
     function setSoilAbovePeg(uint256 newHarvestable, Decimal.D256 memory podRate) internal {
-        // scale the temperature
+        // scale the temperature based on the referral system.
+        // note: if s.targetReferralPods - s.totalReferralPods is less than the potential pods 
+        // that could be issued without the pod cap, the total pods issued will be 
+        // less than newHarvestable (without other scalars). 
+        // this is an acceptable trade-off given the complexity needed to 
+        // incorporate the pod cap into the soil issuance formula.
         uint256 newSoil = newHarvestable.mul(LibDibbler.ONE_HUNDRED_TEMP).div(
             ((LibDibbler.ONE_HUNDRED_TEMP + s.sys.weather.temp) *
-                (ONE_HUNDRED_SCALAR + s.sys.referrerPercentage + s.sys.refereePercentage)) /
-                ONE_HUNDRED_SCALAR
+                (C.PRECISION_6 + s.sys.referrerPercentage + s.sys.refereePercentage)) /
+                C.PRECISION_6
         );
         setSoil(scaleSoilAbovePeg(newSoil, podRate));
     }
@@ -137,7 +142,7 @@ abstract contract Sun is Oracle, Distribution {
         // determine pod rate scalar as a function of podRate.
         uint256 podRateScalar = LibGaugeHelpers.linearInterpolation(
             podRate.value,
-            false, // when podrate increases, the scalar decreases
+            false, // when podRate increases, the scalar decreases
             s.sys.evaluationParameters.podRateLowerBound,
             s.sys.evaluationParameters.podRateUpperBound,
             s.sys.evaluationParameters.soilCoefficientHigh,
