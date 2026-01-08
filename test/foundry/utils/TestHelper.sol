@@ -609,11 +609,21 @@ contract TestHelper is
         pods = bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
     }
 
-    function sowAmountForFarmerWithReferral(address farmer, uint256 sowAmount, address referrer) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
+    function sowAmountForFarmerWithReferral(
+        address farmer,
+        uint256 sowAmount,
+        address referrer
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
         bs.setSoilE(sowAmount);
         mintTokensToUser(farmer, BEAN, sowAmount);
         vm.prank(farmer);
-        (pods, referrerPods, refereePods) = bs.sowWithReferral(sowAmount, 0, 0, uint8(LibTransfer.From.EXTERNAL), referrer);
+        (pods, referrerPods, refereePods) = bs.sowWithReferral(
+            sowAmount,
+            0,
+            0,
+            uint8(LibTransfer.From.EXTERNAL),
+            referrer
+        );
     }
 
     /**
