@@ -11,7 +11,7 @@ const {
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
-  task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
+  task("PI-1", "Deploys Pinto improvement set 1").setAction(async function () {
     const mock = false;
     let owner;
     if (mock) {
@@ -72,7 +72,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-2", "Deploys Pinto improvment set 2").setAction(async function () {
+  task("PI-2", "Deploys Pinto improvement set 2").setAction(async function () {
     const mock = false;
     let owner;
     if (mock) {
@@ -96,7 +96,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
+  task("PI-3", "Deploys Pinto improvement set 3").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -156,7 +156,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-4", "Deploys Pinto improvment set 4").setAction(async function () {
+  task("PI-4", "Deploys Pinto improvement set 4").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -195,7 +195,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-5", "Deploys Pinto improvment set 5").setAction(async function () {
+  task("PI-5", "Deploys Pinto improvement set 5").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -244,7 +244,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
+  task("PI-6", "Deploys Pinto improvement set 6").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
