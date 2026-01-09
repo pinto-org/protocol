@@ -58,7 +58,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256[] harvestablePlots;
     }
 
-
     /**
      * @notice Struct to hold mow, plant and harvest parameters
      * @param minMowAmount The minimum total claimable stalk threshold to mow
@@ -146,11 +145,11 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         vars.account = beanstalk.tractorUser();
 
         // get the user state from the protocol and validate against params
-        (
-            vars.shouldMow,
-            vars.shouldPlant,
-            vars.userFieldHarvestResults
-        ) = _getAndValidateUserState(vars.account, beanstalk.time().timestamp, params);
+        (vars.shouldMow, vars.shouldPlant, vars.userFieldHarvestResults) = _getAndValidateUserState(
+            vars.account,
+            beanstalk.time().timestamp,
+            params
+        );
 
         // validate order params and revert early if invalid
         _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
@@ -492,9 +491,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param sourceTokenIndices The indices of the source tokens to withdraw from
      * @return True if the first resolved source token is Bean
      */
-    function _resolvedSourceIsBean(
-        uint8[] memory sourceTokenIndices
-    ) internal view returns (bool) {
+    function _resolvedSourceIsBean(uint8[] memory sourceTokenIndices) internal view returns (bool) {
         uint8 firstIdx = sourceTokenIndices[0];
 
         // Direct index - check if it points to Bean
