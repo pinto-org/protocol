@@ -197,7 +197,7 @@ contract MockFieldFacet is FieldFacet {
         bool abovePeg
     ) external returns (uint256 pods) {
         s.sys.weather.temp = maxTemperature;
-        (pods, ) = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true);
+        (pods, ) = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true, false);
         return pods;
     }
 
@@ -263,5 +263,13 @@ contract MockFieldFacet is FieldFacet {
 
     function setReferralEligibility(address referrer, bool eligible) public {
         s.accts[referrer].fields[s.sys.activeField].referral.eligibility = eligible;
+    }
+
+    function setTargetReferralPods(uint128 amount) external {
+        s.sys.targetReferralPods = amount;
+    }
+
+    function setTotalReferralPods(uint128 amount) external {
+        s.sys.totalReferralPods = amount;
     }
 }

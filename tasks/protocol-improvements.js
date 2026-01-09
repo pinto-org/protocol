@@ -751,7 +751,7 @@ module.exports = function () {
           "LibWeather"
         ]
       },
-      initArgs: [[]],
+      initArgs: [HELPER_STORAGE, 1],
       initFacetName: "InitPIXMigration",
       object: !mock,
       verbose: true,
@@ -958,10 +958,7 @@ module.exports = function () {
     });
   });
 
-  task(
-    "convert-batch-functions",
-    "Deploys ConvertBatchFacet"
-  ).setAction(async function () {
+  task("convert-batch-functions", "Deploys ConvertBatchFacet").setAction(async function () {
     const mock = false;
     let owner;
     if (mock) {
