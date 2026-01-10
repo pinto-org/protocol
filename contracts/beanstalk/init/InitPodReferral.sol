@@ -17,45 +17,50 @@ contract InitPodReferral {
     event ReferralPercentageChanged(uint128 newReferrerPercentage);
     event RefereePercentageChanged(uint128 newRefereePercentage);
     event TargetReferralPodsChanged(uint128 newTargetReferralPods);
+    event BeanSownEligibilityThresholdChanged(uint128 newBeanSownEligibilityThreshold);
 
     uint128 internal constant INIT_REFERRER_PERCENTAGE = 0.1e6; // 10%
     uint128 internal constant INIT_REFEREE_PERCENTAGE = 0.05e6; // 5%
     uint128 internal constant MAXIMUM_REFERRAL_PODS = 2_000_000e6; // maximum number of pods that can be earned from the referral system.
-
+    uint128 internal constant INIT_BEANS_FOR_ELIGIBILITY = 1000e6; // the number of beans that a user will need to sow to be eligible for referral rewards.
     /**
      * @notice Initialize the Pod referral system.
      * @dev sets the percentages of referral, as well as initialize the addresses who are allowed to refer.
      */
-    function initPodReferral(address[] memory allowedReferrers) internal {
-        updateReferrerPercentage(INIT_REFERRER_PERCENTAGE);
-        updateRefereePercentage(INIT_REFEREE_PERCENTAGE);
-        setTargetReferralPods(MAXIMUM_REFERRAL_PODS);
-        initializeReferrers(allowedReferrers);
+    function init(address[] memory allowedReferrers) external {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        updateReferrerPercentage(s, INIT_REFERRER_PERCENTAGE);
+        updateRefereePercentage(s, INIT_REFEREE_PERCENTAGE);
+        setTargetReferralPods(s, MAXIMUM_REFERRAL_PODS);
+        setBeanSownEligibilityThreshold(s, INIT_BEANS_FOR_ELIGIBILITY);
+        initializeReferrers(s,allowedReferrers);
     }
 
-    function updateReferrerPercentage(uint128 newReferrerPercentage) internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
+    function updateReferrerPercentage(AppStorage storage s, uint128 newReferrerPercentage) internal {
         s.sys.referrerPercentage = newReferrerPercentage;
         emit ReferralPercentageChanged(newReferrerPercentage);
     }
 
-    function updateRefereePercentage(uint128 newRefereePercentage) internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
+    function updateRefereePercentage(AppStorage storage s, uint128 newRefereePercentage) internal {
         s.sys.refereePercentage = newRefereePercentage;
         emit RefereePercentageChanged(newRefereePercentage);
     }
 
-    function setTargetReferralPods(uint128 newTargetReferralPods) internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
+    function setTargetReferralPods(AppStorage storage s, uint128 newTargetReferralPods) internal {
         s.sys.targetReferralPods = newTargetReferralPods;
         emit TargetReferralPodsChanged(newTargetReferralPods);
     }
 
-    function initializeReferrers(address[] memory allowedReferrers) internal {
-        AppStorage storage s = LibAppStorage.diamondStorage();
+    function setBeanSownEligibilityThreshold(AppStorage storage s, uint128 newBeanSownEligibilityThreshold) internal {
+        s.sys.referralBeanSownEligibilityThreshold = newBeanSownEligibilityThreshold;
+        emit BeanSownEligibilityThresholdChanged(newBeanSownEligibilityThreshold);
+    }
+
+    function initializeReferrers(AppStorage storage s, address[] memory allowedReferrers) internal {
         uint256 activeField = s.sys.activeField;
         for (uint256 i = 0; i < allowedReferrers.length; i++) {
             s.accts[allowedReferrers[i]].fields[activeField].referral.eligibility = true;
+            s.accts[allowedReferrers[i]].fields[activeField].referral.beans = INIT_BEANS_FOR_ELIGIBILITY;
         }
     }
 }

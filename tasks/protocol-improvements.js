@@ -714,6 +714,21 @@ module.exports = function () {
     if (mock) {
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
+
+      const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
+
+      // initialize helper storage
+      // impersonate pinto deployer:
+      const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
+      await helperStorageContract
+        .connect(signer)
+        .setValue(
+          1,
+          ethers.utils.defaultAbiCoder.encode(
+            ["address[]"],
+            [["0x00000000000000000000000000000000000000001"]]
+          )
+        );
     } else {
       owner = (await ethers.getSigners())[0];
     }
@@ -727,9 +742,13 @@ module.exports = function () {
         "FieldFacet",
         "TractorFacet",
         "MarketplaceFacet",
-        "MarketplaceBatchFacet"
+        "MarketplaceBatchFacet",
+        "ConvertFacet",
+        "ConvertGettersFacet",
+        "ConvertBatchFacet"
       ],
       libraryNames: [
+        "LibTokenSilo",
         "LibSeedGauge",
         "LibEvaluate",
         "LibIncentive",
@@ -737,7 +756,10 @@ module.exports = function () {
         "LibWellMinting",
         "LibFlood",
         "LibGerminate",
-        "LibWeather"
+        "LibWeather",
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibSilo"
       ],
       facetLibraries: {
         SeasonFacet: [
@@ -749,7 +771,12 @@ module.exports = function () {
           "LibFlood",
           "LibGerminate",
           "LibWeather"
-        ]
+        ],
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"]
+      },
+      linkedLibraries: {
+        LibConvert: "LibTokenSilo"
       },
       initArgs: [HELPER_STORAGE, 1],
       initFacetName: "InitPIXMigration",
