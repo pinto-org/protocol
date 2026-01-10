@@ -125,12 +125,7 @@ contract MarketplaceFacet is Invariable, Order {
             "Field: Transfer to/from 0 address."
         );
         uint256 transferAmount = validatePlotAndReturnPods(fieldId, sender, index, start, end);
-        if (
-            LibTractor._user() != sender &&
-            allowancePods(sender, LibTractor._user(), fieldId) != type(uint256).max
-        ) {
-            decrementAllowancePods(sender, LibTractor._user(), fieldId, transferAmount);
-        }
+        _checkAndDecrementAllowance(sender, LibTractor._user(), fieldId, transferAmount);
 
         if (s.sys.podListings[fieldId][index] != bytes32(0)) {
             LibMarket._cancelPodListing(sender, fieldId, index);
@@ -160,12 +155,7 @@ contract MarketplaceFacet is Invariable, Order {
         uint256 totalAmount = _transferPlots(sender, recipient, fieldId, ids, starts, ends);
 
         // Decrement allowance is done on totalAmount rather than per plot.
-        if (
-            LibTractor._user() != sender &&
-            allowancePods(sender, LibTractor._user(), fieldId) != type(uint256).max
-        ) {
-            decrementAllowancePods(sender, LibTractor._user(), fieldId, totalAmount);
-        }
+        _checkAndDecrementAllowance(sender, LibTractor._user(), fieldId, totalAmount);
     }
 
     /**
@@ -217,5 +207,17 @@ contract MarketplaceFacet is Invariable, Order {
         require(spender != address(0), "Field: Pod Approve to 0 address.");
         setAllowancePods(LibTractor._user(), spender, fieldId, amount);
         emit PodApproval(LibTractor._user(), spender, fieldId, amount);
+    }
+
+    /**
+     * @notice Returns the amount of pods that
+     * `spender` is allowed to transfer on behalf of `owner`.
+     */
+    function allowancePods(
+        address owner,
+        address spender,
+        uint256 fieldId
+    ) external view returns (uint256) {
+        return _getAllowancePods(owner, spender, fieldId);
     }
 }

@@ -13,12 +13,12 @@ import {AssetSettings, Implementation} from "contracts/beanstalk/storage/System.
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
-import {LibInitGauges} from "../../libraries/LibInitGauges.sol";
+import {LibInitGauges} from "contracts/libraries/Gauge/LibInitGauges.sol";
 
 /**
  * @title InitializeDiamond
@@ -89,6 +89,8 @@ contract InitializeDiamond {
     // Pod Demand Scalars
     uint256 internal constant INITIAL_SOIL_POD_DEMAND_SCALAR = 0.05e6; // 5%
     uint256 internal constant SUPPLY_POD_DEMAND_SCALAR = 0.00001e6; // 0.001%
+
+    uint128 internal constant INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD = 1000e6; // 1000
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -164,7 +166,7 @@ contract InitializeDiamond {
         s.sys.twaReserves[beanTokenWell].reserve1 = 1;
 
         // init tractor.
-        LibTractor._tractorStorage().activePublisher = payable(address(1));
+        LibTractor._resetPublisher();
     }
 
     /**
@@ -191,6 +193,7 @@ contract InitializeDiamond {
         s.sys.weather.morningDuration = 600; // 10 minutes
         s.sys.weather.morningControl = uint128(1e18) / 240; // 1 / 240 = 0.004166666667
         s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
+        s.sys.referralBeanSownEligibilityThreshold = INIT_REFERRER_BEAN_SOWN_ELIGIBILITY_THRESHOLD;
     }
 
     /**
@@ -246,7 +249,7 @@ contract InitializeDiamond {
             type(uint256).max,
             int80(int128(s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
-        emit LibGauge.UpdateAverageStalkPerBdvPerSeason(
+        emit LibSeedGauge.UpdateAverageStalkPerBdvPerSeason(
             s.sys.seedGauge.averageGrownStalkPerBdvPerSeason
         );
     }

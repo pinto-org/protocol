@@ -255,4 +255,12 @@ interface IBeanstalk {
     function getSiloTokens() external view returns (address[] memory);
 
     function getSeedsForToken(address) external view returns (uint256 seeds);
+
+    function sowWithReferral(
+        uint256 beans,
+        uint256 minTemperature,
+        uint256 minSoil,
+        LibTransfer.From mode,
+        address referral
+    ) external payable returns (uint256 pods, uint256 referralPods);
 }
