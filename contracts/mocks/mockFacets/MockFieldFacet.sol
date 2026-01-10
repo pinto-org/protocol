@@ -15,9 +15,8 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
  * @title Mock Field Facet
  **/
 contract MockFieldFacet is FieldFacet {
-
     uint128 internal constant REFERRAL_BEANS_FOR_ELIGIBILITY = 1000e6;
-    
+
     using LibPRBMathRoundable for uint256;
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
