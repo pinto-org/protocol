@@ -93,7 +93,7 @@ contract CasesTest is TestHelper {
 
         uint256 prevTemp = bs.maxTemperature();
         require(
-            season.mockcalcCaseIdAndHandleRain(deltaB).caseId == caseId,
+            season.mockCalcCaseIdAndHandleRain(deltaB).caseId == caseId,
             "CaseId did not match"
         );
         (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
@@ -208,7 +208,7 @@ contract CasesTest is TestHelper {
         // set beanstalk state based on parameters.
         deltaB = season.setBeanstalkState(price, podRate, changeInSoilDemand, l2SR, well);
 
-        season.mockcalcCaseIdAndHandleRain(deltaB);
+        season.mockCalcCaseIdAndHandleRain(deltaB);
 
         // verify temperature changed based on soil demand.
         // decreasing

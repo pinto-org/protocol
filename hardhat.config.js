@@ -6,6 +6,9 @@ require("hardhat-tracer");
 require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
+require("@nomicfoundation/hardhat-foundry");
+const { getBeanstalk } = require("./utils");
+const { L2_PINTO } = require("./test/hardhat/utils/constants.js");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
@@ -13,35 +16,50 @@ require("./tasks")();
 
 // used in the UI to run the latest upgrade
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
-  const order = true;
   // compile contracts.
   await hre.run("compile");
-  // deploy PI-13
-  await hre.run("PI-13");
 
-  // Setup LP tokens for test addresses BEFORE running many sunrises
-  if (order) {
-    console.log("Setting up LP tokens for test addresses...");
-    await hre.run("setup-convert-up-addresses");
-    // increase the seeds, call sunrise.
-    await hre.run("mock-seeds");
-    await hre.run("callSunrise");
-  }
+  await hre.run("PI-X-migration-referral");
 
-  // deploy convert up blueprint
-  // dev: should be deployed to : 0x53B7cF2a4A18062aFF4fA71Bb300F6eA2d3702E2 for testing purposes.
-  await hre.run("deployConvertUpBlueprint");
+  console.log("Diamond Upgraded.");
 
-  // Now sign and publish the convert up blueprints with grown stalk available
-  if (order) {
-    console.log("Signing and publishing convert up blueprints...");
-    await hre.run("create-mock-convert-up-orders", {
-      execute: true,
-      skipSetup: true // Skip LP token setup since we already did it
-    });
-    await hre.run("callSunrise");
-  }
+  await hre.run("addLiquidityToWstethWell", { deposit: true });
+  console.log("Liquidity added to WSTETH well.");
+
+  // deploy the new pod referral contracts:
+  await hre.run("deployPodReferralContracts");
+  console.log("Pod referral contracts deployed.");
+
+  // update the oracle timeouts
+  await hre.run("updateOracleTimeouts");
+  console.log("Oracle timeouts updated.");
 });
+
+task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
+  async function () {
+    for (let i = 0; i < 50; i++) {
+      await hre.run("callSunrise");
+      console.log("Sunrise called.");
+
+      const beanstalk = await getBeanstalk(L2_PINTO);
+      const cbethWellData = await beanstalk.tokenSettings(
+        "0x3e111115A82dF6190e36ADf0d552880663A4dBF1"
+      );
+      const wstethWellData = await beanstalk.tokenSettings(
+        "0x3e1155245FF9a6a019Bc35827e801c6ED2CE91b9"
+      );
+      console.log(
+        "CBETH optimal percent deposited bdv: ",
+        cbethWellData.optimalPercentDepositedBdv.toString()
+      );
+      console.log(
+        "WSTETH optimal percent deposited bdv: ",
+        wstethWellData.optimalPercentDepositedBdv.toString()
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+);
 
 //////////////////////// CONFIGURATION ////////////////////////
 
@@ -109,7 +127,8 @@ module.exports = {
           optimizer: {
             enabled: true,
             runs: 100
-          }
+          },
+          evmVersion: "cancun"
         }
       }
     ]

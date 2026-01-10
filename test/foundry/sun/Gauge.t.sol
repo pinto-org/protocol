@@ -89,7 +89,7 @@ contract GaugeTest is TestHelper {
      * @notice verifies that the bean to max LP properly scales up.
      * @dev these tests verify the specific scalar implementation.
      * Changing the scalar implementation will most likely break these tests.
-     * See {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}.
+     * See {LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled}.
      */
     function test_beanToMaxLP_scaled(
         uint256 initBeanToMaxLPRatio,
@@ -341,7 +341,7 @@ contract GaugeTest is TestHelper {
             totalStalk,
             (totalBdv * avgGsPerBdvPerSeason) / 1e6,
             1e12,
-            "invalid distrubution"
+            "invalid distribution"
         );
 
         // rounding should occur such that totalBdv * avgGsPerBdvPerSeason > totalStalk.
@@ -607,7 +607,7 @@ contract GaugeTest is TestHelper {
     }
 
     /**
-     * @notice initializes the LP<>LP distrubution.
+     * @notice initializes the LP<>LP distribution.
      * @dev the function updates the gaugePointSelector to a gauge point implementation
      * that stays constant for testing purposes.
      */

@@ -255,8 +255,10 @@ async function getFacetData() {
     "SiloGettersFacet",
     "LiquidityWeightFacet",
     "ConvertFacet",
+    "ConvertBatchFacet",
     "FieldFacet",
     "MarketplaceFacet",
+    "MarketplaceBatchFacet",
     "SeasonFacet",
     "SiloFacet",
     "WhitelistFacet",
@@ -269,7 +271,7 @@ async function getFacetData() {
   // A list of public libraries that need to be deployed separately.
   libraryNames = [
     "LibTokenSilo",
-    "LibGauge",
+    "LibSeedGauge",
     "LibIncentive",
     "LibConvert",
     "LibWellMinting",
@@ -287,7 +289,7 @@ async function getFacetData() {
   // MockFacets will be deployed with the same public libraries.
   facetLibraries = {
     SeasonFacet: [
-      "LibGauge",
+      "LibSeedGauge",
       "LibIncentive",
       "LibWellMinting",
       "LibGerminate",
@@ -297,6 +299,7 @@ async function getFacetData() {
       "LibWeather"
     ],
     ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+    ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
     PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
     SeasonGettersFacet: ["LibWellMinting"],
     SiloFacet: ["LibSilo", "LibTokenSilo"],

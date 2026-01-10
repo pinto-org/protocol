@@ -35,10 +35,9 @@ const path = require("path");
 const { getBeanstalk } = require("../utils");
 const {
   L2_PINTO,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   PINTO_USDC_WELL_BASE,
   PINTO_CBETH_WELL_BASE,
-  PIPELINE,
   tractorToAddressMap
 } = require("../test/hardhat/utils/constants.js");
 
@@ -683,7 +682,7 @@ module.exports = function () {
         }
         const config = JSON.parse(fs.readFileSync(taskArgs.params, "utf8"));
 
-        const wellAddresses = [PINTO_CBETH_WELL_BASE, PINTO_USDC_WELL_BASE, PINTO_CBTC_WELL_BASE];
+        const wellAddresses = [PINTO_CBETH_WELL_BASE, PINTO_USDC_WELL_BASE, PINTO_CBBTC_WELL_BASE];
 
         // Process each address
         for (const [address, addressData] of Object.entries(config.addresses)) {
@@ -868,7 +867,7 @@ module.exports = function () {
             ]);
 
             // Mint LP tokens and deposit to Silo
-            wellAddresses = [PINTO_CBETH_WELL_BASE, PINTO_USDC_WELL_BASE, PINTO_CBTC_WELL_BASE];
+            wellAddresses = [PINTO_CBETH_WELL_BASE, PINTO_USDC_WELL_BASE, PINTO_CBBTC_WELL_BASE];
             log(verbose, "🪙 Minting and depositing LP tokens to address...");
             await setupAddressWithLPTokens(
               testSigner.address,
