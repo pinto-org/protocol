@@ -33,10 +33,13 @@ contract InitPodReferral {
         updateRefereePercentage(s, INIT_REFEREE_PERCENTAGE);
         setTargetReferralPods(s, MAXIMUM_REFERRAL_PODS);
         setBeanSownEligibilityThreshold(s, INIT_BEANS_FOR_ELIGIBILITY);
-        initializeReferrers(s,allowedReferrers);
+        initializeReferrers(s, allowedReferrers);
     }
 
-    function updateReferrerPercentage(AppStorage storage s, uint128 newReferrerPercentage) internal {
+    function updateReferrerPercentage(
+        AppStorage storage s,
+        uint128 newReferrerPercentage
+    ) internal {
         s.sys.referrerPercentage = newReferrerPercentage;
         emit ReferralPercentageChanged(newReferrerPercentage);
     }
@@ -51,7 +54,10 @@ contract InitPodReferral {
         emit TargetReferralPodsChanged(newTargetReferralPods);
     }
 
-    function setBeanSownEligibilityThreshold(AppStorage storage s, uint128 newBeanSownEligibilityThreshold) internal {
+    function setBeanSownEligibilityThreshold(
+        AppStorage storage s,
+        uint128 newBeanSownEligibilityThreshold
+    ) internal {
         s.sys.referralBeanSownEligibilityThreshold = newBeanSownEligibilityThreshold;
         emit BeanSownEligibilityThresholdChanged(newBeanSownEligibilityThreshold);
     }
@@ -60,7 +66,11 @@ contract InitPodReferral {
         uint256 activeField = s.sys.activeField;
         for (uint256 i = 0; i < allowedReferrers.length; i++) {
             s.accts[allowedReferrers[i]].fields[activeField].referral.eligibility = true;
-            s.accts[allowedReferrers[i]].fields[activeField].referral.beans = INIT_BEANS_FOR_ELIGIBILITY;
+            s
+                .accts[allowedReferrers[i]]
+                .fields[activeField]
+                .referral
+                .beans = INIT_BEANS_FOR_ELIGIBILITY;
         }
     }
 }
