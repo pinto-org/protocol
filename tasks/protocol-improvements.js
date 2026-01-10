@@ -717,18 +717,12 @@ module.exports = function () {
 
       const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
 
-      // initialize helper storage
+      // initialize helper storages
       // impersonate pinto deployer:
       const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
       await helperStorageContract
         .connect(signer)
-        .setValue(
-          1,
-          ethers.utils.defaultAbiCoder.encode(
-            ["address[]"],
-            [["0x00000000000000000000000000000000000000001"]]
-          )
-        );
+        .setValue(1, ethers.utils.defaultAbiCoder.encode(["address[]"], [[]]));
     } else {
       owner = (await ethers.getSigners())[0];
     }

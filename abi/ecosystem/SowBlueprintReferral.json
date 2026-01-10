@@ -226,91 +226,103 @@
           {
             "components": [
               {
-                "internalType": "uint8[]",
-                "name": "sourceTokenIndices",
-                "type": "uint8[]"
+                "components": [
+                  {
+                    "internalType": "uint8[]",
+                    "name": "sourceTokenIndices",
+                    "type": "uint8[]"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "uint256",
+                        "name": "totalAmountToSow",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "minAmountToSowPerSeason",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "maxAmountToSowPerSeason",
+                        "type": "uint256"
+                      }
+                    ],
+                    "internalType": "struct SowBlueprintBase.SowAmounts",
+                    "name": "sowAmounts",
+                    "type": "tuple"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "minTemp",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxPodlineLength",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxGrownStalkPerBdv",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "runBlocksAfterSunrise",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "slippageRatio",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct SowBlueprintBase.SowParams",
+                "name": "sowParams",
+                "type": "tuple"
               },
               {
                 "components": [
                   {
-                    "internalType": "uint256",
-                    "name": "totalAmountToSow",
-                    "type": "uint256"
+                    "internalType": "address[]",
+                    "name": "whitelistedOperators",
+                    "type": "address[]"
                   },
                   {
-                    "internalType": "uint256",
-                    "name": "minAmountToSowPerSeason",
-                    "type": "uint256"
+                    "internalType": "address",
+                    "name": "tipAddress",
+                    "type": "address"
                   },
                   {
-                    "internalType": "uint256",
-                    "name": "maxAmountToSowPerSeason",
-                    "type": "uint256"
+                    "internalType": "int256",
+                    "name": "operatorTipAmount",
+                    "type": "int256"
                   }
                 ],
-                "internalType": "struct SowBlueprintBase.SowAmounts",
-                "name": "sowAmounts",
+                "internalType": "struct SowBlueprintBase.OperatorParams",
+                "name": "opParams",
                 "type": "tuple"
-              },
-              {
-                "internalType": "uint256",
-                "name": "minTemp",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxPodlineLength",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxGrownStalkPerBdv",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "runBlocksAfterSunrise",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "slippageRatio",
-                "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprintBase.SowParams",
-            "name": "sowParams",
+            "internalType": "struct SowBlueprintBase.SowBlueprintStruct",
+            "name": "params",
             "type": "tuple"
           },
           {
-            "components": [
-              {
-                "internalType": "address[]",
-                "name": "whitelistedOperators",
-                "type": "address[]"
-              },
-              {
-                "internalType": "address",
-                "name": "tipAddress",
-                "type": "address"
-              },
-              {
-                "internalType": "int256",
-                "name": "operatorTipAmount",
-                "type": "int256"
-              }
-            ],
-            "internalType": "struct SowBlueprintBase.OperatorParams",
-            "name": "opParams",
-            "type": "tuple"
+            "internalType": "address",
+            "name": "referral",
+            "type": "address"
           }
         ],
-        "internalType": "struct SowBlueprintBase.SowBlueprintStruct",
+        "internalType": "struct SowBlueprintReferral.SowReferralBlueprintStruct",
         "name": "params",
         "type": "tuple"
       }
     ],
-    "name": "sowBlueprint",
+    "name": "sowBlueprintReferral",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -361,86 +373,98 @@
           {
             "components": [
               {
-                "internalType": "uint8[]",
-                "name": "sourceTokenIndices",
-                "type": "uint8[]"
+                "components": [
+                  {
+                    "internalType": "uint8[]",
+                    "name": "sourceTokenIndices",
+                    "type": "uint8[]"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "uint256",
+                        "name": "totalAmountToSow",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "minAmountToSowPerSeason",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "maxAmountToSowPerSeason",
+                        "type": "uint256"
+                      }
+                    ],
+                    "internalType": "struct SowBlueprintBase.SowAmounts",
+                    "name": "sowAmounts",
+                    "type": "tuple"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "minTemp",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxPodlineLength",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxGrownStalkPerBdv",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "runBlocksAfterSunrise",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "slippageRatio",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct SowBlueprintBase.SowParams",
+                "name": "sowParams",
+                "type": "tuple"
               },
               {
                 "components": [
                   {
-                    "internalType": "uint256",
-                    "name": "totalAmountToSow",
-                    "type": "uint256"
+                    "internalType": "address[]",
+                    "name": "whitelistedOperators",
+                    "type": "address[]"
                   },
                   {
-                    "internalType": "uint256",
-                    "name": "minAmountToSowPerSeason",
-                    "type": "uint256"
+                    "internalType": "address",
+                    "name": "tipAddress",
+                    "type": "address"
                   },
                   {
-                    "internalType": "uint256",
-                    "name": "maxAmountToSowPerSeason",
-                    "type": "uint256"
+                    "internalType": "int256",
+                    "name": "operatorTipAmount",
+                    "type": "int256"
                   }
                 ],
-                "internalType": "struct SowBlueprintBase.SowAmounts",
-                "name": "sowAmounts",
+                "internalType": "struct SowBlueprintBase.OperatorParams",
+                "name": "opParams",
                 "type": "tuple"
-              },
-              {
-                "internalType": "uint256",
-                "name": "minTemp",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxPodlineLength",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxGrownStalkPerBdv",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "runBlocksAfterSunrise",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "slippageRatio",
-                "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprintBase.SowParams",
-            "name": "sowParams",
+            "internalType": "struct SowBlueprintBase.SowBlueprintStruct",
+            "name": "params",
             "type": "tuple"
           },
           {
-            "components": [
-              {
-                "internalType": "address[]",
-                "name": "whitelistedOperators",
-                "type": "address[]"
-              },
-              {
-                "internalType": "address",
-                "name": "tipAddress",
-                "type": "address"
-              },
-              {
-                "internalType": "int256",
-                "name": "operatorTipAmount",
-                "type": "int256"
-              }
-            ],
-            "internalType": "struct SowBlueprintBase.OperatorParams",
-            "name": "opParams",
-            "type": "tuple"
+            "internalType": "address",
+            "name": "referral",
+            "type": "address"
           }
         ],
-        "internalType": "struct SowBlueprintBase.SowBlueprintStruct",
+        "internalType": "struct SowBlueprintReferral.SowReferralBlueprintStruct",
         "name": "params",
         "type": "tuple"
       },
@@ -530,86 +554,98 @@
           {
             "components": [
               {
-                "internalType": "uint8[]",
-                "name": "sourceTokenIndices",
-                "type": "uint8[]"
+                "components": [
+                  {
+                    "internalType": "uint8[]",
+                    "name": "sourceTokenIndices",
+                    "type": "uint8[]"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "uint256",
+                        "name": "totalAmountToSow",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "minAmountToSowPerSeason",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "maxAmountToSowPerSeason",
+                        "type": "uint256"
+                      }
+                    ],
+                    "internalType": "struct SowBlueprintBase.SowAmounts",
+                    "name": "sowAmounts",
+                    "type": "tuple"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "minTemp",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxPodlineLength",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxGrownStalkPerBdv",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "runBlocksAfterSunrise",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "slippageRatio",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct SowBlueprintBase.SowParams",
+                "name": "sowParams",
+                "type": "tuple"
               },
               {
                 "components": [
                   {
-                    "internalType": "uint256",
-                    "name": "totalAmountToSow",
-                    "type": "uint256"
+                    "internalType": "address[]",
+                    "name": "whitelistedOperators",
+                    "type": "address[]"
                   },
                   {
-                    "internalType": "uint256",
-                    "name": "minAmountToSowPerSeason",
-                    "type": "uint256"
+                    "internalType": "address",
+                    "name": "tipAddress",
+                    "type": "address"
                   },
                   {
-                    "internalType": "uint256",
-                    "name": "maxAmountToSowPerSeason",
-                    "type": "uint256"
+                    "internalType": "int256",
+                    "name": "operatorTipAmount",
+                    "type": "int256"
                   }
                 ],
-                "internalType": "struct SowBlueprintBase.SowAmounts",
-                "name": "sowAmounts",
+                "internalType": "struct SowBlueprintBase.OperatorParams",
+                "name": "opParams",
                 "type": "tuple"
-              },
-              {
-                "internalType": "uint256",
-                "name": "minTemp",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxPodlineLength",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxGrownStalkPerBdv",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "runBlocksAfterSunrise",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "slippageRatio",
-                "type": "uint256"
               }
             ],
-            "internalType": "struct SowBlueprintBase.SowParams",
-            "name": "sowParams",
+            "internalType": "struct SowBlueprintBase.SowBlueprintStruct",
+            "name": "params",
             "type": "tuple"
           },
           {
-            "components": [
-              {
-                "internalType": "address[]",
-                "name": "whitelistedOperators",
-                "type": "address[]"
-              },
-              {
-                "internalType": "address",
-                "name": "tipAddress",
-                "type": "address"
-              },
-              {
-                "internalType": "int256",
-                "name": "operatorTipAmount",
-                "type": "int256"
-              }
-            ],
-            "internalType": "struct SowBlueprintBase.OperatorParams",
-            "name": "opParams",
-            "type": "tuple"
+            "internalType": "address",
+            "name": "referral",
+            "type": "address"
           }
         ],
-        "internalType": "struct SowBlueprintBase.SowBlueprintStruct[]",
+        "internalType": "struct SowBlueprintReferral.SowReferralBlueprintStruct[]",
         "name": "paramsArray",
         "type": "tuple[]"
       },

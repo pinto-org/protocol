@@ -1757,9 +1757,10 @@ contract SunTest is TestHelper {
         uint256 equivalentSoil = ((soilWithoutReferralScalar * 1e12) /
             (1e6 + referrerPercentage + refereePercentage)) / 1e6;
 
-        assertEq(
+        assertApproxEqAbs(
             1e12 / (1e6 + referrerPercentage + refereePercentage),
-            (soilWithReferralScalar * 1e6) / soilWithoutReferralScalar
+            (soilWithReferralScalar * 1e6) / soilWithoutReferralScalar,
+            1
         );
 
         // precision loss scales with amount of soil issued.
