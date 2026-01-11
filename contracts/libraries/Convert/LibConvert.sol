@@ -276,11 +276,24 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
-        stalkPenaltyBdv = min(
-            max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty),
-            bdvConverted
-        );
+        // Ratio-based penalty calculation:
+        // totalDeltaPImpact = |beforeOverallDeltaB| represents the maximum possible impact towards peg
+        uint256 totalDeltaPImpact = abs(dbs.beforeOverallDeltaB);
+
+        // Calculate penalty amount in DeltaB units
+        uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
+
+        // Convert DeltaB-unit penalty to BDV-unit penalty using ratio:
+        // stalkPenaltyBdv = (penaltyAmount / totalDeltaPImpact) * bdvConverted
+        if (totalDeltaPImpact > 0) {
+            stalkPenaltyBdv = min(
+                (penaltyAmount * bdvConverted) / totalDeltaPImpact,
+                bdvConverted
+            );
+        } else {
+            // No deltaB impact possible means no penalty
+            stalkPenaltyBdv = 0;
+        }
 
         return (
             stalkPenaltyBdv,
