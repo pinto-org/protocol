@@ -32,6 +32,7 @@ library LibPipelineConvert {
         uint256 newBdv;
         uint256[] initialLpSupply;
         uint256 initialGrownStalk;
+        int256 beforeSpotOverallDeltaB; // Used for Shadow DeltaB calculation
     }
 
     function executePipelineConvert(
@@ -67,7 +68,8 @@ library LibPipelineConvert {
             pipeData.deltaB,
             pipeData.overallConvertCapacity,
             newBdv,
-            pipeData.initialLpSupply
+            pipeData.initialLpSupply,
+            pipeData.beforeSpotOverallDeltaB
         );
 
         // scale initial grown stalk proportionally to the bdv lost (if any)
@@ -81,6 +83,9 @@ library LibPipelineConvert {
 
     /**
      * @notice Calculates the stalk penalty for a convert. Updates convert capacity used.
+     * @dev Implements Shadow DeltaB to resist flash loan manipulation:
+     *      afterOverallDeltaB = TWAP + (spotAfter - spotBefore)
+     *      This uses TWAP as a stable baseline and only applies the actual convert impact.
      */
     function prepareStalkPenaltyCalculation(
         address inputToken,
@@ -88,9 +93,14 @@ library LibPipelineConvert {
         LibConvert.DeltaBStorage memory dbs,
         uint256 overallConvertCapacity,
         uint256 toBdv,
-        uint256[] memory initialLpSupply
+        uint256[] memory initialLpSupply,
+        int256 beforeSpotOverallDeltaB
     ) public returns (uint256) {
-        dbs.afterOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
+        // Shadow DeltaB: afterDeltaB = TWAP + (SpotAfter - SpotBefore)
+        // This cancels out flash loan manipulation while preserving actual trade impact
+        int256 spotAfter = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
+        int256 spotDelta = spotAfter - beforeSpotOverallDeltaB;
+        dbs.afterOverallDeltaB = dbs.beforeOverallDeltaB + spotDelta;
 
         // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts
         if (LibWell.isWell(inputToken)) {
@@ -143,7 +153,10 @@ library LibPipelineConvert {
         address fromToken,
         address toToken
     ) internal view returns (PipelineConvertData memory pipeData) {
-        pipeData.deltaB.beforeOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
+        // Shadow DeltaB: Use TWAP as baseline (manipulation-resistant)
+        pipeData.deltaB.beforeOverallDeltaB = LibDeltaB.overallCappedDeltaB();
+        // Store spot for calculating delta later
+        pipeData.beforeSpotOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
         pipeData.deltaB.beforeInputTokenDeltaB = LibDeltaB.getCurrentDeltaB(fromToken);
         pipeData.deltaB.beforeOutputTokenDeltaB = LibDeltaB.getCurrentDeltaB(toToken);
         pipeData.initialLpSupply = LibDeltaB.getLpSupply();
@@ -204,7 +217,8 @@ library LibPipelineConvert {
                 pipeData.deltaB,
                 pipeData.overallConvertCapacity,
                 toBdv,
-                pipeData.initialLpSupply
+                pipeData.initialLpSupply,
+                pipeData.beforeSpotOverallDeltaB
             );
 
             // apply penalty to grown stalk as a % of bdv converted. See {LibConvert.executePipelineConvert}
