@@ -276,22 +276,20 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Ratio-based penalty calculation:
-        // totalDeltaPImpact = |beforeOverallDeltaB| represents the maximum possible impact towards peg
+        // Calculate the maximum possible deltaB reduction (baseline for penalty ratio).
         uint256 totalDeltaPImpact = abs(dbs.beforeOverallDeltaB);
 
-        // Calculate penalty amount in DeltaB units
+        // Take the higher penalty between against-peg movement and capacity overflow.
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
-        // Convert DeltaB-unit penalty to BDV-unit penalty using ratio:
-        // stalkPenaltyBdv = (penaltyAmount / totalDeltaPImpact) * bdvConverted
+        // Scale the penalty proportionally: penalty BDV = (penaltyAmount / totalDeltaPImpact) * bdvConverted
         if (totalDeltaPImpact > 0) {
             stalkPenaltyBdv = min(
                 (penaltyAmount * bdvConverted) / totalDeltaPImpact,
                 bdvConverted
             );
         } else {
-            // No deltaB impact possible means no penalty
+            // No imbalance exists, so no penalty applies.
             stalkPenaltyBdv = 0;
         }
 

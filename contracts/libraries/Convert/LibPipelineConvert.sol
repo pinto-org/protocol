@@ -32,7 +32,7 @@ library LibPipelineConvert {
         uint256 newBdv;
         uint256[] initialLpSupply;
         uint256 initialGrownStalk;
-        int256 beforeSpotOverallDeltaB; // Used for Shadow DeltaB calculation
+        int256 beforeSpotOverallDeltaB;
     }
 
     function executePipelineConvert(
@@ -83,9 +83,8 @@ library LibPipelineConvert {
 
     /**
      * @notice Calculates the stalk penalty for a convert. Updates convert capacity used.
-     * @dev Implements Shadow DeltaB to resist flash loan manipulation:
-     *      afterOverallDeltaB = TWAP + (spotAfter - spotBefore)
-     *      This uses TWAP as a stable baseline and only applies the actual convert impact.
+     * @dev Uses TWAP as a manipulation-resistant baseline and measures actual spot price changes
+     * to determine the convert's impact on deltaB.
      */
     function prepareStalkPenaltyCalculation(
         address inputToken,
@@ -96,8 +95,7 @@ library LibPipelineConvert {
         uint256[] memory initialLpSupply,
         int256 beforeSpotOverallDeltaB
     ) public returns (uint256) {
-        // Shadow DeltaB: afterDeltaB = TWAP + (SpotAfter - SpotBefore)
-        // This cancels out flash loan manipulation while preserving actual trade impact
+        // Calculate the actual deltaB change by measuring spot price difference before/after convert.
         int256 spotAfter = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
         int256 spotDelta = spotAfter - beforeSpotOverallDeltaB;
         dbs.afterOverallDeltaB = dbs.beforeOverallDeltaB + spotDelta;
@@ -153,9 +151,9 @@ library LibPipelineConvert {
         address fromToken,
         address toToken
     ) internal view returns (PipelineConvertData memory pipeData) {
-        // Shadow DeltaB: Use TWAP as baseline (manipulation-resistant)
+        // Use TWAP-based deltaB as baseline (resistant to flash loan manipulation).
         pipeData.deltaB.beforeOverallDeltaB = LibDeltaB.overallCappedDeltaB();
-        // Store spot for calculating delta later
+        // Store current spot deltaB to measure actual change after convert.
         pipeData.beforeSpotOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
         pipeData.deltaB.beforeInputTokenDeltaB = LibDeltaB.getCurrentDeltaB(fromToken);
         pipeData.deltaB.beforeOutputTokenDeltaB = LibDeltaB.getCurrentDeltaB(toToken);
