@@ -8,14 +8,16 @@ const {
   L2_PINTO,
   PINTO_DIAMOND_DEPLOYER,
   BASE_BLOCK_TIME,
-  PINTO_CBBTC_WELL_BASE
+  PINTO_CBBTC_WELL_BASE,
+  PINTO_WSTETH_WELL_BASE
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
-  task("callSunrise", "Calls the sunrise function", async function () {
-    beanstalk = await getBeanstalk(L2_PINTO);
-    const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
-
+  /**
+   * Internal function to call sunrise logic.
+   * Separated for direct invocation from both callSunrise and callSunriseN tasks.
+   */
+  async function runSunrise({ hre, ethers, network, beanstalk, account }) {
     // ensure account has enough eth for gas
     await mintEth(account.address);
 
@@ -59,7 +61,31 @@ module.exports = function () {
       "\ncurrent pinto supply:",
       await ethers.utils.formatUnits(totalSupply, 6)
     );
+  }
+
+  task("callSunrise", "Calls the sunrise function", async function (_, hre) {
+    const { ethers, network } = hre;
+    const beanstalk = await getBeanstalk(L2_PINTO);
+    const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+
+    await runSunrise({ hre, ethers, network, beanstalk, account });
   });
+
+  task("callSunriseN", "Calls the sunrise function N times")
+    .addParam("n", "The number of times to call sunrise")
+    .setAction(async function (taskArgs, hre) {
+      const { ethers, network } = hre;
+      const n = parseInt(taskArgs.n);
+      if (isNaN(n) || n < 1) {
+        throw new Error("Please provide a valid integer for n > 0");
+      }
+      const beanstalk = await getBeanstalk(L2_PINTO);
+      const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+      for (let i = 0; i < n; i++) {
+        console.log(`---- Calling sunrise #${i + 1} of ${n} ----`);
+        await runSunrise({ hre, ethers, network, beanstalk, account });
+      }
+    });
 
   task("unpause", "Unpauses the beanstalk contract", async function () {
     let deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
@@ -171,7 +197,7 @@ module.exports = function () {
   });
 
   task("addLiquidityToWstethWell", "Adds liquidity to the wstETH well")
-    .addOptionalParam("well", "The well address", "0x3e1155245FF9a6a019Bc35827e801c6ED2CE91b9")
+    .addOptionalParam("well", "The well address", PINTO_WSTETH_WELL_BASE)
     .addOptionalParam("beanAmount", "Amount of Bean tokens to add", "10000")
     .addOptionalParam("wstethAmount", "Amount of wstETH tokens to add", "1")
     .addOptionalParam("receiver", "Receiver of LP tokens", PINTO_DIAMOND_DEPLOYER)

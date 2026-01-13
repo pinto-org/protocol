@@ -5,7 +5,6 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
 import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibSeedGauge} from "./LibSeedGauge.sol";
 import {LibLpDistributionGauge} from "./LibLpDistributionGauge.sol";
-
 /**
  * @title LibGaugeLogic
  * @notice holds most gauge logic (other than the Seed Gauge).
@@ -35,7 +34,6 @@ library LibGaugeLogic {
         bool targetReached = true;
         for (uint i = 0; i < gd.distributions.length; i++) {
             LibLpDistributionGauge.LpDistribution memory lpDist = gd.distributions[i];
-
             // if the token has an implementation, invoke the implementation to calculate the new delta.
             if (lpDist.impl.target != address(0)) {
                 // the function should adhere to `foo(int64,bytes) external returns (int64)`
@@ -53,6 +51,9 @@ library LibGaugeLogic {
                     lpDist.delta = abi.decode(returnData, (int64));
                 }
             }
+
+            // if the token does not have an implementation, we change 
+            // the optimal deposited bdv by `delta`.
 
             // if the target is not reached, change the optimal percent deposited bdv if delta is non-zero.
             if (
@@ -78,11 +79,6 @@ library LibGaugeLogic {
         // if targetReached is true (i.e all targets are reached), disable the gauge.
         if (targetReached) {
             gd.enabled = false;
-        }
-        // encode the new gauge data.
-        gd.distributions = new LibLpDistributionGauge.LpDistribution[](gd.distributions.length);
-        for (uint i = 0; i < gd.distributions.length; i++) {
-            gd.distributions[i] = gd.distributions[i];
         }
 
         return (bytes(""), abi.encode(gd));

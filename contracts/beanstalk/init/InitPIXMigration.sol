@@ -38,7 +38,7 @@ contract InitPIXMigration is InitWells, InitPodReferral {
     // Gauge parameters.
     // target full migration in 360 seasons (~15 days)
     int64 internal constant DELTA = 92_593;
-    uint64 internal constant TARGET = 33333333;
+    uint64 internal constant TARGET = 33_333_333;
 
     // Asset parameters.
     uint48 internal constant STALK_PER_BDV = 1e10;

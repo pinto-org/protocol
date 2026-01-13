@@ -8,7 +8,11 @@ require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
 require("@nomicfoundation/hardhat-foundry");
 const { getBeanstalk } = require("./utils");
-const { L2_PINTO } = require("./test/hardhat/utils/constants.js");
+const {
+  L2_PINTO,
+  PINTO_CBETH_WELL_BASE,
+  PINTO_WSTETH_WELL_BASE
+} = require("./test/hardhat/utils/constants.js");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
@@ -42,12 +46,8 @@ task("callSunriseAndTestMigration", "Calls the sunrise function and tests the mi
       console.log("Sunrise called.");
 
       const beanstalk = await getBeanstalk(L2_PINTO);
-      const cbethWellData = await beanstalk.tokenSettings(
-        "0x3e111115A82dF6190e36ADf0d552880663A4dBF1"
-      );
-      const wstethWellData = await beanstalk.tokenSettings(
-        "0x3e1155245FF9a6a019Bc35827e801c6ED2CE91b9"
-      );
+      const cbethWellData = await beanstalk.tokenSettings(PINTO_CBETH_WELL_BASE);
+      const wstethWellData = await beanstalk.tokenSettings(PINTO_WSTETH_WELL_BASE);
       console.log(
         "CBETH optimal percent deposited bdv: ",
         cbethWellData.optimalPercentDepositedBdv.toString()

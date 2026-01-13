@@ -178,8 +178,8 @@ contract InitWells {
         returns (Implementation memory gaugePointImplementation)
     {
         gaugePointImplementation = Implementation({
-            target: address(this),
-            selector: IGaugeFacet.defaultGaugePoints.selector,
+            target: address(0),
+            selector: bytes4(0),
             encodeType: 0x00,
             data: bytes("")
         });
@@ -191,7 +191,7 @@ contract InitWells {
         returns (Implementation memory liquidityWeightImplementation)
     {
         liquidityWeightImplementation = Implementation({
-            target: address(this),
+            target: address(0),
             selector: ILiquidityWeightFacet.maxWeight.selector,
             encodeType: 0x00,
             data: bytes("")
