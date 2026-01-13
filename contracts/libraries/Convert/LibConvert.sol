@@ -279,17 +279,13 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Calculate the maximum possible deltaB impact based on the input amount.
         uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(inputToken, fromAmount);
         
-        // Take the higher penalty between against-peg movement and capacity overflow.
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
-        // Scale the penalty proportionally: penalty BDV = (penaltyAmount / totalDeltaPImpact) * bdvConverted
         if (totalDeltaPImpact > 0) {
             stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / totalDeltaPImpact, bdvConverted);
         } else {
-            // No imbalance exists, so no penalty applies.
             stalkPenaltyBdv = 0;
         }
 
