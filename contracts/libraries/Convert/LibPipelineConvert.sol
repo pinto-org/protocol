@@ -99,7 +99,9 @@ library LibPipelineConvert {
     ) public returns (uint256) {
         {
             int256 spotAfter = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
-            dbs.afterOverallDeltaB = dbs.beforeOverallDeltaB + (spotAfter - beforeSpotOverallDeltaB);
+            dbs.afterOverallDeltaB =
+                dbs.beforeOverallDeltaB +
+                (spotAfter - beforeSpotOverallDeltaB);
         }
 
         // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts

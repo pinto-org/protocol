@@ -281,7 +281,7 @@ library LibConvert {
 
         // Calculate the maximum possible deltaB impact based on the input amount.
         uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(inputToken, fromAmount);
-        
+
         // Take the higher penalty between against-peg movement and capacity overflow.
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
