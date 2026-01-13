@@ -203,7 +203,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 overallConvertCapacityUsed;
@@ -220,7 +221,8 @@ library LibConvert {
             bdvConverted,
             overallConvertCapacity,
             inputToken,
-            outputToken
+            outputToken,
+            fromAmount
         );
 
         // Update penalties in storage.
@@ -246,7 +248,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         internal
         view
@@ -276,9 +279,9 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Calculate the maximum possible deltaB reduction (baseline for penalty ratio).
-        uint256 totalDeltaPImpact = abs(dbs.beforeOverallDeltaB);
-
+        // Calculate the maximum possible deltaB impact based on the input amount.
+        uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(inputToken, fromAmount);
+        
         // Take the higher penalty between against-peg movement and capacity overflow.
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 

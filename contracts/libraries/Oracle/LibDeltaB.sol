@@ -227,4 +227,38 @@ library LibDeltaB {
             return 0;
         }
     }
+
+    /**
+     * @notice Calculates the maximum deltaB impact for a given input amount.
+     * @dev For Bean→LP: fromAmount directly represents deltaB impact.
+     *      For LP→Bean: Uses capped reserves to calculate proportional bean share.
+     * @param inputToken The token being converted from
+     * @param fromAmount The amount of input token being converted
+     * @return maxDeltaBImpact Maximum possible deltaB change from this conversion
+     */
+    function calculateMaxDeltaBImpact(
+        address inputToken,
+        uint256 fromAmount
+    ) internal view returns (uint256 maxDeltaBImpact) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+
+        if (inputToken == s.sys.bean) {
+            // Bean → LP: fromAmount directly represents deltaB impact
+            maxDeltaBImpact = fromAmount;
+        } else if (LibWell.isWell(inputToken)) {
+            // LP → Bean: Calculate bean share using capped reserves
+            uint256[] memory reserves = cappedReserves(inputToken);
+            if (reserves.length == 0) {
+                return 0;
+            }
+            uint256 lpSupply = IERC20(inputToken).totalSupply();
+            if (lpSupply == 0) {
+                return 0;
+            }
+            uint256 beanIndex = LibWell.getBeanIndexFromWell(inputToken);
+
+            // Proportional bean share for fromAmount LP
+            maxDeltaBImpact = (reserves[beanIndex] * fromAmount) / lpSupply;
+        }
+    }
 }
