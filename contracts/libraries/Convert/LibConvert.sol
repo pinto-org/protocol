@@ -284,10 +284,7 @@ library LibConvert {
 
         // Scale the penalty proportionally: penalty BDV = (penaltyAmount / totalDeltaPImpact) * bdvConverted
         if (totalDeltaPImpact > 0) {
-            stalkPenaltyBdv = min(
-                (penaltyAmount * bdvConverted) / totalDeltaPImpact,
-                bdvConverted
-            );
+            stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / totalDeltaPImpact, bdvConverted);
         } else {
             // No imbalance exists, so no penalty applies.
             stalkPenaltyBdv = 0;
