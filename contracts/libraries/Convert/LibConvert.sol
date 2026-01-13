@@ -286,10 +286,7 @@ library LibConvert {
         // Convert DeltaB-unit penalty to BDV-unit penalty using ratio:
         // stalkPenaltyBdv = (penaltyAmount / totalDeltaPImpact) * bdvConverted
         if (totalDeltaPImpact > 0) {
-            stalkPenaltyBdv = min(
-                (penaltyAmount * bdvConverted) / totalDeltaPImpact,
-                bdvConverted
-            );
+            stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / totalDeltaPImpact, bdvConverted);
         } else {
             // No deltaB impact possible means no penalty
             stalkPenaltyBdv = 0;
