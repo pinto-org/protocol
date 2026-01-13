@@ -8,17 +8,21 @@ const {
   PINTO_DIAMOND_DEPLOYER,
   PINTO_WETH_WELL_BASE,
   PINTO_CBETH_WELL_BASE,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   PINTO_USDC_WELL_BASE,
   PINTO_WSOL_WELL_BASE,
+  PINTO_WSTETH_WELL_BASE,
   addressToNameMap,
   addressToBalanceSlotMap
 } = require("../test/hardhat/utils/constants.js");
 
-module.exports = function() {
+module.exports = function () {
   task("addLiquidity", "Adds liquidity to a well")
     .addParam("well", "The well address to add liquidity to")
-    .addParam("amounts", "Comma-separated list of amounts to add to the well ignoring token decimals")
+    .addParam(
+      "amounts",
+      "Comma-separated list of amounts to add to the well ignoring token decimals"
+    )
     .addParam("receiver", "receiver of the LP tokens")
     .addFlag("deposit", "Whether to deposit the LP tokens to beanstalk")
     .setAction(async (taskArgs) => {
@@ -41,16 +45,18 @@ module.exports = function() {
       const wells = [
         PINTO_WETH_WELL_BASE,
         PINTO_CBETH_WELL_BASE,
-        PINTO_CBTC_WELL_BASE,
+        PINTO_CBBTC_WELL_BASE,
         PINTO_USDC_WELL_BASE,
-        PINTO_WSOL_WELL_BASE
+        PINTO_WSOL_WELL_BASE,
+        PINTO_WSTETH_WELL_BASE
       ];
       const amounts = [
         ["10000", "2"],
         ["10000", "3"],
         ["90000", "2"],
         ["10000", "10000"],
-        ["10000", "10"]
+        ["10000", "10"],
+        ["10000", "3"]
       ];
       for (let i = 0; i < wells.length; i++) {
         await addLiquidityAndTransfer(account, wells[i], taskArgs.receiver, amounts[i], false);
@@ -70,10 +76,13 @@ module.exports = function() {
       const wells = [
         PINTO_WETH_WELL_BASE,
         PINTO_CBETH_WELL_BASE,
-        PINTO_CBTC_WELL_BASE,
+        PINTO_CBBTC_WELL_BASE,
         PINTO_USDC_WELL_BASE,
-        PINTO_WSOL_WELL_BASE
+        PINTO_WSOL_WELL_BASE,
+        PINTO_WSTETH_WELL_BASE
       ];
+
+      const deWhitelistedWells = [PINTO_WETH_WELL_BASE, PINTO_WSOL_WELL_BASE];
 
       const amounts = taskArgs.amounts.split(",");
       if (amounts.length !== wells.length) {
@@ -116,7 +125,9 @@ module.exports = function() {
           console.log(`Approving ${tokenName} LP tokens for beanstalk`);
           await wellToken.connect(signer).approve(beanstalk.address, ethers.constants.MaxUint256);
           console.log(`Depositing ${tokenName} LP tokens into beanstalk`);
-          await beanstalk.connect(signer).deposit(wells[i], lpBalance, 0);
+          if (!deWhitelistedWells.includes(wells[i])) {
+            await beanstalk.connect(signer).deposit(wells[i], lpBalance, 0);
+          }
           console.log(`Successfully deposited ${tokenName} LP tokens into beanstalk`);
         } catch (error) {
           console.error(`Failed to process ${tokenName}: ${error.message}`);

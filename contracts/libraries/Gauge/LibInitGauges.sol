@@ -4,7 +4,9 @@
 
 pragma solidity ^0.8.20;
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
+import {LibLpDistributionGauge} from "./LibLpDistributionGauge.sol";
+import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
 
 /**
@@ -121,5 +123,46 @@ library LibInitGauges {
             abi.encode(gd)
         );
         LibGaugeHelpers.addGauge(GaugeId.CONVERT_UP_BONUS, convertBonusGauge);
+    }
+
+    /**
+     * @notice Initializes the LP distribution gauge.
+     * @dev this gauge will slowly
+     * @param token0 The token to decrease the optimal percent deposited bdv for.
+     * @param token1 The token to increase the optimal percent deposited bdv for.
+     * @param delta The delta to decrease the optimal percent deposited bdv for token1.
+     * @param target The target optimal distribution percentage.
+     */
+    function initLpDistributionGauge(
+        address token0,
+        address token1,
+        int64 delta,
+        uint64 target
+    ) internal {
+        LibLpDistributionGauge.LpDistribution[]
+            memory distributions = new LibLpDistributionGauge.LpDistribution[](2);
+        // decrease the optimal percent deposited bdv for token0.
+        distributions[0] = LibLpDistributionGauge.LpDistribution(
+            token0,
+            -delta,
+            0,
+            Implementation(address(0), 0x00, 0x00, bytes(""))
+        );
+        // increase the optimal percent deposited bdv for token1.
+        distributions[1] = LibLpDistributionGauge.LpDistribution(
+            token1,
+            delta,
+            target,
+            Implementation(address(0), 0x00, 0x00, bytes(""))
+        );
+        LibLpDistributionGauge.LpDistributionGaugeData memory gd = LibLpDistributionGauge
+            .LpDistributionGaugeData(true, distributions);
+        Gauge memory lpDistributionGauge = Gauge(
+            bytes(""),
+            address(this),
+            IGaugeFacet.lpDistributionUpdateGauge.selector,
+            abi.encode(gd)
+        );
+        LibGaugeHelpers.addStatefulGauge(GaugeId.LP_DISTRIBUTION, lpDistributionGauge);
     }
 }

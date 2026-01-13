@@ -9,7 +9,7 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
 
