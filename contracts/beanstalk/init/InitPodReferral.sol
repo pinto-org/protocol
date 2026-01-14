@@ -70,10 +70,7 @@ contract InitPodReferral {
         emit BeanSownEligibilityThresholdChanged(newBeanSownEligibilityThreshold);
     }
 
-    function initializeReferrers(
-        AppStorage storage s,
-        ReferrerData[] memory referrers
-    ) internal {
+    function initializeReferrers(AppStorage storage s, ReferrerData[] memory referrers) internal {
         uint256 activeField = s.sys.activeField;
         for (uint256 i = 0; i < referrers.length; i++) {
             uint128 amount = uint128(referrers[i].amount);
