@@ -33,7 +33,7 @@ contract InitPIXMigration is InitWells, InitPodReferral {
         0xa1403b59e21fd5e877f0c926cc94485d8e048272197f6b1e94bad0186e6c53a7;
     bytes32 internal constant PROXY_SALT =
         0x00ee4d9e32976f40b38d99d1c3eee5ca2e3ae06d24630a6df69a9a8b7c8b4500;
-    
+
     address internal constant LSD_CHAINLINK_ORACLE = 0x2B271BDC052f70b40ad9e8dE52a5eD38D8bE4d22;
 
     // Gauge parameters.
