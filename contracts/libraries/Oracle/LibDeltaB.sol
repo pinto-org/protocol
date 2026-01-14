@@ -230,9 +230,10 @@ library LibDeltaB {
 
     /**
      * @notice Calculates the maximum deltaB impact for a given input amount.
-     * @dev For Bean→LP: fromAmount directly represents deltaB impact.
-     *      For LP→Bean: Uses capped reserves to calculate proportional bean share.
-     * @param inputToken The token being converted from
+     * @dev For Bean→LP conversions, fromAmount directly represents the deltaB impact.
+     *      For LP→Bean conversions, simulates balanced LP removal using capped reserves
+     *      and computes the deltaB difference before/after removal.
+     * @param inputToken The token being converted from (Bean or LP token)
      * @param fromAmount The amount of input token being converted
      * @return maxDeltaBImpact Maximum possible deltaB change from this conversion
      */
@@ -243,22 +244,37 @@ library LibDeltaB {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         if (inputToken == s.sys.bean) {
-            // Bean → LP: fromAmount directly represents deltaB impact
             maxDeltaBImpact = fromAmount;
         } else if (LibWell.isWell(inputToken)) {
-            // LP → Bean: Calculate bean share using capped reserves
             uint256[] memory reserves = cappedReserves(inputToken);
-            if (reserves.length == 0) {
-                return 0;
-            }
-            uint256 lpSupply = IERC20(inputToken).totalSupply();
-            if (lpSupply == 0) {
-                return 0;
-            }
-            uint256 beanIndex = LibWell.getBeanIndexFromWell(inputToken);
+            if (reserves.length == 0) return 0;
 
-            // Proportional bean share for fromAmount LP
-            maxDeltaBImpact = (reserves[beanIndex] * fromAmount) / lpSupply;
+            uint256 lpSupply = IERC20(inputToken).totalSupply();
+            if (lpSupply == 0) return 0;
+
+            uint256 beanIndex = LibWell.getBeanIndexFromWell(inputToken);
+            if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) return 0;
+
+            int256 beforeDeltaB = calculateDeltaBFromReserves(inputToken, reserves, ZERO_LOOKBACK);
+
+            // Simulate balanced LP removal
+            uint256[] memory newReserves = new uint256[](reserves.length);
+            for (uint256 i = 0; i < reserves.length; i++) {
+                uint256 toRemove = (reserves[i] * fromAmount) / lpSupply;
+                newReserves[i] = reserves[i] > toRemove ? reserves[i] - toRemove : 0;
+            }
+
+            if (newReserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
+                maxDeltaBImpact = beforeDeltaB >= 0 ? uint256(beforeDeltaB) : uint256(-beforeDeltaB);
+                return maxDeltaBImpact;
+            }
+
+            int256 afterDeltaB = calculateDeltaBFromReserves(inputToken, newReserves, ZERO_LOOKBACK);
+
+            // Return absolute difference
+            maxDeltaBImpact = beforeDeltaB >= afterDeltaB
+                ? uint256(beforeDeltaB - afterDeltaB)
+                : uint256(afterDeltaB - beforeDeltaB);
         }
     }
 }
