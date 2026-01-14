@@ -74,6 +74,8 @@ library LibGaugeLogic {
                         .optimalPercentDepositedBdv = newOptimalPercentDepositedBdv;
                 }
             }
+
+            gd.distributions[i].delta = lpDist.delta;
         }
 
         // if targetReached is true (i.e all targets are reached), disable the gauge.
