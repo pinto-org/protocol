@@ -712,15 +712,8 @@ module.exports = function () {
     const mock = true;
     let owner;
 
-    // Read farmers data from JSON
-    const fs = require("fs");
-    const path = require("path");
-    const farmersPath = path.join(__dirname, "../scripts/deployment/outputs/sowFarmers.json");
-    if (!fs.existsSync(farmersPath)) {
-      throw new Error(`Farmers JSON not found: ${farmersPath}`);
-    }
-    const referrerData = JSON.parse(fs.readFileSync(farmersPath, "utf8"));
-    console.log(`Loaded ${referrerData.length} farmers from ${farmersPath}`);
+    const { fetchAllSowData } = require("../scripts/deployment/fetchSowFarmers.js");
+    const referrerData = await fetchAllSowData();
 
     if (mock) {
       owner = await impersonateSigner(L2_PCM);
