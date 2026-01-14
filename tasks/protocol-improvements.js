@@ -734,6 +734,12 @@ module.exports = function () {
       owner = (await ethers.getSigners())[0];
     }
 
+    // deploy LSD chainlink oracle
+    const lsdChainlinkOracle = await ethers.getContractFactory("LSDChainlinkOracle");
+    const lsdChainlinkOracleContract = await lsdChainlinkOracle.deploy();
+    await lsdChainlinkOracleContract.deployed();
+    console.log("\nLSD Chainlink Oracle deployed to:", lsdChainlinkOracleContract.address);
+
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: [
