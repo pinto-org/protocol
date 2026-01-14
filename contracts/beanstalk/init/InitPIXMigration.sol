@@ -9,7 +9,6 @@ import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {AssetSettings, Implementation} from "contracts/beanstalk/storage/System.sol";
 import {BDVFacet} from "contracts/beanstalk/facets/silo/BDVFacet.sol";
 import {Call, IERC20} from "contracts/interfaces/basin/IWell.sol";
-import {console} from "forge-std/console.sol";
 import {LSDChainlinkOracle} from "contracts/ecosystem/oracles/LSDChainlinkOracle.sol";
 import {InitPodReferral} from "contracts/beanstalk/init/InitPodReferral.sol";
 import {IHelperStorage} from "contracts/interfaces/IHelperStorage.sol";
