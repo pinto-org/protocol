@@ -265,11 +265,17 @@ library LibDeltaB {
             }
 
             if (newReserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
-                maxDeltaBImpact = beforeDeltaB >= 0 ? uint256(beforeDeltaB) : uint256(-beforeDeltaB);
+                maxDeltaBImpact = beforeDeltaB >= 0
+                    ? uint256(beforeDeltaB)
+                    : uint256(-beforeDeltaB);
                 return maxDeltaBImpact;
             }
 
-            int256 afterDeltaB = calculateDeltaBFromReserves(inputToken, newReserves, ZERO_LOOKBACK);
+            int256 afterDeltaB = calculateDeltaBFromReserves(
+                inputToken,
+                newReserves,
+                ZERO_LOOKBACK
+            );
 
             // Return absolute difference
             maxDeltaBImpact = beforeDeltaB >= afterDeltaB
