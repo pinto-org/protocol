@@ -61,12 +61,12 @@ contract InitPIXMigration is InitWells, InitPodReferral {
         // Initialize the LP distribution gauge.
         LibInitGauges.initLpDistributionGauge(PINTO_CBETH_WELL, wstethWell, DELTA, TARGET);
 
-        // Fetch the allowed referrers from the helper storage.
+        // Fetch the allowed referrers and their amounts from the helper storage.
         bytes memory value = IHelperStorage(helperStorage).getValue(key);
         if (value.length > 0) {
-            address[] memory allowedReferrers = abi.decode(value, (address[]));
+            ReferrerData[] memory referrers = abi.decode(value, (ReferrerData[]));
             // Initialize the referral system.
-            initPodReferral(allowedReferrers);
+            initPodReferral(referrers);
         }
     }
 

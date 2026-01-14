@@ -711,6 +711,10 @@ module.exports = function () {
   task("PI-X-migration-referral", "Deploys PI-X migration referral").setAction(async function () {
     const mock = true;
     let owner;
+
+    const { fetchAllSowData } = require("../scripts/deployment/fetchSowFarmers.js");
+    const referrerData = await fetchAllSowData();
+
     if (mock) {
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
@@ -722,7 +726,10 @@ module.exports = function () {
       const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
       await helperStorageContract
         .connect(signer)
-        .setValue(1, ethers.utils.defaultAbiCoder.encode(["address[]"], [[]]));
+        .setValue(
+          1,
+          ethers.utils.defaultAbiCoder.encode(["tuple(address, uint256)[]"], [referrerData])
+        );
     } else {
       owner = (await ethers.getSigners())[0];
     }
