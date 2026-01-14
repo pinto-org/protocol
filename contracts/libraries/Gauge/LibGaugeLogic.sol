@@ -52,7 +52,7 @@ library LibGaugeLogic {
                 }
             }
 
-            // if the token does not have an implementation, we change 
+            // if the token does not have an implementation, we change
             // the optimal deposited bdv by `delta`.
 
             // if the target is not reached, change the optimal percent deposited bdv if delta is non-zero.
