@@ -189,7 +189,7 @@ library LibBytes {
         // replace data with the publisher/operator address.
         if (copyByteIndex == C.PUBLISHER_COPY_INDEX) {
             copyFromData = abi.encodePacked(
-                uint256(uint160(address(LibTractor._tractorStorage().activePublisher)))
+                uint256(uint160(address(LibTractor._getActivePublisher())))
             );
             copyByteIndex = C.SLOT_SIZE;
         } else if (copyByteIndex == C.OPERATOR_COPY_INDEX) {

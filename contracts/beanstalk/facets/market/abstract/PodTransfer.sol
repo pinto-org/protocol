@@ -25,18 +25,6 @@ abstract contract PodTransfer is ReentrancyGuard {
     );
 
     /**
-     * Getters
-     **/
-
-    function allowancePods(
-        address owner,
-        address spender,
-        uint256 fieldId
-    ) public view returns (uint256) {
-        return s.accts[owner].fields[fieldId].podAllowances[spender];
-    }
-
-    /**
      * Internal
      **/
 
@@ -95,7 +83,7 @@ abstract contract PodTransfer is ReentrancyGuard {
         uint256 fieldId,
         uint256 amount
     ) internal {
-        uint256 currentAllowance = allowancePods(owner, spender, fieldId);
+        uint256 currentAllowance = _getAllowancePods(owner, spender, fieldId);
         if (currentAllowance < amount || currentAllowance == 0) {
             revert("Field: Insufficient approval.");
         }
@@ -109,5 +97,31 @@ abstract contract PodTransfer is ReentrancyGuard {
         uint256 amount
     ) internal {
         s.accts[owner].fields[fieldId].podAllowances[spender] = amount;
+    }
+
+    /**
+     * @notice Checks and decrements allowance if spender is not the owner.
+     * @dev Helper function to reduce stack depth in transfer functions.
+     */
+    function _checkAndDecrementAllowance(
+        address owner,
+        address spender,
+        uint256 fieldId,
+        uint256 amount
+    ) internal {
+        if (spender != owner) {
+            uint256 allowance = _getAllowancePods(owner, spender, fieldId);
+            if (allowance != type(uint256).max) {
+                decrementAllowancePods(owner, spender, fieldId, amount);
+            }
+        }
+    }
+
+    function _getAllowancePods(
+        address owner,
+        address spender,
+        uint256 fieldId
+    ) internal view returns (uint256) {
+        return s.accts[owner].fields[fieldId].podAllowances[spender];
     }
 }

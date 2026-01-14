@@ -602,11 +602,28 @@ contract TestHelper is
      * issues `sowAmount` of beans to farmer.
      * sows `sowAmount` of beans.
      */
-    function sowAmountForFarmer(address farmer, uint256 sowAmount) internal {
+    function sowAmountForFarmer(address farmer, uint256 sowAmount) internal returns (uint256 pods) {
         bs.setSoilE(sowAmount);
         mintTokensToUser(farmer, BEAN, sowAmount);
         vm.prank(farmer);
-        bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+        pods = bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+    }
+
+    function sowAmountForFarmerWithReferral(
+        address farmer,
+        uint256 sowAmount,
+        address referrer
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
+        bs.setSoilE(sowAmount);
+        mintTokensToUser(farmer, BEAN, sowAmount);
+        vm.prank(farmer);
+        (pods, referrerPods, refereePods) = bs.sowWithReferral(
+            sowAmount,
+            0,
+            0,
+            uint8(LibTransfer.From.EXTERNAL),
+            referrer
+        );
     }
 
     /**
