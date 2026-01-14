@@ -61,7 +61,11 @@ async function fetchAllSowData() {
   }
 
   const timestamp = Date.now();
-  const outputPath = path.join(__dirname, `outputs/sowFarmers_${timestamp}.json`);
+  const outputDir = path.join(__dirname, "outputs");
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  const outputPath = path.join(outputDir, `sowFarmers_${timestamp}.json`);
   fs.writeFileSync(outputPath, JSON.stringify(allData, null, 2));
   console.log(`Saved ${allData.length} farmers to ${outputPath}`);
 
