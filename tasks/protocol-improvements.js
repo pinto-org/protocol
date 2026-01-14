@@ -711,6 +711,17 @@ module.exports = function () {
   task("PI-X-migration-referral", "Deploys PI-X migration referral").setAction(async function () {
     const mock = true;
     let owner;
+
+    // Read farmers data from JSON
+    const fs = require("fs");
+    const path = require("path");
+    const farmersPath = path.join(__dirname, "../scripts/deployment/outputs/sowFarmers.json");
+    if (!fs.existsSync(farmersPath)) {
+      throw new Error(`Farmers JSON not found: ${farmersPath}`);
+    }
+    const referrerData = JSON.parse(fs.readFileSync(farmersPath, "utf8"));
+    console.log(`Loaded ${referrerData.length} farmers from ${farmersPath}`);
+
     if (mock) {
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
@@ -722,7 +733,10 @@ module.exports = function () {
       const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
       await helperStorageContract
         .connect(signer)
-        .setValue(1, ethers.utils.defaultAbiCoder.encode(["address[]"], [[]]));
+        .setValue(
+          1,
+          ethers.utils.defaultAbiCoder.encode(["tuple(address, uint256)[]"], [referrerData])
+        );
     } else {
       owner = (await ethers.getSigners())[0];
     }

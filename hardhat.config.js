@@ -19,6 +19,9 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // compile contracts.
   await hre.run("compile");
 
+  const { fetchAllSowData } = require("./scripts/deployment/fetchSowFarmers.js");
+  await fetchAllSowData();
+
   await hre.run("PI-X-migration-referral");
 
   console.log("Diamond Upgraded.");

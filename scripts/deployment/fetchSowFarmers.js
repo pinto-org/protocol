@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 const PINTO_SUBGRAPH_URL = "https://graph.pinto.money/pintostalk";
 
 const FIELDS_QUERY = `
@@ -24,7 +27,7 @@ async function fetchAllSowData() {
   let skip = 0;
   let hasMore = true;
 
-  console.log("fetching sow data from Pinto subgraph");
+  console.log("Fetching sow data from Pinto subgraph");
 
   while (hasMore) {
     const response = await fetch(PINTO_SUBGRAPH_URL, {
@@ -42,15 +45,13 @@ async function fetchAllSowData() {
       if (field.sownBeans == "0") {
         continue;
       }
-      allData.push({
-        id: field.id,
-        fieldId: field.fieldId,
-        farmer: field.farmer ? field.farmer.id : null, 
-        amount: field.sownBeans
-      });
+      const address = field.farmer ? field.farmer.id : null;
+      if (address) {
+        allData.push([address, field.sownBeans]);
+      }
     }
 
-    console.log(`  Fetched ${allData.length} records...`);
+    console.log(`Fetched ${allData.length} records`);
 
     if (json.data.fields.length < PAGE_SIZE) {
       hasMore = false;
@@ -59,21 +60,17 @@ async function fetchAllSowData() {
     }
   }
 
-  console.log(`Total farmers: ${allData.length}`);
-  return allData;
-}
+  const outputPath = path.join(__dirname, "outputs/sowFarmers.json");
+  fs.writeFileSync(outputPath, JSON.stringify(allData, null, 2));
+  console.log(`Saved ${allData.length} farmers to ${outputPath}`);
 
-async function main() {
-  const sowData = await fetchAllSowData();
-  console.log("All Farmers:");
-  console.log(JSON.stringify(sowData, null, 2));
-  return sowData;
+  return allData;
 }
 
 module.exports = { fetchAllSowData };
 
 if (require.main === module) {
-  main()
+  fetchAllSowData()
     .then(() => process.exit(0))
     .catch((error) => {
       console.error(error);
