@@ -591,7 +591,7 @@ library LibDibbler {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 af = s.sys.activeField;
         // increment the number of beans the user has sown for referrals.
-        s.accts[user].fields[af].referral.beans += uint128(beanSown);
+        s.accts[user].fields[af].referral.beans += uint88(beanSown);
         // if the user is not eligible already, increment their eligibility sown
         if (
             !s.accts[user].fields[af].referral.eligibility &&
