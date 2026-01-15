@@ -231,8 +231,8 @@ library LibDeltaB {
     /**
      * @notice Calculates the maximum deltaB impact for a given input amount.
      * @dev For Bean→LP conversions, fromAmount directly represents the deltaB impact.
-     *      For LP→Bean conversions, simulates balanced LP removal using capped reserves
-     *      and computes the deltaB difference before/after removal.
+     * For LP→Bean conversions, simulates balanced LP removal using capped reserves
+     * and computes the deltaB difference before/after removal.
      * @param inputToken The token being converted from (Bean or LP token)
      * @param fromAmount The amount of input token being converted
      * @return maxDeltaBImpact Maximum possible deltaB change from this conversion
@@ -277,7 +277,6 @@ library LibDeltaB {
                 ZERO_LOOKBACK
             );
 
-            // Return absolute difference
             maxDeltaBImpact = beforeDeltaB >= afterDeltaB
                 ? uint256(beforeDeltaB - afterDeltaB)
                 : uint256(afterDeltaB - beforeDeltaB);

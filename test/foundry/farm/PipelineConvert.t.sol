@@ -368,7 +368,6 @@ contract PipelineConvertTest is TestHelper {
 
         pd.newBdv = bs.bdv(pd.outputWell, pd.wellAmountOut);
 
-        // Execute convert and capture actual output stem for verification
         vm.resumeGasMetering();
         vm.prank(users[1]);
 
