@@ -702,7 +702,8 @@ interface IMockFBeanstalk {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         external
         view
