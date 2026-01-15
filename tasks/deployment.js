@@ -424,4 +424,23 @@ module.exports = function () {
       console.log("SiloHelpers deployed to:", siloHelpersContract.address);
       return siloHelpersContract;
     });
+
+  task("deployLSDChainlinkOracle", "Deploys the LSDChainlinkOracle contract").setAction(
+    async (args, { ethers }) => {
+      const mock = false;
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
+
+      const LSDChainlinkOracle = await ethers.getContractFactory("LSDChainlinkOracle");
+      const lsdChainlinkOracle = await LSDChainlinkOracle.deploy();
+      await lsdChainlinkOracle.deployed();
+      console.log("LSDChainlinkOracle deployed to:", lsdChainlinkOracle.address);
+      return lsdChainlinkOracle;
+    }
+  );
 };

@@ -34,7 +34,7 @@ contract InitPIXMigration is InitWells, InitPodReferral {
     bytes32 internal constant PROXY_SALT =
         0x00ee4d9e32976f40b38d99d1c3eee5ca2e3ae06d24630a6df69a9a8b7c8b4500;
 
-    address internal constant LSD_CHAINLINK_ORACLE = 0x2B271BDC052f70b40ad9e8dE52a5eD38D8bE4d22;
+    address internal constant LSD_CHAINLINK_ORACLE = 0x3ca165997A12863eb63e4418d2E97AcA3CdCdADc;
 
     // Gauge parameters.
     // target full migration in 360 seasons (~15 days)
@@ -48,7 +48,8 @@ contract InitPIXMigration is InitWells, InitPodReferral {
         0x43a5C292A453A3bF3606fa856197f09D7B74251a;
     bytes1 internal constant DEFAULT_ORACLE_ENCODE_TYPE = 0x00;
     bytes1 internal constant WELL_BDV_ENCODE_TYPE = 0x01;
-    uint256 internal constant ORACLE_TIMEOUT = type(uint256).max;
+    uint256 internal constant WSTETH_ETH_ORACLE_TIMEOUT = 129_600; // 36 hours. WSTETH/ETH chainlink updates once per day.
+    uint256 internal constant ETH_USD_ORACLE_TIMEOUT = 3600; // 1 hour. ETH/USD chainlink updates once per 20 minutes.
 
     function init(address helperStorage, uint256 key) external {
         // Deploy the new well.
@@ -113,9 +114,9 @@ contract InitPIXMigration is InitWells, InitPodReferral {
             encodeType: DEFAULT_ORACLE_ENCODE_TYPE,
             data: abi.encode(
                 ETH_USD_CHAINLINK_ORACLE,
-                ORACLE_TIMEOUT,
+                ETH_USD_ORACLE_TIMEOUT,
                 WSTETH_ETH_CHAINLINK_ORACLE,
-                ORACLE_TIMEOUT
+                WSTETH_ETH_ORACLE_TIMEOUT
             )
         });
         whitelistData = WhitelistData({
