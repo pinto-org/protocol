@@ -7,7 +7,11 @@ const {
   L2_PINTO,
   L2_PCM,
   PINTO_DIAMOND_DEPLOYER,
-  PINTO_PRICE_CONTRACT
+  PINTO_PRICE_CONTRACT,
+  LIB_SILO_HELPERS,
+  PRICE_MANIPULATION,
+  TRACTOR_HELPERS,
+  SILO_HELPERS
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
@@ -111,7 +115,8 @@ module.exports = function () {
 
   task("deployPodReferralContracts", "Deploys the Pod referral contracts").setAction(
     async (args, { ethers }) => {
-      mock = true;
+      const mock = false;
+      const useExistingContracts = true;
       try {
         console.log("-----------------------------------");
         console.log("Deploying Pod referral contracts...");
@@ -122,28 +127,51 @@ module.exports = function () {
           deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
           await mintEth(deployer.address);
         } else {
-          deployer = await ethers.getSigners()[0];
+          deployer = (await ethers.getSigners())[0];
         }
 
         // Deploy LibSiloHelpers library first
-        const libSiloHelpers = await hre.run("deployLibSiloHelpers", { mock });
+        let libSiloHelpers;
+        if (useExistingContracts) {
+          libSiloHelpers = await ethers.getContractAt("LibSiloHelpers", LIB_SILO_HELPERS);
+        } else {
+          libSiloHelpers = await hre.run("deployLibSiloHelpers", { mock });
+        }
 
         // Deploy PriceManipulation
-        const priceManipulationContract = await hre.run("deployPriceManipulation", { mock });
+        let priceManipulationContract;
+        if (useExistingContracts) {
+          priceManipulationContract = await ethers.getContractAt(
+            "PriceManipulation",
+            PRICE_MANIPULATION
+          );
+        } else {
+          priceManipulationContract = await hre.run("deployPriceManipulation", { mock });
+        }
 
         // Deploy TractorHelpers first (SiloHelpers depends on it)
-        const tractorHelpersContract = await hre.run("deployTractorHelpers", {
-          mock,
-          libSiloHelpersAddress: libSiloHelpers.address
-        });
+        let tractorHelpersContract;
+        if (useExistingContracts) {
+          tractorHelpersContract = await ethers.getContractAt("TractorHelpers", TRACTOR_HELPERS);
+        } else {
+          tractorHelpersContract = await hre.run("deployTractorHelpers", {
+            mock,
+            libSiloHelpersAddress: libSiloHelpers.address
+          });
+        }
 
         // Deploy SiloHelpers with linked library (depends on TractorHelpers and PriceManipulation)
-        const siloHelpersContract = await hre.run("deploySiloHelpers", {
-          mock,
-          libSiloHelpersAddress: libSiloHelpers.address,
-          tractorHelpersAddress: tractorHelpersContract.address,
-          priceManipulationAddress: priceManipulationContract.address
-        });
+        let siloHelpersContract;
+        if (useExistingContracts) {
+          siloHelpersContract = await ethers.getContractAt("SiloHelpers", SILO_HELPERS);
+        } else {
+          siloHelpersContract = await hre.run("deploySiloHelpers", {
+            mock,
+            libSiloHelpersAddress: libSiloHelpers.address,
+            tractorHelpersAddress: tractorHelpersContract.address,
+            priceManipulationAddress: priceManipulationContract.address
+          });
+        }
 
         // Deploy PodReferral with linked library and actual helper addresses
         console.log("Deploying SowBlueprintReferralBlueprint");
@@ -158,7 +186,7 @@ module.exports = function () {
         );
         const sowBlueprintReferralBlueprint = await SowBlueprintReferralBlueprint.deploy(
           L2_PINTO,
-          await deployer.getAddress(), // owner address
+          await deployer.address, // owner address
           tractorHelpersContract.address, // tractorHelpers address
           siloHelpersContract.address // siloHelpers address
         );

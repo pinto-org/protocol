@@ -174,7 +174,7 @@ contract InitWells {
 
     function getDefaultGaugePointImplementation()
         internal
-        view
+        pure
         returns (Implementation memory gaugePointImplementation)
     {
         gaugePointImplementation = Implementation({
@@ -187,7 +187,7 @@ contract InitWells {
 
     function getDefaultLiquidityWeightImplementation()
         internal
-        view
+        pure
         returns (Implementation memory liquidityWeightImplementation)
     {
         liquidityWeightImplementation = Implementation({
