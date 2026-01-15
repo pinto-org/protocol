@@ -352,7 +352,7 @@ contract PipelineConvertTest is TestHelper {
             pd.afterOutputTokenLPSupply,
             pd.outputWellNewDeltaB
         );
-        
+
         // Uses TWAP (overallCappedDeltaB) as manipulation-resistant
         // baseline, then adds the actual spot price change during the convert operation.
         // This prevents flash loan attacks from inflating deltaB values.
@@ -361,7 +361,9 @@ contract PipelineConvertTest is TestHelper {
             dbs.beforeOverallDeltaB = bs.overallCappedDeltaB();
             int256 afterSpotOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB;
             // afterOverallDeltaB = TWAP_baseline + (spot_after - spot_before)
-            dbs.afterOverallDeltaB = dbs.beforeOverallDeltaB + (afterSpotOverallDeltaB - beforeSpotOverallDeltaB);
+            dbs.afterOverallDeltaB =
+                dbs.beforeOverallDeltaB +
+                (afterSpotOverallDeltaB - beforeSpotOverallDeltaB);
         }
 
         pd.newBdv = bs.bdv(pd.outputWell, pd.wellAmountOut);
@@ -379,16 +381,20 @@ contract PipelineConvertTest is TestHelper {
         );
 
         // Verify the convert produced valid results by checking deposits
-        (uint256 actualDepositAmount, ) = bs.getDeposit(
-            users[1], 
-            pd.outputWell, 
-            actualOutputStem
-        );
+        (uint256 actualDepositAmount, ) = bs.getDeposit(users[1], pd.outputWell, actualOutputStem);
         assertEq(actualDepositAmount, pd.wellAmountOut, "Deposit amount mismatch");
 
         // Verify capacity was used (convert had effect)
-        assertGt(bs.getWellConvertCapacity(pd.inputWell), pd.beforeInputWellCapacity, "Input well capacity not used");
-        assertGt(bs.getWellConvertCapacity(pd.outputWell), pd.beforeOutputWellCapacity, "Output well capacity not used");
+        assertGt(
+            bs.getWellConvertCapacity(pd.inputWell),
+            pd.beforeInputWellCapacity,
+            "Input well capacity not used"
+        );
+        assertGt(
+            bs.getWellConvertCapacity(pd.outputWell),
+            pd.beforeOutputWellCapacity,
+            "Output well capacity not used"
+        );
 
         // Verify user still has their stalk (convert didn't lose stalk unexpectedly)
         uint256 userStalkAfter = bs.balanceOfStalk(users[1]);
