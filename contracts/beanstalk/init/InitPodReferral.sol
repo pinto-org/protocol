@@ -73,7 +73,7 @@ contract InitPodReferral {
     function initializeReferrers(AppStorage storage s, ReferrerData[] memory referrers) internal {
         uint256 activeField = s.sys.activeField;
         for (uint256 i = 0; i < referrers.length; i++) {
-            uint128 amount = uint128(referrers[i].amount);
+            uint88 amount = uint88(referrers[i].amount);
             if (amount >= INIT_BEANS_FOR_ELIGIBILITY) {
                 s.accts[referrers[i].referrer].fields[activeField].referral.eligibility = true;
             }
