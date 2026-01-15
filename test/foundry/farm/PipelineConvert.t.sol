@@ -824,6 +824,78 @@ contract PipelineConvertTest is TestHelper {
         assertGe(grownStalkBefore, 0);
     }
 
+    /**
+     * @notice Verifies that SPOT oracle manipulation does not allow preserving more grownStalk.
+     * @dev This test simulates a flash loan attack where an attacker manipulates SPOT deltaB
+     *      without affecting TWAP, then converts. The penalty calculation should ensure that
+     *      manipulation does NOT result in more preserved grownStalk than a normal convert.
+     *
+     *      Attack scenario:
+     *      1. Start with Bean BELOW peg (excess Bean, negative deltaB)
+     *      2. Attacker swaps ETH → Bean to push SPOT above peg
+     *      3. TWAP remains negative (below peg) because pump isn't updated
+     *      4. Attacker converts Bean → LP hoping penalty calculation uses manipulated SPOT
+     *      5. Penalty uses TWAP baseline, manipulation fails
+     */
+    function testManipulationDoesNotPreserveMoreGrownStalk(uint256 amount) public {
+        amount = bound(amount, 500e6, 2000e6);
+
+        // Create BELOW PEG state by adding excess Beans to the well
+        // This makes deltaB negative (Bean excess = below peg)
+        uint256 excessBeans = 5000e6;
+        mintTokensToUser(users[0], BEAN, excessBeans);
+        vm.startPrank(users[0]);
+        MockToken(BEAN).approve(beanEthWell, excessBeans);
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = excessBeans;
+        tokenAmountsIn[1] = 0;
+        IWell(beanEthWell).addLiquidity(tokenAmountsIn, 0, users[0], type(uint256).max);
+        vm.stopPrank();
+
+        // Update pump to reflect below peg state in TWAP
+        updateMockPumpUsingWellReserves(beanEthWell);
+        vm.roll(block.number + 1);
+
+        int256 initialDeltaB = bs.overallCurrentDeltaB();
+        require(initialDeltaB < 0, "Should be below peg");
+
+        // Setup deposit with grown stalk
+        int96 stem = depositBeanAndPassGermination(amount, users[1]);
+        season.siloSunrise(10);
+        uint256 grownBefore = bs.grownStalkForDeposit(users[1], BEAN, stem);
+        require(grownBefore > 0, "Should have grown stalk");
+
+        uint256 manipulationAmount = 20 ether;
+
+        uint256 snapshotId = vm.snapshot();
+
+        // --- Scenario A: Normal Convert (no manipulation) ---
+        (int96 stemA, ) = beanToLPDoConvert(amount, stem, users[1]);
+        uint256 grownNormal = bs.grownStalkForDeposit(users[1], beanEthWell, stemA);
+
+        vm.revertTo(snapshotId);
+
+        // --- Scenario B: Manipulated Convert (swap to push SPOT above peg first) ---
+        // Attacker adds ETH to push SPOT above peg, but TWAP stays at old below-peg value
+        MockToken(WETH).mint(users[1], manipulationAmount);
+        vm.startPrank(users[1]);
+        MockToken(WETH).approve(beanEthWell, manipulationAmount);
+        uint256[] memory ethAmounts = new uint256[](2);
+        ethAmounts[0] = 0;
+        ethAmounts[1] = manipulationAmount;
+        IWell(beanEthWell).addLiquidity(ethAmounts, 0, users[1], type(uint256).max);
+        vm.stopPrank();
+
+        (int96 stemB, ) = beanToLPDoConvert(amount, stem, users[1]);
+        uint256 grownManipulated = bs.grownStalkForDeposit(users[1], beanEthWell, stemB);
+
+        assertLe(
+            grownManipulated,
+            grownNormal,
+            "Manipulation preserved more grownStalk than normal convert"
+        );
+    }
+
     function testConvertingOutputTokenNotWell() public {
         int96[] memory stems = new int96[](1);
         stems[0] = 0;
