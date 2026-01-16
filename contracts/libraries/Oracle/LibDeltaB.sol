@@ -336,17 +336,8 @@ library LibDeltaB {
 
             Call memory wellFunction = IWell(inputToken).wellFunction();
 
-            uint256 theoreticalLpSupply;
-            try
-                IBeanstalkWellFunction(wellFunction.target).calcLpTokenSupply(
-                    reserves,
-                    wellFunction.data
-                )
-            returns (uint256 lpSupply) {
-                theoreticalLpSupply = lpSupply;
-            } catch {
-                return 0;
-            }
+            uint256 theoreticalLpSupply = IBeanstalkWellFunction(wellFunction.target)
+                .calcLpTokenSupply(reserves, wellFunction.data);
 
             require(theoreticalLpSupply > 0, "Convert: Theoretical LP supply is zero");
 
@@ -369,18 +360,12 @@ library LibDeltaB {
                 newReserves[i] = reserves[i];
             }
 
-            try
-                IBeanstalkWellFunction(wellFunction.target).calcReserve(
-                    newReserves,
-                    beanIndex,
-                    newLpSupply,
-                    wellFunction.data
-                )
-            returns (uint256 newBeanReserve) {
-                newReserves[beanIndex] = newBeanReserve;
-            } catch {
-                return 0;
-            }
+            newReserves[beanIndex] = IBeanstalkWellFunction(wellFunction.target).calcReserve(
+                newReserves,
+                beanIndex,
+                newLpSupply,
+                wellFunction.data
+            );
 
             if (newReserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
                 return _abs(beforeDeltaB);
