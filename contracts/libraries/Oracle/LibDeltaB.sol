@@ -15,7 +15,7 @@ import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellF
 import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 
 /**
- * @title LibPipelineConvert
+ * @title LibDeltaB
  */
 
 library LibDeltaB {
@@ -229,57 +229,177 @@ library LibDeltaB {
     }
 
     /**
+     * @notice Calculates deltaB for single-sided liquidity operations (converts).
+     * @dev Reverts if bean reserve < minimum or oracle fails.
+     * @param well The address of the Well
+     * @param reserves The reserves to calculate deltaB from
+     * @param lookback The lookback period for price ratios
+     * @return deltaB (target bean reserve - actual bean reserve)
+     */
+    function calculateDeltaBFromReservesLiquidity(
+        address well,
+        uint256[] memory reserves,
+        uint256 lookback
+    ) internal view returns (int256) {
+        IERC20[] memory tokens = IWell(well).tokens();
+        Call memory wellFunction = IWell(well).wellFunction();
+
+        (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell.getRatiosAndBeanIndex(
+            tokens,
+            lookback
+        );
+
+        // Converts cannot be performed, if the Bean reserve is less than the minimum
+        if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
+            revert("Well: Bean reserve is less than the minimum");
+        }
+
+        // If the USD Oracle call fails, a deltaB cannot be determined
+        if (!success) {
+            revert("Well: USD Oracle call failed");
+        }
+
+        try
+            IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioLiquidity(
+                reserves,
+                beanIndex,
+                ratios,
+                wellFunction.data
+            )
+        returns (uint256 reserve) {
+            return int256(reserve).sub(int256(reserves[beanIndex]));
+        } catch {
+            return 0;
+        }
+    }
+
+    /**
      * @notice Calculates the maximum deltaB impact for a given input amount.
-     * @dev For Bean→LP conversions, fromAmount directly represents the deltaB impact.
-     * For LP→Bean conversions, simulates balanced LP removal using capped reserves
-     * and computes the deltaB difference before/after removal.
+     * @dev Uses capped reserves (TWAP-based) to simulate the conversion.
+     * Returns |deltaB_before - deltaB_after| for the affected well.
      * @param inputToken The token being converted from (Bean or LP token)
      * @param fromAmount The amount of input token being converted
+     * @param targetWell The Well involved in the conversion
      * @return maxDeltaBImpact Maximum possible deltaB change from this conversion
      */
     function calculateMaxDeltaBImpact(
         address inputToken,
-        uint256 fromAmount
+        uint256 fromAmount,
+        address targetWell
     ) internal view returns (uint256 maxDeltaBImpact) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         if (inputToken == s.sys.bean) {
-            maxDeltaBImpact = fromAmount;
-        } else if (LibWell.isWell(inputToken)) {
-            uint256[] memory reserves = cappedReserves(inputToken);
-            if (reserves.length == 0) return 0;
+            // Bean → LP: Single-sided liquidity addition
 
-            uint256 lpSupply = IERC20(inputToken).totalSupply();
-            if (lpSupply == 0) return 0;
+            if (!LibWell.isWell(targetWell)) return 0;
 
-            uint256 beanIndex = LibWell.getBeanIndexFromWell(inputToken);
-            if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) return 0;
+            uint256[] memory reserves = cappedReserves(targetWell);
+            require(reserves.length > 0, "Convert: Failed to read capped reserves");
 
-            int256 beforeDeltaB = calculateDeltaBFromReserves(inputToken, reserves, ZERO_LOOKBACK);
+            uint256 beanIndex = LibWell.getBeanIndexFromWell(targetWell);
+            require(
+                reserves[beanIndex] >= C.WELL_MINIMUM_BEAN_BALANCE,
+                "Well: Bean reserve is less than the minimum"
+            );
 
-            // Simulate balanced LP removal
+            int256 beforeDeltaB = calculateDeltaBFromReservesLiquidity(
+                targetWell,
+                reserves,
+                ZERO_LOOKBACK
+            );
+
+            // Simulate single sided Bean addition
             uint256[] memory newReserves = new uint256[](reserves.length);
             for (uint256 i = 0; i < reserves.length; i++) {
-                uint256 toRemove = (reserves[i] * fromAmount) / lpSupply;
-                newReserves[i] = reserves[i] > toRemove ? reserves[i] - toRemove : 0;
+                newReserves[i] = reserves[i];
+            }
+            newReserves[beanIndex] = reserves[beanIndex] + fromAmount;
+
+            int256 afterDeltaB = calculateDeltaBFromReservesLiquidity(
+                targetWell,
+                newReserves,
+                ZERO_LOOKBACK
+            );
+
+            maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
+        } else if (LibWell.isWell(inputToken)) {
+            // LP → Bean: Single-sided liquidity removal
+            uint256[] memory reserves = cappedReserves(inputToken);
+            require(reserves.length > 0, "Convert: Failed to read capped reserves");
+
+            uint256 beanIndex = LibWell.getBeanIndexFromWell(inputToken);
+            require(
+                reserves[beanIndex] >= C.WELL_MINIMUM_BEAN_BALANCE,
+                "Well: Bean reserve is less than the minimum"
+            );
+
+            Call memory wellFunction = IWell(inputToken).wellFunction();
+
+            uint256 theoreticalLpSupply;
+            try
+                IBeanstalkWellFunction(wellFunction.target).calcLpTokenSupply(
+                    reserves,
+                    wellFunction.data
+                )
+            returns (uint256 lpSupply) {
+                theoreticalLpSupply = lpSupply;
+            } catch {
+                return 0;
+            }
+
+            require(theoreticalLpSupply > 0, "Convert: Theoretical LP supply is zero");
+
+            // Calculate deltaB before removal using liquidity based calculation
+            int256 beforeDeltaB = calculateDeltaBFromReservesLiquidity(
+                inputToken,
+                reserves,
+                ZERO_LOOKBACK
+            );
+
+            if (fromAmount >= theoreticalLpSupply) {
+                return _abs(beforeDeltaB);
+            }
+
+            uint256 newLpSupply = theoreticalLpSupply - fromAmount;
+
+            // Calculate new Bean reserve using calcReserve for single sided removal
+            uint256[] memory newReserves = new uint256[](reserves.length);
+            for (uint256 i = 0; i < reserves.length; i++) {
+                newReserves[i] = reserves[i];
+            }
+
+            try
+                IBeanstalkWellFunction(wellFunction.target).calcReserve(
+                    newReserves,
+                    beanIndex,
+                    newLpSupply,
+                    wellFunction.data
+                )
+            returns (uint256 newBeanReserve) {
+                newReserves[beanIndex] = newBeanReserve;
+            } catch {
+                return 0;
             }
 
             if (newReserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
-                maxDeltaBImpact = beforeDeltaB >= 0
-                    ? uint256(beforeDeltaB)
-                    : uint256(-beforeDeltaB);
-                return maxDeltaBImpact;
+                return _abs(beforeDeltaB);
             }
 
-            int256 afterDeltaB = calculateDeltaBFromReserves(
+            int256 afterDeltaB = calculateDeltaBFromReservesLiquidity(
                 inputToken,
                 newReserves,
                 ZERO_LOOKBACK
             );
 
-            maxDeltaBImpact = beforeDeltaB >= afterDeltaB
-                ? uint256(beforeDeltaB - afterDeltaB)
-                : uint256(afterDeltaB - beforeDeltaB);
+            maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
         }
+    }
+
+    /**
+     * @dev Returns the absolute value of a signed integer as an unsigned integer.
+     */
+    function _abs(int256 x) private pure returns (uint256) {
+        return x >= 0 ? uint256(x) : uint256(-x);
     }
 }

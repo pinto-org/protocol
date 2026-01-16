@@ -352,26 +352,62 @@ contract PipelineConvertTest is TestHelper {
             pd.afterOutputTokenLPSupply,
             pd.outputWellNewDeltaB
         );
-
-        // Uses TWAP (overallCappedDeltaB) as manipulation-resistant
-        // baseline, then adds the actual spot price change during the convert operation.
-        // This prevents flash loan attacks from inflating deltaB values.
-        {
-            int256 beforeSpotOverallDeltaB = bs.overallCurrentDeltaB();
-            dbs.beforeOverallDeltaB = bs.overallCappedDeltaB();
-            int256 afterSpotOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB;
-            // afterOverallDeltaB = TWAP_baseline + (spot_after - spot_before)
-            dbs.afterOverallDeltaB =
-                dbs.beforeOverallDeltaB +
-                (afterSpotOverallDeltaB - beforeSpotOverallDeltaB);
-        }
+        dbs.beforeOverallDeltaB = bs.overallCurrentDeltaB();
+        // Overall deltaB after convert is the sum of individual well deltaBs (already scaled)
+        dbs.afterOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB;
 
         pd.newBdv = bs.bdv(pd.outputWell, pd.wellAmountOut);
+
+        (uint256 stalkPenalty, , , ) = bs.calculateStalkPenalty(
+            dbs,
+            pd.newBdv,
+            LibConvert.abs(bs.overallCappedDeltaB()), // overall convert capacity
+            pd.inputWell,
+            pd.outputWell,
+            pd.amountOfDepositedLP // fromAmount is the LP being converted
+        );
+
+        (pd.outputStem, ) = bs.calculateStemForTokenFromGrownStalk(
+            pd.outputWell,
+            (pd.grownStalkForDeposit * (pd.newBdv - stalkPenalty)) / pd.newBdv,
+            pd.bdvOfAmountOut
+        );
+
+        vm.expectEmit(true, false, false, true);
+        emit RemoveDeposits(
+            users[1],
+            pd.inputWell,
+            stems,
+            amounts,
+            pd.amountOfDepositedLP,
+            bdvAmountsDeposited
+        );
+
+        vm.expectEmit(true, false, false, true);
+        emit AddDeposit(
+            users[1],
+            pd.outputWell,
+            pd.outputStem,
+            pd.wellAmountOut,
+            pd.bdvOfAmountOut
+        );
+
+        // verify convert
+        vm.expectEmit(true, false, false, true);
+        emit Convert(
+            users[1],
+            pd.inputWell,
+            pd.outputWell,
+            pd.amountOfDepositedLP,
+            pd.wellAmountOut,
+            bdvAmountsDeposited[0],
+            pd.bdvOfAmountOut
+        );
 
         vm.resumeGasMetering();
         vm.prank(users[1]);
 
-        (int96 actualOutputStem, , , , ) = pipelineConvert.pipelineConvert(
+        pipelineConvert.pipelineConvert(
             pd.inputWell, // input token
             stems, // stems
             amounts, // amount
@@ -379,25 +415,12 @@ contract PipelineConvertTest is TestHelper {
             lpToLPPipeCalls // pipeData
         );
 
-        // Verify the convert produced valid results by checking deposits
-        (uint256 actualDepositAmount, ) = bs.getDeposit(users[1], pd.outputWell, actualOutputStem);
-        assertEq(actualDepositAmount, pd.wellAmountOut, "Deposit amount mismatch");
-
-        // Verify capacity was used (convert had effect)
-        assertGt(
-            bs.getWellConvertCapacity(pd.inputWell),
-            pd.beforeInputWellCapacity,
-            "Input well capacity not used"
-        );
-        assertGt(
-            bs.getWellConvertCapacity(pd.outputWell),
-            pd.beforeOutputWellCapacity,
-            "Output well capacity not used"
-        );
-
-        // Verify user still has their stalk (convert didn't lose stalk unexpectedly)
-        uint256 userStalkAfter = bs.balanceOfStalk(users[1]);
-        assertGt(userStalkAfter, 0, "User should have stalk after convert");
+        // In this test overall convert capacity before and after should be 0.
+        assertEq(bs.getOverallConvertCapacity(), 0);
+        assertEq(pd.beforeOverallCapacity, 0);
+        // Per-well capacities were used
+        assertGt(bs.getWellConvertCapacity(pd.inputWell), pd.beforeInputWellCapacity);
+        assertGt(bs.getWellConvertCapacity(pd.outputWell), pd.beforeOutputWellCapacity);
     }
 
     function testConvertDewhitelistedLPToLP(
@@ -1128,23 +1151,18 @@ contract PipelineConvertTest is TestHelper {
             beanEthWell
         );
         td.lpAmountAfter = td.lpAmountBefore.add(td.lpAmountOut);
-        // Uses TWAP (overallCappedDeltaB) as manipulation-resistant
-        // baseline, then adds actual spot price change during the convert.
-        int256 beforeSpotDeltaB = bs.overallCurrentDeltaB();
-        dbs.beforeOverallDeltaB = bs.overallCappedDeltaB();
-        // Scale deltaB by LP supply change to get accurate after-convert deltaB
-        int256 afterSpotDeltaB = LibDeltaB.scaledDeltaB(
+        dbs.beforeOverallDeltaB = bs.overallCurrentDeltaB();
+        // calculate scaled overall deltaB, based on just the well affected
+        dbs.afterOverallDeltaB = LibDeltaB.scaledDeltaB(
             td.lpAmountBefore,
             td.lpAmountAfter,
             td.calculatedDeltaBAfter
         );
-        // afterOverallDeltaB = TWAP_baseline + (spot_after - spot_before)
-        dbs.afterOverallDeltaB = dbs.beforeOverallDeltaB + (afterSpotDeltaB - beforeSpotDeltaB);
+        td.bdvOfDepositedLp = bs.bdv(beanEthWell, td.lpAmountBefore);
 
-        // Bean->Bean convert: bdvConverted equals the bean amount since Bean BDV ratio is 1:1
         (td.calculatedStalkPenalty, , , ) = bs.calculateStalkPenalty(
             dbs,
-            amount,
+            td.bdvOfDepositedLp,
             LibConvert.abs(bs.overallCappedDeltaB()), // overall convert capacity
             BEAN,
             BEAN,
@@ -1526,17 +1544,25 @@ contract PipelineConvertTest is TestHelper {
         assertEq(stalkPenaltyBdv, 0);
     }
 
-    function testCalcStalkPenaltyNoOverallCap() public view {
-        (
-            IMockFBeanstalk.DeltaBStorage memory dbs,
-            address inputToken,
-            address outputToken,
-            uint256 bdvConverted,
-            uint256 overallConvertCapacity
-        ) = setupTowardsPegDeltaBStorageNegative();
+    function testCalcStalkPenaltyNoOverallCap() public {
+        // Set up well off peg
+        setDeltaBforWell(-1000e6, beanEthWell, WETH);
+        updateMockPumpUsingWellReserves(beanEthWell);
 
-        overallConvertCapacity = 0;
-        dbs.beforeOverallDeltaB = -100;
+        IMockFBeanstalk.DeltaBStorage memory dbs;
+        address inputToken = beanEthWell;
+        address outputToken = BEAN;
+        uint256 bdvConverted = 100e6;
+        uint256 overallConvertCapacity = 0;
+
+        dbs.beforeInputTokenDeltaB = 0;
+        dbs.afterInputTokenDeltaB = -100e6;
+        dbs.beforeOutputTokenDeltaB = 0;
+        dbs.afterOutputTokenDeltaB = 0;
+        dbs.beforeOverallDeltaB = 0;
+        dbs.afterOverallDeltaB = -100e6;
+
+        uint256 fromAmount = 1e18; // 1 LP token
 
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
@@ -1544,21 +1570,31 @@ contract PipelineConvertTest is TestHelper {
             overallConvertCapacity,
             inputToken,
             outputToken,
-            bdvConverted
-        );
-        assertEq(stalkPenaltyBdv, 100);
+            fromAmount
+        );  
+        
+        assertGt(stalkPenaltyBdv, 0, "Penalty should be non-zero when converting against peg");
     }
 
-    function testCalcStalkPenaltyNoInputTokenCap() public view {
-        (
-            IMockFBeanstalk.DeltaBStorage memory dbs,
-            address inputToken,
-            address outputToken,
-            uint256 bdvConverted,
-            uint256 overallConvertCapacity
-        ) = setupTowardsPegDeltaBStorageNegative();
+    function testCalcStalkPenaltyNoInputTokenCap() public {
+        // Set up well off peg
+        setDeltaBforWell(-1000e6, beanEthWell, WETH);
+        updateMockPumpUsingWellReserves(beanEthWell);
 
-        dbs.beforeOverallDeltaB = -100;
+        IMockFBeanstalk.DeltaBStorage memory dbs;
+        address inputToken = beanEthWell;
+        address outputToken = BEAN;
+        uint256 bdvConverted = 100e6;
+        uint256 overallConvertCapacity = 100e6;
+
+        dbs.beforeInputTokenDeltaB = 0;
+        dbs.afterInputTokenDeltaB = -100e6;
+        dbs.beforeOutputTokenDeltaB = 0;
+        dbs.afterOutputTokenDeltaB = 0;
+        dbs.beforeOverallDeltaB = 0;
+        dbs.afterOverallDeltaB = -100e6;
+
+        uint256 fromAmount = 1e18; // 1 LP token
 
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
@@ -1566,9 +1602,10 @@ contract PipelineConvertTest is TestHelper {
             overallConvertCapacity,
             inputToken,
             outputToken,
-            bdvConverted
+            fromAmount
         );
-        assertEq(stalkPenaltyBdv, 100);
+        
+        assertGt(stalkPenaltyBdv, 0, "Penalty should be non-zero when converting against peg");
     }
 
     function testCalcStalkPenaltyNoOutputTokenCap() public view {

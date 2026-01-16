@@ -279,7 +279,12 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(inputToken, fromAmount);
+        address targetWell = LibWell.isWell(inputToken) ? inputToken : outputToken;
+        uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(
+            inputToken,
+            fromAmount,
+            targetWell
+        );
 
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
