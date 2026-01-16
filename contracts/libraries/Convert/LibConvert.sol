@@ -280,7 +280,7 @@ library LibConvert {
         );
 
         address targetWell = LibWell.isWell(inputToken) ? inputToken : outputToken;
-        uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(
+        uint256 pipelineConvertDeltaBImpact = LibDeltaB.calculateMaxDeltaBImpact(
             inputToken,
             fromAmount,
             targetWell
@@ -288,8 +288,8 @@ library LibConvert {
 
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
-        if (totalDeltaPImpact > 0) {
-            stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / totalDeltaPImpact, bdvConverted);
+        if (pipelineConvertDeltaBImpact > 0) {
+            stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact, bdvConverted);
         } else {
             stalkPenaltyBdv = 0;
         }
