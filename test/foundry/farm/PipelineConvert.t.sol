@@ -1571,8 +1571,8 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             outputToken,
             fromAmount
-        );  
-        
+        );
+
         assertGt(stalkPenaltyBdv, 0, "Penalty should be non-zero when converting against peg");
     }
 
@@ -1604,7 +1604,7 @@ contract PipelineConvertTest is TestHelper {
             outputToken,
             fromAmount
         );
-        
+
         assertGt(stalkPenaltyBdv, 0, "Penalty should be non-zero when converting against peg");
     }
 
