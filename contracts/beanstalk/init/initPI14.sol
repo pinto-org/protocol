@@ -14,7 +14,7 @@ import {InitPodReferral} from "contracts/beanstalk/init/InitPodReferral.sol";
 import {IHelperStorage} from "contracts/interfaces/IHelperStorage.sol";
 
 /**
- * @title InitPIXMigration
+ * @title InitPI14
  * @author Frijo, pocikerim
  * @dev This PI performs the following upgrades:
  * 1. Deploys a new pinto-wsteth well.
@@ -23,7 +23,7 @@ import {IHelperStorage} from "contracts/interfaces/IHelperStorage.sol";
  * 4. Initializes the referral system.
  * 5. Updates the tractor version.
  **/
-contract InitPIXMigration is InitWells, InitPodReferral {
+contract InitPI14 is InitWells, InitPodReferral {
     // Well parameters.
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
     address internal constant WSTETH = 0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452;

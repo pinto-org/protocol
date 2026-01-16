@@ -786,7 +786,7 @@ module.exports = function () {
         LibConvert: "LibTokenSilo"
       },
       initArgs: [HELPER_STORAGE, 1],
-      initFacetName: "InitPIXMigration",
+      initFacetName: "InitPI14",
       object: !mock,
       verbose: true,
       account: owner
