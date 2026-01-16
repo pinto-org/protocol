@@ -289,7 +289,10 @@ library LibConvert {
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
         if (pipelineConvertDeltaBImpact > 0) {
-            stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact, bdvConverted);
+            stalkPenaltyBdv = min(
+                (penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact,
+                bdvConverted
+            );
         } else {
             stalkPenaltyBdv = 0;
         }
