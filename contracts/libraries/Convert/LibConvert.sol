@@ -203,7 +203,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 overallConvertCapacityUsed;
@@ -220,7 +221,8 @@ library LibConvert {
             bdvConverted,
             overallConvertCapacity,
             inputToken,
-            outputToken
+            outputToken,
+            fromAmount
         );
 
         // Update penalties in storage.
@@ -246,7 +248,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         internal
         view
@@ -276,11 +279,20 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
-        stalkPenaltyBdv = min(
-            max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty),
-            bdvConverted
+        address targetWell = LibWell.isWell(inputToken) ? inputToken : outputToken;
+        uint256 totalDeltaPImpact = LibDeltaB.calculateMaxDeltaBImpact(
+            inputToken,
+            fromAmount,
+            targetWell
         );
+
+        uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
+
+        if (totalDeltaPImpact > 0) {
+            stalkPenaltyBdv = min((penaltyAmount * bdvConverted) / totalDeltaPImpact, bdvConverted);
+        } else {
+            stalkPenaltyBdv = 0;
+        }
 
         return (
             stalkPenaltyBdv,
