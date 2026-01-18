@@ -353,8 +353,7 @@ contract PipelineConvertTest is TestHelper {
             pd.outputWellNewDeltaB
         );
         dbs.beforeOverallDeltaB = bs.overallCurrentDeltaB();
-        // Overall deltaB after convert is the sum of individual well deltaBs (already scaled)
-        dbs.afterOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB;
+        dbs.afterOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB; // update and for scaled deltaB
 
         pd.newBdv = bs.bdv(pd.outputWell, pd.wellAmountOut);
 
@@ -364,7 +363,7 @@ contract PipelineConvertTest is TestHelper {
             LibConvert.abs(bs.overallCappedDeltaB()), // overall convert capacity
             pd.inputWell,
             pd.outputWell,
-            pd.amountOfDepositedLP // fromAmount is the LP being converted
+            pd.amountOfDepositedLP
         );
 
         (pd.outputStem, ) = bs.calculateStemForTokenFromGrownStalk(
