@@ -43,6 +43,65 @@ module.exports = function () {
   task("decodeDiamondCut", "Decodes diamondCut calldata into human-readable format")
     .addParam("data", "The calldata to decode")
     .setAction(async ({ data }) => {
+      const fs = require("fs");
+      const path = require("path");
+
+      // Build selector to function name mapping from out folder
+      const selectorMap = {};
+      const selectorToFile = {};
+      const outDir = path.join(__dirname, "../out");
+
+      // Helper to recursively find all .json files
+      const findJsonFiles = (dir) => {
+        const files = [];
+        const items = fs.readdirSync(dir);
+        for (const item of items) {
+          const fullPath = path.join(dir, item);
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            files.push(...findJsonFiles(fullPath));
+          } else if (item.endsWith(".json") && !item.includes("build-info")) {
+            files.push(fullPath);
+          }
+        }
+        return files;
+      };
+
+      // Build the selector map
+      try {
+        const jsonFiles = findJsonFiles(outDir);
+        for (const file of jsonFiles) {
+          const content = JSON.parse(fs.readFileSync(file, "utf8"));
+          if (content.methodIdentifiers) {
+            // Extract contract name from file path (e.g., "out/SeasonFacet.sol/SeasonFacet.json" -> "SeasonFacet")
+            const contractName = path.basename(file, ".json");
+
+            // Skip test files, interfaces, and mocks
+            // Match: test*, Mock*, IBeanstalk, I[A-Z]* (interfaces like IWell, IDiamond, etc.)
+            if (
+              contractName.startsWith("test") ||
+              contractName.includes("Mock") ||
+              contractName === "IBeanstalk" ||
+              contractName === "TestnetMetadataFacet" ||
+              /^I[A-Z]/.test(contractName)
+            ) {
+              continue;
+            }
+
+            for (const [signature, selector] of Object.entries(content.methodIdentifiers)) {
+              // Store with 0x prefix for easier lookup
+              const selectorHex = "0x" + selector;
+              selectorMap[selectorHex] = signature;
+              selectorToFile[selectorHex] = contractName;
+            }
+          }
+        }
+        console.log(`\n📚 Built selector map with ${Object.keys(selectorMap).length} functions\n`);
+      } catch (error) {
+        console.log("⚠️  Warning: Could not build selector map from out folder");
+        console.log(`   Error: ${error.message}\n`);
+      }
+
       const DIAMOND_CUT_ABI = [
         "function diamondCut((address facetAddress, uint8 action, bytes4[] functionSelectors)[] _diamondCut, address _init, bytes _calldata)"
       ];
@@ -57,14 +116,26 @@ module.exports = function () {
       // Pretty print
       console.log("\n===== Decoded Diamond Cut =====");
       _diamondCut.forEach((facetCut, index) => {
-        console.log(`\nFacetCut #${index + 1}`);
+        // Get facet name from first selector
+        let facetName =
+          facetCut.functionSelectors.length > 0
+            ? selectorToFile[facetCut.functionSelectors[0]] || "Unknown"
+            : "Unknown";
+
+        // Manual mapping for abstract contracts that are part of SeasonFacet
+        if (facetName === "Weather" || facetName === "Sun" || facetName === "Oracle") {
+          facetName = "SeasonFacet";
+        }
+
+        console.log(`\nFacetCut #${index + 1} - ${facetName}`);
         console.log("=".repeat(40));
         console.log(`  🏷️  Facet Address  : ${facetCut.facetAddress}`);
         console.log(`  🔧 Action         : ${decodeDiamondCutAction(facetCut.action)}`);
         console.log("  📋 Function Selectors:");
         if (facetCut.functionSelectors.length > 0) {
           facetCut.functionSelectors.forEach((selector, selectorIndex) => {
-            console.log(`      ${selectorIndex + 1}. ${selector}`);
+            const functionName = selectorMap[selector] || "Unknown function";
+            console.log(`      ${selectorIndex + 1}. ${selector} → ${functionName}`);
           });
         } else {
           console.log("      (No selectors provided)");
@@ -237,5 +308,148 @@ module.exports = function () {
       // Verify bytecode for the facets
       const facetData = await getFacetBytecode(facetNames, facetLibraries, true);
       await compareBytecode(facetData, deployedFacetAddresses, false);
+    });
+
+  task("getFacetAddresses", "Get current diamond facet addresses with names from Basescan")
+    .addOptionalParam("diamond", "Diamond address", undefined, types.string)
+    .setAction(async (taskArgs) => {
+      const diamondAddress = taskArgs.diamond || require("../test/hardhat/utils/constants.js").L2_PINTO;
+
+      console.log("\n" + "=".repeat(80));
+      console.log("🔍 Fetching Current Diamond Facet Addresses");
+      console.log("=".repeat(80));
+      console.log(`Diamond: ${diamondAddress}\n`);
+
+      // Get diamond contract
+      const diamond = await ethers.getContractAt("IDiamondLoupe", diamondAddress);
+
+      // Get all facets (returns array of {facetAddress, functionSelectors})
+      const facets = await diamond.facets();
+
+      console.log(`Found ${facets.length} facets\n`);
+
+      // Query Basescan for each facet to get the contract name
+      const axios = require("axios");
+      const basescanApiKey = process.env.ETHERSCAN_API_KEY;
+
+      if (!basescanApiKey) {
+        console.log("⚠️  Warning: ETHERSCAN_API_KEY not found in environment");
+        console.log("Proceeding without contract name verification...\n");
+      }
+
+      const facetInfo = [];
+
+      for (let i = 0; i < facets.length; i++) {
+        const facetAddress = facets[i].facetAddress;
+        let contractName = "Unknown";
+
+        if (basescanApiKey && facetAddress !== ethers.constants.AddressZero) {
+          try {
+            const response = await axios.get(
+              `https://api.etherscan.io/v2/api?apikey=${basescanApiKey}&chainid=8453&module=contract&action=getsourcecode&address=${facetAddress}`
+            )
+
+            if (response.data.status === "1" && response.data.result[0].ContractName) {
+              contractName = response.data.result[0].ContractName;
+            }
+
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 400));
+          } catch (error) {
+            console.log(`⚠️  Could not fetch name for ${facetAddress}: ${error.message}`);
+          }
+        }
+
+        facetInfo.push({
+          name: contractName,
+          address: facetAddress,
+          selectorCount: facets[i].functionSelectors.length
+        });
+
+        console.log(`[${i + 1}/${facets.length}] ${contractName}`);
+        console.log(`  Address: ${facetAddress}`);
+        console.log(`  Functions: ${facets[i].functionSelectors.length}\n`);
+      }
+
+      // Print summary table
+      console.log("=".repeat(80));
+      console.log("📊 Summary");
+      console.log("=".repeat(80));
+      console.log("\nJSON Output:");
+      console.log(JSON.stringify(facetInfo, null, 2));
+
+      return facetInfo;
+    });
+
+  task(
+    "batchVerify",
+    "Batch verify multiple contracts on Etherscan/Basescan with contract paths"
+  )
+    .addParam(
+      "contracts",
+      'JSON array of contracts to verify: [{"address": "0x...", "name": "ContractName", "path": "contracts/path/Contract.sol"}]. Path is optional - will auto-discover if omitted.'
+    )
+    .setAction(async (taskArgs, hre) => {
+      const contracts = JSON.parse(taskArgs.contracts);
+      const network = hre.network.name;
+
+      console.log("\n" + "=".repeat(80));
+      console.log("🔍 Batch Contract Verification");
+      console.log("=".repeat(80));
+      console.log(`Network: ${network}`);
+      console.log(`Contracts to verify: ${contracts.length}\n`);
+
+      const results = [];
+
+      for (let i = 0; i < contracts.length; i++) {
+        const contract = contracts[i];
+        const { address, name, path } = contract;
+
+        console.log(`\n[${i + 1}/${contracts.length}] Verifying ${name}...`);
+        console.log(`  Address: ${address}`);
+
+        try {
+          // If path is provided, add the --contract flag
+          if (path) {
+            console.log(`  Contract: ${path}:${name}`);
+          } else {
+            console.log(`  Auto-discovering contract path...`);
+          }
+
+          await hre.run("verify:verify", {
+            address: address,
+            contract: path ? `${path}:${name}` : undefined
+          });
+
+          results.push({ name, address, status: "✅ SUCCESS" });
+          console.log(`  ✅ Verified successfully!`);
+        } catch (error) {
+          if (error.message.includes("Already Verified")) {
+            results.push({ name, address, status: "✓ Already verified" });
+            console.log(`  ✓ Already verified`);
+          } else {
+            results.push({ name, address, status: `❌ FAILED: ${error.message}` });
+            console.log(`  ❌ Failed: ${error.message}`);
+          }
+        }
+      }
+
+      // Summary
+      console.log("\n" + "=".repeat(80));
+      console.log("📊 Verification Summary");
+      console.log("=".repeat(80));
+      results.forEach((result) => {
+        console.log(`${result.status} - ${result.name} (${result.address})`);
+      });
+      console.log("=".repeat(80) + "\n");
+
+      const successCount = results.filter((r) => r.status.includes("SUCCESS")).length;
+      const alreadyVerifiedCount = results.filter((r) => r.status.includes("Already")).length;
+      const failedCount = results.filter((r) => r.status.includes("FAILED")).length;
+
+      console.log(`Total: ${contracts.length}`);
+      console.log(`✅ Newly verified: ${successCount}`);
+      console.log(`✓  Already verified: ${alreadyVerifiedCount}`);
+      console.log(`❌ Failed: ${failedCount}\n`);
     });
 };

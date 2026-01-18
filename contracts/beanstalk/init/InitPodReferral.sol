@@ -27,7 +27,7 @@ contract InitPodReferral {
     /// @notice Struct to hold referrer address and their sown bean amount
     struct ReferrerData {
         address referrer;
-        uint256 amount;
+        uint88 amount;
     }
 
     /**

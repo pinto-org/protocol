@@ -708,8 +708,8 @@ module.exports = function () {
     });
   });
 
-  task("PI-X-migration-referral", "Deploys PI-X migration referral").setAction(async function () {
-    const mock = true;
+  task("PI-14", "Deploys PI-14").setAction(async function () {
+    const mock = false;
     let owner;
 
     const { fetchAllSowData } = require("../scripts/deployment/fetchSowFarmers.js");
@@ -728,17 +728,17 @@ module.exports = function () {
         .connect(signer)
         .setValue(
           1,
-          ethers.utils.defaultAbiCoder.encode(["tuple(address, uint256)[]"], [referrerData])
+          ethers.utils.defaultAbiCoder.encode(["tuple(address, uint88)[]"], [referrerData])
         );
+
+        // deploy LSD chainlink oracle
+        const lsdChainlinkOracle = await ethers.getContractFactory("LSDChainlinkOracle");
+        const lsdChainlinkOracleContract = await lsdChainlinkOracle.deploy();
+        await lsdChainlinkOracleContract.deployed();
+        console.log("\nLSD Chainlink Oracle deployed to:", lsdChainlinkOracleContract.address);
     } else {
       owner = (await ethers.getSigners())[0];
     }
-
-    // deploy LSD chainlink oracle
-    const lsdChainlinkOracle = await ethers.getContractFactory("LSDChainlinkOracle");
-    const lsdChainlinkOracleContract = await lsdChainlinkOracle.deploy();
-    await lsdChainlinkOracleContract.deployed();
-    console.log("\nLSD Chainlink Oracle deployed to:", lsdChainlinkOracleContract.address);
 
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
@@ -752,7 +752,16 @@ module.exports = function () {
         "MarketplaceBatchFacet",
         "ConvertFacet",
         "ConvertGettersFacet",
-        "ConvertBatchFacet"
+        "ConvertBatchFacet",
+        "ClaimFacet",
+        "PipelineConvertFacet",
+        "SiloFacet",
+        "SiloGettersFacet",
+        "MetadataFacet",
+        "ApprovalFacet",
+        "TokenFacet",
+        "TokenSupportFacet",
+        "FarmFacet"
       ],
       libraryNames: [
         "LibTokenSilo",
@@ -780,7 +789,10 @@ module.exports = function () {
           "LibWeather"
         ],
         ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
-        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"]
+        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        SiloFacet: ["LibSilo", "LibTokenSilo"]
       },
       linkedLibraries: {
         LibConvert: "LibTokenSilo"

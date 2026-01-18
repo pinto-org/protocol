@@ -23,7 +23,7 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // compile contracts.
   await hre.run("compile");
 
-  await hre.run("PI-X-migration-referral");
+  await hre.run("PI-14");
 
   console.log("Diamond Upgraded.");
 
