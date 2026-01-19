@@ -259,18 +259,13 @@ library LibDeltaB {
             revert("Well: USD Oracle call failed");
         }
 
-        try
-            IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioLiquidity(
-                reserves,
-                beanIndex,
-                ratios,
-                wellFunction.data
-            )
-        returns (uint256 reserve) {
-            return int256(reserve).sub(int256(reserves[beanIndex]));
-        } catch {
-            return 0;
-        }
+        uint256 reserve = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioLiquidity(
+            reserves,
+            beanIndex,
+            ratios,
+            wellFunction.data
+        );
+        return int256(reserve).sub(int256(reserves[beanIndex]));
     }
 
     /**
@@ -323,7 +318,7 @@ library LibDeltaB {
             );
 
             maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
-        } else if (LibWell.isWell(inputToken)) {
+        } else if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
             // LP → Bean: Single-sided liquidity removal
             uint256[] memory reserves = cappedReserves(inputToken);
             require(reserves.length > 0, "Convert: Failed to read capped reserves");
@@ -378,6 +373,8 @@ library LibDeltaB {
             );
 
             maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
+        } else {
+            revert("Convert: inputToken must be Bean or Well");
         }
     }
 

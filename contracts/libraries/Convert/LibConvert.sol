@@ -294,6 +294,8 @@ library LibConvert {
                 bdvConverted
             );
         } else {
+            // Zero deltaB impact only occurs in Bean to Bean converts where no Well
+            // is involved, resulting in zero penalty.
             stalkPenaltyBdv = 0;
         }
 
