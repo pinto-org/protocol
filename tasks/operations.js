@@ -97,8 +97,8 @@ module.exports = function () {
     "skipMorningAuction",
     "Skips the morning auction, accounts for block time",
     async function () {
-      const duration = 300; // 5 minutes
-      // skip 5 minutes in blocks --> 150 blocks for base
+      const duration = 900; // 15 minutes (morning auction is 10 minutes)
+      // skip 15 minutes in blocks --> 450 blocks for base
       const blocksToSkip = duration / BASE_BLOCK_TIME;
       for (let i = 0; i < blocksToSkip; i++) {
         await network.provider.send("evm_mine");
