@@ -352,8 +352,8 @@ contract PipelineConvertTest is TestHelper {
             pd.afterOutputTokenLPSupply,
             pd.outputWellNewDeltaB
         );
-        dbs.beforeOverallDeltaB = bs.overallCurrentDeltaB();
-        dbs.afterOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB; // update and for scaled deltaB
+        dbs.twapOverallDeltaB = bs.overallCurrentDeltaB();
+        dbs.shadowOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB; // update and for scaled deltaB
 
         pd.newBdv = bs.bdv(pd.outputWell, pd.wellAmountOut);
 
@@ -1150,9 +1150,9 @@ contract PipelineConvertTest is TestHelper {
             beanEthWell
         );
         td.lpAmountAfter = td.lpAmountBefore.add(td.lpAmountOut);
-        dbs.beforeOverallDeltaB = bs.overallCurrentDeltaB();
+        dbs.twapOverallDeltaB = bs.overallCurrentDeltaB();
         // calculate scaled overall deltaB, based on just the well affected
-        dbs.afterOverallDeltaB = LibDeltaB.scaledDeltaB(
+        dbs.shadowOverallDeltaB = LibDeltaB.scaledDeltaB(
             td.lpAmountBefore,
             td.lpAmountAfter,
             td.calculatedDeltaBAfter
@@ -1280,8 +1280,8 @@ contract PipelineConvertTest is TestHelper {
         updateMockPumpUsingWellReserves(beanEthWell);
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
-        dbs.beforeOverallDeltaB = -int256(amount);
-        dbs.afterOverallDeltaB = 0;
+        dbs.twapOverallDeltaB = -int256(amount);
+        dbs.shadowOverallDeltaB = 0;
         dbs.beforeInputTokenDeltaB = -int256(amount);
         dbs.afterInputTokenDeltaB = 0;
         dbs.beforeOutputTokenDeltaB = 0;
@@ -1444,8 +1444,8 @@ contract PipelineConvertTest is TestHelper {
         updateMockPumpUsingWellReserves(beanEthWell);
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
-        dbs.beforeOverallDeltaB = -200;
-        dbs.afterOverallDeltaB = -100;
+        dbs.twapOverallDeltaB = -200;
+        dbs.shadowOverallDeltaB = -100;
         dbs.beforeInputTokenDeltaB = -100;
         dbs.afterInputTokenDeltaB = 0;
         dbs.beforeOutputTokenDeltaB = 0;
@@ -1472,8 +1472,8 @@ contract PipelineConvertTest is TestHelper {
         updateMockPumpUsingWellReserves(beanEthWell);
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
-        dbs.beforeOverallDeltaB = 100;
-        dbs.afterOverallDeltaB = 0;
+        dbs.twapOverallDeltaB = 100;
+        dbs.shadowOverallDeltaB = 0;
         dbs.beforeInputTokenDeltaB = -100;
         dbs.afterInputTokenDeltaB = 0;
         dbs.beforeOutputTokenDeltaB = 0;
@@ -1558,8 +1558,8 @@ contract PipelineConvertTest is TestHelper {
         dbs.afterInputTokenDeltaB = -100e6;
         dbs.beforeOutputTokenDeltaB = 0;
         dbs.afterOutputTokenDeltaB = 0;
-        dbs.beforeOverallDeltaB = 0;
-        dbs.afterOverallDeltaB = -100e6;
+        dbs.twapOverallDeltaB = 0;
+        dbs.shadowOverallDeltaB = -100e6;
 
         uint256 fromAmount = 1e18; // 1 LP token
 
@@ -1590,8 +1590,8 @@ contract PipelineConvertTest is TestHelper {
         dbs.afterInputTokenDeltaB = -100e6;
         dbs.beforeOutputTokenDeltaB = 0;
         dbs.afterOutputTokenDeltaB = 0;
-        dbs.beforeOverallDeltaB = 0;
-        dbs.afterOverallDeltaB = -100e6;
+        dbs.twapOverallDeltaB = 0;
+        dbs.shadowOverallDeltaB = -100e6;
 
         uint256 fromAmount = 1e18; // 1 LP token
 
@@ -1618,7 +1618,7 @@ contract PipelineConvertTest is TestHelper {
 
         inputToken = BEAN;
         outputToken = beanEthWell;
-        dbs.beforeOverallDeltaB = -100;
+        dbs.twapOverallDeltaB = -100;
 
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
@@ -1645,8 +1645,8 @@ contract PipelineConvertTest is TestHelper {
         dbs.afterInputTokenDeltaB = -50;
         dbs.beforeOutputTokenDeltaB = -100;
         dbs.afterOutputTokenDeltaB = -500;
-        dbs.beforeOverallDeltaB = -300;
-        dbs.afterOverallDeltaB = -250;
+        dbs.twapOverallDeltaB = -300;
+        dbs.shadowOverallDeltaB = -250;
 
         overallConvertCapacity = 100; // Set low to force penalty
 
@@ -1753,8 +1753,8 @@ contract PipelineConvertTest is TestHelper {
         dbs.afterInputTokenDeltaB = 0;
         dbs.beforeOutputTokenDeltaB = -100;
         dbs.afterOutputTokenDeltaB = 0;
-        dbs.beforeOverallDeltaB = 0;
-        dbs.afterOverallDeltaB = 0;
+        dbs.twapOverallDeltaB = 0;
+        dbs.shadowOverallDeltaB = 0;
 
         inputToken = beanEthWell;
         outputToken = BEAN;

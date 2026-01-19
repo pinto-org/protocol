@@ -99,8 +99,8 @@ library LibPipelineConvert {
     ) public returns (uint256) {
         {
             int256 afterSpotOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
-            dbs.afterOverallDeltaB =
-                dbs.beforeOverallDeltaB +
+            dbs.shadowOverallDeltaB =
+                dbs.twapOverallDeltaB +
                 (afterSpotOverallDeltaB - beforeSpotOverallDeltaB);
         }
 
@@ -157,7 +157,7 @@ library LibPipelineConvert {
         address toToken
     ) internal view returns (PipelineConvertData memory pipeData) {
         // Use TWAP-based deltaB as baseline (resistant to flash loan manipulation).
-        pipeData.deltaB.beforeOverallDeltaB = LibDeltaB.overallCappedDeltaB();
+        pipeData.deltaB.twapOverallDeltaB = LibDeltaB.overallCappedDeltaB();
         // Store current spot deltaB to measure actual change after convert.
         pipeData.beforeSpotOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
         pipeData.deltaB.beforeInputTokenDeltaB = LibDeltaB.getCurrentDeltaB(fromToken);

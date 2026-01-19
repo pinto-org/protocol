@@ -68,8 +68,8 @@ library LibConvert {
         int256 afterInputTokenDeltaB;
         int256 beforeOutputTokenDeltaB;
         int256 afterOutputTokenDeltaB;
-        int256 beforeOverallDeltaB;
-        int256 afterOverallDeltaB;
+        int256 twapOverallDeltaB;
+        int256 shadowOverallDeltaB;
     }
 
     struct PenaltyData {
@@ -389,7 +389,7 @@ library LibConvert {
     function calculateAmountAgainstPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateAgainstPeg(dbs.beforeOverallDeltaB, dbs.afterOverallDeltaB);
+        pd.overall = calculateAgainstPeg(dbs.twapOverallDeltaB, dbs.shadowOverallDeltaB);
         pd.inputToken = calculateAgainstPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
         pd.outputToken = calculateAgainstPeg(
             dbs.beforeOutputTokenDeltaB,
@@ -425,7 +425,7 @@ library LibConvert {
     function calculateConvertedTowardsPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateTowardsPeg(dbs.beforeOverallDeltaB, dbs.afterOverallDeltaB);
+        pd.overall = calculateTowardsPeg(dbs.twapOverallDeltaB, dbs.shadowOverallDeltaB);
         pd.inputToken = calculateTowardsPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
         pd.outputToken = calculateTowardsPeg(
             dbs.beforeOutputTokenDeltaB,
