@@ -709,7 +709,7 @@ module.exports = function () {
   });
 
   task("PI-14", "Deploys PI-14").setAction(async function () {
-    const mock = false;
+    const mock = true;
     let owner;
 
     const { fetchAllSowData } = require("../scripts/deployment/fetchSowFarmers.js");
