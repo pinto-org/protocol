@@ -8,14 +8,16 @@ const {
   L2_PINTO,
   PINTO_DIAMOND_DEPLOYER,
   BASE_BLOCK_TIME,
-  PINTO_CBTC_WELL_BASE
+  PINTO_CBBTC_WELL_BASE,
+  PINTO_WSTETH_WELL_BASE
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
-  task("callSunrise", "Calls the sunrise function", async function () {
-    beanstalk = await getBeanstalk(L2_PINTO);
-    const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
-
+  /**
+   * Internal function to call sunrise logic.
+   * Separated for direct invocation from both callSunrise and callSunriseN tasks.
+   */
+  async function runSunrise({ hre, ethers, network, beanstalk, account }) {
     // ensure account has enough eth for gas
     await mintEth(account.address);
 
@@ -59,7 +61,31 @@ module.exports = function () {
       "\ncurrent pinto supply:",
       await ethers.utils.formatUnits(totalSupply, 6)
     );
+  }
+
+  task("callSunrise", "Calls the sunrise function", async function (_, hre) {
+    const { ethers, network } = hre;
+    const beanstalk = await getBeanstalk(L2_PINTO);
+    const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+
+    await runSunrise({ hre, ethers, network, beanstalk, account });
   });
+
+  task("callSunriseN", "Calls the sunrise function N times")
+    .addParam("n", "The number of times to call sunrise")
+    .setAction(async function (taskArgs, hre) {
+      const { ethers, network } = hre;
+      const n = parseInt(taskArgs.n);
+      if (isNaN(n) || n < 1) {
+        throw new Error("Please provide a valid integer for n > 0");
+      }
+      const beanstalk = await getBeanstalk(L2_PINTO);
+      const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+      for (let i = 0; i < n; i++) {
+        console.log(`---- Calling sunrise #${i + 1} of ${n} ----`);
+        await runSunrise({ hre, ethers, network, beanstalk, account });
+      }
+    });
 
   task("unpause", "Unpauses the beanstalk contract", async function () {
     let deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
@@ -71,8 +97,8 @@ module.exports = function () {
     "skipMorningAuction",
     "Skips the morning auction, accounts for block time",
     async function () {
-      const duration = 300; // 5 minutes
-      // skip 5 minutes in blocks --> 150 blocks for base
+      const duration = 900; // 15 minutes (morning auction is 10 minutes)
+      // skip 15 minutes in blocks --> 450 blocks for base
       const blocksToSkip = duration / BASE_BLOCK_TIME;
       for (let i = 0; i < blocksToSkip; i++) {
         await network.provider.send("evm_mine");
@@ -121,7 +147,7 @@ module.exports = function () {
     // add 1000 pintos and 1000 btc to force deltaB to skyrocket
     const amountsArray = ["1000", "1000"];
     const receiver = await account.getAddress();
-    await addLiquidityAndTransfer(account, PINTO_CBTC_WELL_BASE, receiver, amountsArray, false);
+    await addLiquidityAndTransfer(account, PINTO_CBBTC_WELL_BASE, receiver, amountsArray, false);
     // call sunrise 3 times to force a flood
     for (let i = 0; i < 4; i++) {
       await hre.run("callSunrise");
@@ -129,4 +155,73 @@ module.exports = function () {
     console.log("---------------------------");
     console.log("Flood forced!");
   });
+
+  task("getPrices", "Gets the price of a token").setAction(async function () {
+    const beanstalkPrice = await ethers.getContractAt(
+      "BeanstalkPrice",
+      "0x13D25ABCB6a19948d35654715c729c6501230b49"
+    );
+    const priceData = await beanstalkPrice["price()"]();
+
+    // Helper function to format numbers
+    const fmt = (bn, decimals = 6) => ethers.utils.formatUnits(bn, decimals);
+    const fmtUSD = (bn) => `$${parseFloat(fmt(bn, 6)).toFixed(4)}`;
+
+    console.log("\n=== BEAN PRICE OVERVIEW ===");
+    console.log(`Price: ${fmtUSD(priceData.price)}`);
+    console.log(`Total Liquidity: $${parseFloat(fmt(priceData.liquidity, 6)).toLocaleString()}`);
+    console.log(`DeltaB: ${parseFloat(fmt(priceData.deltaB, 6)).toLocaleString()} Beans`);
+
+    console.log(`\n=== POOL DETAILS (${priceData.ps.length} pools) ===\n`);
+
+    for (let i = 0; i < priceData.ps.length; i++) {
+      const pool = priceData.ps[i];
+      console.log(`Pool ${i + 1}: ${pool.pool}`);
+      console.log(`  Price: ${fmtUSD(pool.price)}`);
+      console.log(`  Total Liquidity: $${parseFloat(fmt(pool.liquidity, 6)).toLocaleString()}`);
+      console.log(
+        `  Bean Liquidity: ${parseFloat(fmt(pool.beanLiquidity, 6)).toLocaleString()} Beans`
+      );
+      console.log(
+        `  Non-Bean Liquidity: $${parseFloat(fmt(pool.nonBeanLiquidity, 6)).toLocaleString()}`
+      );
+      console.log(`  DeltaB: ${parseFloat(fmt(pool.deltaB, 6)).toLocaleString()} Beans`);
+      console.log(`  LP USD Value: ${fmtUSD(pool.lpUsd)}`);
+      console.log(`  LP BDV: ${parseFloat(fmt(pool.lpBdv, 6)).toLocaleString()}`);
+      console.log(`  LP BDV: ${pool.lpBdv}`);
+      console.log(`  Tokens: ${pool.tokens[0]}, ${pool.tokens[1]}`);
+      console.log(
+        `  Balances: ${parseFloat(fmt(pool.balances[0], 6)).toLocaleString()}, ${parseFloat(fmt(pool.balances[1], 6)).toLocaleString()}\n`
+      );
+    }
+  });
+
+  task("addLiquidityToWstethWell", "Adds liquidity to the wstETH well")
+    .addOptionalParam("well", "The well address", PINTO_WSTETH_WELL_BASE)
+    .addOptionalParam("beanAmount", "Amount of Bean tokens to add", "10000")
+    .addOptionalParam("wstethAmount", "Amount of wstETH tokens to add", "1")
+    .addOptionalParam("receiver", "Receiver of LP tokens", PINTO_DIAMOND_DEPLOYER)
+    .addFlag("deposit", "Deposit the LP tokens into Beanstalk silo", true)
+    .setAction(async (taskArgs) => {
+      console.log("\n=== Adding Liquidity to wstETH Well ===");
+      console.log(`Well: ${taskArgs.well}`);
+      console.log(`Bean Amount: ${taskArgs.beanAmount}`);
+      console.log(`wstETH Amount: ${taskArgs.wstethAmount}`);
+      console.log(`Receiver: ${taskArgs.receiver}`);
+      console.log(`Deposit to Silo: ${taskArgs.deposit}\n`);
+
+      const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+      const amounts = [taskArgs.beanAmount, taskArgs.wstethAmount];
+
+      await addLiquidityAndTransfer(
+        account,
+        taskArgs.well,
+        taskArgs.receiver,
+        amounts,
+        true,
+        taskArgs.deposit
+      );
+
+      console.log("\n✅ Liquidity added successfully!\n");
+    });
 };

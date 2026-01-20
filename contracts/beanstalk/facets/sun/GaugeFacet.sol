@@ -10,7 +10,8 @@ import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {ReentrancyGuard} from "contracts/beanstalk/ReentrancyGuard.sol";
 import {C} from "contracts/C.sol";
 import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
+import {LibGaugeLogic} from "contracts/libraries/Gauge/LibGaugeLogic.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -51,6 +52,12 @@ interface IGaugeFacet {
         bytes memory systemData,
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory);
+
+    function lpDistributionUpdateGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external returns (bytes memory, bytes memory);
 }
 
 /**
@@ -179,7 +186,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @notice the convert down penalty gauge adds a penalty when converting down, in certain cases.
      * The penalty can be split into two parts:
      * 1) a mint penalty, which is applied when the system is below value target.
-     * 2) a subseqently penalty that decays over the course of N seasons.
+     * 2) a subsequently penalty that decays over the course of N seasons.
      *
      * @dev returned penalty ratio has 18 decimal precision.
      */
@@ -344,7 +351,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (
                 LibGaugeHelpers.ConvertBonusCapacityUtilization cbu,
                 LibGaugeHelpers.ConvertDemand cd
-            ) = LibGaugeHelpers.getCapacityUltilizationAndConvertDemand(
+            ) = LibGaugeHelpers.getCapacityUtilizationAndConvertDemand(
                     gd.bdvConvertedThisSeason,
                     gd.bdvConvertedLastSeason,
                     gv.maxConvertCapacity
@@ -391,6 +398,18 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         return (abi.encode(gv), abi.encode(gd));
     }
 
+    /**
+     * @notice Updates the `optimalPercentDepositedBdv` for a list of whitelisted tokens.
+     * @dev
+     */
+    function lpDistributionUpdateGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external returns (bytes memory, bytes memory) {
+        return LibGaugeLogic.lpDistributionGauge(value, systemData, gaugeData);
+    }
+
     /// GAUGE ADD/REMOVE/UPDATE ///
 
     function getGauge(GaugeId gaugeId) external view returns (Gauge memory) {
@@ -407,22 +426,24 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
     /**
      * @notice returns the result of calling a gauge.
+     * @dev does not support stateful gauges.
      */
     function getGaugeResult(
         Gauge memory gauge,
         bytes memory systemData
     ) external view returns (bytes memory, bytes memory) {
-        return LibGaugeHelpers.getGaugeResult(gauge, systemData);
+        return LibGaugeHelpers.getStatelessGaugeResult(gauge, systemData);
     }
 
     /**
      * @notice returns the result of calling a gauge by its id.
+     * @dev does not support stateful gauges.
      */
     function getGaugeIdResult(
         GaugeId gaugeId,
         bytes memory systemData
     ) external view returns (bytes memory, bytes memory) {
         Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
-        return LibGaugeHelpers.getGaugeResult(g, systemData);
+        return LibGaugeHelpers.getStatelessGaugeResult(g, systemData);
     }
 }

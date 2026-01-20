@@ -51,4 +51,10 @@ interface IAquifer {
      * If `wellImplementation == address(0)`, then the Aquifer did not deploy the Well.
      */
     function wellImplementation(address well) external view returns (address implementation);
+
+    function predictWellAddress(
+        address implementation,
+        bytes calldata immutableData,
+        bytes32 salt
+    ) external view returns (address well);
 }
