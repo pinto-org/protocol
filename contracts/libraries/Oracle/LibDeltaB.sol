@@ -339,9 +339,10 @@ library LibDeltaB {
                 ZERO_LOOKBACK
             );
 
-            if (fromAmount >= theoreticalLpSupply) {
-                return _abs(beforeDeltaB);
-            }
+            require(
+                fromAmount < theoreticalLpSupply,
+                "Convert: fromAmount exceeds LP supply"
+            );
 
             uint256 newLpSupply = theoreticalLpSupply - fromAmount;
 
@@ -353,9 +354,10 @@ library LibDeltaB {
                 wellFunction.data
             );
 
-            if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
-                return _abs(beforeDeltaB);
-            }
+            require(
+                reserves[beanIndex] >= C.WELL_MINIMUM_BEAN_BALANCE,
+                "Convert: Bean reserve below minimum after removal"
+            );
 
             int256 afterDeltaB = calculateDeltaBFromReservesLiquidity(
                 inputToken,
