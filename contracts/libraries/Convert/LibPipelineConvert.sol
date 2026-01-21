@@ -32,6 +32,7 @@ library LibPipelineConvert {
         uint256 newBdv;
         uint256[] initialLpSupply;
         uint256 initialGrownStalk;
+        int256 beforeSpotOverallDeltaB;
     }
 
     function executePipelineConvert(
@@ -48,7 +49,7 @@ library LibPipelineConvert {
         );
 
         // Store the capped overall deltaB, this limits the overall convert power for the block
-        pipeData.overallConvertCapacity = LibConvert.abs(LibDeltaB.overallCappedDeltaB());
+        pipeData.overallConvertCapacity = LibConvert.abs(pipeData.deltaB.twapOverallDeltaB);
 
         IERC20(inputToken).transfer(C.PIPELINE, fromAmount);
         IPipeline(C.PIPELINE).advancedPipe(advancedPipeCalls);
@@ -67,7 +68,9 @@ library LibPipelineConvert {
             pipeData.deltaB,
             pipeData.overallConvertCapacity,
             newBdv,
-            pipeData.initialLpSupply
+            pipeData.initialLpSupply,
+            pipeData.beforeSpotOverallDeltaB,
+            fromAmount
         );
 
         // scale initial grown stalk proportionally to the bdv lost (if any)
@@ -81,6 +84,8 @@ library LibPipelineConvert {
 
     /**
      * @notice Calculates the stalk penalty for a convert. Updates convert capacity used.
+     * @dev Uses TWAP as a manipulation-resistant baseline and measures actual spot price changes
+     * to determine the convert's impact on deltaB.
      */
     function prepareStalkPenaltyCalculation(
         address inputToken,
@@ -88,9 +93,16 @@ library LibPipelineConvert {
         LibConvert.DeltaBStorage memory dbs,
         uint256 overallConvertCapacity,
         uint256 toBdv,
-        uint256[] memory initialLpSupply
+        uint256[] memory initialLpSupply,
+        int256 beforeSpotOverallDeltaB,
+        uint256 inputAmount
     ) public returns (uint256) {
-        dbs.afterOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
+        {
+            int256 afterSpotOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
+            dbs.shadowOverallDeltaB =
+                dbs.twapOverallDeltaB +
+                (afterSpotOverallDeltaB - beforeSpotOverallDeltaB);
+        }
 
         // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts
         if (LibWell.isWell(inputToken)) {
@@ -121,7 +133,8 @@ library LibPipelineConvert {
                 toBdv,
                 overallConvertCapacity,
                 inputToken,
-                outputToken
+                outputToken,
+                inputAmount
             );
     }
 
@@ -143,7 +156,10 @@ library LibPipelineConvert {
         address fromToken,
         address toToken
     ) internal view returns (PipelineConvertData memory pipeData) {
-        pipeData.deltaB.beforeOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
+        // Use TWAP-based deltaB as baseline (resistant to flash loan manipulation).
+        pipeData.deltaB.twapOverallDeltaB = LibDeltaB.overallCappedDeltaB();
+        // Store current spot deltaB to measure actual change after convert.
+        pipeData.beforeSpotOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
         pipeData.deltaB.beforeInputTokenDeltaB = LibDeltaB.getCurrentDeltaB(fromToken);
         pipeData.deltaB.beforeOutputTokenDeltaB = LibDeltaB.getCurrentDeltaB(toToken);
         pipeData.initialLpSupply = LibDeltaB.getLpSupply();
@@ -189,7 +205,8 @@ library LibPipelineConvert {
         bytes calldata convertData,
         address fromToken,
         address toToken,
-        uint256 toBdv
+        uint256 toBdv,
+        uint256 fromAmount
     ) public returns (uint256 grownStalk) {
         LibConvertData.ConvertKind kind = convertData.convertKind();
         if (
@@ -204,7 +221,9 @@ library LibPipelineConvert {
                 pipeData.deltaB,
                 pipeData.overallConvertCapacity,
                 toBdv,
-                pipeData.initialLpSupply
+                pipeData.initialLpSupply,
+                pipeData.beforeSpotOverallDeltaB,
+                fromAmount
             );
 
             // apply penalty to grown stalk as a % of bdv converted. See {LibConvert.executePipelineConvert}
