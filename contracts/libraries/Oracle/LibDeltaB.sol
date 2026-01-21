@@ -339,10 +339,7 @@ library LibDeltaB {
                 ZERO_LOOKBACK
             );
 
-            require(
-                fromAmount < theoreticalLpSupply,
-                "Convert: fromAmount exceeds LP supply"
-            );
+            require(fromAmount < theoreticalLpSupply, "Convert: fromAmount exceeds LP supply");
 
             uint256 newLpSupply = theoreticalLpSupply - fromAmount;
 
