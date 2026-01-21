@@ -306,7 +306,6 @@ library LibDeltaB {
 
             // Simulate single sided Bean addition
             reserves[beanIndex] = reserves[beanIndex] + fromAmount;
-
         } else if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
             // LP input: calculate deltaB impact of removing liquidity from inputToken well
             well = inputToken;
@@ -344,7 +343,6 @@ library LibDeltaB {
                 reserves[beanIndex] >= C.WELL_MINIMUM_BEAN_BALANCE,
                 "Convert: Bean reserve below minimum after removal"
             );
-
         } else {
             revert("Convert: inputToken must be Bean or Well");
         }
