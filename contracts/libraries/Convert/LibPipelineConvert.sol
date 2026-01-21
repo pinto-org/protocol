@@ -49,7 +49,7 @@ library LibPipelineConvert {
         );
 
         // Store the capped overall deltaB, this limits the overall convert power for the block
-        pipeData.overallConvertCapacity = LibConvert.abs(LibDeltaB.overallCappedDeltaB());
+        pipeData.overallConvertCapacity = LibConvert.abs(pipeData.deltaB.twapOverallDeltaB);
 
         IERC20(inputToken).transfer(C.PIPELINE, fromAmount);
         IPipeline(C.PIPELINE).advancedPipe(advancedPipeCalls);
