@@ -372,7 +372,7 @@ library LibDeltaB {
                 ZERO_LOOKBACK
             );
 
-            maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
+            maxDeltaBImpact = uint256(afterDeltaB - beforeDeltaB);
         } else {
             revert("Convert: inputToken must be Bean or Well");
         }
