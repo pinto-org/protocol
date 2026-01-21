@@ -313,7 +313,7 @@ library LibDeltaB {
                 ZERO_LOOKBACK
             );
 
-            maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
+            maxDeltaBImpact = uint256(beforeDeltaB - afterDeltaB);
         } else if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
             // LP input: calculate deltaB impact of removing liquidity from inputToken well
             uint256[] memory reserves = cappedReserves(inputToken);
@@ -369,12 +369,5 @@ library LibDeltaB {
         } else {
             revert("Convert: inputToken must be Bean or Well");
         }
-    }
-
-    /**
-     * @dev Returns the absolute value of a signed integer as an unsigned integer.
-     */
-    function _abs(int256 x) private pure returns (uint256) {
-        return x >= 0 ? uint256(x) : uint256(-x);
     }
 }
