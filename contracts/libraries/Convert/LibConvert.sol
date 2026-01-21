@@ -68,8 +68,8 @@ library LibConvert {
         int256 afterInputTokenDeltaB;
         int256 beforeOutputTokenDeltaB;
         int256 afterOutputTokenDeltaB;
-        int256 beforeOverallDeltaB;
-        int256 afterOverallDeltaB;
+        int256 twapOverallDeltaB;
+        int256 shadowOverallDeltaB;
     }
 
     struct PenaltyData {
@@ -203,7 +203,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 overallConvertCapacityUsed;
@@ -220,7 +221,8 @@ library LibConvert {
             bdvConverted,
             overallConvertCapacity,
             inputToken,
-            outputToken
+            outputToken,
+            fromAmount
         );
 
         // Update penalties in storage.
@@ -246,7 +248,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         internal
         view
@@ -276,11 +279,24 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
-        stalkPenaltyBdv = min(
-            max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty),
-            bdvConverted
+        address targetWell = LibWell.isWell(inputToken) ? inputToken : outputToken;
+        uint256 pipelineConvertDeltaBImpact = LibDeltaB.calculateMaxDeltaBImpact(
+            inputToken,
+            fromAmount,
+            targetWell
         );
+
+        uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
+
+        if (pipelineConvertDeltaBImpact > 0) {
+            stalkPenaltyBdv = min(
+                (penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact,
+                bdvConverted
+            );
+        } else {
+            // Bean to Bean converts don't affect any Well's deltaB, resulting in zero penalty.
+            stalkPenaltyBdv = 0;
+        }
 
         return (
             stalkPenaltyBdv,
@@ -373,7 +389,7 @@ library LibConvert {
     function calculateAmountAgainstPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateAgainstPeg(dbs.beforeOverallDeltaB, dbs.afterOverallDeltaB);
+        pd.overall = calculateAgainstPeg(dbs.twapOverallDeltaB, dbs.shadowOverallDeltaB);
         pd.inputToken = calculateAgainstPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
         pd.outputToken = calculateAgainstPeg(
             dbs.beforeOutputTokenDeltaB,
@@ -409,7 +425,7 @@ library LibConvert {
     function calculateConvertedTowardsPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateTowardsPeg(dbs.beforeOverallDeltaB, dbs.afterOverallDeltaB);
+        pd.overall = calculateTowardsPeg(dbs.twapOverallDeltaB, dbs.shadowOverallDeltaB);
         pd.inputToken = calculateTowardsPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
         pd.outputToken = calculateTowardsPeg(
             dbs.beforeOutputTokenDeltaB,

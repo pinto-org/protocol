@@ -91,8 +91,8 @@ interface IMockFBeanstalk {
         int256 afterInputTokenDeltaB;
         int256 beforeOutputTokenDeltaB;
         int256 afterOutputTokenDeltaB;
-        int256 beforeOverallDeltaB;
-        int256 afterOverallDeltaB;
+        int256 twapOverallDeltaB;
+        int256 shadowOverallDeltaB;
     }
 
     struct Deposit {
@@ -702,7 +702,8 @@ interface IMockFBeanstalk {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         external
         view
