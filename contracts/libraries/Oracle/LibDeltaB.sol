@@ -305,15 +305,11 @@ library LibDeltaB {
             );
 
             // Simulate single sided Bean addition
-            uint256[] memory newReserves = new uint256[](reserves.length);
-            for (uint256 i = 0; i < reserves.length; i++) {
-                newReserves[i] = reserves[i];
-            }
-            newReserves[beanIndex] = reserves[beanIndex] + fromAmount;
+            reserves[beanIndex] = reserves[beanIndex] + fromAmount;
 
             int256 afterDeltaB = calculateDeltaBFromReservesLiquidity(
                 targetWell,
-                newReserves,
+                reserves,
                 ZERO_LOOKBACK
             );
 
@@ -350,25 +346,20 @@ library LibDeltaB {
             uint256 newLpSupply = theoreticalLpSupply - fromAmount;
 
             // Calculate new Bean reserve using calcReserve for single sided removal
-            uint256[] memory newReserves = new uint256[](reserves.length);
-            for (uint256 i = 0; i < reserves.length; i++) {
-                newReserves[i] = reserves[i];
-            }
-
-            newReserves[beanIndex] = IBeanstalkWellFunction(wellFunction.target).calcReserve(
-                newReserves,
+            reserves[beanIndex] = IBeanstalkWellFunction(wellFunction.target).calcReserve(
+                reserves,
                 beanIndex,
                 newLpSupply,
                 wellFunction.data
             );
 
-            if (newReserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
+            if (reserves[beanIndex] < C.WELL_MINIMUM_BEAN_BALANCE) {
                 return _abs(beforeDeltaB);
             }
 
             int256 afterDeltaB = calculateDeltaBFromReservesLiquidity(
                 inputToken,
-                newReserves,
+                reserves,
                 ZERO_LOOKBACK
             );
 
