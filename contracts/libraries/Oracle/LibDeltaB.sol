@@ -285,7 +285,7 @@ library LibDeltaB {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         if (inputToken == s.sys.bean) {
-            // Bean → LP: Single-sided liquidity addition
+            // Bean input: calculate deltaB impact of adding beans to targetWell
 
             if (!LibWell.isWell(targetWell)) return 0;
 
@@ -319,7 +319,7 @@ library LibDeltaB {
 
             maxDeltaBImpact = _abs(beforeDeltaB - afterDeltaB);
         } else if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
-            // LP → Bean: Single-sided liquidity removal
+            // LP input: calculate deltaB impact of removing liquidity from inputToken well
             uint256[] memory reserves = cappedReserves(inputToken);
             require(reserves.length > 0, "Convert: Failed to read capped reserves");
 
