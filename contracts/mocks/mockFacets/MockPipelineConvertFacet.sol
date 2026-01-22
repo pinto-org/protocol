@@ -19,7 +19,9 @@ contract MockPipelineConvertFacet is PipelineConvertFacet {
         address inputToken,
         uint256 inputTokenAmountInDirectionOfPeg,
         address outputToken,
-        uint256 outputTokenAmountInDirectionOfPeg
+        uint256 outputTokenAmountInDirectionOfPeg,
+        address targetWell,
+        int256 targetWellDeltaB
     ) external view returns (uint256 cumulativePenalty, LibConvert.PenaltyData memory pdCapacity) {
         (cumulativePenalty, pdCapacity) = LibConvert.calculateConvertCapacityPenalty(
             overallCappedDeltaB,
@@ -27,7 +29,9 @@ contract MockPipelineConvertFacet is PipelineConvertFacet {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            targetWell,
+            targetWellDeltaB
         );
     }
 }
