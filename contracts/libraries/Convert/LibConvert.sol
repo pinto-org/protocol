@@ -446,11 +446,11 @@ library LibConvert {
         int256 beforeTokenDeltaB,
         int256 afterTokenDeltaB
     ) internal pure returns (uint256) {
-        // Calculate absolute values of beforeInputTokenDeltaB and afterInputTokenDeltaB using the abs() function
+        // Calculate absolute values of beforeTokenDeltaB and afterTokenDeltaB using the abs() function
         uint256 beforeDeltaAbs = abs(beforeTokenDeltaB);
         uint256 afterDeltaAbs = abs(afterTokenDeltaB);
 
-        // Check if afterInputTokenDeltaB and beforeInputTokenDeltaB have the same sign
+        // Check if afterTokenDeltaB and beforeTokenDeltaB have the same sign
         if (
             (beforeTokenDeltaB >= 0 && afterTokenDeltaB >= 0) ||
             (beforeTokenDeltaB < 0 && afterTokenDeltaB < 0)
@@ -460,7 +460,7 @@ library LibConvert {
                 // Return the difference between beforeDeltaAbs and afterDeltaAbs
                 return beforeDeltaAbs.sub(afterDeltaAbs);
             } else {
-                // If afterInputTokenDeltaB is further from or equal to zero, return zero
+                // If afterTokenDeltaB is further from or equal to zero, return zero
                 return 0;
             }
         } else {
