@@ -18,7 +18,13 @@ const {
 // Import task modules
 require("./tasks")();
 
-// used in the UI to run the latest upgrade
+// used in the UI to run the latest upgrade.
+// NOTE: when forking with anvil, one should run it with
+// 1) disable gas limit,
+// 2) no rate limit,
+// 3) threads 0
+// 4) at a block number (to make subsequent deployments faster).
+//  - anvil --fork-url <url> -disable-gas-limit --no-rate-limit --threads 0 --fork-block-number <block number>
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // compile contracts.
   await hre.run("compile");
@@ -37,6 +43,9 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // update the oracle timeouts
   await hre.run("updateOracleTimeouts");
   console.log("Oracle timeouts updated.");
+
+  // run beanstalk shipments
+  await hre.run("runBeanstalkShipments", { skipPause: true, runStep0: false });
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
@@ -79,7 +88,7 @@ module.exports = {
     localhost: {
       chainId: 1337,
       url: "http://127.0.0.1:8545/",
-      timeout: 1000000000,
+      timeout: 100000000000000000,
       accounts: "remote"
     },
     mainnet: {

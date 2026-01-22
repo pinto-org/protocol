@@ -754,6 +754,7 @@ async function upgradeWithNewFacets({
 
   const receipt = await result.wait();
   totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+  console.log("diamondCut totalGasUsed: ", totalGasUsed.toString());
   if (verbose) {
     console.log("------");
     console.log("Upgrade transaction hash: " + result.hash);
