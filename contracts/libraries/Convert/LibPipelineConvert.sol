@@ -49,7 +49,7 @@ library LibPipelineConvert {
         );
 
         // Store the capped overall deltaB, this limits the overall convert power for the block
-        pipeData.overallConvertCapacity = LibConvert.abs(pipeData.deltaB.twapOverallDeltaB);
+        pipeData.overallConvertCapacity = LibConvert.abs(pipeData.deltaB.cappedOverallDeltaB);
 
         IERC20(inputToken).transfer(C.PIPELINE, fromAmount);
         IPipeline(C.PIPELINE).advancedPipe(advancedPipeCalls);
@@ -100,16 +100,16 @@ library LibPipelineConvert {
         {
             int256 afterSpotOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
             dbs.shadowOverallDeltaB =
-                dbs.twapOverallDeltaB +
+                dbs.cappedOverallDeltaB +
                 (afterSpotOverallDeltaB - beforeSpotOverallDeltaB);
         }
 
-        // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts
+        // modify afterInputTokenSpotDeltaB and afterOutputTokenSpotDeltaB to scale using before/after LP amounts
         if (LibWell.isWell(inputToken)) {
             uint256 i = LibWhitelistedTokens.getIndexFromWhitelistedWellLpTokens(inputToken);
             // input token supply was burned, check to avoid division by zero
             uint256 currentInputTokenSupply = IERC20(inputToken).totalSupply();
-            dbs.afterInputTokenDeltaB = currentInputTokenSupply == 0
+            dbs.afterInputTokenSpotDeltaB = currentInputTokenSupply == 0
                 ? int256(0)
                 : LibDeltaB.scaledDeltaB(
                     initialLpSupply[i],
@@ -120,7 +120,7 @@ library LibPipelineConvert {
 
         if (LibWell.isWell(outputToken)) {
             uint256 i = LibWhitelistedTokens.getIndexFromWhitelistedWellLpTokens(outputToken);
-            dbs.afterOutputTokenDeltaB = LibDeltaB.scaledDeltaB(
+            dbs.afterOutputTokenSpotDeltaB = LibDeltaB.scaledDeltaB(
                 initialLpSupply[i],
                 IERC20(outputToken).totalSupply(),
                 LibDeltaB.getCurrentDeltaB(outputToken)
@@ -156,12 +156,12 @@ library LibPipelineConvert {
         address fromToken,
         address toToken
     ) internal view returns (PipelineConvertData memory pipeData) {
-        // Use TWAP-based deltaB as baseline (resistant to flash loan manipulation).
-        pipeData.deltaB.twapOverallDeltaB = LibDeltaB.overallCappedDeltaB();
+        // Use capped deltaB as baseline (resistant to flash loan manipulation).
+        pipeData.deltaB.cappedOverallDeltaB = LibDeltaB.overallCappedDeltaB();
         // Store current spot deltaB to measure actual change after convert.
         pipeData.beforeSpotOverallDeltaB = LibDeltaB.overallCurrentDeltaB();
-        pipeData.deltaB.beforeInputTokenDeltaB = LibDeltaB.getCurrentDeltaB(fromToken);
-        pipeData.deltaB.beforeOutputTokenDeltaB = LibDeltaB.getCurrentDeltaB(toToken);
+        pipeData.deltaB.beforeInputTokenSpotDeltaB = LibDeltaB.getCurrentDeltaB(fromToken);
+        pipeData.deltaB.beforeOutputTokenSpotDeltaB = LibDeltaB.getCurrentDeltaB(toToken);
         pipeData.initialLpSupply = LibDeltaB.getLpSupply();
     }
 
