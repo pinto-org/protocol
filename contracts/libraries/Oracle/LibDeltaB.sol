@@ -107,33 +107,38 @@ library LibDeltaB {
     }
 
     /**
-     * @notice returns the overall cappedReserves deltaB for all whitelisted well tokens.
+     * @notice returns the cappedReserves deltaB and reserves for a well.
+     * @param well The well to get the deltaB and reserves for.
+     * @return deltaB The deltaB for the well.
+     * @return reserves The capped reserves for the well.
      */
-    function cappedReservesDeltaB(address well) internal view returns (int256) {
+    function cappedReservesDeltaB(
+        address well
+    ) internal view returns (int256 deltaB, uint256[] memory reserves) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         if (well == s.sys.bean) {
-            return 0;
+            return (0, new uint256[](0));
         }
 
-        uint256[] memory instReserves = cappedReserves(well);
-        if (instReserves.length == 0) {
-            return 0;
+        reserves = cappedReserves(well);
+        if (reserves.length == 0) {
+            return (0, reserves);
         }
         // if less than minimum bean balance, return 0, otherwise
         // calculateDeltaBFromReserves will revert
-        if (instReserves[LibWell.getBeanIndexFromWell(well)] < C.WELL_MINIMUM_BEAN_BALANCE) {
-            return 0;
+        if (reserves[LibWell.getBeanIndexFromWell(well)] < C.WELL_MINIMUM_BEAN_BALANCE) {
+            return (0, reserves);
         }
         // calculate deltaB.
-        return calculateDeltaBFromReserves(well, instReserves, ZERO_LOOKBACK);
+        deltaB = calculateDeltaBFromReserves(well, reserves, ZERO_LOOKBACK);
     }
 
     // Calculates overall deltaB, used by convert for stalk penalty purposes
     function overallCappedDeltaB() internal view returns (int256 deltaB) {
         address[] memory tokens = LibWhitelistedTokens.getWhitelistedWellLpTokens();
         for (uint256 i = 0; i < tokens.length; i++) {
-            int256 cappedDeltaB = cappedReservesDeltaB(tokens[i]);
-            deltaB = deltaB.add(cappedDeltaB);
+            (int256 wellDeltaB, ) = cappedReservesDeltaB(tokens[i]);
+            deltaB = deltaB.add(wellDeltaB);
         }
     }
 
@@ -275,17 +280,18 @@ library LibDeltaB {
      * @param inputToken The token being converted from (Bean or LP token)
      * @param fromAmount The amount of input token being converted
      * @param targetWell The Well involved in the conversion
+     * @param reserves Capped reserves for targetWell.
      * @return maxDeltaBImpact Maximum possible deltaB change from this conversion
      */
     function calculateMaxDeltaBImpact(
         address inputToken,
         uint256 fromAmount,
-        address targetWell
+        address targetWell,
+        uint256[] memory reserves
     ) internal view returns (uint256 maxDeltaBImpact) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         address well;
-        uint256[] memory reserves;
         int256 beforeDeltaB;
 
         if (inputToken == s.sys.bean) {
@@ -293,7 +299,6 @@ library LibDeltaB {
             if (!LibWell.isWell(targetWell)) return 0;
 
             well = targetWell;
-            reserves = cappedReserves(well);
             require(reserves.length > 0, "Convert: Failed to read capped reserves");
 
             uint256 beanIndex = LibWell.getBeanIndexFromWell(well);
@@ -309,7 +314,6 @@ library LibDeltaB {
         } else if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
             // LP input: calculate deltaB impact of removing liquidity from inputToken well
             well = inputToken;
-            reserves = cappedReserves(well);
             require(reserves.length > 0, "Convert: Failed to read capped reserves");
 
             uint256 beanIndex = LibWell.getBeanIndexFromWell(well);

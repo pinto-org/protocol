@@ -1320,7 +1320,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, 0);
 
@@ -1337,7 +1339,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, amount);
     }
@@ -1359,7 +1363,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, 0);
     }
@@ -1378,7 +1384,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, 0);
 
@@ -1394,7 +1402,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, amount);
     }
@@ -1414,7 +1424,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, amount);
     }
@@ -1434,7 +1446,9 @@ contract PipelineConvertTest is TestHelper {
             inputToken,
             inputTokenAmountInDirectionOfPeg,
             outputToken,
-            outputTokenAmountInDirectionOfPeg
+            outputTokenAmountInDirectionOfPeg,
+            address(0),
+            int256(0)
         );
         assertEq(penalty, amount);
     }
