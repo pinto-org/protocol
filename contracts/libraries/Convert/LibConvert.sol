@@ -270,7 +270,9 @@ library LibConvert {
             spd.againstPeg.inputToken.add(spd.againstPeg.outputToken)
         );
 
-        address targetWell = LibWhitelistedTokens.wellIsOrWasSoppable(inputToken) ? inputToken : outputToken;
+        address targetWell = LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)
+            ? inputToken
+            : outputToken;
         uint256 pipelineConvertDeltaBImpact;
         {
             (int256 targetWellDeltaB, uint256[] memory targetWellReserves) = LibDeltaB
