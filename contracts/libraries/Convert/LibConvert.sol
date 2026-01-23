@@ -289,13 +289,14 @@ library LibConvert {
         uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
 
         if (pipelineConvertDeltaBImpact > 0) {
+            // This scales the penalty proportionally to how much of the theoretical max was penalized
             stalkPenaltyBdv = min(
                 (penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact,
                 bdvConverted
             );
         } else {
-            // Bean to Bean converts don't affect any Well's deltaB, resulting in zero penalty.
-            stalkPenaltyBdv = 0;
+            // When max impact cannot be determined (LAMBDA -> LAMBDA)
+            stalkPenaltyBdv = min(penaltyAmount, bdvConverted);
         }
 
         return (
