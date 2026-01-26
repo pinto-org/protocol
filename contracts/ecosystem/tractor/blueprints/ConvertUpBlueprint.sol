@@ -8,7 +8,6 @@ import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "../../price/WellPrice.sol";
 import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
-import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title ConvertUpBlueprint
@@ -106,7 +105,6 @@ contract ConvertUpBlueprint is BlueprintBase {
     }
 
     BeanstalkPrice public immutable beanstalkPrice;
-    SiloHelpers public immutable siloHelpers;
 
     // Default slippage ratio for conversions (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -128,11 +126,10 @@ contract ConvertUpBlueprint is BlueprintBase {
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
+        address _gasCostCalculator,
         address _siloHelpers,
-        address _beanstalkPrice,
-        address _gasCostCalculator
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator) {
-        siloHelpers = SiloHelpers(_siloHelpers);
+        address _beanstalkPrice
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
     }
 
@@ -256,23 +253,12 @@ contract ConvertUpBlueprint is BlueprintBase {
 
         updateBeansLeftToConvert(vars.orderHash, beansRemaining);
 
-        int256 totalTipAmount = params.opParams.operatorTipAmount;
-        if (params.opParams.useDynamicFee) {
-            uint256 gasUsedBeforeFee = startGas - gasleft();
-            // Add 15k gas buffer for fee calculation and withdrawal operations below
-            uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
-            uint256 dynamicFee = _payDynamicFee(params, vars.account, estimatedTotalGas, slippageRatio);
-            require(dynamicFee <= uint256(type(int256).max), "ConvertUpBlueprint: fee overflow");
-            totalTipAmount += int256(dynamicFee);
-        }
-
-        tractorHelpers.tip(
-            beanToken,
+        _handleFeeAndTip(
             vars.account,
             tipAddress,
-            totalTipAmount,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
+            params,
+            startGas,
+            slippageRatio
         );
 
         // Update the last executed timestamp for this blueprint
@@ -298,27 +284,41 @@ contract ConvertUpBlueprint is BlueprintBase {
         }
     }
 
-    function _payDynamicFee(
-        ConvertUpBlueprintStruct calldata params,
+    /**
+     * @notice Handles dynamic fee calculation and tip payment
+     */
+    function _handleFeeAndTip(
         address account,
-        uint256 gasUsed,
+        address tipAddress,
+        ConvertUpBlueprintStruct calldata params,
+        uint256 startGas,
         uint256 slippageRatio
-    ) internal returns (uint256 fee) {
-        fee = gasCostCalculator.calculateFeeInPinto(gasUsed, params.opParams.feeMarginBps);
+    ) internal {
+        int256 totalTipAmount = params.opParams.operatorTipAmount;
+        if (params.opParams.useDynamicFee) {
+            uint256 gasUsedBeforeFee = startGas - gasleft();
+            uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
+            uint256 dynamicFee = _payDynamicFee(
+                DynamicFeeParams({
+                    account: account,
+                    sourceTokenIndices: params.convertUpParams.sourceTokenIndices,
+                    gasUsed: estimatedTotalGas,
+                    feeMarginBps: params.opParams.feeMarginBps,
+                    maxGrownStalkPerBdv: params.convertUpParams.maxGrownStalkPerBdv,
+                    slippageRatio: slippageRatio
+                })
+            );
+            require(dynamicFee <= uint256(type(int256).max), "ConvertUpBlueprint: fee overflow");
+            totalTipAmount += int256(dynamicFee);
+        }
 
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
-        LibSiloHelpers.FilterParams memory feeFilterParams = LibSiloHelpers.getDefaultFilterParams(
-            params.convertUpParams.maxGrownStalkPerBdv
-        );
-
-        siloHelpers.withdrawBeansFromSources(
+        tractorHelpers.tip(
+            beanToken,
             account,
-            params.convertUpParams.sourceTokenIndices,
-            fee,
-            feeFilterParams,
-            slippageRatio,
-            LibTransfer.To.INTERNAL,
-            emptyPlan
+            tipAddress,
+            totalTipAmount,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
         );
     }
 

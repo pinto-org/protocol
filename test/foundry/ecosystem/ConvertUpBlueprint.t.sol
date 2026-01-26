@@ -120,9 +120,9 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             address(bs),
             address(this),
             address(tractorHelpers),
+            address(gasCostCalculator),
             address(siloHelpers),
-            address(beanstalkPrice),
-            address(gasCostCalculator)
+            address(beanstalkPrice)
         );
         vm.label(address(convertUpBlueprint), "ConvertUpBlueprint");
 
@@ -177,7 +177,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         address[] memory whitelistedOperators = new address[](1);
         whitelistedOperators[0] = state.operator;
 
-        ConvertUpBlueprint.OperatorParams memory opParams = ConvertUpBlueprint.OperatorParams({
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOperators,
             tipAddress: state.operator,
             operatorTipAmount: int256(baseTip),

@@ -51,8 +51,8 @@ contract PerFunctionPausableTest is TractorTestHelper {
             address(bs),
             address(this),
             address(tractorHelpers),
-            address(siloHelpers),
-            address(0)
+            address(0),
+            address(siloHelpers)
         );
         vm.label(address(sowBlueprint), "SowBlueprint");
 

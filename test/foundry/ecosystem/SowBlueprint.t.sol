@@ -8,6 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
 import {SowBlueprintBase} from "contracts/ecosystem/tractor/blueprints/SowBlueprintBase.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {PriceManipulation} from "contracts/ecosystem/tractor/utils/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -95,8 +96,8 @@ contract SowBlueprintTest is TractorTestHelper {
             address(bs),
             address(this),
             address(tractorHelpers),
-            address(siloHelpers),
-            address(gasCostCalculator)
+            address(gasCostCalculator),
+            address(siloHelpers)
         );
         vm.label(address(sowBlueprint), "SowBlueprint");
 
@@ -1050,7 +1051,7 @@ contract SowBlueprintTest is TractorTestHelper {
                 runBlocksAfterSunrise: 0,
                 slippageRatio: 0.01e18
             }),
-            opParams: SowBlueprintBase.OperatorParams({
+            opParams: BlueprintBase.OperatorParams({
                 whitelistedOperators: whitelistedOperators,
                 tipAddress: state.operator,
                 operatorTipAmount: int256(baseTip),

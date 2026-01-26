@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title SowBlueprintBase
@@ -113,18 +112,13 @@ abstract contract SowBlueprintBase is BlueprintBase {
     // Combined state mapping for order info
     mapping(bytes32 => OrderInfo) private orderInfo;
 
-    // Silo helpers for withdrawal functionality
-    SiloHelpers public immutable siloHelpers;
-
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
-        address _siloHelpers,
-        address _gasCostCalculator
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator) {
-        siloHelpers = SiloHelpers(_siloHelpers);
-    }
+        address _gasCostCalculator,
+        address _siloHelpers
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {}
 
     /**
      * @notice Gets the number of maximum pinto that can be sown from this blueprint
@@ -219,24 +213,17 @@ abstract contract SowBlueprintBase is BlueprintBase {
             uint256 gasUsedBeforeFee = startGas - gasleft();
             // Add 15k gas buffer for fee calculation and withdrawal operations below
             uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
-            uint256 dynamicFee = gasCostCalculator.calculateFeeInPinto(estimatedTotalGas, params.opParams.feeMarginBps);
+            uint256 dynamicFee = _payDynamicFee(
+                DynamicFeeParams({
+                    account: vars.account,
+                    sourceTokenIndices: params.sowParams.sourceTokenIndices,
+                    gasUsed: estimatedTotalGas,
+                    feeMarginBps: params.opParams.feeMarginBps,
+                    maxGrownStalkPerBdv: params.sowParams.maxGrownStalkPerBdv,
+                    slippageRatio: slippageRatio
+                })
+            );
             require(dynamicFee <= uint256(type(int256).max), "SowBlueprintBase: fee overflow");
-
-            LibSiloHelpers.FilterParams memory feeFilterParams = LibSiloHelpers.getDefaultFilterParams(
-                params.sowParams.maxGrownStalkPerBdv
-            );
-
-            LibSiloHelpers.WithdrawalPlan memory emptyFeeWithdrawalPlan;
-            siloHelpers.withdrawBeansFromSources(
-                vars.account,
-                params.sowParams.sourceTokenIndices,
-                dynamicFee,
-                feeFilterParams,
-                slippageRatio,
-                LibTransfer.To.INTERNAL,
-                emptyFeeWithdrawalPlan
-            );
-            
             totalTipAmount += int256(dynamicFee);
         }
 
