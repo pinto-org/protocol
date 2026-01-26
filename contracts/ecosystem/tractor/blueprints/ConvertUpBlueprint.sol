@@ -253,13 +253,7 @@ contract ConvertUpBlueprint is BlueprintBase {
 
         updateBeansLeftToConvert(vars.orderHash, beansRemaining);
 
-        _handleFeeAndTip(
-            vars.account,
-            tipAddress,
-            params,
-            startGas,
-            slippageRatio
-        );
+        _handleFeeAndTip(vars.account, tipAddress, params, startGas, slippageRatio);
 
         // Update the last executed timestamp for this blueprint
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);

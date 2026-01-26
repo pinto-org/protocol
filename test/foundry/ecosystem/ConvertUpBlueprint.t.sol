@@ -113,7 +113,12 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         ethUsdAggregator.addRound(2000e8, block.timestamp, block.timestamp, 1); // $2000 ETH
         vm.etch(gasCostCalculator.ETH_USD_ORACLE(), address(ethUsdAggregator).code);
         MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).setDecimals(8);
-        MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).addRound(2000e8, block.timestamp, block.timestamp, 1);
+        MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).addRound(
+            2000e8,
+            block.timestamp,
+            block.timestamp,
+            1
+        );
 
         // Deploy ConvertUpBlueprint with TractorHelpers, SiloHelpers and BeanstalkPrice address
         convertUpBlueprint = new ConvertUpBlueprint(
@@ -152,26 +157,27 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = getTokenIndex(state.wellToken);
 
-        uint256 baseTip = 5e6; 
+        uint256 baseTip = 5e6;
 
         // Manually construct Blueprint with useDynamicFee = true
-        ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint.ConvertUpParams({
-            sourceTokenIndices: sourceTokenIndices,
-            totalBeanAmountToConvert: state.convertAmount,
-            minBeansConvertPerExecution: state.convertAmount / 4,
-            maxBeansConvertPerExecution: state.convertAmount,
-            capAmountToBonusCapacity: false,
-            minTimeBetweenConverts: 300,
-            minConvertBonusCapacity: 0,
-            maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
-            grownStalkPerBdvBonusBid: 0,
-            minPriceToConvertUp: 0.94e6,
-            maxPriceToConvertUp: 0.99e6,
-            seedDifference: 0,
-            maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
-            slippageRatio: 0.01e18,
-            lowStalkDeposits: LibSiloHelpers.Mode.USE
-        });
+        ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint
+            .ConvertUpParams({
+                sourceTokenIndices: sourceTokenIndices,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
+                capAmountToBonusCapacity: false,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusBid: 0,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
+                maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
+                slippageRatio: 0.01e18,
+                lowStalkDeposits: LibSiloHelpers.Mode.USE
+            });
 
         // Create whitelisted operators array
         address[] memory whitelistedOperators = new address[](1);
@@ -185,11 +191,9 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             feeMarginBps: 0
         });
 
-        ConvertUpBlueprint.ConvertUpBlueprintStruct memory params = ConvertUpBlueprint.ConvertUpBlueprintStruct({
-            convertUpParams: convertUpParams,
-            opParams: opParams
-        });
-        
+        ConvertUpBlueprint.ConvertUpBlueprintStruct memory params = ConvertUpBlueprint
+            .ConvertUpBlueprintStruct({convertUpParams: convertUpParams, opParams: opParams});
+
         bytes memory pipeCallData = createConvertUpBlueprintCallData(params);
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
             state.user,
@@ -205,7 +209,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         mockPrice(0.95e6); // 0.95
 
         // Set Gas Price: 10 gwei
-        vm.txGasPrice(10 gwei); 
+        vm.txGasPrice(10 gwei);
 
         // Execute Requisition
         uint256 startGas = gasleft();

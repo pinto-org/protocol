@@ -138,9 +138,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @param feeParams Struct containing all parameters for dynamic fee calculation
      * @return fee The calculated fee amount in Pinto
      */
-    function _payDynamicFee(
-        DynamicFeeParams memory feeParams
-    ) internal returns (uint256 fee) {
+    function _payDynamicFee(DynamicFeeParams memory feeParams) internal returns (uint256 fee) {
         fee = gasCostCalculator.calculateFeeInPinto(feeParams.gasUsed, feeParams.feeMarginBps);
 
         // Validate fee doesn't overflow when cast to int256

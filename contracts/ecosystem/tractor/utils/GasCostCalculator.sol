@@ -41,11 +41,7 @@ contract GasCostCalculator is Ownable {
      * @param _owner Address of the contract owner
      * @param _baseGasOverhead Initial base gas overhead (default: 50000)
      */
-    constructor(
-        address _beanstalk,
-        address _owner,
-        uint256 _baseGasOverhead
-    ) Ownable(_owner) {
+    constructor(address _beanstalk, address _owner, uint256 _baseGasOverhead) Ownable(_owner) {
         require(_beanstalk != address(0), "GasCostCalculator: zero beanstalk");
 
         beanstalk = IBeanstalk(_beanstalk);
@@ -165,12 +161,13 @@ contract GasCostCalculator is Ownable {
         }
 
         // LibChainlinkOracle.getPrice uses try-catch internally and returns 0 on failure
-        return LibChainlinkOracle.getPrice(
-            ETH_USD_ORACLE,
-            ORACLE_TIMEOUT,
-            0, // tokenDecimals = 0 for TOKEN1/TOKEN2 price
-            false // not million
-        );
+        return
+            LibChainlinkOracle.getPrice(
+                ETH_USD_ORACLE,
+                ORACLE_TIMEOUT,
+                0, // tokenDecimals = 0 for TOKEN1/TOKEN2 price
+                false // not million
+            );
     }
 
     /**
