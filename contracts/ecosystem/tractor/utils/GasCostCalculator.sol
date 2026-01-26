@@ -77,22 +77,13 @@ contract GasCostCalculator is Ownable {
         uint256 gasPriceWei,
         uint256 marginBps
     ) public view returns (uint256 fee) {
-        // Add base overhead to gas used
         uint256 totalGas = gasUsed + baseGasOverhead;
-
-        // Calculate ETH cost in wei
         uint256 ethCostWei = totalGas * gasPriceWei;
-
-        // Get ETH/Pinto rate (Pinto per ETH, 6 decimals) - reverts on oracle failure
         uint256 ethPintoRate = _getEthPintoRate();
 
-        // Convert ETH cost to Pinto
-        // ethCostWei is in wei (1e18 = 1 ETH)
-        // ethPintoRate is Pinto per 1 ETH (6 decimals)
         // fee = ethCostWei * ethPintoRate / 1e18
         fee = (ethCostWei * ethPintoRate) / PRECISION;
 
-        // Apply margin: fee * (10000 + marginBps) / 10000
         if (marginBps > 0) {
             fee = (fee * (10000 + marginBps)) / 10000;
         }
@@ -136,17 +127,13 @@ contract GasCostCalculator is Ownable {
      * @return rate Pinto per 1 ETH (6 decimals)
      */
     function _getEthPintoRate() internal view virtual returns (uint256 rate) {
-        // Get ETH/USD price - reverts if oracle fails
         uint256 ethUsd = _safeGetEthUsdPrice();
         require(ethUsd > 0, "GasCostCalculator: ETH/USD oracle failed");
 
-        // Get Pinto/USD price - reverts if oracle fails
         uint256 pintoUsd = _safeGetPintoUsdPrice();
         require(pintoUsd > 0, "GasCostCalculator: Pinto/USD oracle failed");
 
-        // Calculate ETH/Pinto = (ETH/USD) / (Pinto/USD)
-        // Both have 6 decimal precision
-        // Result: Pinto per 1 ETH with 6 decimals
+        // ETH/Pinto = (ETH/USD) / (Pinto/USD), result in 6 decimals
         rate = (ethUsd * PINTO_DECIMALS) / pintoUsd;
     }
 
@@ -155,12 +142,11 @@ contract GasCostCalculator is Ownable {
      * @return 0 if oracle has no code or returns invalid data
      */
     function _safeGetEthUsdPrice() internal view returns (uint256) {
-        // Check if oracle has code
         if (ETH_USD_ORACLE.code.length == 0) {
             return 0;
         }
 
-        // LibChainlinkOracle.getPrice uses try-catch internally and returns 0 on failure
+        // Returns 0 on failure (try-catch internally)
         return LibChainlinkOracle.getPrice(
             ETH_USD_ORACLE,
             ORACLE_TIMEOUT,
@@ -175,8 +161,7 @@ contract GasCostCalculator is Ownable {
      */
     function _safeGetPintoUsdPrice() internal view returns (uint256) {
         address pintoToken = beanstalk.getBeanToken();
-
-        // LibUsdOracle.getTokenPrice handles failures internally and returns 0
+        // Returns 0 on failure
         return LibUsdOracle.getTokenPrice(pintoToken, 0);
     }
 }

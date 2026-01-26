@@ -259,21 +259,17 @@ abstract contract SowBlueprintBase is PerFunctionPausable {
             }
         }
 
-        // Calculate total tip amount including dynamic fee (use scope to avoid stack too deep)
         int256 totalTipAmount = params.opParams.operatorTipAmount;
         if (params.opParams.useDynamicFee) {
-            // Gas measurement tamamla
             uint256 gasUsedBeforeFee = startGas - gasleft();
-            // Fee calculation ve withdrawal için estimation ekle
+            // Add 15k gas buffer for fee calculation and withdrawal operations below
             uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
             uint256 dynamicFee = gasCostCalculator.calculateFeeInPinto(estimatedTotalGas, params.opParams.feeMarginBps);
             require(dynamicFee <= uint256(type(int256).max), "SowBlueprintBase: fee overflow");
 
-            // Withdraw the additional fee from sources (external call - done first)
             LibSiloHelpers.FilterParams memory feeFilterParams = LibSiloHelpers.getDefaultFilterParams();
             feeFilterParams.maxGrownStalkPerBdv = params.sowParams.maxGrownStalkPerBdv;
 
-            // Fee withdrawal için empty plan oluştur
             LibSiloHelpers.WithdrawalPlan memory emptyFeeWithdrawalPlan;
             siloHelpers.withdrawBeansFromSources(
                 vars.account,

@@ -288,21 +288,18 @@ contract ConvertUpBlueprint is PerFunctionPausable {
         uint256 beansRemaining = vars.beansLeftToConvert - vars.amountBeansConverted;
         if (beansRemaining == 0) beansRemaining = type(uint256).max;
 
-        // Update the BDV left to convert
         updateBeansLeftToConvert(vars.orderHash, beansRemaining);
 
-        // Calculate total tip amount including dynamic fee (use scope to avoid stack too deep)
         int256 totalTipAmount = opParams.operatorTipAmount;
         if (opParams.useDynamicFee) {
             uint256 gasUsedBeforeFee = startGas - gasleft();
+            // Add 15k gas buffer for fee calculation and withdrawal operations below
             uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
-            // Withdraw fee first (external call) - checks-effects-interactions pattern
             uint256 dynamicFee = _payDynamicFee(params, vars.account, estimatedTotalGas, slippageRatio);
             require(dynamicFee <= uint256(type(int256).max), "ConvertUpBlueprint: fee overflow");
             totalTipAmount += int256(dynamicFee);
         }
 
-        // Tip the operator (external call - done after state updates and fee withdrawal)
         tractorHelpers.tip(
             beanToken,
             vars.account,
@@ -343,7 +340,6 @@ contract ConvertUpBlueprint is PerFunctionPausable {
     ) internal returns (uint256 fee) {
         fee = gasCostCalculator.calculateFeeInPinto(gasUsed, params.opParams.feeMarginBps);
 
-        // Withdraw the additional fee from sources
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         LibSiloHelpers.FilterParams memory feeFilterParams = LibSiloHelpers.getDefaultFilterParams();
         feeFilterParams.maxGrownStalkPerBdv = params.convertUpParams.maxGrownStalkPerBdv;
