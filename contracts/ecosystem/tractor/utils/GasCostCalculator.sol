@@ -135,7 +135,7 @@ contract GasCostCalculator is Ownable {
      * @dev Get ETH/Pinto rate from oracles. Reverts on oracle failure.
      * @return rate Pinto per 1 ETH (6 decimals)
      */
-    function _getEthPintoRate() internal view returns (uint256 rate) {
+    function _getEthPintoRate() internal view virtual returns (uint256 rate) {
         // Get ETH/USD price - reverts if oracle fails
         uint256 ethUsd = _safeGetEthUsdPrice();
         require(ethUsd > 0, "GasCostCalculator: ETH/USD oracle failed");
