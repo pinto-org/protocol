@@ -8,6 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {SowBlueprint} from "contracts/ecosystem/tractor/blueprints/SowBlueprint.sol";
 import {SowBlueprintBase} from "contracts/ecosystem/tractor/blueprints/SowBlueprintBase.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {PriceManipulation} from "contracts/ecosystem/tractor/utils/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -15,6 +16,21 @@ import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {OperatorWhitelist} from "contracts/ecosystem/tractor/utils/OperatorWhitelist.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
+import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
+import "forge-std/console.sol";
+
+contract GasCostCalculatorHarness is GasCostCalculator {
+    constructor(
+        address _beanstalk,
+        address _owner,
+        uint256 _baseGasOverhead
+    ) GasCostCalculator(_beanstalk, _owner, _baseGasOverhead) {}
+
+    function _getEthPintoRate() internal view override returns (uint256) {
+        return 2000e6; // 2000 Pinto per ETH fixed rate for tests
+    }
+}
 
 contract SowBlueprintTest is TractorTestHelper {
     address[] farmers;
@@ -59,11 +75,28 @@ contract SowBlueprintTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
+        // Deploy GasCostCalculator Harness
+        GasCostCalculator gasCostCalculator = new GasCostCalculatorHarness(
+            address(bs),
+            address(this),
+            50000
+        );
+
+        // Setup Mock Chainlink Oracle for ETH/USD (still needed if Harness called original functions, but strict override bypasses it)
+        // Leaving it for completeness or if other tests rely on it (though existing logic bypassed)
+        MockChainlinkAggregator ethUsdAggregator = new MockChainlinkAggregator();
+        ethUsdAggregator.setDecimals(8);
+        ethUsdAggregator.addRound(2000e8, block.timestamp, block.timestamp, 1); // $2000 ETH
+        vm.etch(gasCostCalculator.ETH_USD_ORACLE(), address(ethUsdAggregator).code);
+        MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).setDecimals(8);
+        MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).addRound(2000e8, block.timestamp, block.timestamp, 1);
+
         // Deploy SowBlueprint with TractorHelpers and SiloHelpers addresses
         sowBlueprint = new SowBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
+            address(gasCostCalculator),
             address(siloHelpers)
         );
         vm.label(address(sowBlueprint), "SowBlueprint");
@@ -991,5 +1024,131 @@ contract SowBlueprintTest is TractorTestHelper {
         for (uint256 i = 0; i < 4; i++) {
             assertEq(validOrderHashes[i], orderHashes[i], "Expected valid order hash");
         }
+    }
+
+
+
+    function createSowBlueprintStructWithDynamicFee(TestState memory state, uint256 baseTip) internal view returns (SowBlueprintBase.SowBlueprintStruct memory params) {
+        // Create whitelisted operators array
+        address[] memory whitelistedOperators = new address[](1);
+        whitelistedOperators[0] = state.operator;
+        
+        // Define source token (BEAN)
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = tractorHelpers.getTokenIndex(state.beanToken);
+
+        return SowBlueprintBase.SowBlueprintStruct({
+            sowParams: SowBlueprintBase.SowParams({
+                sourceTokenIndices: sourceTokenIndices,
+                sowAmounts: SowBlueprintBase.SowAmounts({
+                    totalAmountToSow: state.sowAmount,
+                    minAmountToSowPerSeason: state.sowAmount,
+                    maxAmountToSowPerSeason: state.sowAmount
+                }),
+                minTemp: 0,
+                maxPodlineLength: type(uint256).max,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                runBlocksAfterSunrise: 0,
+                slippageRatio: 0.01e18
+            }),
+            opParams: BlueprintBase.OperatorParams({
+                whitelistedOperators: whitelistedOperators,
+                tipAddress: state.operator,
+                operatorTipAmount: int256(baseTip),
+                useDynamicFee: true,
+                feeMarginBps: 0
+            })
+        });
+    }
+
+    function createDynamicFeeRequisition(TestState memory state, uint256 baseTip) internal returns (IMockFBeanstalk.Requisition memory req, SowBlueprintBase.SowBlueprintStruct memory params) {
+        params = createSowBlueprintStructWithDynamicFee(state, baseTip);
+        
+        // Encode call structure using correct selector
+        bytes memory callData = abi.encodeWithSelector(
+            SowBlueprint.sowBlueprint.selector,
+            params
+        );
+
+        // Create requisition
+        IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
+        pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
+            target: address(sowBlueprint),
+            callData: callData,
+            clipboard: hex"0000"
+        });
+        
+        IMockFBeanstalk.AdvancedFarmCall[] memory calls = new IMockFBeanstalk.AdvancedFarmCall[](1);
+        calls[0] = IMockFBeanstalk.AdvancedFarmCall({
+            callData: abi.encodeWithSelector(IMockFBeanstalk.advancedPipe.selector, pipes, 0),
+            clipboard: ""
+        });
+        
+        // Manually construct and sign blueprint to match TractorTestHelper logic
+        IMockFBeanstalk.Blueprint memory blueprint = IMockFBeanstalk.Blueprint({
+            publisher: state.user,
+            data: abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls),
+            operatorPasteInstrs: new bytes32[](0),
+            maxNonce: type(uint256).max,
+            startTime: block.timestamp,
+            endTime: type(uint256).max
+        });
+
+        bytes32 blueprintHash = bs.getBlueprintHash(blueprint);
+        uint256 privateKey = getPrivateKey(state.user);
+        bytes memory signature = signBlueprint(blueprintHash, privateKey);
+
+        req = IMockFBeanstalk.Requisition({
+            blueprint: blueprint,
+            blueprintHash: blueprintHash,
+            signature: signature
+        });
+        
+        // Publish Requisition from user
+        vm.prank(state.user);
+        bs.publishRequisition(req);
+    }
+
+    function test_sowBlueprintv0_dynamicFee() public {
+        TestState memory state = setupSowBlueprintv0Test();
+
+        uint256 baseTip = 5e6; // 5 Beans base tip
+        
+        // 1. Setup Blueprint Params with useDynamicFee = true using helper
+        (IMockFBeanstalk.Requisition memory req, ) = createDynamicFeeRequisition(state, baseTip);
+        
+        // Mock sunrise block (SowBlueprint checks it)
+        vm.mockCall(
+            address(bs),
+            abi.encodeWithSelector(IMockFBeanstalk.sunriseBlock.selector),
+            abi.encode(block.number)
+        );
+
+        // Mock Price
+        mockPrice(1e6); // 1.0
+
+        // Set Gas Price: 10 gwei
+        vm.txGasPrice(10 gwei); 
+        
+        // Execute Requisition
+        uint256 startGas = gasleft();
+        executeRequisition(state.operator, req, address(bs));
+        uint256 endGas = gasleft();
+        
+        // Verify Tip
+        uint256 finalBalance = bs.getInternalBalance(state.operator, state.beanToken);
+        uint256 actualTip = finalBalance - state.initialOperatorBeanBalance;
+        
+        console.log("Actual Tip: %s", actualTip);
+        console.log("Base Tip:   %s", baseTip);
+        console.log("Gas Used:   %s", startGas - endGas);
+        
+        assertGt(actualTip, baseTip, "Tip should include dynamic fee");
+        
+        // With 10 gwei and 2000 Pinto/ETH, fee should be approx 2 Pinto per 1000 gas?
+        // 1e15 wei * 2000e6 / 1e18 = 2e6. 
+        // 100k gas * 10gwei = 1e15 wei. = 2e6 Pinto = 2 Beans.
+        // It should be definitely noticeable.
+        assertGt(actualTip - baseTip, 100000, "Dynamic fee should be non-trivial");
     }
 }
