@@ -8,6 +8,7 @@ import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.s
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {ConvertUpBlueprint} from "contracts/ecosystem/tractor/blueprints/ConvertUpBlueprint.sol";
+import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {PriceManipulation} from "contracts/ecosystem/tractor/utils/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
@@ -1058,7 +1059,7 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         whitelistedOperators[0] = address(this); // Add the current contract as a whitelisted operator
 
         // Create the OperatorParams struct
-        ConvertUpBlueprint.OperatorParams memory opParams = ConvertUpBlueprint.OperatorParams({
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOperators,
             tipAddress: params.tipAddress,
             operatorTipAmount: params.tipAmount,
