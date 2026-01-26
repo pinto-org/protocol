@@ -54,6 +54,30 @@ abstract contract BlueprintBase is PerFunctionPausable {
     }
 
     /**
+     * @notice Struct to hold parameters for tip processing with dynamic fees
+     * @param account The user account to process tips for
+     * @param tipAddress Address to send the tip to
+     * @param sourceTokenIndices Indices of source tokens for fee withdrawal
+     * @param operatorTipAmount Base tip amount for the operator
+     * @param useDynamicFee Whether to add dynamic gas-based fee
+     * @param feeMarginBps Margin in basis points for dynamic fee
+     * @param maxGrownStalkPerBdv Maximum grown stalk per BDV for fee withdrawal
+     * @param slippageRatio Slippage ratio for LP token withdrawals
+     * @param startGas Gas at function start for fee calculation
+     */
+    struct TipParams {
+        address account;
+        address tipAddress;
+        uint8[] sourceTokenIndices;
+        int256 operatorTipAmount;
+        bool useDynamicFee;
+        uint256 feeMarginBps;
+        uint256 maxGrownStalkPerBdv;
+        uint256 slippageRatio;
+        uint256 startGas;
+    }
+
+    /**
      * Mapping to track the last executed season for each order hash
      * If a Blueprint needs to track more state about orders, an additional
      * mapping(orderHash => state) can be added to the contract inheriting from BlueprintBase.
@@ -179,5 +203,42 @@ abstract contract BlueprintBase is PerFunctionPausable {
         }
 
         newTip = currentTip + feeAsInt;
+    }
+
+    /**
+     * @notice Handles dynamic fee calculation and tip payment
+     * @param tipParams Parameters for tip processing
+     * @dev This is a shared implementation for blueprints with simple tip flows
+     *      (single operatorTipAmount + optional dynamic fee).
+     *      Blueprints with complex tip logic (e.g., multiple accumulated tips,
+     *      special bean handling) should implement their own tip handling.
+     */
+    function _processFeesAndTip(TipParams memory tipParams) internal {
+        int256 totalTipAmount = tipParams.operatorTipAmount;
+
+        if (tipParams.useDynamicFee) {
+            uint256 gasUsedBeforeFee = tipParams.startGas - gasleft();
+            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
+            uint256 dynamicFee = _payDynamicFee(
+                DynamicFeeParams({
+                    account: tipParams.account,
+                    sourceTokenIndices: tipParams.sourceTokenIndices,
+                    gasUsed: estimatedTotalGas,
+                    feeMarginBps: tipParams.feeMarginBps,
+                    maxGrownStalkPerBdv: tipParams.maxGrownStalkPerBdv,
+                    slippageRatio: tipParams.slippageRatio
+                })
+            );
+            totalTipAmount = _safeAddDynamicFee(totalTipAmount, dynamicFee);
+        }
+
+        tractorHelpers.tip(
+            beanToken,
+            tipParams.account,
+            tipParams.tipAddress,
+            totalTipAmount,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
+        );
     }
 }

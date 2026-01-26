@@ -255,7 +255,19 @@ contract ConvertUpBlueprint is BlueprintBase {
         // Update the last executed timestamp for this blueprint
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
 
-        _handleFeeAndTip(vars.account, tipAddress, params, startGas, slippageRatio);
+        _processFeesAndTip(
+            TipParams({
+                account: vars.account,
+                tipAddress: tipAddress,
+                sourceTokenIndices: params.convertUpParams.sourceTokenIndices,
+                operatorTipAmount: params.opParams.operatorTipAmount,
+                useDynamicFee: params.opParams.useDynamicFee,
+                feeMarginBps: params.opParams.feeMarginBps,
+                maxGrownStalkPerBdv: params.convertUpParams.maxGrownStalkPerBdv,
+                slippageRatio: slippageRatio,
+                startGas: startGas
+            })
+        );
 
         // Emit completion event
         if (beansRemaining == type(uint256).max) {
@@ -275,43 +287,6 @@ contract ConvertUpBlueprint is BlueprintBase {
                 beansRemaining
             );
         }
-    }
-
-    /**
-     * @notice Handles dynamic fee calculation and tip payment
-     */
-    function _handleFeeAndTip(
-        address account,
-        address tipAddress,
-        ConvertUpBlueprintStruct calldata params,
-        uint256 startGas,
-        uint256 slippageRatio
-    ) internal {
-        int256 totalTipAmount = params.opParams.operatorTipAmount;
-        if (params.opParams.useDynamicFee) {
-            uint256 gasUsedBeforeFee = startGas - gasleft();
-            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
-            uint256 dynamicFee = _payDynamicFee(
-                DynamicFeeParams({
-                    account: account,
-                    sourceTokenIndices: params.convertUpParams.sourceTokenIndices,
-                    gasUsed: estimatedTotalGas,
-                    feeMarginBps: params.opParams.feeMarginBps,
-                    maxGrownStalkPerBdv: params.convertUpParams.maxGrownStalkPerBdv,
-                    slippageRatio: slippageRatio
-                })
-            );
-            totalTipAmount = _safeAddDynamicFee(totalTipAmount, dynamicFee);
-        }
-
-        tractorHelpers.tip(
-            beanToken,
-            account,
-            tipAddress,
-            totalTipAmount,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
-        );
     }
 
     /**

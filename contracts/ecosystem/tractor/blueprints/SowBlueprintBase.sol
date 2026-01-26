@@ -210,30 +210,18 @@ abstract contract SowBlueprintBase is BlueprintBase {
         // Update the last executed season for this blueprint
         _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
 
-        int256 totalTipAmount = params.opParams.operatorTipAmount;
-        if (params.opParams.useDynamicFee) {
-            uint256 gasUsedBeforeFee = startGas - gasleft();
-            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
-            uint256 dynamicFee = _payDynamicFee(
-                DynamicFeeParams({
-                    account: vars.account,
-                    sourceTokenIndices: params.sowParams.sourceTokenIndices,
-                    gasUsed: estimatedTotalGas,
-                    feeMarginBps: params.opParams.feeMarginBps,
-                    maxGrownStalkPerBdv: params.sowParams.maxGrownStalkPerBdv,
-                    slippageRatio: slippageRatio
-                })
-            );
-            totalTipAmount = _safeAddDynamicFee(totalTipAmount, dynamicFee);
-        }
-
-        tractorHelpers.tip(
-            vars.beanToken,
-            vars.account,
-            vars.tipAddress,
-            totalTipAmount,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
+        _processFeesAndTip(
+            TipParams({
+                account: vars.account,
+                tipAddress: vars.tipAddress,
+                sourceTokenIndices: params.sowParams.sourceTokenIndices,
+                operatorTipAmount: params.opParams.operatorTipAmount,
+                useDynamicFee: params.opParams.useDynamicFee,
+                feeMarginBps: params.opParams.feeMarginBps,
+                maxGrownStalkPerBdv: params.sowParams.maxGrownStalkPerBdv,
+                slippageRatio: slippageRatio,
+                startGas: startGas
+            })
         );
 
         // Sow the withdrawn beans
