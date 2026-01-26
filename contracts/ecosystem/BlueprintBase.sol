@@ -4,6 +4,10 @@ pragma solidity ^0.8.20;
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {PerFunctionPausable} from "contracts/ecosystem/tractor/utils/PerFunctionPausable.sol";
+import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 
 /**
  * @title BlueprintBase
@@ -11,15 +15,42 @@ import {PerFunctionPausable} from "contracts/ecosystem/tractor/utils/PerFunction
  */
 abstract contract BlueprintBase is PerFunctionPausable {
     /**
+     * @notice Gas buffer for dynamic fee calculation to account for remaining operations
+     * @dev This buffer covers the gas cost of fee withdrawal and subsequent tip operations
+     */
+    uint256 public constant DYNAMIC_FEE_GAS_BUFFER = 15000;
+    /**
      * @notice Struct to hold operator parameters
      * @param whitelistedOperators Array of whitelisted operator addresses
      * @param tipAddress Address to send tip to
      * @param operatorTipAmount Amount of tip to pay to operator
+     * @param useDynamicFee Whether to use dynamic gas-based fee calculation
+     * @param feeMarginBps Additional margin for dynamic fee in basis points (0 = no margin, 1000 = 10%)
      */
     struct OperatorParams {
         address[] whitelistedOperators;
         address tipAddress;
         int256 operatorTipAmount;
+        bool useDynamicFee;
+        uint256 feeMarginBps;
+    }
+
+    /**
+     * @notice Struct to hold dynamic fee parameters
+     * @param account The account to withdraw fee from
+     * @param sourceTokenIndices Indices of source tokens to withdraw from
+     * @param gasUsed Total gas used for fee calculation
+     * @param feeMarginBps Additional margin in basis points
+     * @param maxGrownStalkPerBdv Maximum grown stalk per BDV for withdrawal filtering
+     * @param slippageRatio Slippage ratio for LP token withdrawals
+     */
+    struct DynamicFeeParams {
+        address account;
+        uint8[] sourceTokenIndices;
+        uint256 gasUsed;
+        uint256 feeMarginBps;
+        uint256 maxGrownStalkPerBdv;
+        uint256 slippageRatio;
     }
 
     /**
@@ -33,15 +64,21 @@ abstract contract BlueprintBase is PerFunctionPausable {
     IBeanstalk public immutable beanstalk;
     address public immutable beanToken;
     TractorHelpers public immutable tractorHelpers;
+    GasCostCalculator public immutable gasCostCalculator;
+    SiloHelpers public immutable siloHelpers;
 
     constructor(
         address _beanstalk,
         address _owner,
-        address _tractorHelpers
+        address _tractorHelpers,
+        address _gasCostCalculator,
+        address _siloHelpers
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
         beanToken = beanstalk.getBeanToken();
         tractorHelpers = TractorHelpers(_tractorHelpers);
+        gasCostCalculator = GasCostCalculator(_gasCostCalculator);
+        siloHelpers = SiloHelpers(_siloHelpers);
     }
 
     /**
@@ -94,5 +131,34 @@ abstract contract BlueprintBase is PerFunctionPausable {
      */
     function _resolveTipAddress(address providedTipAddress) internal view returns (address) {
         return providedTipAddress == address(0) ? beanstalk.operator() : providedTipAddress;
+    }
+
+    /**
+     * @notice Calculates and withdraws dynamic fee from user's deposits
+     * @param feeParams Struct containing all parameters for dynamic fee calculation
+     * @return fee The calculated fee amount in Pinto
+     */
+    function _payDynamicFee(
+        DynamicFeeParams memory feeParams
+    ) internal returns (uint256 fee) {
+        fee = gasCostCalculator.calculateFeeInPinto(feeParams.gasUsed, feeParams.feeMarginBps);
+
+        // Validate fee doesn't overflow when cast to int256
+        require(fee <= uint256(type(int256).max), "BlueprintBase: fee overflow");
+
+        LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
+            feeParams.maxGrownStalkPerBdv
+        );
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+
+        siloHelpers.withdrawBeansFromSources(
+            feeParams.account,
+            feeParams.sourceTokenIndices,
+            fee,
+            filterParams,
+            feeParams.slippageRatio,
+            LibTransfer.To.INTERNAL,
+            emptyPlan
+        );
     }
 }

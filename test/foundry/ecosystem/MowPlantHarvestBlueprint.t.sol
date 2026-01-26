@@ -12,6 +12,8 @@ import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {GasCostCalculatorHarness} from "test/foundry/ecosystem/GasCostCalculator.t.sol";
+import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
 import "forge-std/console.sol";
 
 contract MowPlantHarvestBlueprintTest is TractorTestHelper {
@@ -62,11 +64,20 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy MowPlantHarvestBlueprint with TractorHelpers and SiloHelpers addresses
+        // Deploy GasCostCalculator
+        GasCostCalculator gasCostCalculator = new GasCostCalculatorHarness(
+            address(bs),
+            address(this),
+            50000 // baseGasOverhead
+        );
+        vm.label(address(gasCostCalculator), "GasCostCalculator");
+
+        // Deploy MowPlantHarvestBlueprint with TractorHelpers, SiloHelpers and GasCostCalculator addresses
         mowPlantHarvestBlueprint = new MowPlantHarvestBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
+            address(gasCostCalculator),
             address(siloHelpers)
         );
         vm.label(address(mowPlantHarvestBlueprint), "MowPlantHarvestBlueprint");
