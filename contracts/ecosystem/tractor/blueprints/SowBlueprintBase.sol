@@ -207,6 +207,8 @@ abstract contract SowBlueprintBase is BlueprintBase {
             );
         }
         updatePintoLeftToSowCounter(vars.orderHash, sowCounter);
+        // Update the last executed season for this blueprint
+        _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
 
         int256 totalTipAmount = params.opParams.operatorTipAmount;
         if (params.opParams.useDynamicFee) {
@@ -222,10 +224,9 @@ abstract contract SowBlueprintBase is BlueprintBase {
                     slippageRatio: slippageRatio
                 })
             );
-            totalTipAmount += int256(dynamicFee);
+            totalTipAmount = _safeAddDynamicFee(totalTipAmount, dynamicFee);
         }
 
-        // Tip the operator (external call - done after state updates and fee withdrawal)
         tractorHelpers.tip(
             vars.beanToken,
             vars.account,
@@ -254,9 +255,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
                 referral
             );
         }
-
-        // Update the last executed season for this blueprint
-        _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
     }
 
     /**

@@ -159,4 +159,25 @@ abstract contract BlueprintBase is PerFunctionPausable {
             emptyPlan
         );
     }
+
+    /**
+     * @notice Safely adds dynamic fee to existing tip amount with overflow protection
+     * @param currentTip The current tip amount (can be negative for operator-pays-user)
+     * @param dynamicFee The dynamic fee to add (always positive)
+     * @return newTip The new total tip amount after adding dynamic fee
+     * @dev Reverts if addition would overflow int256
+     */
+    function _safeAddDynamicFee(
+        int256 currentTip,
+        uint256 dynamicFee
+    ) internal pure returns (int256 newTip) {
+        // Fee is already validated to fit in int256 by _payDynamicFee
+        int256 feeAsInt = int256(dynamicFee);
+
+        if (currentTip > 0 && feeAsInt > type(int256).max - currentTip) {
+            revert("BlueprintBase: tip + fee overflow");
+        }
+
+        newTip = currentTip + feeAsInt;
+    }
 }

@@ -8,7 +8,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 
 /**
  * @title GasCostCalculator
- * @author pocikerim
+ * @author exTypen
  * @notice Calculates gas-based fees in Pinto tokens for blueprint executions.
  * @dev Uses ETH/USD Chainlink oracle and LibUsdOracle for Pinto price to convert gas cost to Pinto fee.
  *      Reverts on oracle failure (assumes manipulation if oracle fails).

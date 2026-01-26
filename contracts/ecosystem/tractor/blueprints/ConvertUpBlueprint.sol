@@ -252,11 +252,10 @@ contract ConvertUpBlueprint is BlueprintBase {
         if (beansRemaining == 0) beansRemaining = type(uint256).max;
 
         updateBeansLeftToConvert(vars.orderHash, beansRemaining);
-
-        _handleFeeAndTip(vars.account, tipAddress, params, startGas, slippageRatio);
-
         // Update the last executed timestamp for this blueprint
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
+
+        _handleFeeAndTip(vars.account, tipAddress, params, startGas, slippageRatio);
 
         // Emit completion event
         if (beansRemaining == type(uint256).max) {
@@ -302,7 +301,7 @@ contract ConvertUpBlueprint is BlueprintBase {
                     slippageRatio: slippageRatio
                 })
             );
-            totalTipAmount += int256(dynamicFee);
+            totalTipAmount = _safeAddDynamicFee(totalTipAmount, dynamicFee);
         }
 
         tractorHelpers.tip(
