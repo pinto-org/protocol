@@ -18,7 +18,6 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IDiamondCut} from "contracts/interfaces/IDiamondCut.sol";
 import {IDiamondLoupe} from "contracts/interfaces/IDiamondLoupe.sol";
 import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
-import {LibGauge} from "contracts/libraries/LibGauge.sol";
 
 /**
  * @title InitProtocol
