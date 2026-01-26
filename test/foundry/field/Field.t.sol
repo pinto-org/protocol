@@ -690,10 +690,10 @@ contract FieldTest is TestHelper {
         sowAmount = bound(sowAmount, 100, type(uint64).max);
 
         // Set referrer percentage to 10% (0.1 * 1e18)
-        bs.setReferrerPercentageE(0.1e18);
+        bs.setReferrerPercentageE(0.1e6);
 
         // Set referee percentage to 5% (0.05 * 1e18)
-        bs.setRefereePercentageE(0.05e18);
+        bs.setRefereePercentageE(0.1e6);
 
         // Setup: mint beans and set soil
         bean.mint(farmers[0], sowAmount);
@@ -803,7 +803,7 @@ contract FieldTest is TestHelper {
         sowAmount = bound(sowAmount, 100, type(uint64).max);
 
         // Set referrer commission percentage
-        bs.setReferrerPercentageE(0.1e18);
+        bs.setReferrerPercentageE(0.1e6);
 
         // Setup
         bean.mint(farmers[0], sowAmount);
@@ -879,7 +879,7 @@ contract FieldTest is TestHelper {
         uint256 threshold = field.getBeanSownEligibilityThreshold();
 
         // Farmer 0 (USER) sows enough beans to earn the right to delegate
-        _sowReferral(farmers[0], threshold);
+        sowAmountForFarmer(farmers[0], threshold);
 
         // Verify farmer 0 has sown enough and became eligible
         assertGe(
@@ -916,7 +916,7 @@ contract FieldTest is TestHelper {
 
         // Farmer 0 (USER) sows less than threshold
         if (insufficientAmount > 0) {
-            _sowReferral(farmers[0], insufficientAmount);
+            sowAmountForFarmer(farmers[0], insufficientAmount);
         }
 
         // Verify farmer 0 hasn't sown enough
@@ -928,7 +928,7 @@ contract FieldTest is TestHelper {
 
         // Farmer 0 tries to delegate to farmer 1 - should fail
         vm.prank(farmers[0]);
-        vm.expectRevert("Field: user cannot delgate");
+        vm.expectRevert("Field: user cannot delegate");
         field.delegateReferralRewards(farmers[1]);
 
         // verify farmer 1 is not eligible
@@ -943,7 +943,7 @@ contract FieldTest is TestHelper {
         address farmer2 = users[3]; // Use users[3] since only farmers[0] and farmers[1] exist
 
         // Farmer 0 (USER) sows enough beans to earn the right to delegate
-        _sowReferral(farmers[0], threshold);
+        sowAmountForFarmer(farmers[0], threshold);
 
         // Verify farmer 0 has sown enough
         assertGe(
@@ -990,7 +990,7 @@ contract FieldTest is TestHelper {
         uint256 threshold = field.getBeanSownEligibilityThreshold();
 
         // Farmer 0 (USER) sows enough beans to earn the right to delegate
-        _sowReferral(farmers[0], threshold);
+        sowAmountForFarmer(farmers[0], threshold);
 
         // Verify farmer 0 has sown enough
         assertGe(
@@ -1029,7 +1029,7 @@ contract FieldTest is TestHelper {
         uint256 threshold = field.getBeanSownEligibilityThreshold();
 
         // Farmer 0 (USER) sows enough to meet threshold
-        _sowReferral(farmers[0], threshold);
+        sowAmountForFarmer(farmers[0], threshold);
 
         // Verify farmer 0 has sown enough
         assertGe(
@@ -1085,10 +1085,14 @@ contract FieldTest is TestHelper {
         assertTrue(field.isValidReferrer(farmers[1]), "Delegate should still be eligible");
     }
 
-    function _sowReferral(address user, uint256 amount) internal {
-        bean.mint(user, amount);
-        season.setSoilE(amount * 2);
-        vm.prank(user);
-        field.sowWithReferral(amount, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+    function test_sowWithReferral_targetReferralPodsReached() public {
+        bs.setReferrerPercentageE(0.1e6);
+        bs.setRefereePercentageE(0.1e6);
+        bs.setTargetReferralPods(100);
+        bs.setTotalReferralPods(0);
+        bs.setReferralEligibility(farmers[1], true);
+        assertTrue(field.isReferralSystemEnabled(), "Referral system should be enabled");
+        sowAmountForFarmerWithReferral(farmers[0], 100e6, farmers[1]);
+        assertFalse(field.isReferralSystemEnabled(), "Referral system should be disabled");
     }
 }

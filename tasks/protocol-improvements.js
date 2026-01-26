@@ -708,12 +708,34 @@ module.exports = function () {
     });
   });
 
-  task("PI-X-migration-referral", "Deploys PI-X migration referral").setAction(async function () {
+  task("PI-14", "Deploys PI-14").setAction(async function () {
     const mock = true;
     let owner;
+
+    const { fetchAllSowData } = require("../scripts/deployment/fetchSowFarmers.js");
+    const referrerData = await fetchAllSowData();
+
     if (mock) {
       owner = await impersonateSigner(L2_PCM);
       await mintEth(owner.address);
+
+      const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
+
+      // initialize helper storages
+      // impersonate pinto deployer:
+      const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
+      await helperStorageContract
+        .connect(signer)
+        .setValue(
+          1,
+          ethers.utils.defaultAbiCoder.encode(["tuple(address, uint88)[]"], [referrerData])
+        );
+
+        // deploy LSD chainlink oracle
+        const lsdChainlinkOracle = await ethers.getContractFactory("LSDChainlinkOracle");
+        const lsdChainlinkOracleContract = await lsdChainlinkOracle.deploy();
+        await lsdChainlinkOracleContract.deployed();
+        console.log("\nLSD Chainlink Oracle deployed to:", lsdChainlinkOracleContract.address);
     } else {
       owner = (await ethers.getSigners())[0];
     }
@@ -727,9 +749,22 @@ module.exports = function () {
         "FieldFacet",
         "TractorFacet",
         "MarketplaceFacet",
-        "MarketplaceBatchFacet"
+        "MarketplaceBatchFacet",
+        "ConvertFacet",
+        "ConvertGettersFacet",
+        "ConvertBatchFacet",
+        "ClaimFacet",
+        "PipelineConvertFacet",
+        "SiloFacet",
+        "SiloGettersFacet",
+        "MetadataFacet",
+        "ApprovalFacet",
+        "TokenFacet",
+        "TokenSupportFacet",
+        "FarmFacet"
       ],
       libraryNames: [
+        "LibTokenSilo",
         "LibSeedGauge",
         "LibEvaluate",
         "LibIncentive",
@@ -737,7 +772,10 @@ module.exports = function () {
         "LibWellMinting",
         "LibFlood",
         "LibGerminate",
-        "LibWeather"
+        "LibWeather",
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibSilo"
       ],
       facetLibraries: {
         SeasonFacet: [
@@ -749,10 +787,18 @@ module.exports = function () {
           "LibFlood",
           "LibGerminate",
           "LibWeather"
-        ]
+        ],
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        SiloFacet: ["LibSilo", "LibTokenSilo"]
       },
-      initArgs: [[]],
-      initFacetName: "InitPIXMigration",
+      linkedLibraries: {
+        LibConvert: "LibTokenSilo"
+      },
+      initArgs: [HELPER_STORAGE, 1],
+      initFacetName: "InitPI14",
       object: !mock,
       verbose: true,
       account: owner
@@ -958,10 +1004,7 @@ module.exports = function () {
     });
   });
 
-  task(
-    "convert-batch-functions",
-    "Deploys ConvertBatchFacet"
-  ).setAction(async function () {
+  task("convert-batch-functions", "Deploys ConvertBatchFacet").setAction(async function () {
     const mock = false;
     let owner;
     if (mock) {

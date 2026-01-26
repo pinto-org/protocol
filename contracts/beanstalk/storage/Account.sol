@@ -76,7 +76,7 @@ struct Field {
  * from another address. Farmers that are already eligible cannot become a delegate.
  */
 struct FieldReferral {
-    uint128 beans;
+    uint88 beans;
     bool eligibility;
     address delegate;
 }

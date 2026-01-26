@@ -144,7 +144,12 @@ module.exports = function () {
   });
 
   task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
-    const ecosystemContracts = ["SiloHelpers", "SowBlueprint", "ConvertUpBlueprint"];
+    const ecosystemContracts = [
+      "SiloHelpers",
+      "SowBlueprint",
+      "SowBlueprintReferral",
+      "ConvertUpBlueprint"
+    ];
     await generateEcosystemABIs(ecosystemContracts);
   });
 };

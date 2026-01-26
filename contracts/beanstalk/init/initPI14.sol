@@ -9,13 +9,12 @@ import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {AssetSettings, Implementation} from "contracts/beanstalk/storage/System.sol";
 import {BDVFacet} from "contracts/beanstalk/facets/silo/BDVFacet.sol";
 import {Call, IERC20} from "contracts/interfaces/basin/IWell.sol";
-import {console} from "forge-std/console.sol";
 import {LSDChainlinkOracle} from "contracts/ecosystem/oracles/LSDChainlinkOracle.sol";
-import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {InitPodReferral} from "contracts/beanstalk/init/InitPodReferral.sol";
+import {IHelperStorage} from "contracts/interfaces/IHelperStorage.sol";
 
 /**
- * @title InitPIXMigration
+ * @title InitPI14
  * @author Frijo, pocikerim
  * @dev This PI performs the following upgrades:
  * 1. Deploys a new pinto-wsteth well.
@@ -24,7 +23,7 @@ import {InitPodReferral} from "contracts/beanstalk/init/InitPodReferral.sol";
  * 4. Initializes the referral system.
  * 5. Updates the tractor version.
  **/
-contract InitPIXMigration is InitWells, InitPodReferral {
+contract InitPI14 is InitWells, InitPodReferral {
     // Well parameters.
     address internal constant PINTO_CBETH_WELL = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
     address internal constant WSTETH = 0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452;
@@ -35,37 +34,42 @@ contract InitPIXMigration is InitWells, InitPodReferral {
     bytes32 internal constant PROXY_SALT =
         0x00ee4d9e32976f40b38d99d1c3eee5ca2e3ae06d24630a6df69a9a8b7c8b4500;
 
+    address internal constant LSD_CHAINLINK_ORACLE = 0x3ca165997A12863eb63e4418d2E97AcA3CdCdADc;
+
     // Gauge parameters.
-    int64 internal constant DELTA = 1111111;
-    uint64 internal constant TARGET = 33333333;
+    // target full migration in 360 seasons (~15 days)
+    int64 internal constant DELTA = 92_593;
+    uint64 internal constant TARGET = 33_333_333;
 
     // Asset parameters.
     uint48 internal constant STALK_PER_BDV = 1e10;
     address internal constant ETH_USD_CHAINLINK_ORACLE = 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70;
     address internal constant WSTETH_ETH_CHAINLINK_ORACLE =
         0x43a5C292A453A3bF3606fa856197f09D7B74251a;
+    bytes1 internal constant DEFAULT_ORACLE_ENCODE_TYPE = 0x00;
+    bytes1 internal constant WELL_BDV_ENCODE_TYPE = 0x01;
+    uint256 internal constant WSTETH_ETH_ORACLE_TIMEOUT = 129_600; // 36 hours. WSTETH/ETH chainlink updates once per day.
+    uint256 internal constant ETH_USD_ORACLE_TIMEOUT = 3600; // 1 hour. ETH/USD chainlink updates once per 20 minutes.
 
-    function init(address[] memory allowedReferrers) external {
+    function init(address helperStorage, uint256 key) external {
         // Deploy the new well.
         (address wellImplementation, address wstethWell) = deployUpgradableWell(
             getWstethWellData()
         );
 
         // Whitelist new asset.
-        whitelistBeanAsset(getWhitelistData(wstethWell, address(new LSDChainlinkOracle())));
+        whitelistBeanAsset(getWhitelistData(wstethWell, LSD_CHAINLINK_ORACLE));
 
         // Initialize the LP distribution gauge.
         LibInitGauges.initLpDistributionGauge(PINTO_CBETH_WELL, wstethWell, DELTA, TARGET);
-        console.log("wsteth well deployed to:", wstethWell);
-        console.log("wsteth well implementation deployed to:", wellImplementation);
 
-        // Initialize the referral system.
-        initPodReferral(allowedReferrers);
-
-        // update tractor version.
-        // Tractor now supports dynamic calldata for contracts,
-        // and is backwards compatible with the old version.
-        LibTractor._setVersion("1.1.0");
+        // Fetch the allowed referrers and their amounts from the helper storage.
+        bytes memory value = IHelperStorage(helperStorage).getValue(key);
+        if (value.length > 0) {
+            ReferrerData[] memory referrers = abi.decode(value, (ReferrerData[]));
+            // Initialize the referral system.
+            initPodReferral(referrers);
+        }
     }
 
     function getWstethWellData() internal view returns (WellData memory wstethWellData) {
@@ -97,7 +101,7 @@ contract InitPIXMigration is InitWells, InitPodReferral {
             stalkIssuedPerBdv: STALK_PER_BDV,
             milestoneSeason: uint32(s.sys.season.current),
             milestoneStem: 0,
-            encodeType: bytes1(0x01),
+            encodeType: WELL_BDV_ENCODE_TYPE,
             deltaStalkEarnedPerSeason: 0,
             gaugePoints: 0,
             optimalPercentDepositedBdv: 0,
@@ -106,13 +110,13 @@ contract InitPIXMigration is InitWells, InitPodReferral {
         });
         Implementation memory oracle = Implementation({
             target: oracleAddress,
-            selector: bytes4(0xb0dd7409),
-            encodeType: bytes1(0x00),
+            selector: LSDChainlinkOracle.getPrice.selector,
+            encodeType: DEFAULT_ORACLE_ENCODE_TYPE,
             data: abi.encode(
                 ETH_USD_CHAINLINK_ORACLE,
-                type(uint256).max,
+                ETH_USD_ORACLE_TIMEOUT,
                 WSTETH_ETH_CHAINLINK_ORACLE,
-                type(uint256).max
+                WSTETH_ETH_ORACLE_TIMEOUT
             )
         });
         whitelistData = WhitelistData({

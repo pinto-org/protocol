@@ -32,5 +32,9 @@ lib/
 # task outputs
 tasks/requisition/
 
+# deployment outputs
+scripts/deployment/outputs/
+
 # hardhat cache
 hardhat-cache/
+cache_hardhat/

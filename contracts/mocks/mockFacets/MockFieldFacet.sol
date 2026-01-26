@@ -15,6 +15,8 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
  * @title Mock Field Facet
  **/
 contract MockFieldFacet is FieldFacet {
+    uint88 internal constant REFERRAL_BEANS_FOR_ELIGIBILITY = 1000e6;
+
     using LibPRBMathRoundable for uint256;
     using LibRedundantMath256 for uint256;
     using LibRedundantMath128 for uint128;
@@ -188,7 +190,7 @@ contract MockFieldFacet is FieldFacet {
         bool abovePeg
     ) external returns (uint256 pods) {
         s.sys.weather.temp = maxTemperature;
-        (pods, ) = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true);
+        (pods, ) = LibDibbler.sow(beans, _morningTemperature, msg.sender, abovePeg, true, false);
         return pods;
     }
 
@@ -243,5 +245,14 @@ contract MockFieldFacet is FieldFacet {
 
     function setReferralEligibility(address referrer, bool eligible) public {
         s.accts[referrer].fields[s.sys.activeField].referral.eligibility = eligible;
+        s.accts[referrer].fields[s.sys.activeField].referral.beans = REFERRAL_BEANS_FOR_ELIGIBILITY;
+    }
+
+    function setTargetReferralPods(uint128 amount) external {
+        s.sys.targetReferralPods = amount;
+    }
+
+    function setTotalReferralPods(uint128 amount) external {
+        s.sys.totalReferralPods = amount;
     }
 }
