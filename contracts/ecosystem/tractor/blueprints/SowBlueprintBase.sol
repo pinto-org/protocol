@@ -211,8 +211,7 @@ abstract contract SowBlueprintBase is BlueprintBase {
         int256 totalTipAmount = params.opParams.operatorTipAmount;
         if (params.opParams.useDynamicFee) {
             uint256 gasUsedBeforeFee = startGas - gasleft();
-            // Add 15k gas buffer for fee calculation and withdrawal operations below
-            uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
+            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
             uint256 dynamicFee = _payDynamicFee(
                 DynamicFeeParams({
                     account: vars.account,
@@ -223,7 +222,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
                     slippageRatio: slippageRatio
                 })
             );
-            require(dynamicFee <= uint256(type(int256).max), "SowBlueprintBase: fee overflow");
             totalTipAmount += int256(dynamicFee);
         }
 

@@ -297,7 +297,7 @@ contract ConvertUpBlueprint is BlueprintBase {
         int256 totalTipAmount = params.opParams.operatorTipAmount;
         if (params.opParams.useDynamicFee) {
             uint256 gasUsedBeforeFee = startGas - gasleft();
-            uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
+            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
             uint256 dynamicFee = _payDynamicFee(
                 DynamicFeeParams({
                     account: account,
@@ -308,7 +308,6 @@ contract ConvertUpBlueprint is BlueprintBase {
                     slippageRatio: slippageRatio
                 })
             );
-            require(dynamicFee <= uint256(type(int256).max), "ConvertUpBlueprint: fee overflow");
             totalTipAmount += int256(dynamicFee);
         }
 

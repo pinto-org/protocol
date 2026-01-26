@@ -198,8 +198,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         // Add dynamic fee if enabled
         if (params.opParams.baseOpParams.useDynamicFee) {
             uint256 gasUsedBeforeFee = startGas - gasleft();
-            // Add 15k gas buffer for fee calculation and withdrawal operations below
-            uint256 estimatedTotalGas = gasUsedBeforeFee + 15000;
+            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
             uint256 dynamicFee = _payDynamicFee(
                 DynamicFeeParams({
                     account: vars.account,
@@ -209,10 +208,6 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                     maxGrownStalkPerBdv: params.mowPlantHarvestParams.maxGrownStalkPerBdv,
                     slippageRatio: params.mowPlantHarvestParams.slippageRatio
                 })
-            );
-            require(
-                dynamicFee <= uint256(type(int256).max),
-                "MowPlantHarvestBlueprint: fee overflow"
             );
             vars.totalBeanTip += int256(dynamicFee);
         }

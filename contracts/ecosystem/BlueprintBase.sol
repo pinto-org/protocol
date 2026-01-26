@@ -15,6 +15,11 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
  */
 abstract contract BlueprintBase is PerFunctionPausable {
     /**
+     * @notice Gas buffer for dynamic fee calculation to account for remaining operations
+     * @dev This buffer covers the gas cost of fee withdrawal and subsequent tip operations
+     */
+    uint256 public constant DYNAMIC_FEE_GAS_BUFFER = 15000;
+    /**
      * @notice Struct to hold operator parameters
      * @param whitelistedOperators Array of whitelisted operator addresses
      * @param tipAddress Address to send tip to
@@ -137,6 +142,9 @@ abstract contract BlueprintBase is PerFunctionPausable {
         DynamicFeeParams memory feeParams
     ) internal returns (uint256 fee) {
         fee = gasCostCalculator.calculateFeeInPinto(feeParams.gasUsed, feeParams.feeMarginBps);
+
+        // Validate fee doesn't overflow when cast to int256
+        require(fee <= uint256(type(int256).max), "BlueprintBase: fee overflow");
 
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
             feeParams.maxGrownStalkPerBdv
