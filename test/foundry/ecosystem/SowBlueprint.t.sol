@@ -27,8 +27,8 @@ contract GasCostCalculatorHarness is GasCostCalculator {
         uint256 _baseGasOverhead
     ) GasCostCalculator(_beanstalk, _owner, _baseGasOverhead) {}
 
-    function _getEthPintoRate() internal view override returns (uint256) {
-        return 2000e6; // 2000 Pinto per ETH fixed rate for tests
+    function _getEthBeanRate() internal view override returns (uint256) {
+        return 2000e6; // 2000 Bean per ETH fixed rate for tests
     }
 }
 

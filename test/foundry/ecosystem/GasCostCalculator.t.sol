@@ -53,34 +53,34 @@ contract GasCostCalculatorTest is TestHelper {
 
     // ==================== Margin Validation Tests ====================
 
-    function test_calculateFeeInPinto_revertsOnExcessiveMargin() public {
+    function test_calculateFeeInBean_revertsOnExcessiveMargin() public {
         vm.txGasPrice(TYPICAL_GAS_PRICE);
 
         // Margin > 10000 bps (100%) should revert
         vm.expectRevert("GasCostCalculator: margin exceeds max");
-        gasCostCalculator.calculateFeeInPintoWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10001);
+        gasCostCalculator.calculateFeeInBeanWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10001);
     }
 
-    function test_calculateFeeInPinto_maxMarginAllowed() public {
+    function test_calculateFeeInBean_maxMarginAllowed() public {
         // Max margin (10000 bps = 100%) should not revert on validation
         // Will still revert on oracle, but not on margin check
         vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.calculateFeeInPintoWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10000);
+        gasCostCalculator.calculateFeeInBeanWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10000);
     }
 
     // ==================== Oracle Revert Tests ====================
 
-    function test_calculateFeeInPinto_revertsWithoutEthOracle() public {
+    function test_calculateFeeInBean_revertsWithoutEthOracle() public {
         vm.txGasPrice(TYPICAL_GAS_PRICE);
 
         // ETH/USD oracle has no code, should revert
         vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.calculateFeeInPinto(TYPICAL_GAS_USED, 0);
+        gasCostCalculator.calculateFeeInBean(TYPICAL_GAS_USED, 0);
     }
 
-    function test_getEthPintoRate_revertsWithoutOracle() public {
+    function test_getEthBeanRate_revertsWithoutOracle() public {
         vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.getEthPintoRate();
+        gasCostCalculator.getEthBeanRate();
     }
 
     function test_estimateFee_revertsWithoutOracle() public {
