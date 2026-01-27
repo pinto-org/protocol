@@ -6,7 +6,6 @@ import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/Te
 import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
-import "forge-std/console.sol";
 
 /**
  * @title GasCostCalculatorTest
@@ -26,11 +25,9 @@ contract GasCostCalculatorTest is TestHelper {
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
-        // Deploy BeanstalkPrice
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy GasCostCalculator
         gasCostCalculator = new GasCostCalculator(
             address(beanstalkPrice),
             address(this),
@@ -124,16 +121,10 @@ contract GasCostCalculatorTest is TestHelper {
 
     // ==================== Gas Overhead Logic Tests ====================
 
-    /**
-     * @dev Tests that the gas overhead is correctly added to gas calculations
-     * by deploying a mock scenario where we can verify the math
-     */
     function test_baseGasOverhead_isApplied() public {
-        // Set a different overhead
         gasCostCalculator.setBaseGasOverhead(75_000);
         assertEq(gasCostCalculator.baseGasOverhead(), 75_000);
 
-        // Set back
         gasCostCalculator.setBaseGasOverhead(0);
         assertEq(gasCostCalculator.baseGasOverhead(), 0);
     }

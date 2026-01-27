@@ -100,17 +100,15 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy GasCostCalculator Harness
         GasCostCalculator gasCostCalculator = new GasCostCalculatorHarness(
             address(bs),
             address(this),
             50000
         );
 
-        // Setup Mock Chainlink Oracle for ETH/USD (still needed if Harness called original functions, but strict override bypasses it)
         MockChainlinkAggregator ethUsdAggregator = new MockChainlinkAggregator();
         ethUsdAggregator.setDecimals(8);
-        ethUsdAggregator.addRound(2000e8, block.timestamp, block.timestamp, 1); // $2000 ETH
+        ethUsdAggregator.addRound(2000e8, block.timestamp, block.timestamp, 1);
         vm.etch(gasCostCalculator.ETH_USD_ORACLE(), address(ethUsdAggregator).code);
         MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).setDecimals(8);
         MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).addRound(
@@ -150,7 +148,6 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         // Set price to be ~0.975
     }
 
-    // NEW TEST: Dynamic Fee
     function test_ConvertUpBlueprint_dynamicFee() public {
         TestState memory state = setupConvertUpBlueprintTest();
 
@@ -159,7 +156,6 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
 
         uint256 baseTip = 5e6;
 
-        // Manually construct Blueprint with useDynamicFee = true
         ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint
             .ConvertUpParams({
                 sourceTokenIndices: sourceTokenIndices,
@@ -179,7 +175,6 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
                 lowStalkDeposits: LibSiloHelpers.Mode.USE
             });
 
-        // Create whitelisted operators array
         address[] memory whitelistedOperators = new address[](1);
         whitelistedOperators[0] = state.operator;
 
@@ -201,22 +196,16 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
             address(bs)
         );
 
-        // Publish
         vm.prank(state.user);
         bs.publishRequisition(req);
 
-        // Mock Price
-        mockPrice(0.95e6); // 0.95
-
-        // Set Gas Price: 10 gwei
+        mockPrice(0.95e6);
         vm.txGasPrice(10 gwei);
 
-        // Execute Requisition
         uint256 startGas = gasleft();
         executeRequisition(state.operator, req, address(bs));
         uint256 endGas = gasleft();
 
-        // Verify Tip
         uint256 finalBalance = bs.getInternalBalance(state.operator, state.beanToken);
         uint256 actualTip = finalBalance - state.initialOperatorBeanBalance;
 
