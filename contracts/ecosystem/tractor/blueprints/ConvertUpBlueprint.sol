@@ -8,7 +8,6 @@ import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {ReservesType} from "../../price/WellPrice.sol";
 import {Call, IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
-import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title ConvertUpBlueprint
@@ -106,7 +105,6 @@ contract ConvertUpBlueprint is BlueprintBase {
     }
 
     BeanstalkPrice public immutable beanstalkPrice;
-    SiloHelpers public immutable siloHelpers;
 
     // Default slippage ratio for conversions (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -128,10 +126,10 @@ contract ConvertUpBlueprint is BlueprintBase {
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
+        address _gasCostCalculator,
         address _siloHelpers,
         address _beanstalkPrice
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
-        siloHelpers = SiloHelpers(_siloHelpers);
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
     }
 
@@ -142,6 +140,7 @@ contract ConvertUpBlueprint is BlueprintBase {
     function convertUpBlueprint(
         ConvertUpBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
+        uint256 startGas = gasleft();
         // Initialize local variables
         ConvertUpLocalVars memory vars;
 
@@ -252,21 +251,23 @@ contract ConvertUpBlueprint is BlueprintBase {
         uint256 beansRemaining = vars.beansLeftToConvert - vars.amountBeansConverted;
         if (beansRemaining == 0) beansRemaining = type(uint256).max;
 
-        // Update the BDV left to convert
         updateBeansLeftToConvert(vars.orderHash, beansRemaining);
-
-        // Tip the operator
-        tractorHelpers.tip(
-            beanToken,
-            vars.account,
-            tipAddress,
-            params.opParams.operatorTipAmount,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
-        );
-
         // Update the last executed timestamp for this blueprint
         updateLastExecutedTimestamp(vars.orderHash, block.timestamp);
+
+        _processFeesAndTip(
+            TipParams({
+                account: vars.account,
+                tipAddress: tipAddress,
+                sourceTokenIndices: params.convertUpParams.sourceTokenIndices,
+                operatorTipAmount: params.opParams.operatorTipAmount,
+                useDynamicFee: params.opParams.useDynamicFee,
+                feeMarginBps: params.opParams.feeMarginBps,
+                maxGrownStalkPerBdv: params.convertUpParams.maxGrownStalkPerBdv,
+                slippageRatio: slippageRatio,
+                startGas: startGas
+            })
+        );
 
         // Emit completion event
         if (beansRemaining == type(uint256).max) {
