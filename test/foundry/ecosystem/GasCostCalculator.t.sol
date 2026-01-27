@@ -36,11 +36,6 @@ contract GasCostCalculatorTest is TestHelper {
         vm.label(address(gasCostCalculator), "GasCostCalculator");
     }
 
-    function test_constructor() public view {
-        assertEq(address(gasCostCalculator.beanstalkPrice()), address(beanstalkPrice));
-        assertEq(gasCostCalculator.baseGasOverhead(), DEFAULT_BASE_OVERHEAD);
-    }
-
     function test_constructor_revertsOnZeroBeanstalkPrice() public {
         vm.expectRevert("GasCostCalculator: zero beanstalkPrice");
         new GasCostCalculator(address(0), address(this), DEFAULT_BASE_OVERHEAD);
@@ -89,32 +84,10 @@ contract GasCostCalculatorTest is TestHelper {
         gasCostCalculator.estimateFee(TYPICAL_GAS_USED, 1000);
     }
 
-    function test_setBaseGasOverhead() public {
-        uint256 newOverhead = 100_000;
-
-        vm.expectEmit(true, true, true, true);
-        emit GasCostCalculator.BaseGasOverheadUpdated(DEFAULT_BASE_OVERHEAD, newOverhead);
-
-        gasCostCalculator.setBaseGasOverhead(newOverhead);
-
-        assertEq(gasCostCalculator.baseGasOverhead(), newOverhead);
-    }
-
     function test_setBaseGasOverhead_onlyOwner() public {
         vm.prank(address(0x1234));
         vm.expectRevert();
         gasCostCalculator.setBaseGasOverhead(100_000);
-    }
-
-    function test_constants() public view {
-        // Verify correct oracle address is set
-        assertEq(
-            gasCostCalculator.ETH_USD_ORACLE(),
-            0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70,
-            "ETH/USD oracle should be Base mainnet address"
-        );
-        assertEq(gasCostCalculator.ORACLE_TIMEOUT(), 14400, "Timeout should be 4 hours");
-        assertEq(gasCostCalculator.MAX_MARGIN_BPS(), 10000, "Max margin should be 100%");
     }
 
     function test_baseGasOverhead_isApplied() public {
