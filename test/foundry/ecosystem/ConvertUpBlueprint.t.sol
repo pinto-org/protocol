@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
+import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {ConvertUpBlueprint} from "contracts/ecosystem/tractor/blueprints/ConvertUpBlueprint.sol";
@@ -19,6 +20,19 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {IWell} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/console.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
+
+contract GasCostCalculatorHarness is GasCostCalculator {
+    constructor(
+        address _beanstalk,
+        address _owner,
+        uint256 _baseGasOverhead
+    ) GasCostCalculator(_beanstalk, _owner, _baseGasOverhead) {}
+
+    function _getEthBeanRate() internal view override returns (uint256) {
+        return 2000e6; // 2000 Bean per ETH fixed rate for tests
+    }
+}
 
 contract ConvertUpBlueprintTest is TractorTestHelper {
     address[] farmers;
@@ -86,11 +100,32 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
+        // Deploy GasCostCalculator Harness
+        GasCostCalculator gasCostCalculator = new GasCostCalculatorHarness(
+            address(bs),
+            address(this),
+            50000
+        );
+
+        // Setup Mock Chainlink Oracle for ETH/USD (still needed if Harness called original functions, but strict override bypasses it)
+        MockChainlinkAggregator ethUsdAggregator = new MockChainlinkAggregator();
+        ethUsdAggregator.setDecimals(8);
+        ethUsdAggregator.addRound(2000e8, block.timestamp, block.timestamp, 1); // $2000 ETH
+        vm.etch(gasCostCalculator.ETH_USD_ORACLE(), address(ethUsdAggregator).code);
+        MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).setDecimals(8);
+        MockChainlinkAggregator(gasCostCalculator.ETH_USD_ORACLE()).addRound(
+            2000e8,
+            block.timestamp,
+            block.timestamp,
+            1
+        );
+
         // Deploy ConvertUpBlueprint with TractorHelpers, SiloHelpers and BeanstalkPrice address
         convertUpBlueprint = new ConvertUpBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
+            address(gasCostCalculator),
             address(siloHelpers),
             address(beanstalkPrice)
         );
@@ -113,6 +148,84 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         );
 
         // Set price to be ~0.975
+    }
+
+    // NEW TEST: Dynamic Fee
+    function test_ConvertUpBlueprint_dynamicFee() public {
+        TestState memory state = setupConvertUpBlueprintTest();
+
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = getTokenIndex(state.wellToken);
+
+        uint256 baseTip = 5e6;
+
+        // Manually construct Blueprint with useDynamicFee = true
+        ConvertUpBlueprint.ConvertUpParams memory convertUpParams = ConvertUpBlueprint
+            .ConvertUpParams({
+                sourceTokenIndices: sourceTokenIndices,
+                totalBeanAmountToConvert: state.convertAmount,
+                minBeansConvertPerExecution: state.convertAmount / 4,
+                maxBeansConvertPerExecution: state.convertAmount,
+                capAmountToBonusCapacity: false,
+                minTimeBetweenConverts: 300,
+                minConvertBonusCapacity: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV,
+                grownStalkPerBdvBonusBid: 0,
+                minPriceToConvertUp: 0.94e6,
+                maxPriceToConvertUp: 0.99e6,
+                seedDifference: 0,
+                maxGrownStalkPerBdvPenalty: MAX_GROWN_STALK_PER_BDV_PENALTY,
+                slippageRatio: 0.01e18,
+                lowStalkDeposits: LibSiloHelpers.Mode.USE
+            });
+
+        // Create whitelisted operators array
+        address[] memory whitelistedOperators = new address[](1);
+        whitelistedOperators[0] = state.operator;
+
+        BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
+            whitelistedOperators: whitelistedOperators,
+            tipAddress: state.operator,
+            operatorTipAmount: int256(baseTip),
+            useDynamicFee: true,
+            feeMarginBps: 0
+        });
+
+        ConvertUpBlueprint.ConvertUpBlueprintStruct memory params = ConvertUpBlueprint
+            .ConvertUpBlueprintStruct({convertUpParams: convertUpParams, opParams: opParams});
+
+        bytes memory pipeCallData = createConvertUpBlueprintCallData(params);
+        IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
+            state.user,
+            pipeCallData,
+            address(bs)
+        );
+
+        // Publish
+        vm.prank(state.user);
+        bs.publishRequisition(req);
+
+        // Mock Price
+        mockPrice(0.95e6); // 0.95
+
+        // Set Gas Price: 10 gwei
+        vm.txGasPrice(10 gwei);
+
+        // Execute Requisition
+        uint256 startGas = gasleft();
+        executeRequisition(state.operator, req, address(bs));
+        uint256 endGas = gasleft();
+
+        // Verify Tip
+        uint256 finalBalance = bs.getInternalBalance(state.operator, state.beanToken);
+        uint256 actualTip = finalBalance - state.initialOperatorBeanBalance;
+
+        console.log("Actual Tip: %s", actualTip);
+        console.log("Base Tip:   %s", baseTip);
+        console.log("Gas Used:   %s", startGas - endGas);
+
+        assertGt(actualTip, baseTip, "Tip should include dynamic fee");
+        assertGt(actualTip - baseTip, 100000, "Dynamic fee should be non-trivial");
     }
 
     // Break out the setup into a separate function
@@ -953,7 +1066,9 @@ contract ConvertUpBlueprintTest is TractorTestHelper {
         BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOperators,
             tipAddress: params.tipAddress,
-            operatorTipAmount: params.tipAmount
+            operatorTipAmount: params.tipAmount,
+            useDynamicFee: false,
+            feeMarginBps: 0
         });
 
         // Create the complete ConvertUpBlueprintStruct

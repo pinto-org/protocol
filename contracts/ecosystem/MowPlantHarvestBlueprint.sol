@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
@@ -119,17 +118,13 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         UserFieldHarvestResults[] userFieldHarvestResults;
     }
 
-    // Silo helpers for withdrawal functionality
-    SiloHelpers public immutable siloHelpers;
-
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
+        address _gasCostCalculator,
         address _siloHelpers
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
-        siloHelpers = SiloHelpers(_siloHelpers);
-    }
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {}
 
     /**
      * @notice Main entry point for the mow, plant and harvest blueprint
@@ -138,6 +133,8 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     function mowPlantHarvestBlueprint(
         MowPlantHarvestBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
+        uint256 startGas = gasleft();
+
         // Initialize local variables
         MowPlantHarvestLocalVars memory vars;
 
@@ -196,6 +193,23 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             }
             // tip for harvesting includes all specified fields
             vars.totalBeanTip += params.opParams.harvestTipAmount;
+        }
+
+        // Add dynamic fee if enabled
+        if (params.opParams.baseOpParams.useDynamicFee) {
+            uint256 gasUsedBeforeFee = startGas - gasleft();
+            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
+            uint256 dynamicFee = _payDynamicFee(
+                DynamicFeeParams({
+                    account: vars.account,
+                    sourceTokenIndices: params.mowPlantHarvestParams.sourceTokenIndices,
+                    gasUsed: estimatedTotalGas,
+                    feeMarginBps: params.opParams.baseOpParams.feeMarginBps,
+                    maxGrownStalkPerBdv: params.mowPlantHarvestParams.maxGrownStalkPerBdv,
+                    slippageRatio: params.mowPlantHarvestParams.slippageRatio
+                })
+            );
+            vars.totalBeanTip = _safeAddDynamicFee(vars.totalBeanTip, dynamicFee);
         }
 
         // Handle tip payment
