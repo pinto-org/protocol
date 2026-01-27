@@ -55,14 +55,22 @@ contract GasCostCalculatorTest is TestHelper {
 
         // Margin > 10000 bps (100%) should revert
         vm.expectRevert("GasCostCalculator: margin exceeds max");
-        gasCostCalculator.calculateFeeInBeanWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10001);
+        gasCostCalculator.calculateFeeInBeanWithGasPrice(
+            TYPICAL_GAS_USED,
+            TYPICAL_GAS_PRICE,
+            10001
+        );
     }
 
     function test_calculateFeeInBean_maxMarginAllowed() public {
         // Max margin (10000 bps = 100%) should not revert on validation
         // Will still revert on oracle, but not on margin check
         vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.calculateFeeInBeanWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10000);
+        gasCostCalculator.calculateFeeInBeanWithGasPrice(
+            TYPICAL_GAS_USED,
+            TYPICAL_GAS_PRICE,
+            10000
+        );
     }
 
     // ==================== Oracle Revert Tests ====================
