@@ -36,8 +36,6 @@ contract GasCostCalculatorTest is TestHelper {
         vm.label(address(gasCostCalculator), "GasCostCalculator");
     }
 
-    // ==================== Constructor Tests ====================
-
     function test_constructor() public view {
         assertEq(address(gasCostCalculator.beanstalkPrice()), address(beanstalkPrice));
         assertEq(gasCostCalculator.baseGasOverhead(), DEFAULT_BASE_OVERHEAD);
@@ -47,8 +45,6 @@ contract GasCostCalculatorTest is TestHelper {
         vm.expectRevert("GasCostCalculator: zero beanstalkPrice");
         new GasCostCalculator(address(0), address(this), DEFAULT_BASE_OVERHEAD);
     }
-
-    // ==================== Margin Validation Tests ====================
 
     function test_calculateFeeInBean_revertsOnExcessiveMargin() public {
         vm.txGasPrice(TYPICAL_GAS_PRICE);
@@ -73,8 +69,6 @@ contract GasCostCalculatorTest is TestHelper {
         );
     }
 
-    // ==================== Oracle Revert Tests ====================
-
     function test_calculateFeeInBean_revertsWithoutEthOracle() public {
         vm.txGasPrice(TYPICAL_GAS_PRICE);
 
@@ -95,8 +89,6 @@ contract GasCostCalculatorTest is TestHelper {
         gasCostCalculator.estimateFee(TYPICAL_GAS_USED, 1000);
     }
 
-    // ==================== Admin Function Tests ====================
-
     function test_setBaseGasOverhead() public {
         uint256 newOverhead = 100_000;
 
@@ -114,8 +106,6 @@ contract GasCostCalculatorTest is TestHelper {
         gasCostCalculator.setBaseGasOverhead(100_000);
     }
 
-    // ==================== Constants Tests ====================
-
     function test_constants() public view {
         // Verify correct oracle address is set
         assertEq(
@@ -126,8 +116,6 @@ contract GasCostCalculatorTest is TestHelper {
         assertEq(gasCostCalculator.ORACLE_TIMEOUT(), 14400, "Timeout should be 4 hours");
         assertEq(gasCostCalculator.MAX_MARGIN_BPS(), 10000, "Max margin should be 100%");
     }
-
-    // ==================== Gas Overhead Logic Tests ====================
 
     function test_baseGasOverhead_isApplied() public {
         gasCostCalculator.setBaseGasOverhead(75_000);
