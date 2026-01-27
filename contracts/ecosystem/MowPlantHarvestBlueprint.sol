@@ -209,7 +209,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                     slippageRatio: params.mowPlantHarvestParams.slippageRatio
                 })
             );
-            vars.totalBeanTip = _safeAddDynamicFee(vars.totalBeanTip, dynamicFee);
+            vars.totalBeanTip = _addDynamicFee(vars.totalBeanTip, dynamicFee);
         }
 
         // Handle tip payment

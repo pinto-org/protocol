@@ -141,11 +141,11 @@ contract GasCostCalculator is Ownable {
      */
     function _getEthBeanRate() internal view virtual returns (uint256 rate) {
         // Get ETH/USD price - reverts if oracle fails
-        uint256 ethUsd = _safeGetEthUsdPrice();
+        uint256 ethUsd = _getEthUsdPrice();
         require(ethUsd > 0, "GasCostCalculator: ETH/USD oracle failed");
 
         // Get Bean/USD price - reverts if oracle fails
-        uint256 beanUsd = _safeGetBeanUsdPrice();
+        uint256 beanUsd = _getBeanUsdPrice();
         require(beanUsd > 0, "GasCostCalculator: Bean/USD oracle failed");
 
         // Calculate ETH/Bean = (ETH/USD) / (Bean/USD)
@@ -158,7 +158,7 @@ contract GasCostCalculator is Ownable {
      * @dev Safely get ETH/USD price
      * @return 0 if oracle has no code or returns invalid data
      */
-    function _safeGetEthUsdPrice() internal view returns (uint256) {
+    function _getEthUsdPrice() internal view returns (uint256) {
         // Check if oracle has code
         if (ETH_USD_ORACLE.code.length == 0) {
             return 0;
@@ -178,7 +178,7 @@ contract GasCostCalculator is Ownable {
      * @dev Get Bean/USD price using BeanstalkPrice with INSTANTANEOUS_RESERVES.
      * @return Bean price in USD (6 decimals)
      */
-    function _safeGetBeanUsdPrice() internal view returns (uint256) {
+    function _getBeanUsdPrice() internal view returns (uint256) {
         return beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES).price;
     }
 }

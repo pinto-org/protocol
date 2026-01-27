@@ -19,11 +19,11 @@ contract BlueprintBaseHarness is BlueprintBase {
         address _siloHelpers
     ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {}
 
-    function exposed_safeAddDynamicFee(
+    function exposed_addDynamicFee(
         int256 currentTip,
         uint256 dynamicFee
     ) external pure returns (int256) {
-        return _safeAddDynamicFee(currentTip, dynamicFee);
+        return _addDynamicFee(currentTip, dynamicFee);
     }
 
     function exposed_validateBlueprint(bytes32 orderHash, uint32 currentSeason) external view {
@@ -62,23 +62,23 @@ contract BlueprintBaseTest is TestHelper {
         );
     }
 
-    function test_safeAddDynamicFee_addsCorrectly() public view {
-        int256 result = harness.exposed_safeAddDynamicFee(100e6, 50e6);
+    function test_addDynamicFee_addsCorrectly() public view {
+        int256 result = harness.exposed_addDynamicFee(100e6, 50e6);
         assertEq(result, 150e6);
     }
 
-    function test_safeAddDynamicFee_worksWithNegativeTip() public view {
-        int256 result = harness.exposed_safeAddDynamicFee(-100e6, 150e6);
+    function test_addDynamicFee_worksWithNegativeTip() public view {
+        int256 result = harness.exposed_addDynamicFee(-100e6, 150e6);
         assertEq(result, 50e6);
     }
 
-    function test_safeAddDynamicFee_revertsOnOverflow() public {
+    function test_addDynamicFee_revertsOnOverflow() public {
         vm.expectRevert("BlueprintBase: tip + fee overflow");
-        harness.exposed_safeAddDynamicFee(type(int256).max - 100, 200);
+        harness.exposed_addDynamicFee(type(int256).max - 100, 200);
     }
 
-    function test_safeAddDynamicFee_worksAtExactLimit() public view {
-        int256 result = harness.exposed_safeAddDynamicFee(type(int256).max - 100, 100);
+    function test_addDynamicFee_worksAtExactLimit() public view {
+        int256 result = harness.exposed_addDynamicFee(type(int256).max - 100, 100);
         assertEq(result, type(int256).max);
     }
 

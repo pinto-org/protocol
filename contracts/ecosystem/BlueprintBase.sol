@@ -191,7 +191,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @return newTip The new total tip amount after adding dynamic fee
      * @dev Reverts if addition would overflow int256
      */
-    function _safeAddDynamicFee(
+    function _addDynamicFee(
         int256 currentTip,
         uint256 dynamicFee
     ) internal pure returns (int256 newTip) {
@@ -229,7 +229,7 @@ abstract contract BlueprintBase is PerFunctionPausable {
                     slippageRatio: tipParams.slippageRatio
                 })
             );
-            totalTipAmount = _safeAddDynamicFee(totalTipAmount, dynamicFee);
+            totalTipAmount = _addDynamicFee(totalTipAmount, dynamicFee);
         }
 
         tractorHelpers.tip(
