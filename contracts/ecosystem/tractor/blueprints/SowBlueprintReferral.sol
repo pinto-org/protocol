@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {SowBlueprintBase, LibSiloHelpers} from "./SowBlueprintBase.sol";
+import {SowBlueprintBase} from "./SowBlueprintBase.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 /**
  * @title SowBlueprintReferral
@@ -23,8 +24,9 @@ contract SowBlueprintReferral is SowBlueprintBase {
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
+        address _gasCostCalculator,
         address _siloHelpers
-    ) SowBlueprintBase(_beanstalk, _owner, _tractorHelpers, _siloHelpers) {}
+    ) SowBlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {}
 
     /**
      * @notice Sows beans using specified source tokens in order of preference with referral

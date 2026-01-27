@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {SiloHelpers} from "../utils/SiloHelpers.sol";
 
 /**
  * @title SowBlueprintBase
@@ -113,17 +112,13 @@ abstract contract SowBlueprintBase is BlueprintBase {
     // Combined state mapping for order info
     mapping(bytes32 => OrderInfo) private orderInfo;
 
-    // Silo helpers for withdrawal functionality
-    SiloHelpers public immutable siloHelpers;
-
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
+        address _gasCostCalculator,
         address _siloHelpers
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
-        siloHelpers = SiloHelpers(_siloHelpers);
-    }
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {}
 
     /**
      * @notice Gets the number of maximum pinto that can be sown from this blueprint
@@ -147,6 +142,7 @@ abstract contract SowBlueprintBase is BlueprintBase {
      * @param referral Referral address (address(0) for no referral)
      */
     function _sowBlueprintInternal(SowBlueprintStruct memory params, address referral) internal {
+        uint256 startGas = gasleft();
         // Initialize local variables
         SowLocalVars memory vars;
 
@@ -211,15 +207,21 @@ abstract contract SowBlueprintBase is BlueprintBase {
             );
         }
         updatePintoLeftToSowCounter(vars.orderHash, sowCounter);
+        // Update the last executed season for this blueprint
+        _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
 
-        // Tip the operator
-        tractorHelpers.tip(
-            vars.beanToken,
-            vars.account,
-            vars.tipAddress,
-            params.opParams.operatorTipAmount,
-            LibTransfer.From.INTERNAL,
-            LibTransfer.To.INTERNAL
+        _processFeesAndTip(
+            TipParams({
+                account: vars.account,
+                tipAddress: vars.tipAddress,
+                sourceTokenIndices: params.sowParams.sourceTokenIndices,
+                operatorTipAmount: params.opParams.operatorTipAmount,
+                useDynamicFee: params.opParams.useDynamicFee,
+                feeMarginBps: params.opParams.feeMarginBps,
+                maxGrownStalkPerBdv: params.sowParams.maxGrownStalkPerBdv,
+                slippageRatio: slippageRatio,
+                startGas: startGas
+            })
         );
 
         // Sow the withdrawn beans
@@ -241,9 +243,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
                 referral
             );
         }
-
-        // Update the last executed season for this blueprint
-        _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
     }
 
     /**
