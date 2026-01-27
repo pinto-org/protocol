@@ -3,15 +3,14 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LibChainlinkOracle} from "contracts/libraries/Oracle/LibChainlinkOracle.sol";
-import {LibUsdOracle} from "contracts/libraries/Oracle/LibUsdOracle.sol";
-import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {BeanstalkPrice, ReservesType} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 
 /**
  * @title GasCostCalculator
  * @author exTypen
  * @notice Calculates gas-based fees in Pinto tokens for blueprint executions.
- * @dev Uses ETH/USD Chainlink oracle and LibUsdOracle for Pinto price to convert gas cost to Pinto fee.
- *      Reverts on oracle failure (assumes manipulation if oracle fails).
+ * @dev Uses ETH/USD Chainlink oracle and BeanstalkPrice to convert gas cost to Pinto fee.
+ *      Reverts on oracle failure.
  */
 contract GasCostCalculator is Ownable {
     /// @notice ETH/USD Chainlink oracle on Base.
@@ -26,8 +25,11 @@ contract GasCostCalculator is Ownable {
     /// @notice Pinto token decimals.
     uint256 private constant PINTO_DECIMALS = 1e6;
 
-    /// @notice Beanstalk contract for getting Pinto token address.
-    IBeanstalk public immutable beanstalk;
+    /// @notice Maximum margin in basis points (100% = 10000 bps).
+    uint256 public constant MAX_MARGIN_BPS = 10000;
+
+    /// @notice BeanstalkPrice contract for getting manipulation-resistant Pinto price.
+    BeanstalkPrice public immutable beanstalkPrice;
 
     /// @notice Base gas overhead for Tractor infrastructure (signature verification, etc.).
     uint256 public baseGasOverhead;
@@ -37,14 +39,14 @@ contract GasCostCalculator is Ownable {
 
     /**
      * @notice Creates a new GasCostCalculator.
-     * @param _beanstalk Address of the Beanstalk diamond
+     * @param _beanstalkPrice Address of the BeanstalkPrice contract
      * @param _owner Address of the contract owner
      * @param _baseGasOverhead Initial base gas overhead (default: 50000)
      */
-    constructor(address _beanstalk, address _owner, uint256 _baseGasOverhead) Ownable(_owner) {
-        require(_beanstalk != address(0), "GasCostCalculator: zero beanstalk");
+    constructor(address _beanstalkPrice, address _owner, uint256 _baseGasOverhead) Ownable(_owner) {
+        require(_beanstalkPrice != address(0), "GasCostCalculator: zero beanstalkPrice");
 
-        beanstalk = IBeanstalk(_beanstalk);
+        beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
         baseGasOverhead = _baseGasOverhead;
     }
 
@@ -65,7 +67,7 @@ contract GasCostCalculator is Ownable {
      * @notice Calculate fee in Pinto tokens for gas consumed using custom gas price.
      * @param gasUsed Gas consumed by the operation (excluding overhead)
      * @param gasPriceWei Gas price in wei
-     * @param marginBps Additional margin in basis points (100 = 1%, 1000 = 10%)
+     * @param marginBps Additional margin in basis points (100 = 1%, 1000 = 10%, max 10000 = 100%)
      * @return fee Fee amount in Pinto tokens (6 decimals)
      */
     function calculateFeeInPintoWithGasPrice(
@@ -73,6 +75,8 @@ contract GasCostCalculator is Ownable {
         uint256 gasPriceWei,
         uint256 marginBps
     ) public view returns (uint256 fee) {
+        require(marginBps <= MAX_MARGIN_BPS, "GasCostCalculator: margin exceeds max");
+
         // Add base overhead to gas used
         uint256 totalGas = gasUsed + baseGasOverhead;
 
@@ -171,13 +175,10 @@ contract GasCostCalculator is Ownable {
     }
 
     /**
-     * @dev Safely get Pinto/USD price
-     * @return 0 if oracle returns invalid data
+     * @dev Get Pinto/USD price using BeanstalkPrice with INSTANTANEOUS_RESERVES.
+     * @return Pinto price in USD (6 decimals)
      */
     function _safeGetPintoUsdPrice() internal view returns (uint256) {
-        address pintoToken = beanstalk.getBeanToken();
-
-        // LibUsdOracle.getTokenPrice handles failures internally and returns 0
-        return LibUsdOracle.getTokenPrice(pintoToken, 0);
+        return beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES).price;
     }
 }

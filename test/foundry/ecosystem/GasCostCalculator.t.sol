@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
+import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 import "forge-std/console.sol";
 
@@ -15,6 +16,7 @@ import "forge-std/console.sol";
  */
 contract GasCostCalculatorTest is TestHelper {
     GasCostCalculator public gasCostCalculator;
+    BeanstalkPrice public beanstalkPrice;
 
     // Test constants
     uint256 constant DEFAULT_BASE_OVERHEAD = 50_000;
@@ -24,9 +26,13 @@ contract GasCostCalculatorTest is TestHelper {
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
+        // Deploy BeanstalkPrice
+        beanstalkPrice = new BeanstalkPrice(address(bs));
+        vm.label(address(beanstalkPrice), "BeanstalkPrice");
+
         // Deploy GasCostCalculator
         gasCostCalculator = new GasCostCalculator(
-            address(bs),
+            address(beanstalkPrice),
             address(this),
             DEFAULT_BASE_OVERHEAD
         );
@@ -36,13 +42,30 @@ contract GasCostCalculatorTest is TestHelper {
     // ==================== Constructor Tests ====================
 
     function test_constructor() public view {
-        assertEq(address(gasCostCalculator.beanstalk()), address(bs));
+        assertEq(address(gasCostCalculator.beanstalkPrice()), address(beanstalkPrice));
         assertEq(gasCostCalculator.baseGasOverhead(), DEFAULT_BASE_OVERHEAD);
     }
 
-    function test_constructor_revertsOnZeroBeanstalk() public {
-        vm.expectRevert("GasCostCalculator: zero beanstalk");
+    function test_constructor_revertsOnZeroBeanstalkPrice() public {
+        vm.expectRevert("GasCostCalculator: zero beanstalkPrice");
         new GasCostCalculator(address(0), address(this), DEFAULT_BASE_OVERHEAD);
+    }
+
+    // ==================== Margin Validation Tests ====================
+
+    function test_calculateFeeInPinto_revertsOnExcessiveMargin() public {
+        vm.txGasPrice(TYPICAL_GAS_PRICE);
+
+        // Margin > 10000 bps (100%) should revert
+        vm.expectRevert("GasCostCalculator: margin exceeds max");
+        gasCostCalculator.calculateFeeInPintoWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10001);
+    }
+
+    function test_calculateFeeInPinto_maxMarginAllowed() public {
+        // Max margin (10000 bps = 100%) should not revert on validation
+        // Will still revert on oracle, but not on margin check
+        vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
+        gasCostCalculator.calculateFeeInPintoWithGasPrice(TYPICAL_GAS_USED, TYPICAL_GAS_PRICE, 10000);
     }
 
     // ==================== Oracle Revert Tests ====================
@@ -86,9 +109,9 @@ contract GasCostCalculatorTest is TestHelper {
         gasCostCalculator.setBaseGasOverhead(100_000);
     }
 
-    // ==================== Oracle Addresses ====================
+    // ==================== Constants Tests ====================
 
-    function test_oracleAddresses() public view {
+    function test_constants() public view {
         // Verify correct oracle address is set
         assertEq(
             gasCostCalculator.ETH_USD_ORACLE(),
@@ -96,6 +119,7 @@ contract GasCostCalculatorTest is TestHelper {
             "ETH/USD oracle should be Base mainnet address"
         );
         assertEq(gasCostCalculator.ORACLE_TIMEOUT(), 14400, "Timeout should be 4 hours");
+        assertEq(gasCostCalculator.MAX_MARGIN_BPS(), 10000, "Max margin should be 100%");
     }
 
     // ==================== Gas Overhead Logic Tests ====================
