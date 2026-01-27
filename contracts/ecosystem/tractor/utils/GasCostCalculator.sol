@@ -16,8 +16,8 @@ contract GasCostCalculator is Ownable {
     /// @notice ETH/USD Chainlink oracle on Base.
     address public constant ETH_USD_ORACLE = 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70;
 
-    /// @notice Chainlink timeout (4 hours).
-    uint256 public constant ORACLE_TIMEOUT = 14400;
+    /// @notice Chainlink timeout (1 hour, consistent with ETH/USD oracle heartbeat).
+    uint256 public constant ORACLE_TIMEOUT = 3600;
 
     /// @notice Precision for internal calculations (1e18).
     uint256 private constant PRECISION = 1e18;
