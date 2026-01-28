@@ -240,17 +240,22 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         address user = LibTractor._user();
         uint256 af = s.sys.activeField;
         require(delegate != user, "Field: delegate cannot be the user");
+        require(delegate != address(0), "Field: delegate cannot be the zero address");
 
         // a user is eligible to delegate if they are eligible themselves via sowing the threshold number of beans.
+        uint256 eligibilityThreshold = s.sys.referralBeanSownEligibilityThreshold;
         require(
-            s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold,
+            s.accts[user].fields[af].referral.beans >= eligibilityThreshold,
             "Field: user cannot delegate"
         );
 
         // if the user has already delegated, reset the eligibility for the delegate.
         if (s.accts[user].fields[af].referral.delegate != address(0)) {
             address oldDelegate = s.accts[user].fields[af].referral.delegate;
-            s.accts[oldDelegate].fields[af].referral.eligibility = false;
+            // check whether the old delegate is eligible. if not, reset their eligibility.
+            if (s.accts[oldDelegate].fields[af].referral.beans < eligibilityThreshold) {
+                s.accts[oldDelegate].fields[af].referral.eligibility = false;
+            }
         }
 
         // the delegate must not be already eligible.
