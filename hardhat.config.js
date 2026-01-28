@@ -29,21 +29,6 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // compile contracts.
   await hre.run("compile");
 
-  await hre.run("PI-14");
-
-  console.log("Diamond Upgraded.");
-
-  await hre.run("addLiquidityToWstethWell", { deposit: true });
-  console.log("Liquidity added to WSTETH well.");
-
-  // deploy the new pod referral contracts:
-  await hre.run("deployPodReferralContracts");
-  console.log("Pod referral contracts deployed.");
-
-  // update the oracle timeouts
-  await hre.run("updateOracleTimeouts");
-  console.log("Oracle timeouts updated.");
-
   // run beanstalk shipments
   await hre.run("runBeanstalkShipments", { skipPause: true, runStep0: false });
 });

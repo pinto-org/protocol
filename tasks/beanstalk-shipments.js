@@ -225,7 +225,7 @@ module.exports = function () {
         facetNames: ["SeasonFacet", "TokenHookFacet", "ShipmentPlannerFacet"],
         libraryNames: [
           "LibEvaluate",
-          "LibGauge",
+          "LibSeedGauge",
           "LibIncentive",
           "LibShipping",
           "LibWellMinting",
@@ -236,7 +236,7 @@ module.exports = function () {
         facetLibraries: {
           SeasonFacet: [
             "LibEvaluate",
-            "LibGauge",
+            "LibSeedGauge",
             "LibIncentive",
             "LibShipping",
             "LibWellMinting",
