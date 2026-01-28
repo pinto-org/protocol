@@ -208,13 +208,16 @@ library LibSiloHelpers {
     }
 
     /**
-     * @notice Returns a deposit filter with no exclusions
+     * @notice Returns a deposit filter with default values.
+     * @param maxGrownStalkPerBdv The maximum grown stalk per BDV to filter deposits
      * @return FilterParams The default deposit filter parameters
      */
-    function getDefaultFilterParams() public pure returns (FilterParams memory) {
+    function getDefaultFilterParams(
+        uint256 maxGrownStalkPerBdv
+    ) public pure returns (FilterParams memory) {
         return
             FilterParams({
-                maxGrownStalkPerBdv: uint256(int256(type(int96).max)), // any amount of grown stalk per bdv is allowed. Maximum set at int96, as this is used to derive the minStem.
+                maxGrownStalkPerBdv: maxGrownStalkPerBdv,
                 minStem: type(int96).min, // include all stems
                 excludeGerminatingDeposits: false, // no germinating deposits are excluded
                 excludeBean: false, // beans are included in the set of deposits.
