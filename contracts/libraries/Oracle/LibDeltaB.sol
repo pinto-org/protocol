@@ -289,6 +289,9 @@ library LibDeltaB {
         address targetWell,
         uint256[] memory reserves
     ) internal view returns (uint256 maxDeltaBImpact) {
+        // L2L/AL2L converts pass targetWell as address(0) to skip penalty calculation
+        if (targetWell == address(0)) return 0;
+
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         address well;
