@@ -87,11 +87,11 @@ interface IMockFBeanstalk {
     }
 
     struct DeltaBStorage {
-        int256 beforeInputTokenDeltaB;
-        int256 afterInputTokenDeltaB;
-        int256 beforeOutputTokenDeltaB;
-        int256 afterOutputTokenDeltaB;
-        int256 twapOverallDeltaB;
+        int256 beforeInputTokenSpotDeltaB;
+        int256 afterInputTokenSpotDeltaB;
+        int256 beforeOutputTokenSpotDeltaB;
+        int256 afterOutputTokenSpotDeltaB;
+        int256 cappedOverallDeltaB;
         int256 shadowOverallDeltaB;
     }
 

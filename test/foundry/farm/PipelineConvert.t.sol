@@ -338,22 +338,22 @@ contract PipelineConvertTest is TestHelper {
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
 
-        dbs.beforeInputTokenDeltaB = bs.poolCurrentDeltaB(pd.inputWell);
+        dbs.beforeInputTokenSpotDeltaB = bs.poolCurrentDeltaB(pd.inputWell);
 
-        dbs.afterInputTokenDeltaB = LibDeltaB.scaledDeltaB(
+        dbs.afterInputTokenSpotDeltaB = LibDeltaB.scaledDeltaB(
             pd.beforeInputTokenLPSupply,
             pd.afterInputTokenLPSupply,
             pd.inputWellNewDeltaB
         );
-        dbs.beforeOutputTokenDeltaB = bs.poolCurrentDeltaB(pd.outputWell);
+        dbs.beforeOutputTokenSpotDeltaB = bs.poolCurrentDeltaB(pd.outputWell);
 
-        dbs.afterOutputTokenDeltaB = LibDeltaB.scaledDeltaB(
+        dbs.afterOutputTokenSpotDeltaB = LibDeltaB.scaledDeltaB(
             pd.beforeOutputTokenLPSupply,
             pd.afterOutputTokenLPSupply,
             pd.outputWellNewDeltaB
         );
-        dbs.twapOverallDeltaB = bs.overallCurrentDeltaB();
-        dbs.shadowOverallDeltaB = dbs.afterInputTokenDeltaB + dbs.afterOutputTokenDeltaB; // update and for scaled deltaB
+        dbs.cappedOverallDeltaB = bs.overallCurrentDeltaB();
+        dbs.shadowOverallDeltaB = dbs.afterInputTokenSpotDeltaB + dbs.afterOutputTokenSpotDeltaB; // update and for scaled deltaB
 
         pd.newBdv = bs.bdv(pd.outputWell, pd.wellAmountOut);
 
@@ -1150,7 +1150,7 @@ contract PipelineConvertTest is TestHelper {
             beanEthWell
         );
         td.lpAmountAfter = td.lpAmountBefore.add(td.lpAmountOut);
-        dbs.twapOverallDeltaB = bs.overallCurrentDeltaB();
+        dbs.cappedOverallDeltaB = bs.overallCurrentDeltaB();
         // calculate scaled overall deltaB, based on just the well affected
         dbs.shadowOverallDeltaB = LibDeltaB.scaledDeltaB(
             td.lpAmountBefore,
@@ -1280,12 +1280,12 @@ contract PipelineConvertTest is TestHelper {
         updateMockPumpUsingWellReserves(beanEthWell);
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
-        dbs.twapOverallDeltaB = -int256(amount);
+        dbs.cappedOverallDeltaB = -int256(amount);
         dbs.shadowOverallDeltaB = 0;
-        dbs.beforeInputTokenDeltaB = -int256(amount);
-        dbs.afterInputTokenDeltaB = 0;
-        dbs.beforeOutputTokenDeltaB = 0;
-        dbs.afterOutputTokenDeltaB = 0;
+        dbs.beforeInputTokenSpotDeltaB = -int256(amount);
+        dbs.afterInputTokenSpotDeltaB = 0;
+        dbs.beforeOutputTokenSpotDeltaB = 0;
+        dbs.afterOutputTokenSpotDeltaB = 0;
         uint256 bdvConverted = amount;
         uint256 overallConvertCapacity = amount;
         address inputToken = beanEthWell;
@@ -1444,12 +1444,12 @@ contract PipelineConvertTest is TestHelper {
         updateMockPumpUsingWellReserves(beanEthWell);
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
-        dbs.twapOverallDeltaB = -200;
+        dbs.cappedOverallDeltaB = -200;
         dbs.shadowOverallDeltaB = -100;
-        dbs.beforeInputTokenDeltaB = -100;
-        dbs.afterInputTokenDeltaB = 0;
-        dbs.beforeOutputTokenDeltaB = 0;
-        dbs.afterOutputTokenDeltaB = 0;
+        dbs.beforeInputTokenSpotDeltaB = -100;
+        dbs.afterInputTokenSpotDeltaB = 0;
+        dbs.beforeOutputTokenSpotDeltaB = 0;
+        dbs.afterOutputTokenSpotDeltaB = 0;
 
         uint256 bdvConverted = 100;
         uint256 overallCappedDeltaB = 100;
@@ -1472,12 +1472,12 @@ contract PipelineConvertTest is TestHelper {
         updateMockPumpUsingWellReserves(beanEthWell);
 
         IMockFBeanstalk.DeltaBStorage memory dbs;
-        dbs.twapOverallDeltaB = 100;
+        dbs.cappedOverallDeltaB = 100;
         dbs.shadowOverallDeltaB = 0;
-        dbs.beforeInputTokenDeltaB = -100;
-        dbs.afterInputTokenDeltaB = 0;
-        dbs.beforeOutputTokenDeltaB = 0;
-        dbs.afterOutputTokenDeltaB = 0;
+        dbs.beforeInputTokenSpotDeltaB = -100;
+        dbs.afterInputTokenSpotDeltaB = 0;
+        dbs.beforeOutputTokenSpotDeltaB = 0;
+        dbs.afterOutputTokenSpotDeltaB = 0;
 
         uint256 bdvConverted = 100;
         uint256 overallCappedDeltaB = 100;
@@ -1529,8 +1529,8 @@ contract PipelineConvertTest is TestHelper {
             uint256 overallConvertCapacity
         ) = setupTowardsPegDeltaBStorageNegative();
 
-        dbs.beforeInputTokenDeltaB = 100;
-        dbs.beforeOutputTokenDeltaB = 100;
+        dbs.beforeInputTokenSpotDeltaB = 100;
+        dbs.beforeOutputTokenSpotDeltaB = 100;
 
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
@@ -1554,11 +1554,11 @@ contract PipelineConvertTest is TestHelper {
         uint256 bdvConverted = 100e6;
         uint256 overallConvertCapacity = 0;
 
-        dbs.beforeInputTokenDeltaB = 0;
-        dbs.afterInputTokenDeltaB = -100e6;
-        dbs.beforeOutputTokenDeltaB = 0;
-        dbs.afterOutputTokenDeltaB = 0;
-        dbs.twapOverallDeltaB = 0;
+        dbs.beforeInputTokenSpotDeltaB = 0;
+        dbs.afterInputTokenSpotDeltaB = -100e6;
+        dbs.beforeOutputTokenSpotDeltaB = 0;
+        dbs.afterOutputTokenSpotDeltaB = 0;
+        dbs.cappedOverallDeltaB = 0;
         dbs.shadowOverallDeltaB = -100e6;
 
         uint256 fromAmount = 1e18; // 1 LP token
@@ -1586,11 +1586,11 @@ contract PipelineConvertTest is TestHelper {
         uint256 bdvConverted = 100e6;
         uint256 overallConvertCapacity = 100e6;
 
-        dbs.beforeInputTokenDeltaB = 0;
-        dbs.afterInputTokenDeltaB = -100e6;
-        dbs.beforeOutputTokenDeltaB = 0;
-        dbs.afterOutputTokenDeltaB = 0;
-        dbs.twapOverallDeltaB = 0;
+        dbs.beforeInputTokenSpotDeltaB = 0;
+        dbs.afterInputTokenSpotDeltaB = -100e6;
+        dbs.beforeOutputTokenSpotDeltaB = 0;
+        dbs.afterOutputTokenSpotDeltaB = 0;
+        dbs.cappedOverallDeltaB = 0;
         dbs.shadowOverallDeltaB = -100e6;
 
         uint256 fromAmount = 1e18; // 1 LP token
@@ -1618,7 +1618,7 @@ contract PipelineConvertTest is TestHelper {
 
         inputToken = BEAN;
         outputToken = beanEthWell;
-        dbs.twapOverallDeltaB = -100;
+        dbs.cappedOverallDeltaB = -100;
 
         (uint256 stalkPenaltyBdv, , , ) = bs.calculateStalkPenalty(
             dbs,
@@ -1641,11 +1641,11 @@ contract PipelineConvertTest is TestHelper {
         ) = setupTowardsPegDeltaBStorageNegative();
 
         // Ensure `higherAmountAgainstPeg` is greater than `convertCapacityPenalty`
-        dbs.beforeInputTokenDeltaB = -200;
-        dbs.afterInputTokenDeltaB = -50;
-        dbs.beforeOutputTokenDeltaB = -100;
-        dbs.afterOutputTokenDeltaB = -500;
-        dbs.twapOverallDeltaB = -300;
+        dbs.beforeInputTokenSpotDeltaB = -200;
+        dbs.afterInputTokenSpotDeltaB = -50;
+        dbs.beforeOutputTokenSpotDeltaB = -100;
+        dbs.afterOutputTokenSpotDeltaB = -500;
+        dbs.cappedOverallDeltaB = -300;
         dbs.shadowOverallDeltaB = -250;
 
         overallConvertCapacity = 100; // Set low to force penalty
@@ -1749,11 +1749,11 @@ contract PipelineConvertTest is TestHelper {
             uint256 overallConvertCapacity
         )
     {
-        dbs.beforeInputTokenDeltaB = -100;
-        dbs.afterInputTokenDeltaB = 0;
-        dbs.beforeOutputTokenDeltaB = -100;
-        dbs.afterOutputTokenDeltaB = 0;
-        dbs.twapOverallDeltaB = 0;
+        dbs.beforeInputTokenSpotDeltaB = -100;
+        dbs.afterInputTokenSpotDeltaB = 0;
+        dbs.beforeOutputTokenSpotDeltaB = -100;
+        dbs.afterOutputTokenSpotDeltaB = 0;
+        dbs.cappedOverallDeltaB = 0;
         dbs.shadowOverallDeltaB = 0;
 
         inputToken = beanEthWell;

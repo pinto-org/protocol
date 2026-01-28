@@ -64,11 +64,11 @@ library LibConvert {
     }
 
     struct DeltaBStorage {
-        int256 beforeInputTokenDeltaB;
-        int256 afterInputTokenDeltaB;
-        int256 beforeOutputTokenDeltaB;
-        int256 afterOutputTokenDeltaB;
-        int256 twapOverallDeltaB;
+        int256 beforeInputTokenSpotDeltaB;
+        int256 afterInputTokenSpotDeltaB;
+        int256 beforeOutputTokenSpotDeltaB;
+        int256 afterOutputTokenSpotDeltaB;
+        int256 cappedOverallDeltaB;
         int256 shadowOverallDeltaB;
     }
 
@@ -297,6 +297,7 @@ library LibConvert {
         );
 
         if (pipelineConvertDeltaBImpact > 0) {
+            // This scales the penalty proportionally to how much of the theoretical max was penalized
             stalkPenaltyBdv = min(
                 (penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact,
                 bdvConverted
@@ -423,11 +424,14 @@ library LibConvert {
     function calculateAmountAgainstPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateAgainstPeg(dbs.twapOverallDeltaB, dbs.shadowOverallDeltaB);
-        pd.inputToken = calculateAgainstPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
+        pd.overall = calculateAgainstPeg(dbs.cappedOverallDeltaB, dbs.shadowOverallDeltaB);
+        pd.inputToken = calculateAgainstPeg(
+            dbs.beforeInputTokenSpotDeltaB,
+            dbs.afterInputTokenSpotDeltaB
+        );
         pd.outputToken = calculateAgainstPeg(
-            dbs.beforeOutputTokenDeltaB,
-            dbs.afterOutputTokenDeltaB
+            dbs.beforeOutputTokenSpotDeltaB,
+            dbs.afterOutputTokenSpotDeltaB
         );
     }
 
@@ -459,11 +463,14 @@ library LibConvert {
     function calculateConvertedTowardsPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateTowardsPeg(dbs.twapOverallDeltaB, dbs.shadowOverallDeltaB);
-        pd.inputToken = calculateTowardsPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
+        pd.overall = calculateTowardsPeg(dbs.cappedOverallDeltaB, dbs.shadowOverallDeltaB);
+        pd.inputToken = calculateTowardsPeg(
+            dbs.beforeInputTokenSpotDeltaB,
+            dbs.afterInputTokenSpotDeltaB
+        );
         pd.outputToken = calculateTowardsPeg(
-            dbs.beforeOutputTokenDeltaB,
-            dbs.afterOutputTokenDeltaB
+            dbs.beforeOutputTokenSpotDeltaB,
+            dbs.afterOutputTokenSpotDeltaB
         );
     }
 
@@ -474,11 +481,11 @@ library LibConvert {
         int256 beforeTokenDeltaB,
         int256 afterTokenDeltaB
     ) internal pure returns (uint256) {
-        // Calculate absolute values of beforeInputTokenDeltaB and afterInputTokenDeltaB using the abs() function
+        // Calculate absolute values of beforeTokenDeltaB and afterTokenDeltaB using the abs() function
         uint256 beforeDeltaAbs = abs(beforeTokenDeltaB);
         uint256 afterDeltaAbs = abs(afterTokenDeltaB);
 
-        // Check if afterInputTokenDeltaB and beforeInputTokenDeltaB have the same sign
+        // Check if afterTokenDeltaB and beforeTokenDeltaB have the same sign
         if (
             (beforeTokenDeltaB >= 0 && afterTokenDeltaB >= 0) ||
             (beforeTokenDeltaB < 0 && afterTokenDeltaB < 0)
@@ -488,7 +495,7 @@ library LibConvert {
                 // Return the difference between beforeDeltaAbs and afterDeltaAbs
                 return beforeDeltaAbs.sub(afterDeltaAbs);
             } else {
-                // If afterInputTokenDeltaB is further from or equal to zero, return zero
+                // If afterTokenDeltaB is further from or equal to zero, return zero
                 return 0;
             }
         } else {
