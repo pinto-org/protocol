@@ -50,7 +50,8 @@ contract TempRepaymentFieldFacet is ReentrancyGuard {
                 uint256 podAmount = accountPlots[i].plots[j].podAmounts;
                 s.accts[account].fields[REPAYMENT_FIELD_ID].plots[podIndex] = podAmount;
                 s.accts[account].fields[REPAYMENT_FIELD_ID].plotIndexes.push(podIndex);
-                s.accts[account].fields[REPAYMENT_FIELD_ID].piIndex[podIndex] = j;
+                s.accts[account].fields[REPAYMENT_FIELD_ID].piIndex[podIndex] =
+                    s.accts[account].fields[REPAYMENT_FIELD_ID].plotIndexes.length - 1;
                 emit RepaymentPlotAdded(account, podIndex, podAmount);
             }
         }

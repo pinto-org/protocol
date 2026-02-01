@@ -112,6 +112,31 @@ function splitEntriesIntoChunksOptimized(data, targetEntriesPerChunk) {
   return chunks;
 }
 
+/**
+ * Splits accounts with too many plots into multiple entries.
+ * This allows whale accounts to be processed across multiple transactions.
+ * @param {Array} plotData - Array of [address, [[plotId, amount], ...]]
+ * @param {number} maxPlotsPerEntry - Maximum plots per entry (default: 200)
+ * @returns {Array} - Flattened array with whale accounts split
+ */
+function splitWhaleAccounts(plotData, maxPlotsPerEntry = 200) {
+  const result = [];
+
+  for (const [address, plots] of plotData) {
+    if (plots.length <= maxPlotsPerEntry) {
+      result.push([address, plots]);
+    } else {
+      // Split into chunks of maxPlotsPerEntry
+      for (let i = 0; i < plots.length; i += maxPlotsPerEntry) {
+        const plotChunk = plots.slice(i, i + maxPlotsPerEntry);
+        result.push([address, plotChunk]);
+      }
+    }
+  }
+
+  return result;
+}
+
 async function updateProgress(current, total) {
   const percentage = Math.round((current / total) * 100);
   const progressBarLength = 30;
@@ -148,6 +173,7 @@ exports.readPrune = readPrune;
 exports.splitEntriesIntoChunks = splitEntriesIntoChunks;
 exports.splitIntoExactChunks = splitIntoExactChunks;
 exports.splitEntriesIntoChunksOptimized = splitEntriesIntoChunksOptimized;
+exports.splitWhaleAccounts = splitWhaleAccounts;
 exports.updateProgress = updateProgress;
 exports.convertToBigNum = convertToBigNum;
 exports.retryOperation = retryOperation;
