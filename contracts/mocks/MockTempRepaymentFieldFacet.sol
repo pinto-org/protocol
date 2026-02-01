@@ -53,8 +53,13 @@ contract MockTempRepaymentFieldFacet {
      * @notice Mirrors TempRepaymentFieldFacet.initializeRepaymentPlots exactly
      * @dev Includes ReentrancyGuard + require check for accurate gas measurement
      */
-    function initializeRepaymentPlots(RepaymentPlotData[] calldata accountPlots) external nonReentrant {
-        require(msg.sender == populator, "Only the repayment field populator can call this function");
+    function initializeRepaymentPlots(
+        RepaymentPlotData[] calldata accountPlots
+    ) external nonReentrant {
+        require(
+            msg.sender == populator,
+            "Only the repayment field populator can call this function"
+        );
 
         for (uint256 i; i < accountPlots.length; i++) {
             address account = accountPlots[i].account;
@@ -64,7 +69,9 @@ contract MockTempRepaymentFieldFacet {
 
                 accountFields[account].plots[podIndex] = podAmount;
                 accountFields[account].plotIndexes.push(podIndex);
-                accountFields[account].piIndex[podIndex] = accountFields[account].plotIndexes.length - 1;
+                accountFields[account].piIndex[podIndex] =
+                    accountFields[account].plotIndexes.length -
+                    1;
 
                 emit RepaymentPlotAdded(account, podIndex, podAmount);
             }
