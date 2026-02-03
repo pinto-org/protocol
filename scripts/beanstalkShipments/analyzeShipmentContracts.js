@@ -41,20 +41,17 @@ const RETRY_DELAY = 1000;
 // Known Safe singleton addresses (normalized to lowercase)
 const SAFE_SINGLETONS = {
   '0xb6029ea3b2c51d09a50b53ca8012feeb05bda35a': '1.0.0',
-  '0x34cfac646f301356faa8b21e94227e3583fe3f5f': '1.1.0',
-  '0xae32496491b53841efb51829d6f886387708f99b': '1.1.1',
+  '0xae32496491b53841efb51829d6f886387708f99b': '1.1.0',
+  '0x34cfac646f301356faa8b21e94227e3583fe3f5f': '1.1.1',
   '0x6851d6fdfafd08c0295c392436245e5bc78b0185': '1.2.0',
   '0xd9db270c1b5e3bd161e8c8503c55ceabee709552': '1.3.0',
   '0x3e5c63644e683549055b9be8653de26e0b4cd36e': '1.3.0-L2',
-  '0x69f4d1788e39c87893c980c06edf4b7f686e2938': '1.3.0',
   '0x41675c099f32341bf84bfc5382af534df5c7461a': '1.4.1',
   '0x29fcb43b46531bca003ddc8fcb67ffe91900c762': '1.4.1-L2',
 };
 
-// Ambire known addresses
 const AMBIRE_IDENTITIES = [
   '0x2a2b85eb1054d6f0c6c2e37da05ed3e5fea684ef',
-  '0xf1822eb71b8f09ca07f10c4bebb064c36faf39bb',
 ];
 
 // Safe ABI
