@@ -648,9 +648,13 @@ async function main() {
   console.log(`\nResults written to: ${outputPath}`);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('Error:', error);
-    process.exit(1);
-  });
+module.exports = { main };
+
+if (require.main === module) {
+  main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('Error:', error);
+      process.exit(1);
+    });
+}

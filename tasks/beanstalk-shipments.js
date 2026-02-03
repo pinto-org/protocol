@@ -25,10 +25,25 @@ module.exports = function () {
 
   //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
 
+  ////// PRE-DEPLOYMENT: ANALYZE SHIPMENT CONTRACTS //////
+  // Analyzes all addresses with Beanstalk assets to determine claimability on Base.
+  // Detects Safe wallets, EIP-7702 delegations, EIP-1167 proxies, and Ambire wallets.
+  // Outputs: shipmentContractAnalysis.json, eip7702Addresses.json, unclaimableContractAddresses.json
+  // Requires MAINNET_RPC, ARBITRUM_RPC and BASE_RPC in .env
+  //  - npx hardhat analyzeShipmentContracts
+  task(
+    "analyzeShipmentContracts",
+    "analyzes contract addresses for cross-chain claimability"
+  ).setAction(async () => {
+    const { main } = require("../scripts/beanstalkShipments/analyzeShipmentContracts");
+    await main();
+  });
+
   ////// PRE-DEPLOYMENT: DEPLOY L1 CONTRACT MESSENGER //////
   // As a backup solution, ethAccounts will be able to send a message on the L1 to claim their assets on the L2
   // from the L2 ContractPaybackDistributor contract. We deploy the L1ContractMessenger contract on the L1
   // and whitelist the ethAccounts that are eligible to claim their assets.
+  // Requires: analyzeShipmentContracts (generates unclaimableContractAddresses.json)
   // Make sure account[0] in the hardhat config for mainnet is the L1_CONTRACT_MESSENGER_DEPLOYER at 0xbfb5d09ffcbe67fbed9970b893293f21778be0a6
   //  - npx hardhat deployL1ContractMessenger --network mainnet
   task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(
@@ -45,9 +60,9 @@ module.exports = function () {
       // log deployer address
       console.log("Deployer address:", deployer.address);
 
-      // read the contract accounts from the json file
+      // read the unclaimable contract addresses from the json file
       const contractAccounts = JSON.parse(
-        fs.readFileSync("./scripts/beanstalkShipments/data/contractAccounts.json")
+        fs.readFileSync("./scripts/beanstalkShipments/data/unclaimableContractAddresses.json")
       );
 
       const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
