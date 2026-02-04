@@ -151,7 +151,9 @@ async function batchCheckSafeUpgrades(safeAddresses, providers) {
           isUpgraded: upgrade.isUpgraded && upgrade.originalVersion && !isVersionClaimable(upgrade.originalVersion)
         });
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error(`Failed to check upgrade for ${address}: ${e.message}`);
+    }
   }
 
   process.stdout.write('\r' + ' '.repeat(80) + '\r');
@@ -198,26 +200,23 @@ function detectAmbire(code) {
 }
 
 async function detectSafeVersion(provider, address, code) {
-  try {
-    const proxy = detectEIP1167Proxy(code);
-    if (proxy && SAFE_SINGLETONS[proxy.implementation]) {
-      return { version: SAFE_SINGLETONS[proxy.implementation], method: 'EIP-1167' };
-    }
-
-    try {
-      const contract = new ethers.Contract(address, SAFE_ABI, provider);
-      const version = await withRetry(async () => {
-        const v = await contract.VERSION();
-        await contract.getThreshold();
-        return v;
-      }, 2);
-      return { version, method: 'VERSION()' };
-    } catch (e) {}
-
-    return null;
-  } catch (e) {
-    return null;
+  const proxy = detectEIP1167Proxy(code);
+  if (proxy && SAFE_SINGLETONS[proxy.implementation]) {
+    return { version: SAFE_SINGLETONS[proxy.implementation], method: 'EIP-1167' };
   }
+
+  // Probe VERSION() + getThreshold() to detect Safe contracts.
+  // Expected to return null for non-Safe contracts.
+  const contract = new ethers.Contract(address, SAFE_ABI, provider);
+  const version = await withRetry(
+    () => contract.VERSION().then(async (v) => {
+      await contract.getThreshold();
+      return v;
+    }),
+    2
+  ).catch(() => null);
+
+  return version ? { version, method: 'VERSION()' } : null;
 }
 
 async function analyzeAddressOnChain(provider, address, code) {
