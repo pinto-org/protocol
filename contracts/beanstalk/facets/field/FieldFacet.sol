@@ -585,35 +585,39 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
-     * @notice Combines an account's adjacent plots.
-     * @param account The account that owns the plots to combine
+     * @notice Combines the caller's adjacent plots.
      * @param fieldId The field ID containing the plots
      * @param plotIndexes Array of adjacent plot indexes to combine (must be sorted and consecutive)
      * @dev Plots must be adjacent: plot[i].index + plot[i].pods == plot[i+1].index
-     *      Any account can combine any other account's adjacent plots
      */
     function combinePlots(
-        address account,
         uint256 fieldId,
         uint256[] calldata plotIndexes
     ) external payable fundsSafu noSupplyChange noNetFlow nonReentrant {
         require(plotIndexes.length >= 2, "Field: Need at least 2 plots to combine");
 
+        address account = LibTractor._user();
+
         // initialize total pods with the first plot
         uint256 totalPods = s.accts[account].fields[fieldId].plots[plotIndexes[0]];
-        require(totalPods > 0, "Field: Plot to combine not owned by account");
+        require(totalPods > 0, "Field: Plot not owned by caller");
         // track the expected next start position to avoid querying deleted plots
         uint256 expectedNextStart = plotIndexes[0] + totalPods;
 
         for (uint256 i = 1; i < plotIndexes.length; i++) {
             uint256 currentPods = s.accts[account].fields[fieldId].plots[plotIndexes[i]];
-            require(currentPods > 0, "Field: Plot to combine not owned by account");
+            require(currentPods > 0, "Field: Plot not owned by caller");
 
             // check adjacency: expected next start == current plot start
             require(expectedNextStart == plotIndexes[i], "Field: Plots to combine not adjacent");
 
             totalPods += currentPods;
             expectedNextStart = plotIndexes[i] + currentPods;
+
+            // cancel pod listing if one exists for this plot
+            if (s.sys.podListings[fieldId][plotIndexes[i]] != bytes32(0)) {
+                LibMarket._cancelPodListing(account, fieldId, plotIndexes[i]);
+            }
 
             // delete subsequent plot, plotIndex and piIndex mapping entry
             delete s.accts[account].fields[fieldId].plots[plotIndexes[i]];

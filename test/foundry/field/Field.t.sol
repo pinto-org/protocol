@@ -689,7 +689,8 @@ contract FieldTest is TestHelper {
         }
         assertEq(plots.length, 10);
         // combine all plots into one
-        bs.combinePlots(farmers[0], activeField, plotIndexes);
+        vm.prank(farmers[0]);
+        bs.combinePlots(activeField, plotIndexes);
 
         // assert user has 1 plot
         plots = bs.getPlotsFromAccount(farmers[0], activeField);
@@ -733,15 +734,17 @@ contract FieldTest is TestHelper {
 
         // try to combine plots, expect revert since plots are not adjacent
         uint256 activeField = bs.activeField();
+        vm.prank(farmers[0]);
         vm.expectRevert("Field: Plots to combine not adjacent");
-        bs.combinePlots(farmers[0], activeField, account1PlotIndexes);
+        bs.combinePlots(activeField, account1PlotIndexes);
 
         // merge adjacent plots in pairs (indexes 1-3)
         uint256[] memory adjacentPlotIndexes = new uint256[](3);
         adjacentPlotIndexes[0] = account1PlotIndexes[0];
         adjacentPlotIndexes[1] = account1PlotIndexes[1];
         adjacentPlotIndexes[2] = account1PlotIndexes[2];
-        bs.combinePlots(farmers[0], activeField, adjacentPlotIndexes);
+        vm.prank(farmers[0]);
+        bs.combinePlots(activeField, adjacentPlotIndexes);
         // assert user has 3 plots (1 from the 3 merged, 2 from the original)
         assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 3);
         // assert first plot index is 0 after merge
@@ -756,7 +759,8 @@ contract FieldTest is TestHelper {
         adjacentPlotIndexes = new uint256[](2);
         adjacentPlotIndexes[0] = account1PlotIndexes[3];
         adjacentPlotIndexes[1] = account1PlotIndexes[4];
-        bs.combinePlots(farmers[0], activeField, adjacentPlotIndexes);
+        vm.prank(farmers[0]);
+        bs.combinePlots(activeField, adjacentPlotIndexes);
         // assert user has 2 plots (1 from the 2 merged, 1 from the 3 original merged)
         assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 2);
         // assert first plot index remains the same after 2nd merge
@@ -810,7 +814,8 @@ contract FieldTest is TestHelper {
         assertTrue(!isArrayOrdered(reorderedIndexes), " New plot indexes should be unordered");
 
         // Combine plots using original indexes (irrelevant of plotIndexes order in storage)
-        bs.combinePlots(farmers[0], activeField, originalPlotIndexes);
+        vm.prank(farmers[0]);
+        bs.combinePlots(activeField, originalPlotIndexes);
 
         // Verify merge succeeded - should have only 1 plot left
         assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 1);
@@ -829,6 +834,23 @@ contract FieldTest is TestHelper {
         // Verify total pods remained the same
         uint256 totalPodsAfter = getTotalPodsFromAccount(farmers[0]);
         assertEq(totalPodsAfter, totalPodsBefore);
+    }
+
+    /**
+     * @notice Tests that combining plots requires caller to be the plot owner
+     */
+    function test_combinePlotsUnauthorized() public {
+        uint256 activeField = bs.activeField();
+        mintTokensToUser(farmers[0], BEAN, 1000e6);
+        uint256[] memory plotIndexes = setUpMultipleConsecutiveAccountPlots(farmers[0], 1000e6, 3);
+
+        // Farmer 1 tries to combine farmer 0's plots - should fail
+        vm.prank(farmers[1]);
+        vm.expectRevert("Field: Plot not owned by caller");
+        bs.combinePlots(activeField, plotIndexes);
+
+        // Verify plots are unchanged
+        assertEq(bs.getPlotIndexesLengthFromAccount(farmers[0], activeField), 3);
     }
 
     /**
