@@ -15,8 +15,8 @@ const { splitEntriesIntoChunksOptimized, splitWhaleAccounts } = require("../../u
 
 const CONFIG = {
   EIP_7987_TX_GAS_LIMIT: 16_777_216, // 2^24
-  SAFE_GAS_MARGIN: 0.95,
-  MAX_PLOTS_PER_ACCOUNT_PER_TX: 200, // ~14M gas, safely under EIP-7987 limit
+  SAFE_GAS_MARGIN: 0.65,
+  MAX_PLOTS_PER_ACCOUNT_PER_TX: 150, // ~10.6M gas, safely under EIP-7987 limit
   TARGET_ENTRIES_PER_CHUNK: 300,
   PLOTS_DATA_PATH: "./scripts/beanstalkShipments/data/beanstalkPlots.json"
 };
@@ -48,11 +48,20 @@ async function main() {
   console.log(`   Chunks created: ${chunks.length}`);
   console.log();
 
-  console.log("4. Deploying mock contract...");
-  const MockContract = await ethers.getContractFactory("MockTempRepaymentFieldFacet");
-  const testContract = await MockContract.deploy();
-  await testContract.deployed();
-  console.log(`   Contract: ${testContract.address}`);
+  console.log("4. Deploying contract...");
+  const REPAYMENT_FIELD_POPULATOR = "0xc4c66c8b199443a8deA5939ce175C3592e349791";
+  const Contract = await ethers.getContractFactory("TempRepaymentFieldFacet");
+  const deployedContract = await Contract.deploy();
+  await deployedContract.deployed();
+
+  // Impersonate the populator address and fund it for gas
+  await ethers.provider.send("hardhat_impersonateAccount", [REPAYMENT_FIELD_POPULATOR]);
+  await ethers.provider.send("hardhat_setBalance", [REPAYMENT_FIELD_POPULATOR, "0x56BC75E2D63100000"]); // 100 ETH
+  const populatorSigner = await ethers.getSigner(REPAYMENT_FIELD_POPULATOR);
+  const testContract = deployedContract.connect(populatorSigner);
+
+  console.log(`   Contract: ${deployedContract.address}`);
+  console.log(`   Populator: ${REPAYMENT_FIELD_POPULATOR}`);
   console.log();
 
   console.log("5. Running chunk simulations...");

@@ -7,8 +7,8 @@ const {
 } = require("../../utils/read.js");
 
 // EIP-7987 tx gas limit is 16,777,216 (2^24)
-// ~70,600 gas per plot, with 95% safety margin: floor(16,777,216 * 0.95 / 70,600) = 225
-const MAX_PLOTS_PER_ACCOUNT_PER_TX = 200;
+// ~70,600 gas per plot, with 65% safety margin: floor(16,777,216 * 0.65 / 70,600) = ~150
+const MAX_PLOTS_PER_ACCOUNT_PER_TX = 150;
 
 /**
  * Populates the beanstalk field by reading data from beanstalkPlots.json
