@@ -16,7 +16,7 @@ import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
  * @notice MetadataFacet is a contract that provides metadata for Pinto ERC1155 deposits,
  * as well as other auxiliary functions related to ERC1155 deposits.
  *
- * @dev Deposits are represented by a uint256, which is the concatination of the token address and the stem.
+ * @dev Deposits are represented by a uint256, which is the concatenation of the token address and the stem.
  */
 contract MetadataFacet is MetadataImage {
     using Strings for uint256;
@@ -29,7 +29,7 @@ contract MetadataFacet is MetadataImage {
      * @param depositId - the id of the deposit
      * @dev the URI is a base64 encoded JSON object that contains the metadata and base64 encoded svg.
      * Deposits are stored as a mapping of a uint256 to a Deposit struct.
-     * ERC20 deposits are represented by the concatination of the token address and the stem. (20 + 12 bytes).
+     * ERC20 deposits are represented by the concatenation of the token address and the stem. (20 + 12 bytes).
      */
     function uri(uint256 depositId) external view returns (string memory) {
         (address token, int96 stem) = LibBytes.unpackAddressAndStem(depositId);
