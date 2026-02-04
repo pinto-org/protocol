@@ -73,6 +73,7 @@ async function withRetry(fn, retries = MAX_RETRIES) {
 
 function parseVersion(version) {
   if (!version) return 0;
+  // Strip "-L2" suffix so L2-optimized singletons (e.g. "1.3.0-L2") compare equal to their L1 counterparts.
   const clean = version.replace('-L2', '').replace(/[^0-9.]/g, '');
   const parts = clean.split('.').map(Number);
   return parts[0] * 10000 + (parts[1] || 0) * 100 + (parts[2] || 0);
