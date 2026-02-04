@@ -1237,7 +1237,6 @@ interface IMockFBeanstalk {
     ) external view returns (Plot[] memory plots);
 
     function combinePlots(
-        address account,
         uint256 fieldId,
         uint256[] calldata plotIndexes
     ) external payable;
