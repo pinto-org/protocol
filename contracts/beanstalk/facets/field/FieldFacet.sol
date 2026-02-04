@@ -590,7 +590,6 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      * @param fieldId The field ID containing the plots
      * @param plotIndexes Array of adjacent plot indexes to combine (must be sorted and consecutive)
      * @dev Plots must be adjacent: plot[i].index + plot[i].pods == plot[i+1].index
-     *      Any account can combine any other account's adjacent plots
      */
     function combinePlots(
         address account,
@@ -598,6 +597,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256[] calldata plotIndexes
     ) external payable fundsSafu noSupplyChange noNetFlow nonReentrant {
         require(plotIndexes.length >= 2, "Field: Need at least 2 plots to combine");
+        require(LibTractor._user() == account, "Field: Caller must own plots");
 
         // initialize total pods with the first plot
         uint256 totalPods = s.accts[account].fields[fieldId].plots[plotIndexes[0]];
@@ -614,6 +614,11 @@ contract FieldFacet is Invariable, ReentrancyGuard {
 
             totalPods += currentPods;
             expectedNextStart = plotIndexes[i] + currentPods;
+
+            // cancel pod listing if one exists for this plot
+            if (s.sys.podListings[fieldId][plotIndexes[i]] != bytes32(0)) {
+                LibMarket._cancelPodListing(account, fieldId, plotIndexes[i]);
+            }
 
             // delete subsequent plot, plotIndex and piIndex mapping entry
             delete s.accts[account].fields[fieldId].plots[plotIndexes[i]];
