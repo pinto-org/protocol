@@ -15,10 +15,16 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
  */
 abstract contract BlueprintBase is PerFunctionPausable {
     /**
-     * @notice Gas buffer for dynamic fee calculation to account for remaining operations
-     * @dev This buffer covers the gas cost of fee withdrawal and subsequent tip operations
+     * @notice Gas overhead for dynamic fee when withdrawing from Bean deposits.
+     * @dev Covers calculateFeeInBean + withdrawBeansFromSources (Bean path) + tip.
      */
-    uint256 public constant DYNAMIC_FEE_GAS_BUFFER = 15000;
+    uint256 public constant GAS_USED_BEAN = 700_000;
+
+    /**
+     * @notice Gas overhead for dynamic fee when withdrawing from LP deposits.
+     * @dev Covers calculateFeeInBean + withdrawBeansFromSources (LP path) + tip.
+     */
+    uint256 public constant GAS_USED_LP = 1_500_000;
     /**
      * @notice Struct to hold operator parameters
      * @param whitelistedOperators Array of whitelisted operator addresses
@@ -206,6 +212,21 @@ abstract contract BlueprintBase is PerFunctionPausable {
     }
 
     /**
+     * @notice Returns the gas overhead constant based on whether source tokens are Bean or LP.
+     * @param sourceTokenIndices Array of source token indices from the blueprint params.
+     * @return Gas overhead to add for dynamic fee estimation.
+     * @dev Bean token is always index 0 in the whitelist (see SiloHelpers.getTokenIndex).
+     *      For strategies (LOWEST_PRICE, LOWEST_SEED) or any LP index, we use the LP
+     *      constant as the worst case since the resolved token is unknown at compile time.
+     */
+    function _getGasOverhead(uint8[] memory sourceTokenIndices) internal pure returns (uint256) {
+        if (sourceTokenIndices.length == 1 && sourceTokenIndices[0] == 0) {
+            return GAS_USED_BEAN;
+        }
+        return GAS_USED_LP;
+    }
+
+    /**
      * @notice Handles dynamic fee calculation and tip payment
      * @param tipParams Parameters for tip processing
      * @dev This is a shared implementation for blueprints with simple tip flows
@@ -218,7 +239,8 @@ abstract contract BlueprintBase is PerFunctionPausable {
 
         if (tipParams.useDynamicFee) {
             uint256 gasUsedBeforeFee = tipParams.startGas - gasleft();
-            uint256 estimatedTotalGas = gasUsedBeforeFee + DYNAMIC_FEE_GAS_BUFFER;
+            uint256 estimatedTotalGas = gasUsedBeforeFee +
+                _getGasOverhead(tipParams.sourceTokenIndices);
             uint256 dynamicFee = _payDynamicFee(
                 DynamicFeeParams({
                     account: tipParams.account,
