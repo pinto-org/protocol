@@ -156,9 +156,9 @@ module.exports = {
 
   // Contract Messenger
   // L1 Contract Messenger deployer
-  L1_CONTRACT_MESSENGER_DEPLOYER: "0xbfb5d09ffcbe67fbed9970b893293f21778be0a6",
+  L1_CONTRACT_MESSENGER_DEPLOYER: "0x43025539934eDd31871d65e13E7F1f3A904cB173",
   // L1 Contract Messenger, deployed by the deployer at nonce 0
-  L1_CONTRACT_MESSENGER: "0x51f472874a303D5262d7668f5a3d17e3317f8E51",
+  L1_CONTRACT_MESSENGER: "0xD2abd9a7E7F10e3bF4376fb03A07fca729A55b6f",
 
   // Wells
   PINTO_WETH_WELL_BASE,
