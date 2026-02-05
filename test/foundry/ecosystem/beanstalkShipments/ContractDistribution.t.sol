@@ -27,7 +27,7 @@ contract ContractDistributionTest is TestHelper {
     ICrossDomainMessenger public constant L1_MESSENGER =
         ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
     // L1 sender
-    address public constant L1_SENDER = 0x51f472874a303D5262d7668f5a3d17e3317f8E51;
+    address public constant L1_SENDER = 0xD2abd9a7E7F10e3bF4376fb03A07fca729A55b6f;
 
     address public constant EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR =
         0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000;
