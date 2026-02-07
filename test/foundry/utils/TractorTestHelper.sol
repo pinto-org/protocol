@@ -9,8 +9,8 @@ import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.s
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
-import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
-import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import {MowPlantHarvestBlueprint} from "contracts/ecosystem/tractor/blueprints/MowPlantHarvestBlueprint.sol";
+import {BlueprintBase} from "contracts/ecosystem/tractor/blueprints/BlueprintBase.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import "forge-std/console.sol";
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
-import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import {BlueprintBase} from "contracts/ecosystem/tractor/blueprints/BlueprintBase.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 /**

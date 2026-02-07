@@ -17,14 +17,18 @@ abstract contract BlueprintBase is PerFunctionPausable {
     /**
      * @notice Gas overhead for dynamic fee when withdrawing from Bean deposits.
      * @dev Covers calculateFeeInBean + withdrawBeansFromSources (Bean path) + tip.
+     *      Raw measurement ~2.5M gas, with 50% safety margin.
+     *      Measured via Base mainnet fork test (see test/foundry/ecosystem/GasMeasurementFork.t.sol).
      */
-    uint256 public constant GAS_USED_BEAN = 700_000;
+    uint256 public constant GAS_USED_BEAN = 3_700_000;
 
     /**
      * @notice Gas overhead for dynamic fee when withdrawing from LP deposits.
      * @dev Covers calculateFeeInBean + withdrawBeansFromSources (LP path) + tip.
+     *      Raw measurement ~3.2M gas, with 50% safety margin.
+     *      Measured via Base mainnet fork test (see test/foundry/ecosystem/GasMeasurementFork.t.sol).
      */
-    uint256 public constant GAS_USED_LP = 1_500_000;
+    uint256 public constant GAS_USED_LP = 4_800_000;
     /**
      * @notice Struct to hold operator parameters
      * @param whitelistedOperators Array of whitelisted operator addresses
@@ -170,9 +174,6 @@ abstract contract BlueprintBase is PerFunctionPausable {
      */
     function _payDynamicFee(DynamicFeeParams memory feeParams) internal returns (uint256 fee) {
         fee = gasCostCalculator.calculateFeeInBean(feeParams.gasUsed, feeParams.feeMarginBps);
-
-        // Validate fee doesn't overflow when cast to int256
-        require(fee <= uint256(type(int256).max), "BlueprintBase: fee overflow");
 
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
             feeParams.maxGrownStalkPerBdv

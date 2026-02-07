@@ -8,7 +8,7 @@ import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.s
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {ConvertUpBlueprint} from "contracts/ecosystem/tractor/blueprints/ConvertUpBlueprint.sol";
-import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import {BlueprintBase} from "contracts/ecosystem/tractor/blueprints/BlueprintBase.sol";
 import {PriceManipulation} from "contracts/ecosystem/tractor/utils/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";

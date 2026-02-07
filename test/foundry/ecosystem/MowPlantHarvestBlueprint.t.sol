@@ -11,7 +11,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {MowPlantHarvestBlueprint} from "contracts/ecosystem/tractor/blueprints/MowPlantHarvestBlueprint.sol";
 import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
 import "forge-std/console.sol";
 

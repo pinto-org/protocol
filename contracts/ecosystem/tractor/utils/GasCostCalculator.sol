@@ -59,7 +59,7 @@ contract GasCostCalculator is Ownable {
     function calculateFeeInBean(
         uint256 gasUsed,
         uint256 marginBps
-    ) external view returns (uint256 fee) {
+    ) public view returns (uint256 fee) {
         return calculateFeeInBeanWithGasPrice(gasUsed, tx.gasprice, marginBps);
     }
 
@@ -110,7 +110,7 @@ contract GasCostCalculator is Ownable {
         uint256 marginBps
     ) external view returns (uint256 fee, uint256 ethBeanRate) {
         ethBeanRate = _getEthBeanRate();
-        fee = this.calculateFeeInBean(gasUsed, marginBps);
+        fee = calculateFeeInBean(gasUsed, marginBps);
     }
 
     /**

@@ -3,7 +3,7 @@ pragma solidity >=0.6.0 <0.9.0;
 pragma abicoder v2;
 
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
-import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
+import {BlueprintBase} from "contracts/ecosystem/tractor/blueprints/BlueprintBase.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 
 /**
