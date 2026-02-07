@@ -202,7 +202,6 @@ abstract contract BlueprintBase is PerFunctionPausable {
         int256 currentTip,
         uint256 dynamicFee
     ) internal pure returns (int256 newTip) {
-        // Fee is already validated to fit in int256 by _payDynamicFee
         int256 feeAsInt = int256(dynamicFee);
 
         if (currentTip > 0 && feeAsInt > type(int256).max - currentTip) {
