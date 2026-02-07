@@ -210,20 +210,6 @@ abstract contract SowBlueprintBase is BlueprintBase {
         // Update the last executed season for this blueprint
         _updateSowLastExecutedSeason(vars.orderHash, vars.currentSeason);
 
-        _processFeesAndTip(
-            TipParams({
-                account: vars.account,
-                tipAddress: vars.tipAddress,
-                sourceTokenIndices: params.sowParams.sourceTokenIndices,
-                operatorTipAmount: params.opParams.operatorTipAmount,
-                useDynamicFee: params.opParams.useDynamicFee,
-                feeMarginBps: params.opParams.feeMarginBps,
-                maxGrownStalkPerBdv: params.sowParams.maxGrownStalkPerBdv,
-                slippageRatio: slippageRatio,
-                startGas: startGas
-            })
-        );
-
         // Sow the withdrawn beans
         if (referral == address(0)) {
             // Standard sow without referral
@@ -243,6 +229,20 @@ abstract contract SowBlueprintBase is BlueprintBase {
                 referral
             );
         }
+
+        _processFeesAndTip(
+            TipParams({
+                account: vars.account,
+                tipAddress: vars.tipAddress,
+                sourceTokenIndices: params.sowParams.sourceTokenIndices,
+                operatorTipAmount: params.opParams.operatorTipAmount,
+                useDynamicFee: params.opParams.useDynamicFee,
+                feeMarginBps: params.opParams.feeMarginBps,
+                maxGrownStalkPerBdv: params.sowParams.maxGrownStalkPerBdv,
+                slippageRatio: slippageRatio,
+                startGas: startGas
+            })
+        );
     }
 
     /**
