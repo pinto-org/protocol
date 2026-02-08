@@ -4,33 +4,89 @@ const parseSiloData = require('./parseSiloData');
 const parseContractData = require('./parseContractData');
 const fs = require('fs');
 const path = require('path');
+const ethersLib = require('ethers');
 
-/**
- * Detects which addresses have associated contract code on the active hardhat network
- * We use a helper contract "MockIsContract" to check if an address is a contract to replicate 
- * the check in the fertilizer distirbution to avoid false positives.
- */
-async function detectContractAddresses(addresses) {
-  console.log(`Checking ${addresses.length} addresses for contract code...`);
-  const contractAddresses = [];
+require('dotenv').config();
 
-  // deploy the contract that checks if an address is a contract
-  const MockIsContract = await ethers.getContractFactory("MockIsContract");
-  const mockIsContract = await MockIsContract.deploy();
-  await mockIsContract.deployed();
-  
-  for (const address of addresses) {
+const BATCH_SIZE = 50;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
+const isEthersV6 = ethersLib.JsonRpcProvider !== undefined;
+const createProvider = (url) => {
+  if (isEthersV6) {
+    return new ethersLib.JsonRpcProvider(url);
+  } else {
+    return new ethersLib.providers.JsonRpcProvider(url);
+  }
+};
+
+async function withRetry(fn, retries = MAX_RETRIES) {
+  for (let i = 0; i < retries; i++) {
     try {
-      const isContract = await mockIsContract.isContract(address);
-      if (isContract) {
-        contractAddresses.push(address.toLowerCase());
-      }
-    } catch (error) {
-      console.error(`Error checking address ${address}:`, error.message);
+      return await fn();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, RETRY_DELAY * (i + 1)));
     }
   }
-  
-  console.log(`Found ${contractAddresses.length} addresses with contract code`);
+}
+
+/**
+ * Detects which addresses have contract code on Ethereum or Arbitrum
+ * using direct RPC calls. An address is flagged as a contract if it has
+ * bytecode on either chain, since it may not be able to claim on Base.
+ * Requires MAINNET_RPC and ARBITRUM_RPC in .env
+ */
+async function detectContractAddresses(addresses) {
+  console.log(`Checking ${addresses.length} addresses for contract code on Ethereum and Arbitrum...`);
+
+  const mainnetRpc = process.env.MAINNET_RPC;
+  const arbitrumRpc = process.env.ARBITRUM_RPC;
+
+  if (!mainnetRpc || !arbitrumRpc) {
+    throw new Error('MAINNET_RPC and ARBITRUM_RPC must be set in .env for contract detection');
+  }
+
+  const ethProvider = createProvider(mainnetRpc);
+  const arbProvider = createProvider(arbitrumRpc);
+
+  // Verify connections
+  const ethBlock = await ethProvider.getBlockNumber();
+  const arbBlock = await arbProvider.getBlockNumber();
+  console.log(`  Ethereum: block ${ethBlock}`);
+  console.log(`  Arbitrum: block ${arbBlock}`);
+
+  const contractAddresses = [];
+  const totalBatches = Math.ceil(addresses.length / BATCH_SIZE);
+
+  for (let b = 0; b < totalBatches; b++) {
+    const batch = addresses.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
+
+    const results = await Promise.allSettled(
+      batch.map(async (address) => {
+        const [ethCode, arbCode] = await Promise.all([
+          withRetry(() => ethProvider.getCode(address)),
+          withRetry(() => arbProvider.getCode(address))
+        ]);
+        const hasEthCode = ethCode && ethCode !== '0x';
+        const hasArbCode = arbCode && arbCode !== '0x';
+        return { address, isContract: hasEthCode || hasArbCode };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.isContract) {
+        contractAddresses.push(result.value.address.toLowerCase());
+      } else if (result.status === 'rejected') {
+        console.error(`  Error checking address: ${result.reason?.message}`);
+      }
+    }
+
+    process.stdout.write(`\r  Batch ${b + 1}/${totalBatches} (${contractAddresses.length} contracts found)`);
+  }
+
+  console.log(`\nFound ${contractAddresses.length} addresses with contract code`);
   return contractAddresses;
 }
 

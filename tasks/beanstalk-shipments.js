@@ -77,12 +77,9 @@ module.exports = function () {
   );
 
   ////// STEP 0: PARSE EXPORT DATA //////
-  // Run this task prior to deploying the contracts on a local fork at the latest base block to
-  // dynamically identify EOAs that have contract code due to contract code delegation.
-  // Spin up a local anvil node:
-  //  - anvil --fork-url <url> --chain-id 1337 --no-rate-limit --threads 0
-  // Run the parseExportData task:
-  //  - npx hardhat parseExportData --network localhost
+  // Parses the export data and detects contract addresses using direct RPC calls
+  // to Ethereum and Arbitrum. Requires MAINNET_RPC and ARBITRUM_RPC in .env
+  //  - npx hardhat parseExportData
   task("parseExportData", "parses the export data and checks for contract addresses").setAction(
     async (taskArgs) => {
       const parseContracts = true;
