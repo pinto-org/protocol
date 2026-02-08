@@ -8,7 +8,7 @@ const ethersLib = require('ethers');
 
 require('dotenv').config();
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 25;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
@@ -58,6 +58,7 @@ async function detectContractAddresses(addresses) {
   console.log(`  Arbitrum: block ${arbBlock}`);
 
   const contractAddresses = [];
+  const failedAddresses = [];
   const totalBatches = Math.ceil(addresses.length / BATCH_SIZE);
 
   for (let b = 0; b < totalBatches; b++) {
@@ -79,11 +80,22 @@ async function detectContractAddresses(addresses) {
       if (result.status === 'fulfilled' && result.value.isContract) {
         contractAddresses.push(result.value.address.toLowerCase());
       } else if (result.status === 'rejected') {
-        console.error(`  Error checking address: ${result.reason?.message}`);
+        failedAddresses.push(result.reason?.address || 'unknown');
+        console.error(`\n  Error checking address: ${result.reason?.message}`);
       }
     }
 
     process.stdout.write(`\r  Batch ${b + 1}/${totalBatches} (${contractAddresses.length} contracts found)`);
+
+    // Delay between batches to avoid rate limiting
+    if (b < totalBatches - 1) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  if (failedAddresses.length > 0) {
+    console.error(`\nContract detection failed for ${failedAddresses.length} address(es). All addresses must be verified.`);
+    throw new Error(`Contract detection incomplete: ${failedAddresses.length} address(es) could not be checked`);
   }
 
   console.log(`\nFound ${contractAddresses.length} addresses with contract code`);
@@ -104,8 +116,6 @@ async function parseAllExportData(parseContracts) {
     // Detect contract addresses once at the beginning if needed
     if (parseContracts) {
       console.log('\nDetecting contract addresses...');
-      const fs = require('fs');
-      const path = require('path');
       
       // Read export data to get all arbEOA addresses
       const siloData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/exports/beanstalk_silo.json')));
