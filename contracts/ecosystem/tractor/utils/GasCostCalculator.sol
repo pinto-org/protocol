@@ -51,66 +51,38 @@ contract GasCostCalculator is Ownable {
     }
 
     /**
-     * @notice Calculate fee in Bean tokens for gas consumed using current tx.gasprice.
-     * @param gasUsed Gas consumed by the operation (excluding overhead)
+     * @notice Calculate fee in Bean tokens, measuring oracle gas via gasleft().
+     * @dev Oracle calls are performed first, then gasleft() is read to capture all gas
+     *      consumed from transaction start through the oracle lookups in a single measurement.
+     *      Only the remaining operations (withdrawal + tip) are estimated from constants.
+     * @param startGas The gasleft() value captured at the beginning of the blueprint function
+     * @param remainingGasOverhead Estimated gas for operations after this call (withdrawal + tip)
      * @param marginBps Additional margin in basis points (100 = 1%, 1000 = 10%)
      * @return fee Fee amount in Bean tokens (6 decimals)
      */
-    function calculateFeeInBean(
-        uint256 gasUsed,
-        uint256 marginBps
-    ) public view returns (uint256 fee) {
-        return calculateFeeInBeanWithGasPrice(gasUsed, tx.gasprice, marginBps);
-    }
-
-    /**
-     * @notice Calculate fee in Bean tokens for gas consumed using custom gas price.
-     * @param gasUsed Gas consumed by the operation (excluding overhead)
-     * @param gasPriceWei Gas price in wei
-     * @param marginBps Additional margin in basis points (100 = 1%, 1000 = 10%, max 10000 = 100%)
-     * @return fee Fee amount in Bean tokens (6 decimals)
-     */
-    function calculateFeeInBeanWithGasPrice(
-        uint256 gasUsed,
-        uint256 gasPriceWei,
+    function calculateFeeInBeanWithMeasuredOracle(
+        uint256 startGas,
+        uint256 remainingGasOverhead,
         uint256 marginBps
     ) public view returns (uint256 fee) {
         require(marginBps <= MAX_MARGIN_BPS, "GasCostCalculator: margin exceeds max");
 
-        // Add base overhead to gas used
-        uint256 totalGas = gasUsed + baseGasOverhead;
-
-        // Calculate ETH cost in wei
-        uint256 ethCostWei = totalGas * gasPriceWei;
-
-        // Get ETH/Bean rate (Bean per ETH, 6 decimals) - reverts on oracle failure
         uint256 ethBeanRate = _getEthBeanRate();
 
+        uint256 measuredGas = startGas - gasleft();
+
+        uint256 totalGas = measuredGas + remainingGasOverhead + baseGasOverhead;
+
+        // Calculate ETH cost in wei
+        uint256 ethCostWei = totalGas * tx.gasprice;
+
         // Convert ETH cost to Bean
-        // ethCostWei is in wei (1e18 = 1 ETH)
-        // ethBeanRate is Bean per 1 ETH (6 decimals)
-        // fee = ethCostWei * ethBeanRate / 1e18
         fee = (ethCostWei * ethBeanRate) / PRECISION;
 
-        // Apply margin: fee * (10000 + marginBps) / 10000
+        // Apply margin
         if (marginBps > 0) {
             fee = (fee * (10000 + marginBps)) / 10000;
         }
-    }
-
-    /**
-     * @notice Get estimated fee for a given gas amount (convenience function).
-     * @param gasUsed Estimated gas usage
-     * @param marginBps Margin in basis points
-     * @return fee Estimated fee in Bean (6 decimals)
-     * @return ethBeanRate Current ETH/Bean rate used
-     */
-    function estimateFee(
-        uint256 gasUsed,
-        uint256 marginBps
-    ) external view returns (uint256 fee, uint256 ethBeanRate) {
-        ethBeanRate = _getEthBeanRate();
-        fee = calculateFeeInBean(gasUsed, marginBps);
     }
 
     /**

@@ -197,14 +197,14 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
 
         // Add dynamic fee if enabled
         if (params.opParams.baseOpParams.useDynamicFee) {
-            uint256 gasUsedBeforeFee = startGas - gasleft();
-            uint256 estimatedTotalGas = gasUsedBeforeFee +
-                _getGasOverhead(params.mowPlantHarvestParams.sourceTokenIndices);
             uint256 dynamicFee = _payDynamicFee(
                 DynamicFeeParams({
                     account: vars.account,
                     sourceTokenIndices: params.mowPlantHarvestParams.sourceTokenIndices,
-                    gasUsed: estimatedTotalGas,
+                    startGas: startGas,
+                    remainingGasOverhead: _getRemainingGasOverhead(
+                        params.mowPlantHarvestParams.sourceTokenIndices
+                    ),
                     feeMarginBps: params.opParams.baseOpParams.feeMarginBps,
                     maxGrownStalkPerBdv: params.mowPlantHarvestParams.maxGrownStalkPerBdv,
                     slippageRatio: params.mowPlantHarvestParams.slippageRatio

@@ -15,20 +15,20 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
  */
 abstract contract BlueprintBase is PerFunctionPausable {
     /**
-     * @notice Gas overhead for dynamic fee when withdrawing from Bean deposits.
-     * @dev Covers calculateFeeInBean + withdrawBeansFromSources (Bean path) + tip.
-     *      Raw measurement ~2.5M gas, with 50% safety margin.
-     *      Measured via Base mainnet fork test (see test/foundry/ecosystem/GasMeasurementFork.t.sol).
+     * @notice Gas overhead for withdrawal + tip when source is Bean deposits.
+     * @dev Covers withdrawBeansFromSources (Bean path) + tip.
+     *      Oracle gas is measured at runtime by GasCostCalculator.calculateFeeInBeanWithMeasuredOracle.
+     *      Raw measurement ~650K gas, measured via Base mainnet fork test (see GasMeasurementFork.t.sol).
      */
-    uint256 public constant GAS_USED_BEAN = 3_700_000;
+    uint256 public constant WITHDRAWAL_TIP_GAS_BEAN = 1_000_000;
 
     /**
-     * @notice Gas overhead for dynamic fee when withdrawing from LP deposits.
-     * @dev Covers calculateFeeInBean + withdrawBeansFromSources (LP path) + tip.
-     *      Raw measurement ~3.2M gas, with 50% safety margin.
-     *      Measured via Base mainnet fork test (see test/foundry/ecosystem/GasMeasurementFork.t.sol).
+     * @notice Gas overhead for withdrawal + tip when source is LP deposits.
+     * @dev Covers withdrawBeansFromSources (LP path) + tip.
+     *      Oracle gas is measured at runtime by GasCostCalculator.calculateFeeInBeanWithMeasuredOracle.
+     *      Raw measurement ~1.50M gas, measured via Base mainnet fork test (seeGasMeasurementFork.t.sol).
      */
-    uint256 public constant GAS_USED_LP = 4_800_000;
+    uint256 public constant WITHDRAWAL_TIP_GAS_LP = 2_200_000;
     /**
      * @notice Struct to hold operator parameters
      * @param whitelistedOperators Array of whitelisted operator addresses
@@ -49,7 +49,8 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @notice Struct to hold dynamic fee parameters
      * @param account The account to withdraw fee from
      * @param sourceTokenIndices Indices of source tokens to withdraw from
-     * @param gasUsed Total gas used for fee calculation
+     * @param startGas The gasleft() value captured at the beginning of the blueprint function
+     * @param remainingGasOverhead Estimated gas for withdrawal + tip (from constants)
      * @param feeMarginBps Additional margin in basis points
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV for withdrawal filtering
      * @param slippageRatio Slippage ratio for LP token withdrawals
@@ -57,7 +58,8 @@ abstract contract BlueprintBase is PerFunctionPausable {
     struct DynamicFeeParams {
         address account;
         uint8[] sourceTokenIndices;
-        uint256 gasUsed;
+        uint256 startGas;
+        uint256 remainingGasOverhead;
         uint256 feeMarginBps;
         uint256 maxGrownStalkPerBdv;
         uint256 slippageRatio;
@@ -173,7 +175,11 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @return fee The calculated fee amount in Bean
      */
     function _payDynamicFee(DynamicFeeParams memory feeParams) internal returns (uint256 fee) {
-        fee = gasCostCalculator.calculateFeeInBean(feeParams.gasUsed, feeParams.feeMarginBps);
+        fee = gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(
+            feeParams.startGas,
+            feeParams.remainingGasOverhead,
+            feeParams.feeMarginBps
+        );
 
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
             feeParams.maxGrownStalkPerBdv
@@ -212,18 +218,20 @@ abstract contract BlueprintBase is PerFunctionPausable {
     }
 
     /**
-     * @notice Returns the gas overhead constant based on whether source tokens are Bean or LP.
+     * @notice Returns the remaining gas overhead constant based on whether source tokens are Bean or LP.
      * @param sourceTokenIndices Array of source token indices from the blueprint params.
-     * @return Gas overhead to add for dynamic fee estimation.
+     * @return Gas overhead for withdrawal + tip (oracle gas is measured at runtime).
      * @dev Bean token is always index 0 in the whitelist (see SiloHelpers.getTokenIndex).
      *      For strategies (LOWEST_PRICE, LOWEST_SEED) or any LP index, we use the LP
      *      constant as the worst case since the resolved token is unknown at compile time.
      */
-    function _getGasOverhead(uint8[] memory sourceTokenIndices) internal pure returns (uint256) {
+    function _getRemainingGasOverhead(
+        uint8[] memory sourceTokenIndices
+    ) internal pure returns (uint256) {
         if (sourceTokenIndices.length == 1 && sourceTokenIndices[0] == 0) {
-            return GAS_USED_BEAN;
+            return WITHDRAWAL_TIP_GAS_BEAN;
         }
-        return GAS_USED_LP;
+        return WITHDRAWAL_TIP_GAS_LP;
     }
 
     /**
@@ -238,14 +246,12 @@ abstract contract BlueprintBase is PerFunctionPausable {
         int256 totalTipAmount = tipParams.operatorTipAmount;
 
         if (tipParams.useDynamicFee) {
-            uint256 gasUsedBeforeFee = tipParams.startGas - gasleft();
-            uint256 estimatedTotalGas = gasUsedBeforeFee +
-                _getGasOverhead(tipParams.sourceTokenIndices);
             uint256 dynamicFee = _payDynamicFee(
                 DynamicFeeParams({
                     account: tipParams.account,
                     sourceTokenIndices: tipParams.sourceTokenIndices,
-                    gasUsed: estimatedTotalGas,
+                    startGas: tipParams.startGas,
+                    remainingGasOverhead: _getRemainingGasOverhead(tipParams.sourceTokenIndices),
                     feeMarginBps: tipParams.feeMarginBps,
                     maxGrownStalkPerBdv: tipParams.maxGrownStalkPerBdv,
                     slippageRatio: tipParams.slippageRatio

@@ -17,8 +17,10 @@ import "forge-std/console.sol";
 
 /**
  * @title GasMeasurementForkTest
- * @notice Measures gas costs for BlueprintBase.GAS_USED_BEAN and GAS_USED_LP constants
- * @dev Run: forge test --match-contract GasMeasurementForkTest -vv
+ * @notice Measures gas costs for BlueprintBase.WITHDRAWAL_TIP_GAS_BEAN and WITHDRAWAL_TIP_GAS_LP constants
+ * @dev Oracle gas is measured at runtime by GasCostCalculator.calculateFeeInBeanWithMeasuredOracle.
+ *      These constants only need to cover withdrawBeansFromSources + tip.
+ *      Run: forge test --match-contract GasMeasurementForkTest -vv
  */
 contract GasMeasurementForkTest is Test {
     address constant PINTO_DIAMOND = 0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f;
@@ -75,7 +77,7 @@ contract GasMeasurementForkTest is Test {
         console.log("============================================================");
 
         console.log("");
-        console.log("=== calculateFeeInBean (real Chainlink + BeanstalkPrice) ===");
+        console.log("=== Oracle gas measurement (real Chainlink + BeanstalkPrice) ===");
         uint256 calcFeeGas = _measureCalculateFeeGas();
         console.log("  Gas: %d", calcFeeGas);
 
@@ -112,26 +114,27 @@ contract GasMeasurementForkTest is Test {
             vm.revertTo(snapshot);
         }
 
-        uint256 beanTotal = calcFeeGas + beanGasResults[2] + tipGas;
-        uint256 lpTotal = calcFeeGas + lpGasResults[2] + tipGas;
+        uint256 beanRemainder = beanGasResults[2] + tipGas;
+        uint256 lpRemainder = lpGasResults[2] + tipGas;
 
         console.log("");
         console.log("============================================================");
-        console.log("  TOTAL OVERHEAD (calcFee + withdrawal[5 dep] + tip)");
+        console.log("  REMAINING OVERHEAD (withdrawal[5 dep] + tip)");
+        console.log("  Oracle gas is measured at runtime by calculateFeeInBeanWithMeasuredOracle");
         console.log("============================================================");
-        console.log("  calculateFeeInBean:      %d", calcFeeGas);
+        console.log("  Oracle gas (reference):  %d", calcFeeGas);
         console.log("  tip:                     %d", tipGas);
         console.log("  Bean withdrawal (5 dep): %d", beanGasResults[2]);
         console.log("  LP withdrawal (5 dep):   %d", lpGasResults[2]);
         console.log("");
-        console.log("  Bean path total:         %d", beanTotal);
-        console.log("  LP path total:           %d", lpTotal);
-        console.log("  Bean path (x1.5 margin): %d", (beanTotal * 150) / 100);
-        console.log("  LP path (x1.5 margin):   %d", (lpTotal * 150) / 100);
+        console.log("  Bean remainder total:         %d", beanRemainder);
+        console.log("  LP remainder total:           %d", lpRemainder);
+        console.log("  Bean remainder (x1.5 margin): %d", (beanRemainder * 150) / 100);
+        console.log("  LP remainder (x1.5 margin):   %d", (lpRemainder * 150) / 100);
         console.log("");
         console.log("  BlueprintBase constants:");
-        console.log("    GAS_USED_BEAN:         3700000");
-        console.log("    GAS_USED_LP:           4800000");
+        console.log("    WITHDRAWAL_TIP_GAS_BEAN: 1000000");
+        console.log("    WITHDRAWAL_TIP_GAS_LP:   2200000");
         console.log("============================================================");
     }
 
@@ -297,12 +300,12 @@ contract GasMeasurementForkTest is Test {
         _clearTractorUser();
     }
 
-    /// @dev Measures GasCostCalculator.calculateFeeInBean() with real Chainlink + BeanstalkPrice.
+    /// @dev Measures oracle gas (Chainlink + BeanstalkPrice) via calculateFeeInBeanWithMeasuredOracle.
     function _measureCalculateFeeGas() internal returns (uint256 gasUsed) {
         vm.txGasPrice(0.1 gwei);
 
         uint256 gasBefore = gasleft();
-        gasCostCalculator.calculateFeeInBean(300_000, 0);
+        gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(gasBefore, 0, 0);
         gasUsed = gasBefore - gasleft();
     }
 }

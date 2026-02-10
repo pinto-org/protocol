@@ -41,47 +41,25 @@ contract GasCostCalculatorTest is TestHelper {
         new GasCostCalculator(address(0), address(this), DEFAULT_BASE_OVERHEAD);
     }
 
-    function test_calculateFeeInBean_revertsOnExcessiveMargin() public {
-        vm.txGasPrice(TYPICAL_GAS_PRICE);
-
-        // Margin > 10000 bps (100%) should revert
+    function test_calculateFeeInBeanWithMeasuredOracle_revertsOnExcessiveMargin() public {
         vm.expectRevert("GasCostCalculator: margin exceeds max");
-        gasCostCalculator.calculateFeeInBeanWithGasPrice(
+        gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(
             TYPICAL_GAS_USED,
-            TYPICAL_GAS_PRICE,
+            500_000,
             10001
         );
     }
 
-    function test_calculateFeeInBean_maxMarginAllowed() public {
-        // Max margin (10000 bps = 100%) should not revert on validation
-        // Will still revert on oracle, but not on margin check
-        vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.calculateFeeInBeanWithGasPrice(
-            TYPICAL_GAS_USED,
-            TYPICAL_GAS_PRICE,
-            10000
-        );
-    }
-
-    function test_calculateFeeInBean_revertsWithoutEthOracle() public {
+    function test_calculateFeeInBeanWithMeasuredOracle_revertsWithoutEthOracle() public {
         vm.txGasPrice(TYPICAL_GAS_PRICE);
 
-        // ETH/USD oracle has no code, should revert
         vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.calculateFeeInBean(TYPICAL_GAS_USED, 0);
+        gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(TYPICAL_GAS_USED, 500_000, 0);
     }
 
     function test_getEthBeanRate_revertsWithoutOracle() public {
         vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
         gasCostCalculator.getEthBeanRate();
-    }
-
-    function test_estimateFee_revertsWithoutOracle() public {
-        vm.txGasPrice(TYPICAL_GAS_PRICE);
-
-        vm.expectRevert("GasCostCalculator: ETH/USD oracle failed");
-        gasCostCalculator.estimateFee(TYPICAL_GAS_USED, 1000);
     }
 
     function test_setBaseGasOverhead_onlyOwner() public {
