@@ -1351,7 +1351,10 @@ contract FieldTest is TestHelper {
         // Delegator delegates to oldDelegate (who hasn't sown anything)
         vm.prank(delegator);
         field.delegateReferralRewards(oldDelegate);
-        assertTrue(field.isValidReferrer(oldDelegate), "Old delegate should be eligible through delegation");
+        assertTrue(
+            field.isValidReferrer(oldDelegate),
+            "Old delegate should be eligible through delegation"
+        );
 
         // Verify old delegate has NOT sown enough beans independently
         assertLt(
@@ -1378,7 +1381,9 @@ contract FieldTest is TestHelper {
      * @notice Fuzz test for griefing attack prevention
      * @dev Tests various amounts to ensure the griefing protection works regardless of sow amounts
      */
-    function test_delegateReferralRewards_griefingAttackPrevented_fuzz(uint256 victimSowAmount) public {
+    function test_delegateReferralRewards_griefingAttackPrevented_fuzz(
+        uint256 victimSowAmount
+    ) public {
         uint256 threshold = field.getBeanSownEligibilityThreshold();
 
         // Victim sows at least the threshold (this is what earns them independent eligibility)
