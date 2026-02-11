@@ -105,10 +105,16 @@ contract ConvertCapacityDoubleCountTest is TestHelper {
         // Allow 15% tolerance for slippage from BDV calculations as pool reserves change
         // Before the fix, the ratio would be 2x or more due to double-counting
         assertApproxEqRel(
-            usedByConvert1, usedByConvert2, 0.15e18, "Convert 1 and 2 should use approximately equal capacity"
+            usedByConvert1,
+            usedByConvert2,
+            0.15e18,
+            "Convert 1 and 2 should use approximately equal capacity"
         );
         assertApproxEqRel(
-            usedByConvert2, usedByConvert3, 0.15e18, "Convert 2 and 3 should use approximately equal capacity"
+            usedByConvert2,
+            usedByConvert3,
+            0.15e18,
+            "Convert 2 and 3 should use approximately equal capacity"
         );
 
         // Also verify total capacity used is approximately 3x the first convert
@@ -155,13 +161,19 @@ contract ConvertCapacityDoubleCountTest is TestHelper {
 
         // Assert: Both converts should use approximately the same per-well capacity
         assertApproxEqRel(
-            wellUsedByConvert1, wellUsedByConvert2, 0.05e18, "Per-well capacity should be consumed linearly"
+            wellUsedByConvert1,
+            wellUsedByConvert2,
+            0.05e18,
+            "Per-well capacity should be consumed linearly"
         );
     }
 
     // Helper functions
 
-    function depositBeanAndPassGermination(uint256 amount, address user) internal returns (int96 stem) {
+    function depositBeanAndPassGermination(
+        uint256 amount,
+        address user
+    ) internal returns (int96 stem) {
         vm.pauseGasMetering();
         bean.mint(user, amount);
 
@@ -173,32 +185,44 @@ contract ConvertCapacityDoubleCountTest is TestHelper {
         passGermination();
     }
 
-    function beanToLPDoConvert(uint256 amount, int96 stem, address user)
-        internal
-        returns (int96 outputStem, uint256 outputAmount)
-    {
+    function beanToLPDoConvert(
+        uint256 amount,
+        int96 stem,
+        address user
+    ) internal returns (int96 outputStem, uint256 outputAmount) {
         int96[] memory stems = new int96[](1);
         stems[0] = stem;
 
-        AdvancedPipeCall[] memory beanToLPPipeCalls = createBeanToLPPipeCalls(amount, new AdvancedPipeCall[](0));
+        AdvancedPipeCall[] memory beanToLPPipeCalls = createBeanToLPPipeCalls(
+            amount,
+            new AdvancedPipeCall[](0)
+        );
 
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
 
         vm.resumeGasMetering();
         vm.prank(user);
-        (outputStem, outputAmount,,,) =
-            pipelineConvert.pipelineConvert(BEAN, stems, amounts, beanEthWell, beanToLPPipeCalls);
+        (outputStem, outputAmount, , , ) = pipelineConvert.pipelineConvert(
+            BEAN,
+            stems,
+            amounts,
+            beanEthWell,
+            beanToLPPipeCalls
+        );
     }
 
-    function createBeanToLPPipeCalls(uint256 beanAmount, AdvancedPipeCall[] memory extraPipeCalls)
-        internal
-        view
-        returns (AdvancedPipeCall[] memory pipeCalls)
-    {
+    function createBeanToLPPipeCalls(
+        uint256 beanAmount,
+        AdvancedPipeCall[] memory extraPipeCalls
+    ) internal view returns (AdvancedPipeCall[] memory pipeCalls) {
         pipeCalls = new AdvancedPipeCall[](2 + extraPipeCalls.length);
 
-        bytes memory approveWell = abi.encodeWithSelector(IERC20.approve.selector, beanEthWell, beanAmount);
+        bytes memory approveWell = abi.encodeWithSelector(
+            IERC20.approve.selector,
+            beanEthWell,
+            beanAmount
+        );
         pipeCalls[0] = AdvancedPipeCall(BEAN, approveWell, abi.encode(0));
 
         uint256[] memory tokenAmountsIn = new uint256[](2);
@@ -206,7 +230,11 @@ contract ConvertCapacityDoubleCountTest is TestHelper {
         tokenAmountsIn[1] = 0;
 
         bytes memory addBeans = abi.encodeWithSelector(
-            IWell(beanEthWell).addLiquidity.selector, tokenAmountsIn, 0, PIPELINE, type(uint256).max
+            IWell(beanEthWell).addLiquidity.selector,
+            tokenAmountsIn,
+            0,
+            PIPELINE,
+            type(uint256).max
         );
         pipeCalls[1] = AdvancedPipeCall(beanEthWell, addBeans, abi.encode(0));
 
