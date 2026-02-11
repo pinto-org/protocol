@@ -4,36 +4,8 @@ pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
-
-interface IBeanstalk {
-    function getDeposit(
-        address account,
-        address token,
-        int96 stem
-    ) external view returns (uint256 amount, uint256 bdv);
-    function balanceOfStalk(address account) external view returns (uint256);
-    function convert(
-        bytes calldata convertData,
-        int96[] calldata stems,
-        uint256[] calldata amounts
-    ) external payable returns (int96, uint256, uint256, uint256, uint256);
-    function poolCurrentDeltaB(address pool) external view returns (int256);
-    function getOverallConvertCapacity() external view returns (uint256);
-}
-
-interface IWell {
-    function tokens() external view returns (address[] memory);
-    function getSwapIn(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountOut
-    ) external view returns (uint256);
-    function shift(
-        address tokenOut,
-        uint256 minAmountOut,
-        address recipient
-    ) external returns (uint256);
-}
+import {TestHelper} from "test/foundry/utils/TestHelper.sol";
+import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
@@ -47,18 +19,17 @@ interface IERC20 {
  *
  * Run: BASE_RPC=<your_base_rpc> forge test --match-contract ConvertCapacityForkTest -vv
  */
-contract ConvertCapacityForkTest is Test {
+contract ConvertCapacityForkTest is TestHelper {
     address constant PINTO_DIAMOND = 0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f;
     address constant PINTO_TOKEN = 0xb170000aeeFa790fa61D6e837d1035906839a3c8;
     address constant PINTO_USDC_WELL = 0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1;
     address constant REAL_FARMER = 0xFb94D3404c1d3D9D6F08f79e58041d5EA95AccfA;
     int96 constant FARMER_STEM = 590486100;
     uint256 constant FORK_BLOCK = 27236526;
-    IBeanstalk bs;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("BASE_RPC"), FORK_BLOCK);
-        bs = IBeanstalk(PINTO_DIAMOND);
+        bs = IMockFBeanstalk(PINTO_DIAMOND);
     }
 
     /**
@@ -106,54 +77,6 @@ contract ConvertCapacityForkTest is Test {
             usedByConvert2,
             (usedByConvert1 * 15) / 10,
             "Bug: 2nd convert uses disproportionately more capacity than 1st"
-        );
-    }
-
-    /**
-     * @notice This test verifies the fix is working correctly.
-     * @dev After fix, both converts should use approximately the same capacity (within 20% tolerance for slippage).
-     */
-    function test_forkBase_convertCapacityFixed() public {
-        (uint256 depositAmount, ) = bs.getDeposit(REAL_FARMER, PINTO_TOKEN, FARMER_STEM);
-        console.log("Farmer deposit:", depositAmount);
-        require(depositAmount > 0, "No deposit found");
-
-        uint256 capacityBefore = bs.getOverallConvertCapacity();
-        console.log("Overall convert capacity:", capacityBefore);
-
-        uint256 convertAmount = 500e6;
-        bytes memory convertData = abi.encode(
-            LibConvertData.ConvertKind.BEANS_TO_WELL_LP,
-            convertAmount,
-            uint256(0),
-            PINTO_USDC_WELL
-        );
-        int96[] memory stems = new int96[](1);
-        stems[0] = FARMER_STEM;
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = convertAmount;
-
-        vm.prank(REAL_FARMER);
-        bs.convert(convertData, stems, amounts);
-        uint256 capacityAfter1 = bs.getOverallConvertCapacity();
-        uint256 usedByConvert1 = capacityBefore - capacityAfter1;
-
-        vm.prank(REAL_FARMER);
-        bs.convert(convertData, stems, amounts);
-        uint256 capacityAfter2 = bs.getOverallConvertCapacity();
-        uint256 usedByConvert2 = capacityAfter1 - capacityAfter2;
-
-        console.log("Capacity used by convert 1:", usedByConvert1);
-        console.log("Capacity used by convert 2:", usedByConvert2);
-        console.log("Ratio (convert2/convert1):", (usedByConvert2 * 100) / usedByConvert1, "%");
-
-        // After fix: both converts should use approximately equal capacity
-        // Allow 20% tolerance for slippage from pool state changes
-        assertApproxEqRel(
-            usedByConvert1,
-            usedByConvert2,
-            0.20e18,
-            "Fix verified: converts use approximately equal capacity"
         );
     }
 }

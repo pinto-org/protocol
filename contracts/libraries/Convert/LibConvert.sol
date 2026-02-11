@@ -313,10 +313,10 @@ library LibConvert {
                 overallCappedDeltaB.sub(convertCap.overallConvertCapacityUsed);
         }
 
-        // Return capacity delta for caller to add to storage
+        // Return this convert's capacity usage for caller to add to storage
         pdCapacity.overall = overallAmountInDirectionOfPeg;
 
-        // Calculate per-well capacity delta for caller to add to storage
+        // Calculate per-well capacity usage for caller to add to storage
 
         if (inputToken != s.sys.bean && inputTokenAmountInDirectionOfPeg > 0) {
             (cumulativePenalty, pdCapacity.inputToken) = calculatePerWellCapacity(
@@ -344,14 +344,14 @@ library LibConvert {
         ConvertCapacity storage convertCap
     ) internal view returns (uint256, uint256) {
         uint256 tokenWellCapacity = abs(LibDeltaB.cappedReservesDeltaB(wellToken));
-        // Use cumulative for penalty check
+
         uint256 cumulativeUsed = convertCap.wellConvertCapacityUsed[wellToken].add(
             amountInDirectionOfPeg
         );
         if (cumulativeUsed > tokenWellCapacity) {
             cumulativePenalty = cumulativePenalty.add(cumulativeUsed.sub(tokenWellCapacity));
         }
-        // Return delta (not cumulative) for storage update
+        // Return this convert's capacity usage for caller to add to storage
         return (cumulativePenalty, amountInDirectionOfPeg);
     }
 
