@@ -368,15 +368,14 @@ library LibConvert {
 
         // Determine target well. For L2L/AL2L (inputToken == outputToken), skip penalty calculation.
         if (inputToken != outputToken) {
-            if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
-                targetWell = inputToken;
-            } else if (LibWhitelistedTokens.wellIsOrWasSoppable(outputToken)) {
+            if (inputToken == s.sys.bean) {
                 targetWell = outputToken;
+            } else {
+                targetWell = inputToken;
             }
 
-            if (targetWell != address(0)) {
-                (, targetWellReserves) = LibDeltaB.cappedReservesDeltaB(targetWell);
-            }
+            // `targetWell` must be a well at this point.
+            (, targetWellReserves) = LibDeltaB.cappedReservesDeltaB(targetWell);
         }
 
         // update per-well convert capacity
