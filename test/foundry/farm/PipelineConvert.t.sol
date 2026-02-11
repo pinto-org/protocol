@@ -1314,7 +1314,7 @@ contract PipelineConvertTest is TestHelper {
         uint256 inputTokenAmountInDirectionOfPeg = amount;
         address outputToken = BEAN;
         uint256 outputTokenAmountInDirectionOfPeg = amount;
-        (uint256 penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (uint256 penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,
@@ -1331,7 +1331,7 @@ contract PipelineConvertTest is TestHelper {
         inputTokenAmountInDirectionOfPeg = amount;
         outputToken = BEAN;
         outputTokenAmountInDirectionOfPeg = amount;
-        (penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,
@@ -1353,7 +1353,7 @@ contract PipelineConvertTest is TestHelper {
         uint256 inputTokenAmountInDirectionOfPeg = 0;
         address outputToken = BEAN;
         uint256 outputTokenAmountInDirectionOfPeg = 0;
-        (uint256 penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (uint256 penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,
@@ -1372,7 +1372,7 @@ contract PipelineConvertTest is TestHelper {
         uint256 inputTokenAmountInDirectionOfPeg = 0;
         address outputToken = BEAN;
         uint256 outputTokenAmountInDirectionOfPeg = 0;
-        (uint256 penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (uint256 penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,
@@ -1388,7 +1388,7 @@ contract PipelineConvertTest is TestHelper {
         inputTokenAmountInDirectionOfPeg = amount;
         outputToken = BEAN;
         outputTokenAmountInDirectionOfPeg = 0;
-        (penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,
@@ -1408,7 +1408,7 @@ contract PipelineConvertTest is TestHelper {
         uint256 inputTokenAmountInDirectionOfPeg = amount;
         address outputToken = BEAN;
         uint256 outputTokenAmountInDirectionOfPeg = 0;
-        (uint256 penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (uint256 penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,
@@ -1428,7 +1428,7 @@ contract PipelineConvertTest is TestHelper {
         uint256 inputTokenAmountInDirectionOfPeg = 0;
         address outputToken = beanEthWell;
         uint256 outputTokenAmountInDirectionOfPeg = amount;
-        (uint256 penalty, ) = pipelineConvert.calculateConvertCapacityPenaltyE(
+        (uint256 penalty, , , ) = pipelineConvert.calculateConvertCapacityPenaltyE(
             overallCappedDeltaB,
             overallAmountInDirectionOfPeg,
             inputToken,

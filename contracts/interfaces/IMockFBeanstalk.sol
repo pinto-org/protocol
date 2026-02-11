@@ -689,7 +689,15 @@ interface IMockFBeanstalk {
         uint256 inputTokenAmountInDirectionOfPeg,
         address outputToken,
         uint256 outputTokenAmountInDirectionOfPeg
-    ) external view returns (uint256 cumulativePenalty, PenaltyData memory pdCapacity);
+    )
+        external
+        view
+        returns (
+            uint256 cumulativePenalty,
+            PenaltyData memory pdCapacity,
+            address targetWell,
+            uint256[] memory targetWellReserves
+        );
 
     function calculateDeltaBFromReserves(
         address well,
