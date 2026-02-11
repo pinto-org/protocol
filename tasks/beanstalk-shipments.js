@@ -119,13 +119,13 @@ module.exports = function () {
       deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
       await mintEth(deployer.address);
     } else {
-      deployer = (await ethers.getSigners())[1];
+      deployer = (await ethers.getSigners())[0];
     }
 
     // Step 1: Deploy and setup payback contracts, distribute assets to users and distributor contract
     console.log("STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
     console.log("-".repeat(50));
-    await deployAndSetupContracts({
+    const contracts = await deployAndSetupContracts({
       PINTO,
       L2_PINTO,
       L2_PCM,
@@ -134,7 +134,39 @@ module.exports = function () {
       populateData: populateData,
       useChunking: true
     });
-    console.log(" Payback contracts deployed and configured\n");
+    console.log(" Payback contracts deployed and configured\n");
+
+    // Step 1b: Update the shipment routes JSON with deployed contract addresses
+    console.log("STEP 1b: UPDATING SHIPMENT ROUTES WITH DEPLOYED ADDRESSES");
+    console.log("-".repeat(50));
+
+    const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
+    const routes = JSON.parse(fs.readFileSync(routesPath));
+
+    const siloPaybackAddress = contracts.siloPaybackContract.address;
+    const barnPaybackAddress = contracts.barnPaybackContract.address;
+
+    // Helper to encode addresses into padded hex data
+    const encodeAddress = (addr) => addr.toLowerCase().replace("0x", "").padStart(64, "0");
+    const encodeUint256 = (num) => num.toString(16).padStart(64, "0");
+
+    // Route 4 (index 3): getPaybackFieldPlan - data = (siloPayback, barnPayback, fieldId)
+    // fieldId = 1 for the repayment field
+    routes[3].data =
+      "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress) + encodeUint256(1);
+
+    // Route 5 (index 4): getPaybackSiloPlan - data = (siloPayback, barnPayback)
+    routes[4].data = "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress);
+
+    // Route 6 (index 5): getPaybackBarnPlan - data = (siloPayback, barnPayback)
+    // Note: Order must be (siloPayback, barnPayback) to match paybacksRemaining() decoding
+    routes[5].data = "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress);
+
+    fs.writeFileSync(routesPath, JSON.stringify(routes, null, 4));
+    console.log("Updated updatedShipmentRoutes.json with deployed contract addresses:");
+    console.log(`   - SiloPayback: ${siloPaybackAddress}`);
+    console.log(`   - BarnPayback: ${barnPaybackAddress}`);
+    console.log(`   - Routes 4, 5, 6 data fields updated\n`);
   });
 
   ////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
