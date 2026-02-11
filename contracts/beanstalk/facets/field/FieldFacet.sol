@@ -234,7 +234,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     /**
      * @notice Delegate the referral rewards to a delegate.
      * @param delegate The address of the delegate to delegate the referral rewards to.
-     * @dev a user can reset their delegate to the zero address to stop delegating.
+     * @dev Delegation to address(0) is not allowed to prevent storage pollution.
      */
     function delegateReferralRewards(address delegate) external {
         address user = LibTractor._user();
