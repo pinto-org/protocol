@@ -1,5 +1,10 @@
 const fs = require("fs");
-const { splitEntriesIntoChunks, updateProgress, retryOperation } = require("../../utils/read.js");
+const {
+  splitEntriesIntoChunks,
+  updateProgress,
+  retryOperation,
+  verifyTransaction
+} = require("../../utils/read.js");
 const { BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR } = require("../../test/hardhat/utils/constants.js");
 
 // Deploys SiloPayback, BarnPayback, and ContractPaybackDistributor contracts
@@ -75,7 +80,8 @@ async function distributeUnripeBdvTokens({
   dataPath,
   verbose = true,
   useChunking = true,
-  targetEntriesPerChunk = 300
+  targetEntriesPerChunk = 300,
+  startFromChunk = 0
 }) {
   if (verbose) console.log("🌱 Distributing unripe BDV tokens...");
 
@@ -90,31 +96,48 @@ async function distributeUnripeBdvTokens({
       // log the address of the payback contract
       console.log("SiloPayback address:", siloPaybackContract.address);
 
-      const tx = await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
-      const receipt = await tx.wait();
-
-      if (verbose) console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+      await retryOperation(
+        async () => {
+          const tx = await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
+          const receipt = await verifyTransaction(tx, "Unripe BDV batch mint");
+          if (verbose) console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+        },
+        { context: "Unripe BDV single transaction" }
+      );
     } else {
       // Split into chunks for processing
       const chunks = splitEntriesIntoChunks(unripeAccountBdvTokens, targetEntriesPerChunk);
       console.log(`Starting to process ${chunks.length} chunks...`);
 
+      if (startFromChunk > 0) {
+        console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${chunks.length}`);
+      }
+
       let totalGasUsed = ethers.BigNumber.from(0);
 
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = startFromChunk; i < chunks.length; i++) {
         if (verbose) {
           console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
           console.log(`Chunk contains ${chunks[i].length} accounts`);
           console.log("-----------------------------------");
         }
 
-        await retryOperation(async () => {
-          // mint tokens to users in chunks
-          const tx = await siloPaybackContract.connect(account).batchMint(chunks[i]);
-          const receipt = await tx.wait();
-          totalGasUsed = totalGasUsed.add(receipt.gasUsed);
-          if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
-        });
+        try {
+          await retryOperation(
+            async () => {
+              // mint tokens to users in chunks
+              const tx = await siloPaybackContract.connect(account).batchMint(chunks[i]);
+              const receipt = await verifyTransaction(tx, `Unripe BDV chunk ${i + 1}`);
+              totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+              if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+            },
+            { context: `Chunk ${i + 1}/${chunks.length}` }
+          );
+        } catch (error) {
+          console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
+          console.error(`To resume, use: --unripe-start-chunk ${i}`);
+          throw error;
+        }
 
         await updateProgress(i + 1, chunks.length);
       }
@@ -138,7 +161,8 @@ async function distributeBarnPaybackTokens({
   account,
   dataPath,
   verbose = true,
-  targetEntriesPerChunk = 300
+  targetEntriesPerChunk = 300,
+  startFromChunk = 0
 }) {
   if (verbose) console.log("🌱 Distributing barn payback tokens...");
 
@@ -150,19 +174,34 @@ async function distributeBarnPaybackTokens({
     const chunks = splitEntriesIntoChunks(accountFertilizers, targetEntriesPerChunk);
     console.log(`Starting to process ${chunks.length} chunks...`);
 
+    if (startFromChunk > 0) {
+      console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${chunks.length}`);
+    }
+
     let totalGasUsed = ethers.BigNumber.from(0);
 
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = startFromChunk; i < chunks.length; i++) {
       if (verbose) {
         console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
         console.log(`Chunk contains ${chunks[i].length} fertilizers`);
         console.log("-----------------------------------");
       }
-      const tx = await barnPaybackContract.connect(account).mintFertilizers(chunks[i]);
-      const receipt = await tx.wait();
 
-      totalGasUsed = totalGasUsed.add(receipt.gasUsed);
-      if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+      try {
+        await retryOperation(
+          async () => {
+            const tx = await barnPaybackContract.connect(account).mintFertilizers(chunks[i]);
+            const receipt = await verifyTransaction(tx, `Barn payback chunk ${i + 1}`);
+            totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+            if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+          },
+          { context: `Chunk ${i + 1}/${chunks.length}` }
+        );
+      } catch (error) {
+        console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
+        console.error(`To resume, use: --barn-start-chunk ${i}`);
+        throw error;
+      }
 
       await updateProgress(i + 1, chunks.length);
     }
@@ -182,7 +221,8 @@ async function distributeContractAccountData({
   contractPaybackDistributorContract,
   account,
   verbose = true,
-  targetEntriesPerChunk = 25
+  targetEntriesPerChunk = 25,
+  startFromChunk = 0
 }) {
   if (verbose) console.log("🌱 Distributing contract account data...");
 
@@ -219,30 +259,44 @@ async function distributeContractAccountData({
     }
 
     console.log(`Starting to process ${chunks.length} chunks...`);
+
+    if (startFromChunk > 0) {
+      console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${chunks.length}`);
+    }
+
     let totalGasUsed = ethers.BigNumber.from(0);
 
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = startFromChunk; i < chunks.length; i++) {
       if (verbose) {
         console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
         console.log(`Chunk contains ${chunks[i].accounts.length} contract accounts`);
         console.log("-----------------------------------");
       }
 
-      await retryOperation(async () => {
-        // Remove address field from data before contract call (contract doesn't expect this field)
-        const dataForContract = chunks[i].data.map((accountData) => {
-          const { address, ...dataWithoutAddress } = accountData;
-          return dataWithoutAddress;
-        });
+      try {
+        await retryOperation(
+          async () => {
+            // Remove address field from data before contract call (contract doesn't expect this field)
+            const dataForContract = chunks[i].data.map((accountData) => {
+              const { address, ...dataWithoutAddress } = accountData;
+              return dataWithoutAddress;
+            });
 
-        // Initialize contract account data in chunks
-        const tx = await contractPaybackDistributorContract
-          .connect(account)
-          .initializeAccountData(chunks[i].accounts, dataForContract);
-        const receipt = await tx.wait();
-        totalGasUsed = totalGasUsed.add(receipt.gasUsed);
-        if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
-      });
+            // Initialize contract account data in chunks
+            const tx = await contractPaybackDistributorContract
+              .connect(account)
+              .initializeAccountData(chunks[i].accounts, dataForContract);
+            const receipt = await verifyTransaction(tx, `Contract account data chunk ${i + 1}`);
+            totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+            if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+          },
+          { context: `Chunk ${i + 1}/${chunks.length}` }
+        );
+      } catch (error) {
+        console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
+        console.error(`To resume, use: --contract-start-chunk ${i}`);
+        throw error;
+      }
 
       await updateProgress(i + 1, chunks.length);
     }
@@ -289,20 +343,23 @@ async function deployAndSetupContracts(params) {
       siloPaybackContract: contracts.siloPaybackContract,
       account: params.account,
       dataPath: "./scripts/beanstalkShipments/data/unripeBdvTokens.json",
-      verbose: true
+      verbose: true,
+      startFromChunk: params.unripeStartChunk || 0
     });
 
     await distributeBarnPaybackTokens({
       barnPaybackContract: contracts.barnPaybackContract,
       account: params.account,
       dataPath: "./scripts/beanstalkShipments/data/beanstalkAccountFertilizer.json",
-      verbose: true
+      verbose: true,
+      startFromChunk: params.barnStartChunk || 0
     });
 
     await distributeContractAccountData({
       contractPaybackDistributorContract: contracts.contractPaybackDistributorContract,
       account: params.account,
-      verbose: true
+      verbose: true,
+      startFromChunk: params.contractStartChunk || 0
     });
   }
 

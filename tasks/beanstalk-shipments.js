@@ -101,10 +101,30 @@ module.exports = function () {
   // Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER at 0x47c365cc9ef51052651c2be22f274470ad6afc53
   // Set mock to false to deploy the payback contracts on base.
   //  - npx hardhat deployPaybackContracts --network base
-  task(
-    "deployPaybackContracts",
-    "performs all actions to initialize the beanstalk shipments"
-  ).setAction(async (taskArgs) => {
+  // Resume parameters:
+  //  - npx hardhat deployPaybackContracts --unripe-start-chunk 5 --network base
+  //  - npx hardhat deployPaybackContracts --barn-start-chunk 10 --network base
+  //  - npx hardhat deployPaybackContracts --contract-start-chunk 3 --network base
+  task("deployPaybackContracts", "performs all actions to initialize the beanstalk shipments")
+    .addOptionalParam(
+      "unripeStartChunk",
+      "Chunk index to resume unripe BDV distribution from (0-indexed)",
+      0,
+      types.int
+    )
+    .addOptionalParam(
+      "barnStartChunk",
+      "Chunk index to resume barn payback distribution from (0-indexed)",
+      0,
+      types.int
+    )
+    .addOptionalParam(
+      "contractStartChunk",
+      "Chunk index to resume contract account data distribution from (0-indexed)",
+      0,
+      types.int
+    )
+    .setAction(async (taskArgs) => {
     // params
     const verbose = true;
     const populateData = true;
@@ -122,6 +142,18 @@ module.exports = function () {
     // Step 1: Deploy and setup payback contracts, distribute assets to users and distributor contract
     console.log("STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
     console.log("-".repeat(50));
+
+    // Log resume status if any start chunk is specified
+    if (taskArgs.unripeStartChunk > 0 || taskArgs.barnStartChunk > 0 || taskArgs.contractStartChunk > 0) {
+      console.log("⏩ Resume mode enabled:");
+      if (taskArgs.unripeStartChunk > 0)
+        console.log(`   - Unripe BDV: starting from chunk ${taskArgs.unripeStartChunk}`);
+      if (taskArgs.barnStartChunk > 0)
+        console.log(`   - Barn payback: starting from chunk ${taskArgs.barnStartChunk}`);
+      if (taskArgs.contractStartChunk > 0)
+        console.log(`   - Contract accounts: starting from chunk ${taskArgs.contractStartChunk}`);
+    }
+
     const contracts = await deployAndSetupContracts({
       PINTO,
       L2_PINTO,
@@ -129,7 +161,10 @@ module.exports = function () {
       account: deployer,
       verbose,
       populateData: populateData,
-      useChunking: true
+      useChunking: true,
+      unripeStartChunk: taskArgs.unripeStartChunk,
+      barnStartChunk: taskArgs.barnStartChunk,
+      contractStartChunk: taskArgs.contractStartChunk
     });
     console.log(" Payback contracts deployed and configured\n");
 
@@ -207,7 +242,16 @@ module.exports = function () {
   // The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
   // Set mock to false to populate the repayment field on base.
   //  - npx hardhat populateRepaymentField --network base
-  task("populateRepaymentField", "populates the repayment field with data").setAction(
+  // Resume parameters:
+  //  - npx hardhat populateRepaymentField --field-start-chunk 15 --network base
+  task("populateRepaymentField", "populates the repayment field with data")
+    .addOptionalParam(
+      "fieldStartChunk",
+      "Chunk index to resume field population from (0-indexed)",
+      0,
+      types.int
+    )
+    .setAction(
     async (taskArgs) => {
       // params
       const mock = true;
@@ -226,10 +270,16 @@ module.exports = function () {
       // Populate the repayment field with data
       console.log("STEP 3: POPULATING THE BEANSTALK FIELD WITH DATA");
       console.log("-".repeat(50));
+
+      if (taskArgs.fieldStartChunk > 0) {
+        console.log(`⏩ Resume mode: starting from chunk ${taskArgs.fieldStartChunk}`);
+      }
+
       await populateBeanstalkField({
         diamondAddress: L2_PINTO,
         account: repaymentFieldPopulator,
-        verbose: verbose
+        verbose: verbose,
+        startFromChunk: taskArgs.fieldStartChunk
       });
       console.log(" Beanstalk field initialized\n");
     }
