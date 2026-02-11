@@ -148,25 +148,112 @@ async function updateProgress(current, total) {
 }
 
 const MAX_RETRIES = 20;
-const RETRY_DELAY = 500; // 0.5 seconds
+const BASE_RETRY_DELAY = 500; // 0.5 seconds base delay
+const MAX_RETRY_DELAY = 30000; // 30 seconds max delay
+
+// Common RPC error patterns that warrant a retry
+const RETRYABLE_ERRORS = [
+  "Internal server error",
+  "429",
+  "too many requests",
+  "rate limit",
+  "timeout",
+  "ETIMEDOUT",
+  "ESOCKETTIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "network error",
+  "header not found",
+  "missing trie node",
+  "request failed",
+  "transaction underpriced",
+  "replacement transaction underpriced",
+  "nonce too low",
+  "already known"
+];
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function retryOperation(operation, retries = MAX_RETRIES) {
-  try {
-    return await operation();
-  } catch (error) {
-    if (retries > 0 && error.message.includes("Internal server error")) {
+/**
+ * Checks if an error message contains any retryable error patterns
+ * @param {string} errorMessage - The error message to check
+ * @returns {boolean} - True if the error is retryable
+ */
+function isRetryableError(errorMessage) {
+  const lowerMessage = errorMessage.toLowerCase();
+  return RETRYABLE_ERRORS.some((pattern) => lowerMessage.includes(pattern.toLowerCase()));
+}
+
+/**
+ * Calculates exponential backoff delay with jitter
+ * @param {number} attempt - Current attempt number (0-indexed)
+ * @returns {number} - Delay in milliseconds
+ */
+function calculateBackoffDelay(attempt) {
+  // Exponential backoff: base * 2^attempt
+  const exponentialDelay = BASE_RETRY_DELAY * Math.pow(2, attempt);
+  // Add random jitter (0-25% of delay)
+  const jitter = Math.random() * exponentialDelay * 0.25;
+  // Cap at max delay
+  return Math.min(exponentialDelay + jitter, MAX_RETRY_DELAY);
+}
+
+/**
+ * Retries an operation with exponential backoff on RPC errors
+ * @param {Function} operation - Async function to execute
+ * @param {Object} options - Options object
+ * @param {number} options.retries - Maximum number of retries (default: MAX_RETRIES)
+ * @param {string} options.context - Context string for error messages (e.g., "Chunk 5/10")
+ * @returns {Promise<any>} - Result of the operation
+ */
+async function retryOperation(operation, options = {}) {
+  const { retries = MAX_RETRIES, context = "" } = options;
+  const maxAttempts = retries + 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const isLastAttempt = attempt === maxAttempts - 1;
+      const isRetryable = isRetryableError(error.message);
+
+      if (isLastAttempt || !isRetryable) {
+        // Final attempt or non-retryable error - throw with context
+        const contextPrefix = context ? `${context}: ` : "";
+        error.message = `${contextPrefix}${error.message}`;
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = calculateBackoffDelay(attempt);
+      const retriesLeft = maxAttempts - attempt - 1;
+
       console.log(
-        `RPC error encountered. Retrying in ${RETRY_DELAY / 1000} seconds... (${retries} attempts left)`
+        `⚠️  RPC error encountered${context ? ` (${context})` : ""}. ` +
+          `Retrying in ${(delay / 1000).toFixed(1)}s... (${retriesLeft} attempts left)`
       );
-      await sleep(RETRY_DELAY);
-      return retryOperation(operation, retries - 1);
+      console.log(`   Error: ${error.message.substring(0, 100)}${error.message.length > 100 ? "..." : ""}`);
+
+      await sleep(delay);
     }
-    throw error;
   }
+}
+
+/**
+ * Verifies a transaction completed successfully by checking receipt status
+ * @param {Object} tx - Transaction object from contract call
+ * @param {string} description - Description for error messages (e.g., "Barn payback chunk 5")
+ * @returns {Promise<Object>} - Transaction receipt
+ * @throws {Error} - If transaction reverted (status !== 1)
+ */
+async function verifyTransaction(tx, description = "Transaction") {
+  const receipt = await tx.wait();
+  if (receipt.status !== 1) {
+    throw new Error(`${description} reverted. Hash: ${receipt.transactionHash}`);
+  }
+  return receipt;
 }
 
 exports.readPrune = readPrune;
@@ -177,3 +264,4 @@ exports.splitWhaleAccounts = splitWhaleAccounts;
 exports.updateProgress = updateProgress;
 exports.convertToBigNum = convertToBigNum;
 exports.retryOperation = retryOperation;
+exports.verifyTransaction = verifyTransaction;

@@ -3,7 +3,8 @@ const {
   splitEntriesIntoChunksOptimized,
   splitWhaleAccounts,
   updateProgress,
-  retryOperation
+  retryOperation,
+  verifyTransaction
 } = require("../../utils/read.js");
 
 // EIP-7987 tx gas limit is 16,777,216 (2^24)
@@ -13,8 +14,13 @@ const MAX_PLOTS_PER_ACCOUNT_PER_TX = 150;
 /**
  * Populates the beanstalk field by reading data from beanstalkPlots.json
  * and calling initializeRepaymentPlots directly on the L2_PINTO contract
+ * @param {Object} options - Configuration options
+ * @param {string} options.diamondAddress - The diamond contract address
+ * @param {Object} options.account - The signer account
+ * @param {boolean} options.verbose - Whether to log verbose output
+ * @param {number} options.startFromChunk - Chunk index to resume from (0-indexed)
  */
-async function populateBeanstalkField({ diamondAddress, account, verbose }) {
+async function populateBeanstalkField({ diamondAddress, account, verbose, startFromChunk = 0 }) {
   console.log("populateBeanstalkField: Re-initialize the field with Beanstalk plots.");
 
   // Read and parse the JSON file
@@ -32,6 +38,10 @@ async function populateBeanstalkField({ diamondAddress, account, verbose }) {
   const plotChunks = splitEntriesIntoChunksOptimized(splitData, targetEntriesPerChunk);
   console.log(`Starting to process ${plotChunks.length} chunks...`);
 
+  if (startFromChunk > 0) {
+    console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${plotChunks.length}`);
+  }
+
   // Get contract instance for TempRepaymentFieldFacet
   const pintoDiamond = await ethers.getContractAt(
     "TempRepaymentFieldFacet",
@@ -39,21 +49,32 @@ async function populateBeanstalkField({ diamondAddress, account, verbose }) {
     account
   );
 
-  for (let i = 0; i < plotChunks.length; i++) {
+  for (let i = startFromChunk; i < plotChunks.length; i++) {
     await updateProgress(i + 1, plotChunks.length);
     if (verbose) {
       console.log(`\n🔄 Processing chunk ${i + 1}/${plotChunks.length}`);
       console.log(`Chunk contains ${plotChunks[i].length} accounts`);
       console.log("-----------------------------------");
     }
-    await retryOperation(async () => {
-      const tx = await pintoDiamond.initializeRepaymentPlots(plotChunks[i]);
-      const receipt = await tx.wait();
-      if (verbose) {
-        console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
-        console.log(`📋 Transaction hash: ${receipt.transactionHash}`);
-      }
-    });
+
+    try {
+      await retryOperation(
+        async () => {
+          const tx = await pintoDiamond.initializeRepaymentPlots(plotChunks[i]);
+          const receipt = await verifyTransaction(tx, `Repayment plots chunk ${i + 1}`);
+          if (verbose) {
+            console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+            console.log(`📋 Transaction hash: ${receipt.transactionHash}`);
+          }
+        },
+        { context: `Chunk ${i + 1}/${plotChunks.length}` }
+      );
+    } catch (error) {
+      console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${plotChunks.length}`);
+      console.error(`To resume, use: --field-start-chunk ${i}`);
+      throw error;
+    }
+
     if (verbose) {
       console.log(`Completed chunk ${i + 1}/${plotChunks.length}`);
     }
