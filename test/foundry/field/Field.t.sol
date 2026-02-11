@@ -1245,11 +1245,11 @@ contract FieldTest is TestHelper {
     }
 
     /**
-     * @notice Test that users can stop delegating by setting delegate to address(0)
-     * @dev According to the natspec comment at FieldFacet.sol:237, a user can reset
-     * their delegate to the zero address to stop delegating.
+     * @notice Test that delegation to address(0) is blocked
+     * @dev Delegation to address(0) could cause storage pollution and is conceptually incorrect.
+     * This test verifies the fix for the address(0) delegation vulnerability.
      */
-    function test_delegateReferralRewards_stopDelegating() public {
+    function test_delegateReferralRewards_cannotDelegateToZeroAddress() public {
         uint256 threshold = field.getBeanSownEligibilityThreshold();
 
         // Farmer 0 (USER) sows enough beans to earn the right to delegate
@@ -1262,26 +1262,158 @@ contract FieldTest is TestHelper {
             "User should have sown threshold"
         );
 
-        // Farmer 0 delegates to farmer 1
+        // Try to delegate to address(0) - should fail
         vm.prank(farmers[0]);
-        field.delegateReferralRewards(farmers[1]);
-
-        assertEq(field.getDelegate(farmers[0]), farmers[1], "Delegate should be set");
-
-        // Stop delegating by setting to address(0)
-        vm.prank(farmers[0]);
+        vm.expectRevert("Field: delegate cannot be the zero address");
         field.delegateReferralRewards(address(0));
+    }
 
-        assertEq(
-            field.getDelegate(farmers[0]),
-            address(0),
-            "Delegate should be reset to address(0)"
+    /**
+     * @notice Test that changing delegation does NOT remove independently-earned eligibility from old delegate
+     * @dev This is the key test for the griefing attack vulnerability fix.
+     *
+     * VULNERABILITY SCENARIO (before fix):
+     * 1. Attacker (Alice) sows threshold beans, becomes eligible
+     * 2. Alice delegates to Victim (Bob), making Bob eligible through delegation
+     * 3. Bob independently sows threshold beans (Bob has now earned eligibility on their own)
+     * 4. Alice changes delegation to Carol
+     * 5. BEFORE FIX: Bob loses eligibility even though he earned it independently
+     * 6. AFTER FIX: Bob keeps eligibility because he earned it through his own sowing
+     *
+     * This prevents a DDoS attack where an attacker could repeatedly delegate to someone
+     * and then change delegation to remove their legitimately-earned eligibility.
+     */
+    function test_delegateReferralRewards_griefingAttackPrevented() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+        address attacker = farmers[0];
+        address victim = farmers[1];
+        address carol = users[3];
+
+        // Setup: ensure enough soil for multiple sows
+        season.setSoilE(threshold * 5);
+
+        // Step 1: Attacker sows threshold beans, becomes eligible
+        bean.mint(attacker, threshold);
+        vm.prank(attacker);
+        field.sowWithReferral(threshold, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+        assertTrue(field.isValidReferrer(attacker), "Attacker should be eligible after sowing");
+
+        // Step 2: Attacker delegates to victim, making victim eligible through delegation
+        vm.prank(attacker);
+        field.delegateReferralRewards(victim);
+        assertTrue(field.isValidReferrer(victim), "Victim should be eligible through delegation");
+        assertEq(field.getDelegate(attacker), victim, "Delegation should be set");
+
+        // Step 3: Victim independently sows threshold beans (earns eligibility on their own)
+        bean.mint(victim, threshold);
+        vm.prank(victim);
+        field.sowWithReferral(threshold, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        // Verify victim has sown enough beans independently
+        assertGe(
+            field.getBeansSownForReferral(victim),
+            threshold,
+            "Victim should have sown threshold beans independently"
+        );
+        assertTrue(field.isValidReferrer(victim), "Victim should still be eligible");
+
+        // Step 4: Attacker changes delegation to Carol
+        vm.prank(attacker);
+        field.delegateReferralRewards(carol);
+
+        // Step 5 (AFTER FIX): Victim should KEEP eligibility because they earned it independently
+        assertTrue(
+            field.isValidReferrer(victim),
+            "GRIEFING ATTACK PREVENTED: Victim should keep eligibility because they sowed enough beans independently"
         );
 
-        // Verify old delegate (farmer 1) had their eligibility reset to false
+        // Carol should now be eligible through delegation
+        assertTrue(field.isValidReferrer(carol), "Carol should be eligible through delegation");
+        assertEq(field.getDelegate(attacker), carol, "Delegation should now be to Carol");
+    }
+
+    /**
+     * @notice Test that changing delegation DOES remove eligibility when old delegate hasn't earned it independently
+     * @dev This ensures the normal delegation change behavior still works correctly.
+     * When changing delegation, if the old delegate hasn't earned eligibility through their own sowing,
+     * their eligibility should be removed.
+     */
+    function test_delegateReferralRewards_changeDelegationRemovesUnearned() public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+        address delegator = farmers[0];
+        address oldDelegate = farmers[1];
+        address newDelegate = users[3];
+
+        // Setup: delegator sows threshold beans
+        sowAmountForFarmer(delegator, threshold);
+        assertTrue(field.isValidReferrer(delegator), "Delegator should be eligible");
+
+        // Delegator delegates to oldDelegate (who hasn't sown anything)
+        vm.prank(delegator);
+        field.delegateReferralRewards(oldDelegate);
+        assertTrue(field.isValidReferrer(oldDelegate), "Old delegate should be eligible through delegation");
+
+        // Verify old delegate has NOT sown enough beans independently
+        assertLt(
+            field.getBeansSownForReferral(oldDelegate),
+            threshold,
+            "Old delegate should not have sown threshold beans"
+        );
+
+        // Delegator changes delegation to newDelegate
+        vm.prank(delegator);
+        field.delegateReferralRewards(newDelegate);
+
+        // Old delegate should LOSE eligibility because they didn't earn it independently
         assertFalse(
-            field.isValidReferrer(farmers[1]),
-            "Old delegate should have eligibility reset"
+            field.isValidReferrer(oldDelegate),
+            "Old delegate should lose eligibility because they didn't earn it independently"
+        );
+
+        // New delegate should be eligible
+        assertTrue(field.isValidReferrer(newDelegate), "New delegate should be eligible");
+    }
+
+    /**
+     * @notice Fuzz test for griefing attack prevention
+     * @dev Tests various amounts to ensure the griefing protection works regardless of sow amounts
+     */
+    function test_delegateReferralRewards_griefingAttackPrevented_fuzz(uint256 victimSowAmount) public {
+        uint256 threshold = field.getBeanSownEligibilityThreshold();
+
+        // Victim sows at least the threshold (this is what earns them independent eligibility)
+        victimSowAmount = bound(victimSowAmount, threshold, threshold * 10);
+
+        address attacker = farmers[0];
+        address victim = farmers[1];
+        address newTarget = users[3];
+
+        // Setup: ensure enough soil
+        season.setSoilE(threshold + victimSowAmount + 100);
+
+        // Attacker sows and becomes eligible
+        bean.mint(attacker, threshold);
+        vm.prank(attacker);
+        field.sowWithReferral(threshold, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        // Attacker delegates to victim
+        vm.prank(attacker);
+        field.delegateReferralRewards(victim);
+        assertTrue(field.isValidReferrer(victim), "Victim eligible through delegation");
+
+        // Victim sows enough to earn independent eligibility
+        bean.mint(victim, victimSowAmount);
+        vm.prank(victim);
+        field.sowWithReferral(victimSowAmount, 0, 0, LibTransfer.From.EXTERNAL, address(0));
+
+        // Attacker changes delegation
+        vm.prank(attacker);
+        field.delegateReferralRewards(newTarget);
+
+        // Victim should keep eligibility (griefing prevented)
+        assertTrue(
+            field.isValidReferrer(victim),
+            "Victim should keep eligibility regardless of attacker's delegation change"
         );
     }
 
