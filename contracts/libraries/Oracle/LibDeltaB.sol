@@ -254,25 +254,38 @@ library LibDeltaB {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         require(reserves.length > 0, "Convert: Failed to read capped reserves");
-        
+
         address bean = s.sys.bean;
         address well = inputToken == bean ? targetWell : inputToken;
-        (int256 beforeDeltaB, uint256 beanIndex) = calculateDeltaBFromReservesLiquidity(well, reserves, ZERO_LOOKBACK);
+        (int256 beforeDeltaB, uint256 beanIndex) = calculateDeltaBFromReservesLiquidity(
+            well,
+            reserves,
+            ZERO_LOOKBACK
+        );
 
         if (inputToken == bean) {
             // Bean input: calculate the deltaB impact of adding single bean-sided liquidity to targetWell
             reserves[beanIndex] += fromAmount;
         } else {
             // LP input: calculate the deltaB impact of removing single bean-sided liquidity from inputToken well
-            reserves[beanIndex] = calcSingleSidedRemovalDeltaB(well, reserves, fromAmount, beanIndex);
+            reserves[beanIndex] = calcSingleSidedRemovalDeltaB(
+                well,
+                reserves,
+                fromAmount,
+                beanIndex
+            );
         }
 
-        (int256 afterDeltaB, ) = calculateDeltaBFromReservesLiquidity(well, reserves, ZERO_LOOKBACK);
+        (int256 afterDeltaB, ) = calculateDeltaBFromReservesLiquidity(
+            well,
+            reserves,
+            ZERO_LOOKBACK
+        );
         int256 deltaBDiff = afterDeltaB - beforeDeltaB;
         maxDeltaBImpact = deltaBDiff >= 0 ? uint256(deltaBDiff) : uint256(-deltaBDiff);
     }
 
-       /**
+    /**
      * @notice Calculates deltaB for single-sided liquidity operations (converts).
      * @dev Reverts if bean reserve < minimum or oracle fails.
      * @param well The address of the Well
@@ -290,10 +303,7 @@ library LibDeltaB {
 
         bool success;
         uint256[] memory ratios;
-        (ratios, beanIndex, success) = LibWell.getRatiosAndBeanIndex(
-            tokens,
-            lookback
-        );
+        (ratios, beanIndex, success) = LibWell.getRatiosAndBeanIndex(tokens, lookback);
 
         require(
             reserves[beanIndex] >= C.WELL_MINIMUM_BEAN_BALANCE,
@@ -329,8 +339,10 @@ library LibDeltaB {
         uint256 beanIndex
     ) internal view returns (uint256 newBeanReserve) {
         Call memory wellFunction = IWell(well).wellFunction();
-        uint256 theoreticalLpSupply = IBeanstalkWellFunction(wellFunction.target)
-            .calcLpTokenSupply(reserves, wellFunction.data);
+        uint256 theoreticalLpSupply = IBeanstalkWellFunction(wellFunction.target).calcLpTokenSupply(
+            reserves,
+            wellFunction.data
+        );
         require(theoreticalLpSupply > 0, "Convert: Theoretical LP supply is zero");
         require(fromAmount < theoreticalLpSupply, "Convert: fromAmount exceeds LP supply");
         uint256 newLpSupply = theoreticalLpSupply - fromAmount;
