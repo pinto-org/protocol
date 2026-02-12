@@ -89,8 +89,7 @@ module.exports = function () {
       await l1Messenger.deployed();
 
       console.log("L1ContractMessenger deployed to:", l1Messenger.address);
-    }
-  );
+    });
 
   ////// STEP 0: PARSE EXPORT DATA //////
   // Parses the export data and detects contract addresses using direct RPC calls
@@ -187,8 +186,7 @@ module.exports = function () {
       console.log(`   - SiloPayback: ${siloPaybackAddress}`);
       console.log(`   - BarnPayback: ${barnPaybackAddress}`);
       console.log(`   - ContractPaybackDistributor: ${contractPaybackDistributorAddress}`);
-    }
-  );
+    });
 
   ////// STEP 1.5: INITIALIZE SILO PAYBACK //////
   // Initialize the SiloPayback contract with unripe BDV data
@@ -304,7 +302,7 @@ module.exports = function () {
       });
     });
 
-  ////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
+  ////// STEP 2: DEPLOY TEMP_FIELD_FACET //////
   // To minimize the number of transaction the PCM multisig has to sign, we deploy the TempFieldFacet
   // that allows an EOA to add plots to the repayment field.
   // Set mock to false to deploy the TempFieldFacet
@@ -315,31 +313,29 @@ module.exports = function () {
     .setAction(async (taskArgs) => {
       const mock = taskArgs.mock;
 
-    // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
-    console.log(
-      "STEP 2: ADDING NEW TEMP_REPAYMENT_FIELD_FACET AND THE TOKEN_HOOK_FACET TO THE PINTO DIAMOND"
-    );
-    console.log("-".repeat(50));
+      // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
+      console.log("STEP 2: ADDING NEW TEMP_REPAYMENT_FIELD_FACET TO THE PINTO DIAMOND");
+      console.log("-".repeat(50));
 
-    let deployer;
-    if (mock) {
-      deployer = await impersonateSigner(L2_PCM);
-      await mintEth(deployer.address);
-    } else {
-      deployer = (await ethers.getSigners())[0];
-    }
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(L2_PCM);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
 
-    await upgradeWithNewFacets({
-      diamondAddress: L2_PINTO,
-      facetNames: ["TempRepaymentFieldFacet"],
-      libraryNames: [],
-      facetLibraries: {},
-      initArgs: [],
-      verbose: true,
-      object: !mock,
-      account: deployer
+      await upgradeWithNewFacets({
+        diamondAddress: L2_PINTO,
+        facetNames: ["TempRepaymentFieldFacet"],
+        libraryNames: [],
+        facetLibraries: {},
+        initArgs: [],
+        verbose: true,
+        object: !mock,
+        account: deployer
+      });
     });
-  });
 
   ////// STEP 3: POPULATE THE BEANSTALK FIELD WITH DATA //////
   // After the initialization of the repayment field is done and the shipments have been deployed
@@ -450,8 +446,7 @@ module.exports = function () {
         account: owner
       });
       console.log(" Shipment routes updated and new field created\n");
-    }
-  );
+    });
 
   ////// STEP 5: TRANSFER OWNERSHIP OF PAYBACK CONTRACTS TO THE PCM //////
   // The deployer will need to transfer ownership of the payback contracts to the PCM
@@ -468,49 +463,49 @@ module.exports = function () {
       const mock = taskArgs.mock;
       const verbose = taskArgs.log;
 
-    let deployer;
-    if (mock) {
-      deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
-      await mintEth(deployer.address);
-    } else {
-      deployer = (await ethers.getSigners())[0];
-    }
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
 
-    // Get addresses from cache
-    const cachedAddresses = getDeployedAddresses();
-    if (
-      !cachedAddresses ||
-      !cachedAddresses.siloPayback ||
-      !cachedAddresses.barnPayback ||
-      !cachedAddresses.contractPaybackDistributor
-    ) {
-      throw new Error(
-        "Contract addresses not found in cache. Run 'npx hardhat deployPaybackContracts' first."
+      // Get addresses from cache
+      const cachedAddresses = getDeployedAddresses();
+      if (
+        !cachedAddresses ||
+        !cachedAddresses.siloPayback ||
+        !cachedAddresses.barnPayback ||
+        !cachedAddresses.contractPaybackDistributor
+      ) {
+        throw new Error(
+          "Contract addresses not found in cache. Run 'npx hardhat deployPaybackContracts' first."
+        );
+      }
+
+      const siloPaybackContract = await ethers.getContractAt(
+        "SiloPayback",
+        cachedAddresses.siloPayback
       );
-    }
+      const barnPaybackContract = await ethers.getContractAt(
+        "BarnPayback",
+        cachedAddresses.barnPayback
+      );
+      const contractPaybackDistributorContract = await ethers.getContractAt(
+        "ContractPaybackDistributor",
+        cachedAddresses.contractPaybackDistributor
+      );
 
-    const siloPaybackContract = await ethers.getContractAt(
-      "SiloPayback",
-      cachedAddresses.siloPayback
-    );
-    const barnPaybackContract = await ethers.getContractAt(
-      "BarnPayback",
-      cachedAddresses.barnPayback
-    );
-    const contractPaybackDistributorContract = await ethers.getContractAt(
-      "ContractPaybackDistributor",
-      cachedAddresses.contractPaybackDistributor
-    );
-
-    await transferContractOwnership({
-      siloPaybackContract: siloPaybackContract,
-      barnPaybackContract: barnPaybackContract,
-      contractPaybackDistributorContract: contractPaybackDistributorContract,
-      deployer: deployer,
-      newOwner: L2_PCM,
-      verbose: verbose
+      await transferContractOwnership({
+        siloPaybackContract: siloPaybackContract,
+        barnPaybackContract: barnPaybackContract,
+        contractPaybackDistributorContract: contractPaybackDistributorContract,
+        deployer: deployer,
+        newOwner: L2_PCM,
+        verbose: verbose
+      });
     });
-  });
 
   ////// SEQUENTIAL ORCHESTRATION TASK //////
   // Runs all beanstalk shipment tasks in the correct sequential order
