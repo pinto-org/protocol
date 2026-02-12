@@ -21,6 +21,12 @@ module.exports = function () {
     deployAndSetupContracts,
     transferContractOwnership
   } = require("../scripts/beanstalkShipments/deployPaybackContracts.js");
+  const { initializeSiloPayback } = require("../scripts/beanstalkShipments/initializeSiloPayback.js");
+  const { initializeBarnPayback } = require("../scripts/beanstalkShipments/initializeBarnPayback.js");
+  const {
+    initializeContractPaybackDistributor
+  } = require("../scripts/beanstalkShipments/initializeContractPaybackDistributor.js");
+  const { getDeployedAddresses } = require("../scripts/beanstalkShipments/utils/addressCache.js");
   const { parseAllExportData } = require("../scripts/beanstalkShipments/parsers");
 
   //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
@@ -97,37 +103,15 @@ module.exports = function () {
   );
 
   ////// STEP 1: DEPLOY PAYBACK CONTRACTS //////
-  // Deploy and initialize the payback contracts and the ContractPaybackDistributor contract
+  // Deploy the payback contracts and the ContractPaybackDistributor contract (no initialization)
+  // Data initialization is now handled by separate tasks (Steps 1.5, 1.6, 1.7)
   // Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER at 0x47c365cc9ef51052651c2be22f274470ad6afc53
   // Set mock to false to deploy the payback contracts on base.
   //  - npx hardhat deployPaybackContracts --network base
-  // Resume parameters:
-  //  - npx hardhat deployPaybackContracts --unripe-start-chunk 5 --network base
-  //  - npx hardhat deployPaybackContracts --barn-start-chunk 10 --network base
-  //  - npx hardhat deployPaybackContracts --contract-start-chunk 3 --network base
-  task("deployPaybackContracts", "performs all actions to initialize the beanstalk shipments")
-    .addOptionalParam(
-      "unripeStartChunk",
-      "Chunk index to resume unripe BDV distribution from (0-indexed)",
-      0,
-      types.int
-    )
-    .addOptionalParam(
-      "barnStartChunk",
-      "Chunk index to resume barn payback distribution from (0-indexed)",
-      0,
-      types.int
-    )
-    .addOptionalParam(
-      "contractStartChunk",
-      "Chunk index to resume contract account data distribution from (0-indexed)",
-      0,
-      types.int
-    )
-    .setAction(async (taskArgs) => {
+  task("deployPaybackContracts", "deploys the payback contracts (no initialization)")
+    .setAction(async (taskArgs, hre) => {
     // params
     const verbose = true;
-    const populateData = true;
     const mock = true;
 
     // Use the shipments deployer to get correct addresses
@@ -139,20 +123,9 @@ module.exports = function () {
       deployer = (await ethers.getSigners())[0];
     }
 
-    // Step 1: Deploy and setup payback contracts, distribute assets to users and distributor contract
-    console.log("STEP 1: DEPLOYING AND INITIALIZING PAYBACK CONTRACTS");
+    // Step 1: Deploy payback contracts only (initialization is now separate)
+    console.log("STEP 1: DEPLOYING PAYBACK CONTRACTS");
     console.log("-".repeat(50));
-
-    // Log resume status if any start chunk is specified
-    if (taskArgs.unripeStartChunk > 0 || taskArgs.barnStartChunk > 0 || taskArgs.contractStartChunk > 0) {
-      console.log("⏩ Resume mode enabled:");
-      if (taskArgs.unripeStartChunk > 0)
-        console.log(`   - Unripe BDV: starting from chunk ${taskArgs.unripeStartChunk}`);
-      if (taskArgs.barnStartChunk > 0)
-        console.log(`   - Barn payback: starting from chunk ${taskArgs.barnStartChunk}`);
-      if (taskArgs.contractStartChunk > 0)
-        console.log(`   - Contract accounts: starting from chunk ${taskArgs.contractStartChunk}`);
-    }
 
     const contracts = await deployAndSetupContracts({
       PINTO,
@@ -160,13 +133,13 @@ module.exports = function () {
       L2_PCM,
       account: deployer,
       verbose,
-      populateData: populateData,
-      useChunking: true,
-      unripeStartChunk: taskArgs.unripeStartChunk,
-      barnStartChunk: taskArgs.barnStartChunk,
-      contractStartChunk: taskArgs.contractStartChunk
+      network: hre.network.name
     });
-    console.log(" Payback contracts deployed and configured\n");
+    console.log(" Payback contracts deployed\n");
+    console.log("📝 Next steps:");
+    console.log("   Run initializeSiloPayback (Step 1.5)");
+    console.log("   Run initializeBarnPayback (Step 1.6)");
+    console.log("   Run initializeContractPaybackDistributor (Step 1.7)");
 
     // Step 1b: Update the shipment routes JSON with deployed contract addresses
     console.log("STEP 1b: UPDATING SHIPMENT ROUTES WITH DEPLOYED ADDRESSES");
@@ -200,6 +173,87 @@ module.exports = function () {
     console.log(`   - BarnPayback: ${barnPaybackAddress}`);
     console.log(`   - Routes 4, 5, 6 data fields updated\n`);
   });
+
+  ////// STEP 1.5: INITIALIZE SILO PAYBACK //////
+  // Initialize the SiloPayback contract with unripe BDV data
+  // Must be run after deployPaybackContracts (Step 1)
+  //  - npx hardhat initializeSiloPayback --network base
+  // Resume parameters:
+  //  - npx hardhat initializeSiloPayback --start-chunk 5 --network base
+  task("initializeSiloPayback", "Initialize SiloPayback with unripe BDV data")
+    .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
+    .setAction(async (taskArgs) => {
+      const mock = true;
+      const verbose = true;
+
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
+
+      await initializeSiloPayback({
+        account: deployer,
+        verbose,
+        startFromChunk: taskArgs.startChunk
+      });
+    });
+
+  ////// STEP 1.6: INITIALIZE BARN PAYBACK //////
+  // Initialize the BarnPayback contract with fertilizer data
+  // Must be run after deployPaybackContracts (Step 1)
+  //  - npx hardhat initializeBarnPayback --network base
+  // Resume parameters:
+  //  - npx hardhat initializeBarnPayback --start-chunk 10 --network base
+  task("initializeBarnPayback", "Initialize BarnPayback with fertilizer data")
+    .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
+    .setAction(async (taskArgs) => {
+      const mock = true;
+      const verbose = true;
+
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
+
+      await initializeBarnPayback({
+        account: deployer,
+        verbose,
+        startFromChunk: taskArgs.startChunk
+      });
+    });
+
+  ////// STEP 1.7: INITIALIZE CONTRACT PAYBACK DISTRIBUTOR //////
+  // Initialize the ContractPaybackDistributor contract with account data
+  // Must be run after deployPaybackContracts (Step 1)
+  //  - npx hardhat initializeContractPaybackDistributor --network base
+  // Resume parameters:
+  //  - npx hardhat initializeContractPaybackDistributor --start-chunk 3 --network base
+  task("initializeContractPaybackDistributor", "Initialize ContractPaybackDistributor with account data")
+    .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
+    .setAction(async (taskArgs) => {
+      const mock = true;
+      const verbose = true;
+
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
+
+      await initializeContractPaybackDistributor({
+        account: deployer,
+        verbose,
+        startFromChunk: taskArgs.startChunk
+      });
+    });
 
   ////// STEP 2: DEPLOY TEMP_FIELD_FACET AND TOKEN_HOOK_FACET //////
   // To minimize the number of transaction the PCM multisig has to sign, we deploy the TempFieldFacet
@@ -391,17 +445,48 @@ module.exports = function () {
   // Runs all beanstalk shipment tasks in the correct sequential order
   // Note: deployL1ContractMessenger should be run separately on mainnet before this
   //  - npx hardhat runBeanstalkShipments --network base
+  //  - npx hardhat runBeanstalkShipments --step 1.5 --network base (run specific step)
+  //  - npx hardhat runBeanstalkShipments --step all --network base (run all steps)
+  //  - npx hardhat runBeanstalkShipments --step deploy --network base (deploy all payback contracts)
+  //  - npx hardhat runBeanstalkShipments --step init --network base (initialize all payback contracts)
+  // Available steps: 0, 1, 1.5, 1.6, 1.7, 2, 3, 4, 5, all, deploy, init
   task("runBeanstalkShipments", "Runs all beanstalk shipment deployment steps in sequential order")
     .addOptionalParam("skipPause", "Set to true to skip pauses between steps", false, types.boolean)
     .addOptionalParam(
-      "runStep0",
-      "Set to true to run Step 0: Parse Export Data",
-      false,
-      types.boolean
+      "step",
+      "Step to run (0, 1, 1.5, 1.6, 1.7, 2, 3, 4, 5, 'all', 'deploy', or 'init')",
+      "all",
+      types.string
     )
-    .setAction(async (taskArgs) => {
+    .setAction(async (taskArgs, hre) => {
+      const step = taskArgs.step;
+      const validSteps = ["0", "1", "1.5", "1.6", "1.7", "2", "3", "4", "5", "all", "deploy", "init"];
+
+      // Step group definitions
+      const stepGroups = {
+        deploy: ["1"],           // Deploy all payback contracts
+        init: ["1.5", "1.6", "1.7"] // Initialize all payback contracts
+      };
+
+      if (!validSteps.includes(step)) {
+        console.error(`❌ Invalid step: ${step}`);
+        console.error(`Valid steps: ${validSteps.join(", ")}`);
+        console.error(`\nKeywords:`);
+        console.error(`  deploy - Deploy payback contracts (Step 1)`);
+        console.error(`  init   - Initialize all payback contracts (Steps 1.5, 1.6, 1.7)`);
+        return;
+      }
+
       console.log("\n🚀 STARTING BEANSTALK SHIPMENTS DEPLOYMENT");
       console.log("=".repeat(60));
+
+      if (step === "deploy") {
+        console.log(`📍 Running: Deploy payback contracts (Step 1)`);
+      } else if (step === "init") {
+        console.log(`📍 Running: Initialize all payback contracts (Steps 1.5, 1.6, 1.7)`);
+      } else if (step !== "all") {
+        console.log(`📍 Running only Step ${step}`);
+      }
 
       // Helper function for pausing, only if !skipPause
       async function pauseIfNeeded(message = "Press Enter to continue...") {
@@ -418,53 +503,105 @@ module.exports = function () {
         });
       }
 
+      // Helper to check if a step should run
+      // Note: Step 0 is excluded from "all" - it must be run explicitly
+      const shouldRun = (s) => {
+        // Direct match
+        if (step === s) return true;
+        // "all" includes everything except Step 0
+        if (step === "all" && s !== "0") return true;
+        // Check if step is a group keyword and s is in that group
+        if (stepGroups[step] && stepGroups[step].includes(s)) return true;
+        return false;
+      };
+
       try {
-        // Step 0: Parse Export Data (optional)
-        if (taskArgs.runStep0) {
+        // Step 0: Parse Export Data (must be run explicitly, not included in "all")
+        if (step === "0") {
           console.log("\n📊 Running Step 0: Parse Export Data");
           await hre.run("parseExportData");
         }
 
         // Step 1: Deploy Payback Contracts
-        console.log("\n📦 Running Step 1: Deploy Payback Contracts");
-        await hre.run("deployPaybackContracts");
+        if (shouldRun("1")) {
+          console.log("\n📦 Running Step 1: Deploy Payback Contracts");
+          await hre.run("deployPaybackContracts");
+        }
+
+        // Step 1.5: Initialize Silo Payback
+        if (shouldRun("1.5")) {
+          console.log("\n🌱 Running Step 1.5: Initialize Silo Payback");
+          await hre.run("initializeSiloPayback");
+        }
+
+        // Step 1.6: Initialize Barn Payback
+        if (shouldRun("1.6")) {
+          console.log("\n🏚️ Running Step 1.6: Initialize Barn Payback");
+          await hre.run("initializeBarnPayback");
+        }
+
+        // Step 1.7: Initialize Contract Payback Distributor
+        if (shouldRun("1.7")) {
+          console.log("\n📋 Running Step 1.7: Initialize Contract Payback Distributor");
+          await hre.run("initializeContractPaybackDistributor");
+        }
 
         // Step 2: Deploy Temp Field Facet
-        console.log("\n🔧 Running Step 2: Deploy Temp Field Facet");
-        await hre.run("deployTempFieldFacet");
-        console.log("\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution");
-        await pauseIfNeeded(
-          "Press Ctrl+C to stop, or press Enter to continue after multisig execution..."
-        );
+        if (shouldRun("2")) {
+          console.log("\n🔧 Running Step 2: Deploy Temp Field Facet");
+          await hre.run("deployTempFieldFacet");
+          if (step === "all") {
+            console.log("\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution");
+            await pauseIfNeeded(
+              "Press Ctrl+C to stop, or press Enter to continue after multisig execution..."
+            );
+          }
+        }
 
         // Step 3: Populate Repayment Field
-        console.log("\n🌾 Running Step 3: Populate Repayment Field");
-        await hre.run("populateRepaymentField");
-        console.log(
-          "\n⚠️  PAUSE: Proceed with the multisig as needed before moving to the next step"
-        );
-        await pauseIfNeeded(
-          "Press Ctrl+C to stop, or press Enter to continue after necessary approvals..."
-        );
+        if (shouldRun("3")) {
+          console.log("\n🌾 Running Step 3: Populate Repayment Field");
+          await hre.run("populateRepaymentField");
+          if (step === "all") {
+            console.log(
+              "\n⚠️  PAUSE: Proceed with the multisig as needed before moving to the next step"
+            );
+            await pauseIfNeeded(
+              "Press Ctrl+C to stop, or press Enter to continue after necessary approvals..."
+            );
+          }
+        }
 
         // Step 4: Finalize Beanstalk Shipments
-        console.log("\n🎯 Running Step 4: Finalize Beanstalk Shipments");
-        await hre.run("finalizeBeanstalkShipments");
-        console.log("\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution");
-        await pauseIfNeeded(
-          "Press Ctrl+C to stop, or press Enter to continue after multisig execution..."
-        );
+        if (shouldRun("4")) {
+          console.log("\n🎯 Running Step 4: Finalize Beanstalk Shipments");
+          await hre.run("finalizeBeanstalkShipments");
+          if (step === "all") {
+            console.log("\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution");
+            await pauseIfNeeded(
+              "Press Ctrl+C to stop, or press Enter to continue after multisig execution..."
+            );
+          }
+        }
 
         // Step 5: Transfer Contract Ownership
-        console.log("\n🔐 Running Step 5: Transfer Contract Ownership");
-        await hre.run("transferPaybackContractOwnership");
-        console.log(
-          "\n⚠️  PAUSE: Ownership transfer completed. Proceed with validations as required."
-        );
-        await pauseIfNeeded("Press Ctrl+C to stop, or press Enter to finish...");
+        if (shouldRun("5")) {
+          console.log("\n🔐 Running Step 5: Transfer Contract Ownership");
+          await hre.run("transferPaybackContractOwnership");
+          if (step === "all") {
+            console.log(
+              "\n⚠️  PAUSE: Ownership transfer completed. Proceed with validations as required."
+            );
+            await pauseIfNeeded("Press Ctrl+C to stop, or press Enter to finish...");
+          }
+        }
 
         console.log("\n" + "=".repeat(60));
-        console.log("✅ BEANSTALK SHIPMENTS DEPLOYMENT COMPLETED SUCCESSFULLY!");
+        if (step === "all") {
+          console.log("✅ BEANSTALK SHIPMENTS DEPLOYMENT COMPLETED SUCCESSFULLY!");
+        } else {
+          console.log(`✅ STEP ${step} COMPLETED SUCCESSFULLY!`);
+        }
         console.log("=".repeat(60) + "\n");
       } catch (error) {
         console.error("\n❌ ERROR: Beanstalk Shipments deployment failed:", error.message);

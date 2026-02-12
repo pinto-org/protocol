@@ -4,7 +4,9 @@ const {
   splitWhaleAccounts,
   updateProgress,
   retryOperation,
-  verifyTransaction
+  verifyTransaction,
+  sleep,
+  CHUNK_DELAY
 } = require("../../utils/read.js");
 
 // EIP-7987 tx gas limit is 16,777,216 (2^24)
@@ -77,6 +79,11 @@ async function populateBeanstalkField({ diamondAddress, account, verbose, startF
 
     if (verbose) {
       console.log(`Completed chunk ${i + 1}/${plotChunks.length}`);
+    }
+
+    // Small delay between chunks to avoid rate limiting
+    if (i < plotChunks.length - 1) {
+      await sleep(CHUNK_DELAY);
     }
   }
 

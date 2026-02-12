@@ -3,9 +3,12 @@ const {
   splitEntriesIntoChunks,
   updateProgress,
   retryOperation,
-  verifyTransaction
+  verifyTransaction,
+  sleep,
+  CHUNK_DELAY
 } = require("../../utils/read.js");
 const { BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR } = require("../../test/hardhat/utils/constants.js");
+const { saveDeployedAddresses } = require("./utils/addressCache.js");
 
 // Deploys SiloPayback, BarnPayback, and ContractPaybackDistributor contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
@@ -135,11 +138,16 @@ async function distributeUnripeBdvTokens({
           );
         } catch (error) {
           console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
-          console.error(`To resume, use: --unripe-start-chunk ${i}`);
+          console.error(`To resume, use: --start-chunk ${i}`);
           throw error;
         }
 
         await updateProgress(i + 1, chunks.length);
+
+        // Small delay between chunks to avoid rate limiting
+        if (i < chunks.length - 1) {
+          await sleep(CHUNK_DELAY);
+        }
       }
 
       if (verbose) {
@@ -199,11 +207,16 @@ async function distributeBarnPaybackTokens({
         );
       } catch (error) {
         console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
-        console.error(`To resume, use: --barn-start-chunk ${i}`);
+        console.error(`To resume, use: --start-chunk ${i}`);
         throw error;
       }
 
       await updateProgress(i + 1, chunks.length);
+
+      // Small delay between chunks to avoid rate limiting
+      if (i < chunks.length - 1) {
+        await sleep(CHUNK_DELAY);
+      }
     }
     if (verbose) {
       console.log("\n📊 Total Gas Summary:");
@@ -294,11 +307,16 @@ async function distributeContractAccountData({
         );
       } catch (error) {
         console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
-        console.error(`To resume, use: --contract-start-chunk ${i}`);
+        console.error(`To resume, use: --start-chunk ${i}`);
         throw error;
       }
 
       await updateProgress(i + 1, chunks.length);
+
+      // Small delay between chunks to avoid rate limiting
+      if (i < chunks.length - 1) {
+        await sleep(CHUNK_DELAY);
+      }
     }
 
     if (verbose) {
@@ -334,34 +352,21 @@ async function transferContractOwnership({
   if (verbose) console.log("✅ ContractPaybackDistributor ownership transferred to PCM");
 }
 
-// Main function that orchestrates all deployment steps
+// Main function that deploys contracts (no initialization)
+// Initialization is now handled by separate tasks (Steps 1.5, 1.6, 1.7)
 async function deployAndSetupContracts(params) {
   const contracts = await deployShipmentContracts(params);
 
-  if (params.populateData) {
-    await distributeUnripeBdvTokens({
-      siloPaybackContract: contracts.siloPaybackContract,
-      account: params.account,
-      dataPath: "./scripts/beanstalkShipments/data/unripeBdvTokens.json",
-      verbose: true,
-      startFromChunk: params.unripeStartChunk || 0
-    });
-
-    await distributeBarnPaybackTokens({
-      barnPaybackContract: contracts.barnPaybackContract,
-      account: params.account,
-      dataPath: "./scripts/beanstalkShipments/data/beanstalkAccountFertilizer.json",
-      verbose: true,
-      startFromChunk: params.barnStartChunk || 0
-    });
-
-    await distributeContractAccountData({
-      contractPaybackDistributorContract: contracts.contractPaybackDistributorContract,
-      account: params.account,
-      verbose: true,
-      startFromChunk: params.contractStartChunk || 0
-    });
-  }
+  // Save deployed addresses to cache for use by initialization tasks
+  const network = params.network || "unknown";
+  saveDeployedAddresses(
+    {
+      siloPayback: contracts.siloPaybackContract.address,
+      barnPayback: contracts.barnPaybackContract.address,
+      contractPaybackDistributor: contracts.contractPaybackDistributorContract.address
+    },
+    network
+  );
 
   return contracts;
 }
