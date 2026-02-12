@@ -6,7 +6,7 @@ const FILE_PREFIX = "deployedAddresses_";
 const FILE_EXTENSION = ".json";
 const PRODUCTION_FILE = "productionAddresses.json";
 
-const NUM_CONTRACTS = 2;
+const NUM_CONTRACTS = 3;
 /**
  * Gets all existing deployed address files and returns them sorted by counter
  * @returns {Array<{path: string, counter: number}>} Sorted array of file info
