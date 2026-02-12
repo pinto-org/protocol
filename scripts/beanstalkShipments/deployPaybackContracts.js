@@ -33,6 +33,10 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   // get the initialization args from the json file
   const barnPaybackArgsPath = "./scripts/beanstalkShipments/data/beanstalkGlobalFertilizer.json";
   const barnPaybackArgs = JSON.parse(fs.readFileSync(barnPaybackArgsPath));
+
+  // note: `distributorAddress` is heavily nonce based. The openZeppelin package, for transparent proxies,
+  // will attempt to reuse the proxy admin address for the next contract. Thus, multiple executions would use a different amount of nonces.
+  // this script should be used with a fresh implementation every time.
   const distributorAddress = (await computeDistributorAddress(account)).distributorAddress;
   console.log(`\n📍 Using pre-computed ContractPaybackDistributor address: ${distributorAddress}`);
   const barnPaybackContract = await upgrades.deployProxy(
