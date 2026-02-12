@@ -74,7 +74,7 @@ module.exports = {
       chainId: 1337,
       url: "http://127.0.0.1:8545/",
       timeout: 100000000000000000,
-      accounts: "remote"
+      accounts: [process.env.PINTO_PK]
     },
     mainnet: {
       chainId: 1,
@@ -90,7 +90,7 @@ module.exports = {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
       timeout: 100000000,
-      accounts: []
+      accounts: [process.env.PINTO_PK]
     },
     custom: {
       chainId: 41337,

@@ -7,11 +7,9 @@ module.exports = function () {
     L2_PCM,
     PINTO,
     L1_CONTRACT_MESSENGER_DEPLOYER,
-    BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
     BEANSTALK_SHIPMENTS_DEPLOYER,
     BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR,
-    BEANSTALK_SILO_PAYBACK,
-    BEANSTALK_BARN_PAYBACK
+    BEANSTALK_SILO_PAYBACK
   } = require("../test/hardhat/utils/constants.js");
   const { upgradeWithNewFacets } = require("../scripts/diamond.js");
   const {
@@ -21,8 +19,12 @@ module.exports = function () {
     deployAndSetupContracts,
     transferContractOwnership
   } = require("../scripts/beanstalkShipments/deployPaybackContracts.js");
-  const { initializeSiloPayback } = require("../scripts/beanstalkShipments/initializeSiloPayback.js");
-  const { initializeBarnPayback } = require("../scripts/beanstalkShipments/initializeBarnPayback.js");
+  const {
+    initializeSiloPayback
+  } = require("../scripts/beanstalkShipments/initializeSiloPayback.js");
+  const {
+    initializeBarnPayback
+  } = require("../scripts/beanstalkShipments/initializeBarnPayback.js");
   const {
     initializeContractPaybackDistributor
   } = require("../scripts/beanstalkShipments/initializeContractPaybackDistributor.js");
@@ -66,16 +68,23 @@ module.exports = function () {
       // log deployer address
       console.log("Deployer address:", deployer.address);
 
+      // Get distributor address from cache
+      const cachedAddresses = getDeployedAddresses();
+      if (!cachedAddresses || !cachedAddresses.contractPaybackDistributor) {
+        throw new Error(
+          "ContractPaybackDistributor address not found in cache. Run 'npx hardhat precomputeDistributorAddress' first."
+        );
+      }
+      const distributorAddress = cachedAddresses.contractPaybackDistributor;
+      console.log(`Using distributor address from cache: ${distributorAddress}`);
+
       // read the unclaimable contract addresses from the json file
       const contractAccounts = JSON.parse(
         fs.readFileSync("./scripts/beanstalkShipments/data/unclaimableContractAddresses.json")
       );
 
       const L1Messenger = await ethers.getContractFactory("L1ContractMessenger");
-      const l1Messenger = await L1Messenger.deploy(
-        BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR,
-        contractAccounts
-      );
+      const l1Messenger = await L1Messenger.deploy(distributorAddress, contractAccounts);
       await l1Messenger.deployed();
 
       console.log("L1ContractMessenger deployed to:", l1Messenger.address);
@@ -108,73 +117,76 @@ module.exports = function () {
   // Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER at 0x47c365cc9ef51052651c2be22f274470ad6afc53
   // Set mock to false to deploy the payback contracts on base.
   //  - npx hardhat deployPaybackContracts --network base
-  task("deployPaybackContracts", "deploys the payback contracts (no initialization)")
-    .setAction(async (taskArgs, hre) => {
-    // params
-    const verbose = true;
-    const mock = true;
+  task("deployPaybackContracts", "deploys the payback contracts (no initialization)").setAction(
+    async (taskArgs, hre) => {
+      // params
+      const verbose = true;
+      const mock = false;
 
-    // Use the shipments deployer to get correct addresses
-    let deployer;
-    if (mock) {
-      deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
-      await mintEth(deployer.address);
-    } else {
-      deployer = (await ethers.getSigners())[0];
+      // Use the shipments deployer to get correct addresses
+      let deployer;
+      if (mock) {
+        deployer = await impersonateSigner(BEANSTALK_SHIPMENTS_DEPLOYER);
+        await mintEth(deployer.address);
+      } else {
+        deployer = (await ethers.getSigners())[0];
+      }
+
+      // Step 1: Deploy payback contracts only (initialization is now separate)
+      console.log("-".repeat(50));
+
+      const contracts = await deployAndSetupContracts({
+        PINTO,
+        L2_PINTO,
+        L2_PCM,
+        account: deployer,
+        verbose,
+        network: hre.network.name
+      });
+      console.log(" Payback contracts deployed\n");
+      console.log("📝 Next steps:");
+      console.log("   Run initializeSiloPayback (Step 1.5)");
+      console.log("   Run initializeBarnPayback (Step 1.6)");
+      console.log("   Run initializeContractPaybackDistributor (Step 1.7)");
+
+      // Step 1b: Update the shipment routes JSON with deployed contract addresses
+      console.log("STEP 1b: UPDATING SHIPMENT ROUTES WITH DEPLOYED ADDRESSES");
+      console.log("-".repeat(50));
+
+      const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
+      const routes = JSON.parse(fs.readFileSync(routesPath));
+
+      const siloPaybackAddress = contracts.siloPaybackContract.address;
+      const barnPaybackAddress = contracts.barnPaybackContract.address;
+      const contractPaybackDistributorAddress =
+        contracts.contractPaybackDistributorContract.address;
+
+      // Helper to encode addresses into padded hex data
+      const encodeAddress = (addr) => addr.toLowerCase().replace("0x", "").padStart(64, "0");
+      const encodeUint256 = (num) => num.toString(16).padStart(64, "0");
+
+      // Route 4 (index 3): getPaybackFieldPlan - data = (siloPayback, barnPayback, fieldId)
+      // fieldId = 1 for the repayment field
+      routes[3].data =
+        "0x" +
+        encodeAddress(siloPaybackAddress) +
+        encodeAddress(barnPaybackAddress) +
+        encodeUint256(1);
+
+      // Route 5 (index 4): getPaybackSiloPlan - data = (siloPayback, barnPayback)
+      routes[4].data = "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress);
+
+      // Route 6 (index 5): getPaybackBarnPlan - data = (siloPayback, barnPayback)
+      // Note: Order must be (siloPayback, barnPayback) to match paybacksRemaining() decoding
+      routes[5].data = "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress);
+
+      fs.writeFileSync(routesPath, JSON.stringify(routes, null, 4));
+      console.log("Updated updatedShipmentRoutes.json with deployed contract addresses:");
+      console.log(`   - SiloPayback: ${siloPaybackAddress}`);
+      console.log(`   - BarnPayback: ${barnPaybackAddress}`);
+      console.log(`   - ContractPaybackDistributor: ${contractPaybackDistributorAddress}`);
     }
-
-    // Step 1: Deploy payback contracts only (initialization is now separate)
-    console.log("STEP 1: DEPLOYING PAYBACK CONTRACTS");
-    console.log("-".repeat(50));
-
-    const contracts = await deployAndSetupContracts({
-      PINTO,
-      L2_PINTO,
-      L2_PCM,
-      account: deployer,
-      verbose,
-      network: hre.network.name
-    });
-    console.log(" Payback contracts deployed\n");
-    console.log("📝 Next steps:");
-    console.log("   Run initializeSiloPayback (Step 1.5)");
-    console.log("   Run initializeBarnPayback (Step 1.6)");
-    console.log("   Run initializeContractPaybackDistributor (Step 1.7)");
-
-    // Step 1b: Update the shipment routes JSON with deployed contract addresses
-    console.log("STEP 1b: UPDATING SHIPMENT ROUTES WITH DEPLOYED ADDRESSES");
-    console.log("-".repeat(50));
-
-    const routesPath = "./scripts/beanstalkShipments/data/updatedShipmentRoutes.json";
-    const routes = JSON.parse(fs.readFileSync(routesPath));
-
-    const siloPaybackAddress = contracts.siloPaybackContract.address;
-    const barnPaybackAddress = contracts.barnPaybackContract.address;
-    const contractPaybackDistributorAddress = contracts.contractPaybackDistributorContract.address;
-
-    // Helper to encode addresses into padded hex data
-    const encodeAddress = (addr) => addr.toLowerCase().replace("0x", "").padStart(64, "0");
-    const encodeUint256 = (num) => num.toString(16).padStart(64, "0");
-
-    // Route 4 (index 3): getPaybackFieldPlan - data = (siloPayback, barnPayback, fieldId)
-    // fieldId = 1 for the repayment field
-    routes[3].data =
-      "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress) + encodeUint256(1);
-
-    // Route 5 (index 4): getPaybackSiloPlan - data = (siloPayback, barnPayback)
-    routes[4].data = "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress);
-
-    // Route 6 (index 5): getPaybackBarnPlan - data = (siloPayback, barnPayback)
-    // Note: Order must be (siloPayback, barnPayback) to match paybacksRemaining() decoding
-    routes[5].data = "0x" + encodeAddress(siloPaybackAddress) + encodeAddress(barnPaybackAddress);
-
-    fs.writeFileSync(routesPath, JSON.stringify(routes, null, 4));
-    console.log("Updated updatedShipmentRoutes.json with deployed contract addresses:");
-    console.log(`   - SiloPayback: ${siloPaybackAddress}`);
-    console.log(`   - BarnPayback: ${barnPaybackAddress}`);
-    console.log(`   - ContractPaybackDistributor: ${contractPaybackDistributorAddress}`);
-    console.log(`   - Routes 4, 5, 6 data fields updated\n`);
-  });
+  );
 
   ////// STEP 1.5: INITIALIZE SILO PAYBACK //////
   // Initialize the SiloPayback contract with unripe BDV data
@@ -236,7 +248,10 @@ module.exports = function () {
   //  - npx hardhat initializeContractPaybackDistributor --network base
   // Resume parameters:
   //  - npx hardhat initializeContractPaybackDistributor --start-chunk 3 --network base
-  task("initializeContractPaybackDistributor", "Initialize ContractPaybackDistributor with account data")
+  task(
+    "initializeContractPaybackDistributor",
+    "Initialize ContractPaybackDistributor with account data"
+  )
     .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
     .setAction(async (taskArgs) => {
       const mock = true;
@@ -307,8 +322,7 @@ module.exports = function () {
       0,
       types.int
     )
-    .setAction(
-    async (taskArgs) => {
+    .setAction(async (taskArgs) => {
       // params
       const mock = true;
       const verbose = true;
@@ -338,8 +352,7 @@ module.exports = function () {
         startFromChunk: taskArgs.fieldStartChunk
       });
       console.log(" Beanstalk field initialized\n");
-    }
-  );
+    });
 
   ////// STEP 4: FINALIZE THE BEANSTALK SHIPMENTS //////
   // The PCM will need to remove the TempRepaymentFieldFacet from the diamond since it is no longer needed
@@ -426,11 +439,30 @@ module.exports = function () {
       deployer = (await ethers.getSigners())[0];
     }
 
-    const siloPaybackContract = await ethers.getContractAt("SiloPayback", BEANSTALK_SILO_PAYBACK);
-    const barnPaybackContract = await ethers.getContractAt("BarnPayback", BEANSTALK_BARN_PAYBACK);
+    // Get addresses from cache
+    const cachedAddresses = getDeployedAddresses();
+    if (
+      !cachedAddresses ||
+      !cachedAddresses.siloPayback ||
+      !cachedAddresses.barnPayback ||
+      !cachedAddresses.contractPaybackDistributor
+    ) {
+      throw new Error(
+        "Contract addresses not found in cache. Run 'npx hardhat deployPaybackContracts' first."
+      );
+    }
+
+    const siloPaybackContract = await ethers.getContractAt(
+      "SiloPayback",
+      cachedAddresses.siloPayback
+    );
+    const barnPaybackContract = await ethers.getContractAt(
+      "BarnPayback",
+      cachedAddresses.barnPayback
+    );
     const contractPaybackDistributorContract = await ethers.getContractAt(
       "ContractPaybackDistributor",
-      BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR
+      cachedAddresses.contractPaybackDistributor
     );
 
     await transferContractOwnership({
@@ -462,11 +494,24 @@ module.exports = function () {
     )
     .setAction(async (taskArgs, hre) => {
       const step = taskArgs.step;
-      const validSteps = ["0", "1", "1.5", "1.6", "1.7", "2", "3", "4", "5", "all", "deploy", "init"];
+      const validSteps = [
+        "0",
+        "1",
+        "1.5",
+        "1.6",
+        "1.7",
+        "2",
+        "3",
+        "4",
+        "5",
+        "all",
+        "deploy",
+        "init"
+      ];
 
       // Step group definitions
       const stepGroups = {
-        deploy: ["1"],           // Deploy all payback contracts
+        deploy: ["1"], // Deploy all payback contracts
         init: ["1.5", "1.6", "1.7"] // Initialize all payback contracts
       };
 
@@ -553,7 +598,9 @@ module.exports = function () {
           console.log("\n🔧 Running Step 2: Deploy Temp Field Facet");
           await hre.run("deployTempFieldFacet");
           if (step === "all") {
-            console.log("\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution");
+            console.log(
+              "\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution"
+            );
             await pauseIfNeeded(
               "Press Ctrl+C to stop, or press Enter to continue after multisig execution..."
             );
@@ -579,7 +626,9 @@ module.exports = function () {
           console.log("\n🎯 Running Step 4: Finalize Beanstalk Shipments");
           await hre.run("finalizeBeanstalkShipments");
           if (step === "all") {
-            console.log("\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution");
+            console.log(
+              "\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution"
+            );
             await pauseIfNeeded(
               "Press Ctrl+C to stop, or press Enter to continue after multisig execution..."
             );

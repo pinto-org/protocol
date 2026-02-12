@@ -7,8 +7,8 @@ const {
   sleep,
   CHUNK_DELAY
 } = require("../../utils/read.js");
-const { BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR } = require("../../test/hardhat/utils/constants.js");
-const { saveDeployedAddresses } = require("./utils/addressCache.js");
+const { saveDeployedAddresses, computeDistributorAddress } = require("./utils/addressCache.js");
+const DELAY = 2000; // 2000ms delay between contracts
 
 // Deploys SiloPayback, BarnPayback, and ContractPaybackDistributor contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
@@ -25,8 +25,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     kind: "transparent"
   });
   await siloPaybackContract.deployed();
-  console.log("✅ SiloPayback deployed to:", siloPaybackContract.address);
-  console.log("👤 SiloPayback owner:", await siloPaybackContract.owner());
+  await printContractAddresses(siloPaybackContract.address, "SiloPayback");
 
   //////////////////////////// Barn Payback ////////////////////////////
   console.log("\n📦 Deploying BarnPayback...");
@@ -34,18 +33,18 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   // get the initialization args from the json file
   const barnPaybackArgsPath = "./scripts/beanstalkShipments/data/beanstalkGlobalFertilizer.json";
   const barnPaybackArgs = JSON.parse(fs.readFileSync(barnPaybackArgsPath));
-  // factory, args, proxy options
+  const distributorAddress = (await computeDistributorAddress(account)).distributorAddress;
+  console.log(`\n📍 Using pre-computed ContractPaybackDistributor address: ${distributorAddress}`);
   const barnPaybackContract = await upgrades.deployProxy(
     barnPaybackFactory,
-    [PINTO, L2_PINTO, BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR, barnPaybackArgs],
+    [PINTO, L2_PINTO, distributorAddress, barnPaybackArgs],
     {
       initializer: "initialize",
       kind: "transparent"
     }
   );
   await barnPaybackContract.deployed();
-  console.log("✅ BarnPayback deployed to:", barnPaybackContract.address);
-  console.log("👤 BarnPayback owner:", await barnPaybackContract.owner());
+  await printContractAddresses(barnPaybackContract.address, "BarnPayback");
 
   //////////////////////////// Contract Payback Distributor ////////////////////////////
   console.log("\n📦 Deploying ContractPaybackDistributor...");
@@ -60,13 +59,10 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     barnPaybackContract.address // address _barnPayback
   );
   await contractPaybackDistributorContract.deployed();
-  console.log(
-    "✅ ContractPaybackDistributor deployed to:",
-    contractPaybackDistributorContract.address
-  );
-  console.log(
-    "👤 ContractPaybackDistributor owner:",
-    await contractPaybackDistributorContract.owner()
+  await printContractAddresses(
+    contractPaybackDistributorContract.address,
+    "ContractPaybackDistributor",
+    false
   );
 
   return {
@@ -369,6 +365,22 @@ async function deployAndSetupContracts(params) {
   );
 
   return contracts;
+}
+
+async function printContractAddresses(contractAddress, contractName, isUpgradeable = true) {
+  console.log(`✅ ${contractName} deployed to:`, contractAddress);
+  if (isUpgradeable) {
+    await sleep(DELAY);
+    console.log(
+      "   Implementation:",
+      await upgrades.erc1967.getImplementationAddress(contractAddress)
+    );
+    await sleep(DELAY);
+    console.log("   ProxyAdmin:", await upgrades.erc1967.getAdminAddress(contractAddress));
+    await sleep(DELAY);
+    const contract = await ethers.getContractAt("OwnableUpgradeable", contractAddress);
+    console.log(`👤 ${contractName} owner:`, await contract.owner());
+  }
 }
 
 module.exports = {

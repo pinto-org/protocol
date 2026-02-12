@@ -5,6 +5,7 @@ const DATA_DIR = path.join(__dirname, "../data");
 const FILE_PREFIX = "deployedAddresses_";
 const FILE_EXTENSION = ".json";
 
+const NUM_CONTRACTS = 1;
 /**
  * Gets all existing deployed address files and returns them sorted by counter
  * @returns {Array<{path: string, counter: number}>} Sorted array of file info
@@ -123,11 +124,33 @@ function getContractAddress(contractName) {
   return addresses[contractName] || null;
 }
 
+/**
+ * Pre-computes the ContractPaybackDistributor address based on deployer nonce.
+ * Nonce consumption for transparent proxies:
+ * - First proxy (SiloPayback): Implementation + ProxyAdmin + Proxy = 3 nonces
+ * - Second proxy (BarnPayback): Implementation + Proxy = 2 nonces (reuses ProxyAdmin)
+ * - ContractPaybackDistributor: 1 nonce (regular deployment)
+ * Total offset from starting nonce: 5
+ *
+ * @param {Object} deployer - Ethers signer object
+ * @returns {Promise<{distributorAddress: string, startingNonce: number}>}
+ */
+async function computeDistributorAddress(deployer) {
+  const ethers = require("ethers");
+  const currentNonce = await deployer.getTransactionCount();
+  const distributorAddress = ethers.utils.getContractAddress({
+    from: deployer.address,
+    nonce: currentNonce + NUM_CONTRACTS
+  });
+  return { distributorAddress, startingNonce: currentNonce };
+}
+
 module.exports = {
   saveDeployedAddresses,
   getDeployedAddresses,
   verifyDeployedAddresses,
   getContractAddress,
   getLatestFilePath,
-  getExistingFiles
+  getExistingFiles,
+  computeDistributorAddress
 };
