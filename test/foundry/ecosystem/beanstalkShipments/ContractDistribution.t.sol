@@ -77,7 +77,9 @@ contract ContractDistributionTest is TestHelper {
             EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
         );
 
-        contractPaybackDistributor = ContractPaybackDistributor(EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR);
+        contractPaybackDistributor = ContractPaybackDistributor(
+            EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
+        );
 
         // Whitelisted contract accounts
         address[] memory contractAccounts = new address[](2);
