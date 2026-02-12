@@ -140,8 +140,8 @@ module.exports = {
   PINTO_PRICE_CONTRACT: "0x13D25ABCB6a19948d35654715c729c6501230b49",
 
   //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
-  // EOA That will deploy the beanstlak shipment related contracts on base
-  BEANSTALK_SHIPMENTS_DEPLOYER: "0x47c365cc9ef51052651c2be22f274470ad6afc53",
+  // EOA That will deploy the beanstalk shipment related contracts on base
+  BEANSTALK_SHIPMENTS_DEPLOYER: "0x00000015EE13a3C1fD0e8Dc2e8C2c8590D5B440B",
   // Expected proxy address of the silo payback contract from deployer at nonce 1
   BEANSTALK_SILO_PAYBACK: "0x9E449a18155D4B03C2E08A4E28b2BcAE580efC4E",
   BEANSTALK_SILO_PAYBACK_IMPLEMENTATION: "0x3E0635B980714303351DAeE305dB1A380C56ed38",

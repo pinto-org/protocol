@@ -30,7 +30,7 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   await hre.run("compile");
 
   // run beanstalk shipments
-  await hre.run("runBeanstalkShipments", { skipPause: true, runStep0: false });
+  await hre.run("runBeanstalkShipments", { skipPause: false, runStep0: false, step: "deploy" });
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
