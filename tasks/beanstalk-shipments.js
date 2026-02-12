@@ -54,9 +54,10 @@ module.exports = function () {
   // Requires: analyzeShipmentContracts (generates unclaimableContractAddresses.json)
   // Make sure account[0] in the hardhat config for mainnet is the L1_CONTRACT_MESSENGER_DEPLOYER at 0xbfb5d09ffcbe67fbed9970b893293f21778be0a6
   //  - npx hardhat deployL1ContractMessenger --network mainnet
-  task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract").setAction(
-    async (taskArgs) => {
-      const mock = true;
+  task("deployL1ContractMessenger", "deploys the L1ContractMessenger contract")
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .setAction(async (taskArgs) => {
+      const mock = taskArgs.mock;
       let deployer;
       if (mock) {
         deployer = await impersonateSigner(L1_CONTRACT_MESSENGER_DEPLOYER);
@@ -117,11 +118,12 @@ module.exports = function () {
   // Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER
   // Set mock to false to deploy the payback contracts on base.
   //  - npx hardhat deployPaybackContracts --network base
-  task("deployPaybackContracts", "deploys the payback contracts (no initialization)").setAction(
-    async (taskArgs, hre) => {
-      // params
-      const verbose = true;
-      const mock = false;
+  task("deployPaybackContracts", "deploys the payback contracts (no initialization)")
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+      const verbose = taskArgs.log;
+      const mock = taskArgs.mock;
 
       // Use the shipments deployer to get correct addresses
       let deployer;
@@ -203,9 +205,11 @@ module.exports = function () {
       false,
       types.boolean
     )
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
     .setAction(async (taskArgs) => {
-      const mock = true;
-      const verbose = true;
+      const mock = taskArgs.mock;
+      const verbose = taskArgs.log;
 
       let deployer;
       if (mock) {
@@ -238,9 +242,11 @@ module.exports = function () {
       false,
       types.boolean
     )
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
     .setAction(async (taskArgs) => {
-      const mock = true;
-      const verbose = true;
+      const mock = taskArgs.mock;
+      const verbose = taskArgs.log;
 
       let deployer;
       if (mock) {
@@ -276,9 +282,11 @@ module.exports = function () {
       false,
       types.boolean
     )
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
     .setAction(async (taskArgs) => {
-      const mock = true;
-      const verbose = true;
+      const mock = taskArgs.mock;
+      const verbose = taskArgs.log;
 
       let deployer;
       if (mock) {
@@ -302,9 +310,10 @@ module.exports = function () {
   // Set mock to false to deploy the TempFieldFacet
   //  - npx hardhat deployTempFieldFacet --network base
   // Grab the diamond cut, queue it in the multisig and wait for execution before proceeding to the next step.
-  task("deployTempFieldFacet", "deploys the TempFieldFacet").setAction(async (taskArgs) => {
-    // params
-    const mock = true;
+  task("deployTempFieldFacet", "deploys the TempFieldFacet")
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .setAction(async (taskArgs) => {
+      const mock = taskArgs.mock;
 
     // Step 2: Create the new TempRepaymentFieldFacet via diamond cut and populate the repayment field
     console.log(
@@ -346,10 +355,11 @@ module.exports = function () {
       0,
       types.int
     )
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
     .setAction(async (taskArgs) => {
-      // params
-      const mock = true;
-      const verbose = true;
+      const mock = taskArgs.mock;
+      const verbose = taskArgs.log;
 
       let repaymentFieldPopulator;
       if (mock) {
@@ -383,10 +393,10 @@ module.exports = function () {
   // At the same time, the new shipment routes that include the payback contracts will need to be set.
   // Set mock to false to finalize the beanstalk shipments on base.
   //  - npx hardhat finalizeBeanstalkShipments --network base
-  task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments").setAction(
-    async (taskArgs) => {
-      // params
-      const mock = true;
+  task("finalizeBeanstalkShipments", "finalizes the beanstalk shipments")
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .setAction(async (taskArgs) => {
+      const mock = taskArgs.mock;
 
       // Use any account for diamond cuts
       let owner;
@@ -451,9 +461,12 @@ module.exports = function () {
   task(
     "transferPaybackContractOwnership",
     "transfers ownership of the payback contracts to the PCM"
-  ).setAction(async (taskArgs) => {
-    const mock = true;
-    const verbose = true;
+  )
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
+    .setAction(async (taskArgs) => {
+      const mock = taskArgs.mock;
+      const verbose = taskArgs.log;
 
     let deployer;
     if (mock) {
@@ -523,6 +536,8 @@ module.exports = function () {
       false,
       types.boolean
     )
+    .addOptionalParam("mock", "Use impersonated signer instead of real signer", true, types.boolean)
+    .addOptionalParam("log", "Enable verbose logging", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
       const step = taskArgs.step;
       const validSteps = [
@@ -603,7 +618,10 @@ module.exports = function () {
         // Step 1: Deploy Payback Contracts
         if (shouldRun("1")) {
           console.log("\n📦 Running Step 1: Deploy Payback Contracts");
-          await hre.run("deployPaybackContracts");
+          await hre.run("deployPaybackContracts", {
+            mock: taskArgs.mock,
+            verbose: taskArgs.log
+          });
         }
 
         // Step 1.5: Initialize Silo Payback
@@ -612,7 +630,11 @@ module.exports = function () {
           if (taskArgs.useDeployed) {
             console.log("   Using production addresses (--use-deployed)");
           }
-          await hre.run("initializeSiloPayback", { useDeployed: taskArgs.useDeployed });
+          await hre.run("initializeSiloPayback", {
+            useDeployed: taskArgs.useDeployed,
+            mock: taskArgs.mock,
+            verbose: taskArgs.log
+          });
         }
 
         // Step 1.6: Initialize Barn Payback
@@ -621,7 +643,11 @@ module.exports = function () {
           if (taskArgs.useDeployed) {
             console.log("   Using production addresses (--use-deployed)");
           }
-          await hre.run("initializeBarnPayback", { useDeployed: taskArgs.useDeployed });
+          await hre.run("initializeBarnPayback", {
+            useDeployed: taskArgs.useDeployed,
+            mock: taskArgs.mock,
+            verbose: taskArgs.log
+          });
         }
 
         // Step 1.7: Initialize Contract Payback Distributor
@@ -631,14 +657,16 @@ module.exports = function () {
             console.log("   Using production addresses (--use-deployed)");
           }
           await hre.run("initializeContractPaybackDistributor", {
-            useDeployed: taskArgs.useDeployed
+            useDeployed: taskArgs.useDeployed,
+            mock: taskArgs.mock,
+            verbose: taskArgs.log
           });
         }
 
         // Step 2: Deploy Temp Field Facet
         if (shouldRun("2")) {
           console.log("\n🔧 Running Step 2: Deploy Temp Field Facet");
-          await hre.run("deployTempFieldFacet");
+          await hre.run("deployTempFieldFacet", { mock: taskArgs.mock });
           if (step === "all") {
             console.log(
               "\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution"
@@ -652,7 +680,10 @@ module.exports = function () {
         // Step 3: Populate Repayment Field
         if (shouldRun("3")) {
           console.log("\n🌾 Running Step 3: Populate Repayment Field");
-          await hre.run("populateRepaymentField");
+          await hre.run("populateRepaymentField", {
+            mock: taskArgs.mock,
+            verbose: taskArgs.log
+          });
           if (step === "all") {
             console.log(
               "\n⚠️  PAUSE: Proceed with the multisig as needed before moving to the next step"
@@ -666,7 +697,7 @@ module.exports = function () {
         // Step 4: Finalize Beanstalk Shipments
         if (shouldRun("4")) {
           console.log("\n🎯 Running Step 4: Finalize Beanstalk Shipments");
-          await hre.run("finalizeBeanstalkShipments");
+          await hre.run("finalizeBeanstalkShipments", { mock: taskArgs.mock });
           if (step === "all") {
             console.log(
               "\n⚠️  PAUSE: Queue the diamond cut in the multisig and wait for execution"
@@ -680,7 +711,10 @@ module.exports = function () {
         // Step 5: Transfer Contract Ownership
         if (shouldRun("5")) {
           console.log("\n🔐 Running Step 5: Transfer Contract Ownership");
-          await hre.run("transferPaybackContractOwnership");
+          await hre.run("transferPaybackContractOwnership", {
+            mock: taskArgs.mock,
+            verbose: taskArgs.log
+          });
           if (step === "all") {
             console.log(
               "\n⚠️  PAUSE: Ownership transfer completed. Proceed with validations as required."
