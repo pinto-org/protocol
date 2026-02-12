@@ -114,7 +114,7 @@ module.exports = function () {
   ////// STEP 1: DEPLOY PAYBACK CONTRACTS //////
   // Deploy the payback contracts and the ContractPaybackDistributor contract (no initialization)
   // Data initialization is now handled by separate tasks (Steps 1.5, 1.6, 1.7)
-  // Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER at 0x47c365cc9ef51052651c2be22f274470ad6afc53
+  // Make sure account[1] in the hardhat config for base is the BEANSTALK_SHIPMENTS_DEPLOYER
   // Set mock to false to deploy the payback contracts on base.
   //  - npx hardhat deployPaybackContracts --network base
   task("deployPaybackContracts", "deploys the payback contracts (no initialization)").setAction(
@@ -190,12 +190,19 @@ module.exports = function () {
 
   ////// STEP 1.5: INITIALIZE SILO PAYBACK //////
   // Initialize the SiloPayback contract with unripe BDV data
-  // Must be run after deployPaybackContracts (Step 1)
+  // Must be run after deployPaybackContracts (Step 1) or with --use-deployed for production addresses
   //  - npx hardhat initializeSiloPayback --network base
+  //  - npx hardhat initializeSiloPayback --use-deployed --network base (use production addresses)
   // Resume parameters:
   //  - npx hardhat initializeSiloPayback --start-chunk 5 --network base
   task("initializeSiloPayback", "Initialize SiloPayback with unripe BDV data")
     .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
+    .addOptionalParam(
+      "useDeployed",
+      "Use production addresses from productionAddresses.json instead of latest dev deployment",
+      false,
+      types.boolean
+    )
     .setAction(async (taskArgs) => {
       const mock = true;
       const verbose = true;
@@ -211,18 +218,26 @@ module.exports = function () {
       await initializeSiloPayback({
         account: deployer,
         verbose,
-        startFromChunk: taskArgs.startChunk
+        startFromChunk: taskArgs.startChunk,
+        useDeployed: taskArgs.useDeployed
       });
     });
 
   ////// STEP 1.6: INITIALIZE BARN PAYBACK //////
   // Initialize the BarnPayback contract with fertilizer data
-  // Must be run after deployPaybackContracts (Step 1)
+  // Must be run after deployPaybackContracts (Step 1) or with --use-deployed for production addresses
   //  - npx hardhat initializeBarnPayback --network base
+  //  - npx hardhat initializeBarnPayback --use-deployed --network base (use production addresses)
   // Resume parameters:
   //  - npx hardhat initializeBarnPayback --start-chunk 10 --network base
   task("initializeBarnPayback", "Initialize BarnPayback with fertilizer data")
     .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
+    .addOptionalParam(
+      "useDeployed",
+      "Use production addresses from productionAddresses.json instead of latest dev deployment",
+      false,
+      types.boolean
+    )
     .setAction(async (taskArgs) => {
       const mock = true;
       const verbose = true;
@@ -238,14 +253,16 @@ module.exports = function () {
       await initializeBarnPayback({
         account: deployer,
         verbose,
-        startFromChunk: taskArgs.startChunk
+        startFromChunk: taskArgs.startChunk,
+        useDeployed: taskArgs.useDeployed
       });
     });
 
   ////// STEP 1.7: INITIALIZE CONTRACT PAYBACK DISTRIBUTOR //////
   // Initialize the ContractPaybackDistributor contract with account data
-  // Must be run after deployPaybackContracts (Step 1)
+  // Must be run after deployPaybackContracts (Step 1) or with --use-deployed for production addresses
   //  - npx hardhat initializeContractPaybackDistributor --network base
+  //  - npx hardhat initializeContractPaybackDistributor --use-deployed --network base (use production addresses)
   // Resume parameters:
   //  - npx hardhat initializeContractPaybackDistributor --start-chunk 3 --network base
   task(
@@ -253,6 +270,12 @@ module.exports = function () {
     "Initialize ContractPaybackDistributor with account data"
   )
     .addOptionalParam("startChunk", "Resume from chunk number (0-indexed)", 0, types.int)
+    .addOptionalParam(
+      "useDeployed",
+      "Use production addresses from productionAddresses.json instead of latest dev deployment",
+      false,
+      types.boolean
+    )
     .setAction(async (taskArgs) => {
       const mock = true;
       const verbose = true;
@@ -268,7 +291,8 @@ module.exports = function () {
       await initializeContractPaybackDistributor({
         account: deployer,
         verbose,
-        startFromChunk: taskArgs.startChunk
+        startFromChunk: taskArgs.startChunk,
+        useDeployed: taskArgs.useDeployed
       });
     });
 
@@ -423,7 +447,7 @@ module.exports = function () {
   // The deployer will need to transfer ownership of the payback contracts to the PCM
   //  - npx hardhat transferContractOwnership --network base
   // Set mock to false to transfer ownership of the payback contracts to the PCM on base.
-  // The owner is the deployer account at 0x47c365cc9ef51052651c2be22f274470ad6afc53
+  // The owner is the deployer account.
   task(
     "transferPaybackContractOwnership",
     "transfers ownership of the payback contracts to the PCM"
@@ -483,6 +507,7 @@ module.exports = function () {
   //  - npx hardhat runBeanstalkShipments --step all --network base (run all steps)
   //  - npx hardhat runBeanstalkShipments --step deploy --network base (deploy all payback contracts)
   //  - npx hardhat runBeanstalkShipments --step init --network base (initialize all payback contracts)
+  //  - npx hardhat runBeanstalkShipments --step init --use-deployed --network base (init with production addresses)
   // Available steps: 0, 1, 1.5, 1.6, 1.7, 2, 3, 4, 5, all, deploy, init
   task("runBeanstalkShipments", "Runs all beanstalk shipment deployment steps in sequential order")
     .addOptionalParam("skipPause", "Set to true to skip pauses between steps", false, types.boolean)
@@ -491,6 +516,12 @@ module.exports = function () {
       "Step to run (0, 1, 1.5, 1.6, 1.7, 2, 3, 4, 5, 'all', 'deploy', or 'init')",
       "all",
       types.string
+    )
+    .addOptionalParam(
+      "useDeployed",
+      "Use production addresses from productionAddresses.json for init steps",
+      false,
+      types.boolean
     )
     .setAction(async (taskArgs, hre) => {
       const step = taskArgs.step;
@@ -578,19 +609,30 @@ module.exports = function () {
         // Step 1.5: Initialize Silo Payback
         if (shouldRun("1.5")) {
           console.log("\n🌱 Running Step 1.5: Initialize Silo Payback");
-          await hre.run("initializeSiloPayback");
+          if (taskArgs.useDeployed) {
+            console.log("   Using production addresses (--use-deployed)");
+          }
+          await hre.run("initializeSiloPayback", { useDeployed: taskArgs.useDeployed });
         }
 
         // Step 1.6: Initialize Barn Payback
         if (shouldRun("1.6")) {
           console.log("\n🏚️ Running Step 1.6: Initialize Barn Payback");
-          await hre.run("initializeBarnPayback");
+          if (taskArgs.useDeployed) {
+            console.log("   Using production addresses (--use-deployed)");
+          }
+          await hre.run("initializeBarnPayback", { useDeployed: taskArgs.useDeployed });
         }
 
         // Step 1.7: Initialize Contract Payback Distributor
         if (shouldRun("1.7")) {
           console.log("\n📋 Running Step 1.7: Initialize Contract Payback Distributor");
-          await hre.run("initializeContractPaybackDistributor");
+          if (taskArgs.useDeployed) {
+            console.log("   Using production addresses (--use-deployed)");
+          }
+          await hre.run("initializeContractPaybackDistributor", {
+            useDeployed: taskArgs.useDeployed
+          });
         }
 
         // Step 2: Deploy Temp Field Facet

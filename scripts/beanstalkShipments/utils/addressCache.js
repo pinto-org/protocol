@@ -4,6 +4,7 @@ const path = require("path");
 const DATA_DIR = path.join(__dirname, "../data");
 const FILE_PREFIX = "deployedAddresses_";
 const FILE_EXTENSION = ".json";
+const PRODUCTION_FILE = "productionAddresses.json";
 
 const NUM_CONTRACTS = 1;
 /**
@@ -90,13 +91,18 @@ function getDeployedAddresses() {
 }
 
 /**
- * Verifies that all required contract addresses are present in the cache
+ * Verifies that all required contract addresses are present in the cache or production file
+ * @param {boolean} useDeployed - If true, verify production addresses; if false, verify dev addresses
  * @returns {boolean} True if all addresses are present, false otherwise
  */
-function verifyDeployedAddresses() {
-  const addresses = getDeployedAddresses();
+function verifyDeployedAddresses(useDeployed = false) {
+  const addresses = getAddresses(useDeployed);
   if (!addresses) {
-    console.error("❌ No deployed addresses found. Run deployPaybackContracts first.");
+    if (useDeployed) {
+      console.error("❌ No production addresses found. Check productionAddresses.json.");
+    } else {
+      console.error("❌ No deployed addresses found. Run deployPaybackContracts first.");
+    }
     return false;
   }
 
@@ -112,12 +118,51 @@ function verifyDeployedAddresses() {
 }
 
 /**
- * Gets a specific contract address from cache
+ * Gets production (mainnet) addresses from the canonical production file.
+ * These addresses are never auto-incremented and represent deployed mainnet contracts.
+ * @returns {Object|null} Object containing production contract addresses or null if not found
+ */
+function getProductionAddresses() {
+  const productionFilePath = path.join(DATA_DIR, PRODUCTION_FILE);
+  if (!fs.existsSync(productionFilePath)) {
+    console.error("❌ Production addresses file not found:", productionFilePath);
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(fs.readFileSync(productionFilePath));
+    return data;
+  } catch (error) {
+    console.error("Error reading production addresses:", error);
+    return null;
+  }
+}
+
+/**
+ * Router function that returns either production addresses or latest dev addresses
+ * based on the useDeployed flag.
+ * @param {boolean} useDeployed - If true, return production addresses; if false, return latest dev addresses
+ * @returns {Object|null} Object containing contract addresses or null if not found
+ */
+function getAddresses(useDeployed = false) {
+  if (useDeployed) {
+    const productionAddresses = getProductionAddresses();
+    if (productionAddresses) {
+      console.log("📍 Using production addresses from productionAddresses.json");
+    }
+    return productionAddresses;
+  }
+  return getDeployedAddresses();
+}
+
+/**
+ * Gets a specific contract address from cache or production
  * @param {string} contractName - Name of contract ("siloPayback", "barnPayback", or "contractPaybackDistributor")
+ * @param {boolean} useDeployed - If true, use production addresses; if false, use latest dev addresses
  * @returns {string|null} Contract address or null if not found
  */
-function getContractAddress(contractName) {
-  const addresses = getDeployedAddresses();
+function getContractAddress(contractName, useDeployed = false) {
+  const addresses = getAddresses(useDeployed);
   if (!addresses) {
     return null;
   }
@@ -148,6 +193,8 @@ async function computeDistributorAddress(deployer) {
 module.exports = {
   saveDeployedAddresses,
   getDeployedAddresses,
+  getProductionAddresses,
+  getAddresses,
   verifyDeployedAddresses,
   getContractAddress,
   getLatestFilePath,
