@@ -150,6 +150,7 @@ async function updateProgress(current, total) {
 const MAX_RETRIES = 20;
 const BASE_RETRY_DELAY = 500; // 0.5 seconds base delay
 const MAX_RETRY_DELAY = 30000; // 30 seconds max delay
+const CHUNK_DELAY = 100; // 100ms delay between chunks to avoid rate limiting
 
 // Common RPC error patterns that warrant a retry
 const RETRYABLE_ERRORS = [
@@ -265,3 +266,5 @@ exports.updateProgress = updateProgress;
 exports.convertToBigNum = convertToBigNum;
 exports.retryOperation = retryOperation;
 exports.verifyTransaction = verifyTransaction;
+exports.sleep = sleep;
+exports.CHUNK_DELAY = CHUNK_DELAY;
