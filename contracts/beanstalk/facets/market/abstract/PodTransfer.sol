@@ -38,17 +38,9 @@ abstract contract PodTransfer is ReentrancyGuard {
     ) internal {
         require(from != to, "Field: Cannot transfer Pods to oneself.");
         require(amount > 0, "Marketplace: amount must be > 0.");
-        insertPlot(to, fieldId, index + start, amount);
+        LibDibbler.insertPlot(to, fieldId, index + start, amount);
         removePlot(from, fieldId, index, start, amount + start);
         emit PlotTransfer(from, to, fieldId, index + start, amount);
-    }
-
-    function insertPlot(address account, uint256 fieldId, uint256 index, uint256 amount) internal {
-        s.accts[account].fields[fieldId].plots[index] = amount;
-        s.accts[account].fields[fieldId].plotIndexes.push(index);
-        s.accts[account].fields[fieldId].piIndex[index] =
-            s.accts[account].fields[fieldId].plotIndexes.length -
-            1;
     }
 
     function removePlot(

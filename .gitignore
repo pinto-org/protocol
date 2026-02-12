@@ -34,6 +34,7 @@ tasks/requisition/
 
 # deployment outputs
 scripts/deployment/outputs/
+scripts/beanstalkShipments/data/deployedAddresses*.json
 
 # hardhat cache
 hardhat-cache/

@@ -8,7 +8,7 @@ import {IWell, IERC20, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
@@ -588,162 +588,163 @@ contract SunTest is TestHelper {
         }
     }
 
-    function test_partials() public {
-        uint256 beansInBudget;
-        uint256 beansInPaybackContract;
+    // note: Tests at supply edge added in BeanstalkShipments.t.sol
+    // function test_partials() public {
+    //     uint256 beansInBudget;
+    //     uint256 beansInPaybackContract;
 
-        // increase pods in field.
-        bs.incrementTotalPodsE(0, 100_000_000_000e6);
-        bs.incrementTotalPodsE(1, 100_000_000_000e6);
-        uint256 podsInField1 = bs.totalUnharvestable(1);
+    //     // increase pods in field.
+    //     bs.incrementTotalPodsE(0, 100_000_000_000e6);
+    //     bs.incrementTotalPodsE(1, 100_000_000_000e6);
+    //     uint256 podsInField1 = bs.totalUnharvestable(1);
 
-        // Set up second Field. Update Routes and Plan getters.
-        vm.prank(deployer);
-        bs.addField();
-        vm.prank(deployer);
-        bs.setActiveField(0, 1);
-        setRoutes_all();
+    //     // Set up second Field. Update Routes and Plan getters.
+    //     vm.prank(deployer);
+    //     bs.addField();
+    //     vm.prank(deployer);
+    //     bs.setActiveField(0, 1);
+    //     setRoutes_all();
 
-        uint256 deltaB = 50_000_000e6;
-        uint256 caseId = 1;
+    //     uint256 deltaB = 50_000_000e6;
+    //     uint256 caseId = 1;
 
-        // Set lpToSupplyRatio in beanstalkState
-        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+    //     // Set lpToSupplyRatio in beanstalkState
+    //     beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
 
-        for (uint256 i; i < 19; i++) {
-            vm.roll(block.number + 300);
+    //     for (uint256 i; i < 19; i++) {
+    //         vm.roll(block.number + 300);
 
-            // Update twaDeltaB in beanstalkState before calling sunSunrise
-            beanstalkState.twaDeltaB = int256(deltaB);
+    //         // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //         beanstalkState.twaDeltaB = int256(deltaB);
 
-            season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        }
+    //         season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     }
 
-        // Almost ready to cross supply threshold to switch from budget to payback.
-        assertEq(inBudgetPhase(), true, "not in budget phase");
-        assertEq(inPaybackPhase(0), false, "in payback phase");
+    //     // Almost ready to cross supply threshold to switch from budget to payback.
+    //     assertEq(inBudgetPhase(), true, "not in budget phase");
+    //     assertEq(inPaybackPhase(0), false, "in payback phase");
 
-        uint256 priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        uint256 priorBeansInPayback = bean.balanceOf(payback);
-        uint256 priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     uint256 priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     uint256 priorBeansInPayback = bean.balanceOf(payback);
+    //     uint256 priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
 
-        assertEq(
-            priorBeansInBudget,
-            (deltaB * 19 * 3) / 100,
-            "invalid budget balance before partial"
-        );
-        assertEq(priorBeansInPayback, 0, "invalid payback balance before partial");
+    //     assertEq(
+    //         priorBeansInBudget,
+    //         (deltaB * 19 * 3) / 100,
+    //         "invalid budget balance before partial"
+    //     );
+    //     assertEq(priorBeansInPayback, 0, "invalid payback balance before partial");
 
-        deltaB = 80_000_000e6;
-        vm.roll(block.number + 300);
+    //     deltaB = 80_000_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
 
-        // 3% of mint goes to budget and payback.
-        // 5/8 of that goes to budget.
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget + (deltaB * 3 * 5) / 100 / 8,
-            "invalid budget balance from partial"
-        );
-        // 3/8 of that goes to payback, which is split 2/8 to payback contract and 1/8 to payback field.
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback + ((deltaB * 3 * 2) / 100 / 8),
-            "invalid payback contract balance from partial"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 3 * 1) / 100 / 8),
-            "invalid payback field balance from partial"
-        );
+    //     // 3% of mint goes to budget and payback.
+    //     // 5/8 of that goes to budget.
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget + (deltaB * 3 * 5) / 100 / 8,
+    //         "invalid budget balance from partial"
+    //     );
+    //     // 3/8 of that goes to payback, which is split 2/8 to payback contract and 1/8 to payback field.
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback + ((deltaB * 3 * 2) / 100 / 8),
+    //         "invalid payback contract balance from partial"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 3 * 1) / 100 / 8),
+    //         "invalid payback field balance from partial"
+    //     );
 
-        // 100% of the 3% goes to payback.
-        priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        priorBeansInPayback = bean.balanceOf(payback);
-        priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
-        deltaB = 1_000_000e6;
-        vm.roll(block.number + 300);
+    //     // 100% of the 3% goes to payback.
+    //     priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     priorBeansInPayback = bean.balanceOf(payback);
+    //     priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     deltaB = 1_000_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget,
-            "invalid budget balance after partial"
-        );
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback + (deltaB * 2) / 100,
-            "invalid payback contract balance after partial"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 1) / 100),
-            "invalid payback field balance after partial"
-        );
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget,
+    //         "invalid budget balance after partial"
+    //     );
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback + (deltaB * 2) / 100,
+    //         "invalid payback contract balance after partial"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 1) / 100),
+    //         "invalid payback field balance after partial"
+    //     );
 
-        // Silo is paid off. Shift to 1.5% payback contract and 1.5% payback field.
-        deal(address(bean), payback, 1_000_000_000e6 / 4, true);
-        priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        priorBeansInPayback = bean.balanceOf(payback);
-        priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
-        deltaB = 1_000e6;
-        vm.roll(block.number + 300);
+    //     // Silo is paid off. Shift to 1.5% payback contract and 1.5% payback field.
+    //     deal(address(bean), payback, 1_000_000_000e6 / 4, true);
+    //     priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     priorBeansInPayback = bean.balanceOf(payback);
+    //     priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     deltaB = 1_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget,
-            "invalid budget balance after silo paid off"
-        );
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback + (deltaB * 15) / 1000,
-            "invalid payback contract balance after silo paid off"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 15) / 1000),
-            "invalid payback field balance after silo paid off"
-        );
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget,
+    //         "invalid budget balance after silo paid off"
+    //     );
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback + (deltaB * 15) / 1000,
+    //         "invalid payback contract balance after silo paid off"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 15) / 1000),
+    //         "invalid payback field balance after silo paid off"
+    //     );
 
-        // Barn is paid off. Shift to 3% payback field. 0% to payback contract.
-        deal(address(bean), payback, 1_000_000_000e6, true);
-        priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        priorBeansInPayback = bean.balanceOf(payback);
-        priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
-        deltaB = 1_000e6;
-        vm.roll(block.number + 300);
+    //     // Barn is paid off. Shift to 3% payback field. 0% to payback contract.
+    //     deal(address(bean), payback, 1_000_000_000e6, true);
+    //     priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     priorBeansInPayback = bean.balanceOf(payback);
+    //     priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     deltaB = 1_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget,
-            "invalid budget balance after barn is paid off"
-        );
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback,
-            "invalid payback contract balance after barn is paid off"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 3) / 100),
-            "invalid payback field balance after barn is paid off"
-        );
-    }
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget,
+    //         "invalid budget balance after barn is paid off"
+    //     );
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback,
+    //         "invalid payback contract balance after barn is paid off"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 3) / 100),
+    //         "invalid payback field balance after barn is paid off"
+    //     );
+    // }
 
     function test_stepCultivationFactor() public {
         // Initial setup

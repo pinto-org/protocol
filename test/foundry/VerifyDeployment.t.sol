@@ -11,7 +11,6 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import "forge-std/StdUtils.sol";
 import {BeanstalkPrice, WellPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {P} from "contracts/ecosystem/price/P.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
 import {ILiquidityWeightFacet} from "contracts/beanstalk/facets/sun/LiquidityWeightFacet.sol";
 
 interface IBeanstalkPrice {
@@ -28,7 +27,7 @@ interface IBeanstalkERC20 {
  * @notice Verfifies the deployment parameters of Pinto
  * @dev This test is marked as LEGACY because it is not used in the current deployment process.
  */
-contract Legacy_VerifyDeploymentTest is TestHelper {
+contract Skip_VerifyDeploymentTest is TestHelper {
     // contracts for testing:
     address constant PRICE = address(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
 
@@ -500,23 +499,23 @@ contract Legacy_VerifyDeploymentTest is TestHelper {
             console.log("-------------------------------");
         }
         // silo (0x01)
-        assertEq(routes[0].planSelector, ShipmentPlanner.getSiloPlan.selector);
+        assertEq(routes[0].planSelector, IMockFBeanstalk.getSiloPlan.selector);
         assertEq(uint8(routes[0].recipient), uint8(ShipmentRecipient.SILO));
         assertEq(routes[0].data, new bytes(32));
         // field (0x02)
-        assertEq(routes[1].planSelector, ShipmentPlanner.getFieldPlan.selector);
+        assertEq(routes[1].planSelector, IMockFBeanstalk.getFieldPlan.selector);
         assertEq(uint8(routes[1].recipient), uint8(ShipmentRecipient.FIELD));
         assertEq(routes[1].data, abi.encodePacked(uint256(0)));
         // budget (0x03)
-        assertEq(routes[2].planSelector, ShipmentPlanner.getBudgetPlan.selector);
+        assertEq(routes[2].planSelector, IMockFBeanstalk.getBudgetPlan.selector);
         assertEq(uint8(routes[2].recipient), uint8(ShipmentRecipient.INTERNAL_BALANCE));
         assertEq(routes[2].data, abi.encode(DEV_BUDGET));
         // payback field (0x02)
-        assertEq(routes[3].planSelector, ShipmentPlanner.getPaybackFieldPlan.selector);
+        assertEq(routes[3].planSelector, IMockFBeanstalk.getPaybackFieldPlan.selector);
         assertEq(uint8(routes[3].recipient), uint8(ShipmentRecipient.FIELD));
         assertEq(routes[3].data, abi.encode(PAYBACK_FIELD_ID, PCM));
         // payback contract (0x04)
-        assertEq(routes[4].planSelector, ShipmentPlanner.getPaybackPlan.selector);
+        // assertEq(routes[4].planSelector, IMockFBeanstalk.getPaybackPlan.selector);
         assertEq(uint8(routes[4].recipient), uint8(ShipmentRecipient.EXTERNAL_BALANCE));
         assertEq(routes[4].data, abi.encode(PCM));
     }

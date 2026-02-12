@@ -18,25 +18,19 @@ const {
 // Import task modules
 require("./tasks")();
 
-// used in the UI to run the latest upgrade
+// used in the UI to run the latest upgrade.
+// NOTE: when forking with anvil, one should run it with
+// 1) disable gas limit,
+// 2) no rate limit,
+// 3) threads 0
+// 4) at a block number (to make subsequent deployments faster).
+//  - anvil --fork-url <url> -disable-gas-limit --no-rate-limit --threads 0 --fork-block-number <block number>
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // compile contracts.
   await hre.run("compile");
 
-  await hre.run("PI-14");
-
-  console.log("Diamond Upgraded.");
-
-  await hre.run("addLiquidityToWstethWell", { deposit: true });
-  console.log("Liquidity added to WSTETH well.");
-
-  // deploy the new pod referral contracts:
-  await hre.run("deployPodReferralContracts");
-  console.log("Pod referral contracts deployed.");
-
-  // update the oracle timeouts
-  await hre.run("updateOracleTimeouts");
-  console.log("Oracle timeouts updated.");
+  // run beanstalk shipments
+  await hre.run("runBeanstalkShipments", { skipPause: false, runStep0: false, step: "deploy" });
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
@@ -79,8 +73,8 @@ module.exports = {
     localhost: {
       chainId: 1337,
       url: "http://127.0.0.1:8545/",
-      timeout: 1000000000,
-      accounts: "remote"
+      timeout: 100000000000000000,
+      accounts: [process.env.PINTO_PK]
     },
     mainnet: {
       chainId: 1,
@@ -96,7 +90,7 @@ module.exports = {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
       timeout: 100000000,
-      accounts: []
+      accounts: [process.env.PINTO_PK]
     },
     custom: {
       chainId: 41337,
