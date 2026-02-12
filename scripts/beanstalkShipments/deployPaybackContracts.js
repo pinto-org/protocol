@@ -53,16 +53,18 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     account
   );
 
-  const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy(
-    L2_PINTO, // address _pintoProtocol
-    siloPaybackContract.address, // address _siloPayback
-    barnPaybackContract.address // address _barnPayback
+  const contractPaybackDistributorContract = await upgrades.deployProxy(
+    contractPaybackDistributorFactory,
+    [L2_PINTO, siloPaybackContract.address, barnPaybackContract.address],
+    {
+      initializer: "initialize",
+      kind: "transparent"
+    }
   );
   await contractPaybackDistributorContract.deployed();
   await printContractAddresses(
     contractPaybackDistributorContract.address,
-    "ContractPaybackDistributor",
-    false
+    "ContractPaybackDistributor"
   );
 
   return {

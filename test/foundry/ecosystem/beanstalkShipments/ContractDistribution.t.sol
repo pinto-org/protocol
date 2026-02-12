@@ -57,23 +57,32 @@ contract ContractDistributionTest is TestHelper {
         bs.setActiveField(REPAYMENT_FIELD_ID, 100e6);
         vm.stopPrank();
 
-        // Deploy the ContractPaybackDistributor contract
-        // get the constructor arguments
+        // Deploy the ContractPaybackDistributor contract as transparent proxy
+        // 1. Deploy implementation
+        ContractPaybackDistributor distributorImpl = new ContractPaybackDistributor();
+
+        // 2. Encode initialization data
+        bytes memory initData = abi.encodeWithSelector(
+            ContractPaybackDistributor.initialize.selector,
+            address(bs),
+            address(siloPayback),
+            address(barnPayback)
+        );
+
+        // 3. Deploy proxy at expected address using deployCodeTo
+        vm.prank(owner);
+        deployCodeTo(
+            "TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
+            abi.encode(address(distributorImpl), owner, initData),
+            EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
+        );
+
+        contractPaybackDistributor = ContractPaybackDistributor(EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR);
+
         // Whitelisted contract accounts
         address[] memory contractAccounts = new address[](2);
         contractAccounts[0] = contractAccount1;
         contractAccounts[1] = contractAccount2;
-        // Account data
-        vm.prank(owner);
-        deployCodeTo(
-            "ContractPaybackDistributor.sol:ContractPaybackDistributor",
-            abi.encode(address(bs), address(siloPayback), address(barnPayback)),
-            EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
-        );
-
-        contractPaybackDistributor = ContractPaybackDistributor(
-            address(0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000)
-        );
 
         // assert owner is correct
         assertEq(contractPaybackDistributor.owner(), owner, "distributor owner");

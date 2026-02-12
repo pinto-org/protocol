@@ -6,7 +6,7 @@ const FILE_PREFIX = "deployedAddresses_";
 const FILE_EXTENSION = ".json";
 const PRODUCTION_FILE = "productionAddresses.json";
 
-const NUM_CONTRACTS = 1;
+const NUM_CONTRACTS = 2;
 /**
  * Gets all existing deployed address files and returns them sorted by counter
  * @returns {Array<{path: string, counter: number}>} Sorted array of file info
@@ -170,12 +170,17 @@ function getContractAddress(contractName, useDeployed = false) {
 }
 
 /**
- * Pre-computes the ContractPaybackDistributor address based on deployer nonce.
+ * Pre-computes the ContractPaybackDistributor proxy address based on deployer nonce.
  * Nonce consumption for transparent proxies:
  * - First proxy (SiloPayback): Implementation + ProxyAdmin + Proxy = 3 nonces
  * - Second proxy (BarnPayback): Implementation + Proxy = 2 nonces (reuses ProxyAdmin)
- * - ContractPaybackDistributor: 1 nonce (regular deployment)
- * Total offset from starting nonce: 5
+ * - Third proxy (ContractPaybackDistributor): Implementation + Proxy = 2 nonces (reuses ProxyAdmin)
+ *
+ * This function is called AFTER SiloPayback deployment, so currentNonce already includes
+ * SiloPayback's 3 nonces. We need to add:
+ * - BarnPayback: 2 nonces
+ * - ContractPaybackDistributor implementation: 1 nonce (NUM_CONTRACTS accounts for this offset)
+ * The proxy address is at currentNonce + NUM_CONTRACTS after BarnPayback deployment.
  *
  * @param {Object} deployer - Ethers signer object
  * @returns {Promise<{distributorAddress: string, startingNonce: number}>}

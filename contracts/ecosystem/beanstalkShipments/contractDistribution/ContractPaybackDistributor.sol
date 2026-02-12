@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IContractPaybackDistributor} from "contracts/interfaces/IContractPaybackDistributor.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 
 /**
  * @title ContractPaybackDistributor
  * @notice Contract that distributes the beanstalk repayment assets to the contract accounts.
- * After the distribution, this contract will custody and distrubute all assets for all eligible contract accounts.
+ * After the distribution, this contract will custody and distribute all assets for all eligible contract accounts.
  *
  * Contract accounts eligible for Beanstalk repayment assets can either:
  *
@@ -33,8 +34,9 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
  * 3. If an account has just delegated its code to a contract, they can just call claimDirect() and receive their assets.
  */
 contract ContractPaybackDistributor is
-    ReentrancyGuard,
-    Ownable,
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
     IERC1155Receiver,
     IContractPaybackDistributor
 {
@@ -64,11 +66,11 @@ contract ContractPaybackDistributor is
     mapping(address => AccountData) public accounts;
 
     // Beanstalk protocol
-    IBeanstalk immutable pintoProtocol;
+    IBeanstalk public pintoProtocol;
     // Silo payback token
-    IERC20 immutable siloPayback;
+    IERC20 public siloPayback;
     // Barn payback token
-    IBarnPayback immutable barnPayback;
+    IBarnPayback public barnPayback;
 
     modifier onlyWhitelistedCaller(address caller) {
         require(
@@ -95,16 +97,24 @@ contract ContractPaybackDistributor is
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
+     * @notice Initializes the contract with the required addresses
      * @param _pintoProtocol The pinto protocol address
      * @param _siloPayback The silo payback token address
      * @param _barnPayback The barn payback token address
      */
-    constructor(
+    function initialize(
         address _pintoProtocol,
         address _siloPayback,
         address _barnPayback
-    ) Ownable(msg.sender) {
+    ) public initializer {
+        __ReentrancyGuard_init();
+        __Ownable_init(msg.sender);
         pintoProtocol = IBeanstalk(_pintoProtocol);
         siloPayback = IERC20(_siloPayback);
         barnPayback = IBarnPayback(_barnPayback);
