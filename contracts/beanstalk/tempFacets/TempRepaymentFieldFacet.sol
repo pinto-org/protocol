@@ -14,7 +14,7 @@ import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
  * After the initialization is complete, this facet will be removed.
  */
 contract TempRepaymentFieldFacet is ReentrancyGuard {
-    address public constant REPAYMENT_FIELD_POPULATOR = 0xc4c66c8b199443a8deA5939ce175C3592e349791;
+    address public constant REPAYMENT_FIELD_POPULATOR = 0x00000015EE13a3C1fD0e8Dc2e8C2c8590D5B440B;
     uint256 public constant REPAYMENT_FIELD_ID = 1;
 
     event RepaymentPlotAdded(address indexed account, uint256 indexed plotIndex, uint256 pods);
