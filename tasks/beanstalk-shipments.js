@@ -150,6 +150,7 @@ module.exports = function () {
 
     const siloPaybackAddress = contracts.siloPaybackContract.address;
     const barnPaybackAddress = contracts.barnPaybackContract.address;
+    const contractPaybackDistributorAddress = contracts.contractPaybackDistributorContract.address;
 
     // Helper to encode addresses into padded hex data
     const encodeAddress = (addr) => addr.toLowerCase().replace("0x", "").padStart(64, "0");
@@ -171,6 +172,7 @@ module.exports = function () {
     console.log("Updated updatedShipmentRoutes.json with deployed contract addresses:");
     console.log(`   - SiloPayback: ${siloPaybackAddress}`);
     console.log(`   - BarnPayback: ${barnPaybackAddress}`);
+    console.log(`   - ContractPaybackDistributor: ${contractPaybackDistributorAddress}`);
     console.log(`   - Routes 4, 5, 6 data fields updated\n`);
   });
 
