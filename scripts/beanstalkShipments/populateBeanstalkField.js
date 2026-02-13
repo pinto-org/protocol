@@ -59,10 +59,19 @@ async function populateBeanstalkField({ diamondAddress, account, verbose, startF
       console.log("-----------------------------------");
     }
 
+    // // Log accounts in this chunk for verification
+    // const chunkAccounts = plotChunks[i].map(entry => entry[0]);
+    // console.log(`\n📋 Chunk ${i + 1} contains ${chunkAccounts.length} accounts:`);
+    // console.log(`   First: ${chunkAccounts[0]}`);
+    // console.log(`   Last:  ${chunkAccounts[chunkAccounts.length - 1]}`);
+    // if (verbose) {
+    //   console.log(`   All accounts: ${chunkAccounts.join(', ')}`);
+    // }
+
     try {
       await retryOperation(
         async () => {
-          const tx = await pintoDiamond.initializeRepaymentPlots(plotChunks[i]);
+          const tx = await pintoDiamond.initializeRepaymentPlots(plotChunks[i], { gasLimit: 15000000 });
           const receipt = await verifyTransaction(tx, `Repayment plots chunk ${i + 1}`);
           if (verbose) {
             console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);

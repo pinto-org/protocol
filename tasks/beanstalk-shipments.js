@@ -364,7 +364,7 @@ module.exports = function () {
         );
         await mintEth(repaymentFieldPopulator.address);
       } else {
-        repaymentFieldPopulator = (await ethers.getSigners())[2];
+        repaymentFieldPopulator = (await ethers.getSigners())[0];
       }
 
       // Populate the repayment field with data
