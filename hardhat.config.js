@@ -26,11 +26,19 @@ require("./tasks")();
 // 4) at a block number (to make subsequent deployments faster).
 //  - anvil --fork-url <url> -disable-gas-limit --no-rate-limit --threads 0 --fork-block-number <block number>
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
+  setMock = true;
   // compile contracts.
   await hre.run("compile");
 
   // run beanstalk shipments
-  await hre.run("runBeanstalkShipments", { skipPause: false, runStep0: false, step: "deploy" });
+  await hre.run("finalizeBeanstalkShipments", {
+    mock: setMock
+  });
+
+  await hre.run("transferPaybackContractOwnership", {
+    mock: setMock,
+    log: true
+  });
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
