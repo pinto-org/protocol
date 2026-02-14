@@ -139,6 +139,24 @@ module.exports = {
   RESERVES_5_PERCENT_MULTISIG: "0x4FAE5420F64c282FD908fdf05930B04E8e079770",
   PINTO_PRICE_CONTRACT: "0x13D25ABCB6a19948d35654715c729c6501230b49",
 
+  //////////////////////// BEANSTALK SHIPMENTS ////////////////////////
+  // EOA That will deploy the beanstalk shipment related contracts on base
+  BEANSTALK_SHIPMENTS_DEPLOYER: "0x00000015EE13a3C1fD0e8Dc2e8C2c8590D5B440B",
+  // Expected proxy address of the silo payback contract from deployer at nonce 1
+  BEANSTALK_SILO_PAYBACK: "0xBa0534B16017E861bA15f1587D8A060e15F7f336",
+  BEANSTALK_SILO_PAYBACK_IMPLEMENTATION: "0xCebbDb437330a2f9049A4882918762Bc1A5fB582",
+  // Expected proxy address of the barn payback contract from deployer at nonce 3
+  BEANSTALK_BARN_PAYBACK: "0x724c87b9A6Ea6BA7A7CF3bfc0309DE778fB28027",
+  BEANSTALK_BARN_PAYBACK_IMPLEMENTATION: "0xd5a8E2FF523Cb3dB614A669c4044E908Ebaad041",
+  // EOA that will populate the repayment field
+  BEANSTALK_SHIPMENTS_REPAYMENT_FIELD_POPULATOR: "0x00000015EE13a3C1fD0e8Dc2e8C2c8590D5B440B",
+
+  // Contract Messenger
+  // L1 Contract Messenger deployer
+  L1_CONTRACT_MESSENGER_DEPLOYER: "0x43025539934eDd31871d65e13E7F1f3A904cB173",
+  // L1 Contract Messenger, deployed by the deployer at nonce 0
+  L1_CONTRACT_MESSENGER: "0xD2abd9a7E7F10e3bF4376fb03A07fca729A55b6f",
+
   // Wells
   PINTO_WETH_WELL_BASE,
   PINTO_CBETH_WELL_BASE,

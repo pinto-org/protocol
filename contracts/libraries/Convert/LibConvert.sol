@@ -195,15 +195,15 @@ library LibConvert {
         address outputToken
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 overallConvertCapacityUsed;
-        uint256 inputTokenAmountUsed;
-        uint256 outputTokenAmountUsed;
+        uint256 overallCapacityDelta;
+        uint256 inputTokenCapacityDelta;
+        uint256 outputTokenCapacityDelta;
 
         (
             stalkPenaltyBdv,
-            overallConvertCapacityUsed,
-            inputTokenAmountUsed,
-            outputTokenAmountUsed
+            overallCapacityDelta,
+            inputTokenCapacityDelta,
+            outputTokenCapacityDelta
         ) = calculateStalkPenalty(
             dbs,
             bdvConverted,
@@ -215,14 +215,14 @@ library LibConvert {
         // Update penalties in storage.
         ConvertCapacity storage convertCap = s.sys.convertCapacity[block.number];
         convertCap.overallConvertCapacityUsed = convertCap.overallConvertCapacityUsed.add(
-            overallConvertCapacityUsed
+            overallCapacityDelta
         );
         convertCap.wellConvertCapacityUsed[inputToken] = convertCap
             .wellConvertCapacityUsed[inputToken]
-            .add(inputTokenAmountUsed);
+            .add(inputTokenCapacityDelta);
         convertCap.wellConvertCapacityUsed[outputToken] = convertCap
             .wellConvertCapacityUsed[outputToken]
-            .add(outputTokenAmountUsed);
+            .add(outputTokenCapacityDelta);
     }
 
     ////// Stalk Penalty Calculations //////
@@ -241,9 +241,9 @@ library LibConvert {
         view
         returns (
             uint256 stalkPenaltyBdv,
-            uint256 overallConvertCapacityUsed,
-            uint256 inputTokenAmountUsed,
-            uint256 outputTokenAmountUsed
+            uint256 overallCapacityDelta,
+            uint256 inputTokenCapacityDelta,
+            uint256 outputTokenCapacityDelta
         )
     {
         StalkPenaltyData memory spd;
@@ -287,6 +287,7 @@ library LibConvert {
      * @param outputToken Address of the output well
      * @param outputTokenAmountInDirectionOfPeg The amount deltaB was converted towards peg for the output well
      * @return cumulativePenalty The total Convert Capacity penalty, note it can return greater than the BDV converted
+     * @return pdCapacity The capacity deltas for overall, inputToken, and outputToken to add to storage
      */
     function calculateConvertCapacityPenalty(
         uint256 overallCappedDeltaB,
@@ -312,20 +313,17 @@ library LibConvert {
                 overallCappedDeltaB.sub(convertCap.overallConvertCapacityUsed);
         }
 
-        // update overall remaining convert capacity
-        pdCapacity.overall = convertCap.overallConvertCapacityUsed.add(
-            overallAmountInDirectionOfPeg
-        );
+        // Return this convert's capacity usage for caller to add to storage
+        pdCapacity.overall = overallAmountInDirectionOfPeg;
 
-        // update per-well convert capacity
+        // Calculate per-well capacity usage for caller to add to storage
 
         if (inputToken != s.sys.bean && inputTokenAmountInDirectionOfPeg > 0) {
             (cumulativePenalty, pdCapacity.inputToken) = calculatePerWellCapacity(
                 inputToken,
                 inputTokenAmountInDirectionOfPeg,
                 cumulativePenalty,
-                convertCap,
-                pdCapacity.inputToken
+                convertCap
             );
         }
 
@@ -334,8 +332,7 @@ library LibConvert {
                 outputToken,
                 outputTokenAmountInDirectionOfPeg,
                 cumulativePenalty,
-                convertCap,
-                pdCapacity.outputToken
+                convertCap
             );
         }
     }
@@ -344,16 +341,18 @@ library LibConvert {
         address wellToken,
         uint256 amountInDirectionOfPeg,
         uint256 cumulativePenalty,
-        ConvertCapacity storage convertCap,
-        uint256 pdCapacityToken
+        ConvertCapacity storage convertCap
     ) internal view returns (uint256, uint256) {
         uint256 tokenWellCapacity = abs(LibDeltaB.cappedReservesDeltaB(wellToken));
-        pdCapacityToken = convertCap.wellConvertCapacityUsed[wellToken].add(amountInDirectionOfPeg);
-        if (pdCapacityToken > tokenWellCapacity) {
-            cumulativePenalty = cumulativePenalty.add(pdCapacityToken.sub(tokenWellCapacity));
-        }
 
-        return (cumulativePenalty, pdCapacityToken);
+        uint256 cumulativeUsed = convertCap.wellConvertCapacityUsed[wellToken].add(
+            amountInDirectionOfPeg
+        );
+        if (cumulativeUsed > tokenWellCapacity) {
+            cumulativePenalty = cumulativePenalty.add(cumulativeUsed.sub(tokenWellCapacity));
+        }
+        // Return this convert's capacity usage for caller to add to storage
+        return (cumulativePenalty, amountInDirectionOfPeg);
     }
 
     /**
