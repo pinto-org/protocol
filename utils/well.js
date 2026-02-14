@@ -237,6 +237,12 @@ async function setReserves(account, well, amounts) {
         ethers.constants.MaxUint256
       );
   }
+
+  // Second Well call to sync pump — Well pushes pre-op reserves to pump,
+  // so after a single add/remove the pump still has stale reserves.
+  if (add || remove) {
+    await well.connect(account).sync(account.address, ethers.constants.Zero);
+  }
 }
 
 async function impersonateBeanWstethWell() {
