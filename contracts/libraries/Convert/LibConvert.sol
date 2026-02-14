@@ -195,15 +195,15 @@ library LibConvert {
         address outputToken
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 overallConvertCapacityUsed;
-        uint256 inputTokenAmountUsed;
-        uint256 outputTokenAmountUsed;
+        uint256 overallCapacityDelta;
+        uint256 inputTokenCapacityDelta;
+        uint256 outputTokenCapacityDelta;
 
         (
             stalkPenaltyBdv,
-            overallConvertCapacityUsed,
-            inputTokenAmountUsed,
-            outputTokenAmountUsed
+            overallCapacityDelta,
+            inputTokenCapacityDelta,
+            outputTokenCapacityDelta
         ) = calculateStalkPenalty(
             dbs,
             bdvConverted,
@@ -215,14 +215,14 @@ library LibConvert {
         // Update penalties in storage.
         ConvertCapacity storage convertCap = s.sys.convertCapacity[block.number];
         convertCap.overallConvertCapacityUsed = convertCap.overallConvertCapacityUsed.add(
-            overallConvertCapacityUsed
+            overallCapacityDelta
         );
         convertCap.wellConvertCapacityUsed[inputToken] = convertCap
             .wellConvertCapacityUsed[inputToken]
-            .add(inputTokenAmountUsed);
+            .add(inputTokenCapacityDelta);
         convertCap.wellConvertCapacityUsed[outputToken] = convertCap
             .wellConvertCapacityUsed[outputToken]
-            .add(outputTokenAmountUsed);
+            .add(outputTokenCapacityDelta);
     }
 
     ////// Stalk Penalty Calculations //////
@@ -241,9 +241,9 @@ library LibConvert {
         view
         returns (
             uint256 stalkPenaltyBdv,
-            uint256 overallConvertCapacityUsed,
-            uint256 inputTokenAmountUsed,
-            uint256 outputTokenAmountUsed
+            uint256 overallCapacityDelta,
+            uint256 inputTokenCapacityDelta,
+            uint256 outputTokenCapacityDelta
         )
     {
         StalkPenaltyData memory spd;
