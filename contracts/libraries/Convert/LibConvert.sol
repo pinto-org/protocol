@@ -63,6 +63,11 @@ library LibConvert {
         uint256[] depositIds;
     }
 
+    /**
+     * @param shadowOverallDeltaB Post-convert overall deltaB anchored to the capped baseline
+     * rather than raw spot values. Captures only the spot change caused by the convert,
+     * so pre-existing spot manipulation is neutralized.
+     */
     struct DeltaBStorage {
         int256 beforeInputTokenSpotDeltaB;
         int256 afterInputTokenSpotDeltaB;
