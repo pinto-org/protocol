@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AdvancedFarmCall} from "../libraries/LibFarm.sol";
 import {LibTransfer} from "../libraries/Token/LibTransfer.sol";
 import {LibTractor} from "../libraries/LibTractor.sol";
+import {ShipmentRoute} from "../beanstalk/storage/System.sol";
 
 interface IBeanstalk {
     enum GerminationSide {
@@ -35,6 +36,11 @@ interface IBeanstalk {
     struct Deposit {
         uint128 amount;
         uint128 bdv;
+    }
+
+    struct Plot {
+        uint256 index;
+        uint256 pods;
     }
 
     struct Implementation {
@@ -125,6 +131,8 @@ interface IBeanstalk {
         address[] calldata tokens
     ) external view returns (MowStatus[] memory mowStatuses);
 
+    function getInternalBalance(address account, address token) external view returns (uint256);
+
     function getNonBeanTokenAndIndexFromWell(address well) external view returns (address, uint256);
 
     function getTokenDepositIdsForAccount(
@@ -161,7 +169,15 @@ interface IBeanstalk {
 
     function operator() external view returns (address);
 
-    function plant() external payable returns (uint256);
+    function plant() external payable returns (uint256 beans, int96 stem);
+
+    function totalDeltaB() external view returns (int256);
+
+    function harvest(
+        uint256 fieldId,
+        uint256[] calldata plots,
+        LibTransfer.To mode
+    ) external payable returns (uint256 beansHarvested);
 
     function sowWithMin(
         uint256 beans,
@@ -169,6 +185,29 @@ interface IBeanstalk {
         uint256 minSoil,
         LibTransfer.From mode
     ) external payable returns (uint256 pods);
+
+    function getPlotsFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (Plot[] memory plots);
+
+    function getPlotIndexesFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256[] memory plotIndexes);
+
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256);
+
+    function plot(address account, uint256 fieldId, uint256 index) external view returns (uint256);
+
+    function mowAll(address account) external payable;
+
+    function activeField() external view returns (uint256);
+
+    function harvestableIndex(uint256 fieldId) external view returns (uint256);
 
     function stemTipForToken(address token) external view returns (int96 _stemTip);
 
@@ -187,6 +226,8 @@ interface IBeanstalk {
     function totalUnharvestableForActiveField() external view returns (uint256);
 
     function tractorUser() external view returns (address payable);
+
+    function getTractorData(uint256 key) external view returns (bytes memory);
 
     function transferDeposits(
         address sender,
@@ -218,12 +259,37 @@ interface IBeanstalk {
         LibTransfer.To toMode
     ) external payable;
 
+    function transferPlot(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256 index,
+        uint256 start,
+        uint256 end
+    ) external payable;
+
+    function transferPlots(
+        address sender,
+        address recipient,
+        uint256 fieldId,
+        uint256[] calldata ids,
+        uint256[] calldata starts,
+        uint256[] calldata ends
+    ) external payable;
+
     function update(address account) external payable;
 
     function updateSortedDepositIds(
         address account,
         address token,
         uint256[] calldata sortedDepositIds
+    ) external payable;
+
+    function withdrawDeposit(
+        address token,
+        int96 stem,
+        uint256 amount,
+        LibTransfer.To mode
     ) external payable;
 
     function withdrawDeposits(
@@ -252,7 +318,30 @@ interface IBeanstalk {
         view
         returns (WhitelistStatus[] memory _whitelistStatuses);
 
+    function balanceOfGrownStalkMultiple(
+        address account,
+        address[] memory tokens
+    ) external view returns (uint256[] memory grownStalks);
+
+    function balanceOfEarnedBeans(address account) external view returns (uint256 beans);
+
     function getSiloTokens() external view returns (address[] memory);
 
     function getSeedsForToken(address) external view returns (uint256 seeds);
+
+    function sowWithReferral(
+        uint256 beans,
+        uint256 minTemperature,
+        uint256 minSoil,
+        LibTransfer.From mode,
+        address referral
+    ) external payable returns (uint256 pods, uint256 referrerPods, uint256 refereePods);
+
+    function setShipmentRoutes(ShipmentRoute[] calldata shipmentRoutes) external;
+
+    function addField() external;
+
+    function fieldCount() external view returns (uint256);
+
+    function isHarvesting(uint256 fieldId) external view returns (bool);
 }

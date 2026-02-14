@@ -5,13 +5,13 @@ const { to6 } = require("../test/hardhat/utils/helpers.js");
 const {
   L2_PINTO,
   L2_PCM,
-  PINTO_CBTC_WELL_BASE,
+  PINTO_CBBTC_WELL_BASE,
   HELPER_STORAGE,
   PINTO_IMPROVEMENT_DEPLOYER
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
-  task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
+  task("PI-1", "Deploys Pinto improvement set 1").setAction(async function () {
     const mock = false;
     let owner;
     if (mock) {
@@ -72,7 +72,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-2", "Deploys Pinto improvment set 2").setAction(async function () {
+  task("PI-2", "Deploys Pinto improvement set 2").setAction(async function () {
     const mock = false;
     let owner;
     if (mock) {
@@ -96,7 +96,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
+  task("PI-3", "Deploys Pinto improvement set 3").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -156,7 +156,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-4", "Deploys Pinto improvment set 4").setAction(async function () {
+  task("PI-4", "Deploys Pinto improvement set 4").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -195,7 +195,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-5", "Deploys Pinto improvment set 5").setAction(async function () {
+  task("PI-5", "Deploys Pinto improvement set 5").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -244,7 +244,7 @@ module.exports = function () {
     });
   });
 
-  task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
+  task("PI-6", "Deploys Pinto improvement set 6").setAction(async function () {
     const mock = true;
     let owner;
     if (mock) {
@@ -708,6 +708,103 @@ module.exports = function () {
     });
   });
 
+  task("PI-14", "Deploys PI-14").setAction(async function () {
+    const mock = true;
+    let owner;
+
+    const { fetchAllSowData } = require("../scripts/deployment/fetchSowFarmers.js");
+    const referrerData = await fetchAllSowData();
+
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+
+      const helperStorageContract = await ethers.getContractAt("IHelperStorage", HELPER_STORAGE);
+
+      // initialize helper storages
+      // impersonate pinto deployer:
+      const signer = await impersonateSigner(PINTO_IMPROVEMENT_DEPLOYER);
+      await helperStorageContract
+        .connect(signer)
+        .setValue(
+          1,
+          ethers.utils.defaultAbiCoder.encode(["tuple(address, uint88)[]"], [referrerData])
+        );
+
+        // deploy LSD chainlink oracle
+        const lsdChainlinkOracle = await ethers.getContractFactory("LSDChainlinkOracle");
+        const lsdChainlinkOracleContract = await lsdChainlinkOracle.deploy();
+        await lsdChainlinkOracleContract.deployed();
+        console.log("\nLSD Chainlink Oracle deployed to:", lsdChainlinkOracleContract.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [
+        "GaugeFacet",
+        "GaugeGettersFacet",
+        "SeasonFacet",
+        "FieldFacet",
+        "TractorFacet",
+        "MarketplaceFacet",
+        "MarketplaceBatchFacet",
+        "ConvertFacet",
+        "ConvertGettersFacet",
+        "ConvertBatchFacet",
+        "ClaimFacet",
+        "PipelineConvertFacet",
+        "SiloFacet",
+        "SiloGettersFacet",
+        "MetadataFacet",
+        "ApprovalFacet",
+        "TokenFacet",
+        "TokenSupportFacet",
+        "FarmFacet"
+      ],
+      libraryNames: [
+        "LibTokenSilo",
+        "LibSeedGauge",
+        "LibEvaluate",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate",
+        "LibWeather",
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibSilo"
+      ],
+      facetLibraries: {
+        SeasonFacet: [
+          "LibSeedGauge",
+          "LibEvaluate",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate",
+          "LibWeather"
+        ],
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+        SiloFacet: ["LibSilo", "LibTokenSilo"]
+      },
+      linkedLibraries: {
+        LibConvert: "LibTokenSilo"
+      },
+      initArgs: [HELPER_STORAGE, 1],
+      initFacetName: "InitPI14",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
+
   task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
     const mock = true;
     let owner;
@@ -785,7 +882,7 @@ module.exports = function () {
     await mintEth(RESERVES);
 
     // Get Well contract and tokens
-    const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL_BASE);
+    const well = await ethers.getContractAt("IWell", PINTO_CBBTC_WELL_BASE);
     const tokens = await well.tokens();
     const pinto = tokens[0];
     const cbBTC = tokens[1];
@@ -901,6 +998,32 @@ module.exports = function () {
       facetNames: [],
       initArgs: [],
       initFacetName: "InitSetHighSeeds",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  });
+
+  task("convert-batch-functions", "Deploys ConvertBatchFacet").setAction(async function () {
+    const mock = false;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["ConvertBatchFacet"],
+      libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
+      facetLibraries: {
+        ConvertBatchFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"]
+      },
+      linkedLibraries: {
+        LibConvert: "LibTokenSilo"
+      },
+      initArgs: [],
       object: !mock,
       verbose: true,
       account: owner

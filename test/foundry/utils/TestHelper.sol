@@ -602,11 +602,28 @@ contract TestHelper is
      * issues `sowAmount` of beans to farmer.
      * sows `sowAmount` of beans.
      */
-    function sowAmountForFarmer(address farmer, uint256 sowAmount) internal {
+    function sowAmountForFarmer(address farmer, uint256 sowAmount) internal returns (uint256 pods) {
         bs.setSoilE(sowAmount);
         mintTokensToUser(farmer, BEAN, sowAmount);
         vm.prank(farmer);
-        bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+        pods = bs.sow(sowAmount, 0, uint8(LibTransfer.From.EXTERNAL));
+    }
+
+    function sowAmountForFarmerWithReferral(
+        address farmer,
+        uint256 sowAmount,
+        address referrer
+    ) internal returns (uint256 pods, uint256 referrerPods, uint256 refereePods) {
+        bs.setSoilE(sowAmount);
+        mintTokensToUser(farmer, BEAN, sowAmount);
+        vm.prank(farmer);
+        (pods, referrerPods, refereePods) = bs.sowWithReferral(
+            sowAmount,
+            0,
+            0,
+            uint8(LibTransfer.From.EXTERNAL),
+            referrer
+        );
     }
 
     /**
@@ -848,6 +865,56 @@ contract TestHelper is
             gpImplementation,
             lwImplementation
         );
+    }
+
+    /**
+    /**
+     * @notice Helper function to get the total harvestable pods and plots for a user
+     * @param account The address of the user
+     * @return totalUserHarvestablePods The total amount of harvestable pods for the user
+     * @return userHarvestablePlots The harvestable plot ids for the user
+     */
+    function _userHarvestablePods(
+        address account,
+        uint256 fieldId
+    )
+        internal
+        view
+        returns (uint256 totalUserHarvestablePods, uint256[] memory userHarvestablePlots)
+    {
+        // get field info and plot count directly
+        uint256 activeField = fieldId;
+        uint256[] memory plotIndexes = bs.getPlotIndexesFromAccount(account, activeField);
+        uint256 harvestableIndex = bs.harvestableIndex(activeField);
+
+        if (plotIndexes.length == 0) return (0, new uint256[](0));
+
+        // initialize array with full length
+        userHarvestablePlots = new uint256[](plotIndexes.length);
+        uint256 harvestableCount;
+
+        // single loop to process all plot indexes directly
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            uint256 startIndex = plotIndexes[i];
+            uint256 plotPods = bs.plot(account, activeField, startIndex);
+
+            if (startIndex + plotPods <= harvestableIndex) {
+                // Fully harvestable
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += plotPods;
+                harvestableCount++;
+            } else if (startIndex < harvestableIndex) {
+                // Partially harvestable
+                userHarvestablePlots[harvestableCount] = startIndex;
+                totalUserHarvestablePods += harvestableIndex - startIndex;
+                harvestableCount++;
+            }
+        }
+        // resize array to actual harvestable plots count
+        assembly {
+            mstore(userHarvestablePlots, harvestableCount)
+        }
+        return (totalUserHarvestablePods, userHarvestablePlots);
     }
 
     /**

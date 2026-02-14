@@ -18,7 +18,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param activeField ID of the active Field.
  * @param fieldCount Number of Fields that have ever been initialized.
  * @param orderLockedBeans The number of Beans locked in Pod Orders.
+ * @param referralBeanSownEligibilityThreshold The number of beans that a user will need to sow to be eligible for referral rewards.
  * @param initialSoil The amount of Soil at the start of the season.
+ * @param referrerPercentage The percentage of pods that a user will gain for successfully referring a user to sow. 18 decimal precision.
+ * @param refereePercentage The percentage of pods that a user will gain for successfully being referred by a user to sow. 18 decimal precision.
+ * @param targetReferralPods The maximum number of referral pods that can be issued before the referral system is disabled.
+ * @param totalReferralPods The total number of referral pods that have been issued.
  * @param _buffer_0 Reserved storage for future additions.
  * @param podListings A mapping from fieldId to index to hash of Listing.
  * @param podOrders A mapping from the hash of a Pod Order to the amount of Pods that the Pod Order is still willing to buy.
@@ -41,6 +46,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param evaluationParameters See {EvaluationParameters}.
  * @param sop See {SeasonOfPlenty}.
  * @param gauges See {Gauge}.
+ * @param tokenHook A mapping from token address to the pre-transfer hook Implementation to be called before a token is transferred from a user's internal balance.
+ * - Encode type 0x00 indicates that the hook receives (address from, address to, uint256 amount) as arguments.
+ *   This is in line with the default OpenZeppelin ERC20 _update pre-transfer function.
+ * - Encode type 0x01 indicates that the hook receives (address token, address from, address to, uint256 amount) as arguments.
  */
 struct System {
     address bean;
@@ -54,8 +63,13 @@ struct System {
     uint256 activeField;
     uint256 fieldCount;
     uint256 orderLockedBeans;
+    uint128 referralBeanSownEligibilityThreshold;
     uint128 initialSoil;
-    bytes32[15] _buffer_0;
+    uint128 referrerPercentage;
+    uint128 refereePercentage;
+    uint128 targetReferralPods;
+    uint128 totalReferralPods;
+    bytes32[13] _buffer_0;
     mapping(uint256 => mapping(uint256 => bytes32)) podListings;
     mapping(bytes32 => uint256) podOrders;
     mapping(IERC20 => uint256) internalTokenBalanceTotal;
@@ -77,6 +91,7 @@ struct System {
     SeasonOfPlenty sop;
     ExtEvaluationParameters extEvaluationParameters;
     GaugeData gaugeData;
+    mapping(address => Implementation) tokenHook;
     // A buffer is not included here, bc current layout of AppStorage makes it unnecessary.
 }
 
@@ -178,7 +193,7 @@ struct Weather {
  * @param maxTotalGaugePoints the total gaugePoints that the LP tokens can have.
  * @param _buffer Reserved storage for future expansion.
  * @dev a beanToMaxLpGpPerBdvRatio of 0 means LP should have the highest incentive,
- * and that beans will have the minimum seeds ratio. see {LibGauge.getBeanToMaxLpGpPerBdvRatioScaled}
+ * and that beans will have the minimum seeds ratio. see {LibSeedGauge.getBeanToMaxLpGpPerBdvRatioScaled}
  */
 struct SeedGauge {
     uint128 averageGrownStalkPerBdvPerSeason;
@@ -340,6 +355,7 @@ struct ShipmentRoute {
  * @param data Any additional data, for example timeout
  * @dev assumes all future implementations will use the same parameters as the beanstalk
  * gaugePoint and liquidityWeight implementations.
+ * @dev Can also be used to store token hooks to be called before a token is transferred from a user's internal balance.
  */
 struct Implementation {
     address target; // 20 bytes
@@ -348,10 +364,18 @@ struct Implementation {
     bytes data;
 }
 
+/**
+ * @notice Stores the data for the gauges.
+ * @param gaugeIds The ids of the gauges.
+ * @param gauges The gauges.
+ * @param stateful Whether the gauge is stateful.
+ * @param _buffer Reserved storage for future expansion.
+ */
 struct GaugeData {
     GaugeId[] gaugeIds;
     mapping(GaugeId => Gauge) gauges;
-    bytes32[16] _buffer;
+    mapping(GaugeId => bool) stateful;
+    bytes32[15] _buffer;
 }
 
 /**
@@ -494,7 +518,9 @@ enum ShipmentRecipient {
     SILO,
     FIELD,
     INTERNAL_BALANCE,
-    EXTERNAL_BALANCE
+    EXTERNAL_BALANCE,
+    SILO_PAYBACK,
+    BARN_PAYBACK
 }
 
 /**
@@ -503,5 +529,6 @@ enum ShipmentRecipient {
 enum GaugeId {
     CULTIVATION_FACTOR,
     CONVERT_DOWN_PENALTY,
-    CONVERT_UP_BONUS
+    CONVERT_UP_BONUS,
+    LP_DISTRIBUTION
 }

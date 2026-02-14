@@ -6,42 +6,62 @@ require("hardhat-tracer");
 require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
+require("@nomicfoundation/hardhat-foundry");
+const { getBeanstalk } = require("./utils");
+const {
+  L2_PINTO,
+  PINTO_CBETH_WELL_BASE,
+  PINTO_WSTETH_WELL_BASE
+} = require("./test/hardhat/utils/constants.js");
 
 //////////////////////// TASKS ////////////////////////
 // Import task modules
 require("./tasks")();
 
-// used in the UI to run the latest upgrade
+// used in the UI to run the latest upgrade.
+// NOTE: when forking with anvil, one should run it with
+// 1) disable gas limit,
+// 2) no rate limit,
+// 3) threads 0
+// 4) at a block number (to make subsequent deployments faster).
+//  - anvil --fork-url <url> -disable-gas-limit --no-rate-limit --threads 0 --fork-block-number <block number>
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
-  const order = true;
+  setMock = true;
   // compile contracts.
   await hre.run("compile");
-  // deploy PI-13
-  await hre.run("PI-13");
 
-  // Setup LP tokens for test addresses BEFORE running many sunrises
-  if (order) {
-    console.log("Setting up LP tokens for test addresses...");
-    await hre.run("setup-convert-up-addresses");
-    // increase the seeds, call sunrise.
-    await hre.run("mock-seeds");
-    await hre.run("callSunrise");
-  }
+  // run beanstalk shipments
+  await hre.run("finalizeBeanstalkShipments", {
+    mock: setMock
+  });
 
-  // deploy convert up blueprint
-  // dev: should be deployed to : 0x53B7cF2a4A18062aFF4fA71Bb300F6eA2d3702E2 for testing purposes.
-  await hre.run("deployConvertUpBlueprint");
-
-  // Now sign and publish the convert up blueprints with grown stalk available
-  if (order) {
-    console.log("Signing and publishing convert up blueprints...");
-    await hre.run("create-mock-convert-up-orders", {
-      execute: true,
-      skipSetup: true // Skip LP token setup since we already did it
-    });
-    await hre.run("callSunrise");
-  }
+  await hre.run("transferPaybackContractOwnership", {
+    mock: setMock,
+    log: true
+  });
 });
+
+task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
+  async function () {
+    for (let i = 0; i < 50; i++) {
+      await hre.run("callSunrise");
+      console.log("Sunrise called.");
+
+      const beanstalk = await getBeanstalk(L2_PINTO);
+      const cbethWellData = await beanstalk.tokenSettings(PINTO_CBETH_WELL_BASE);
+      const wstethWellData = await beanstalk.tokenSettings(PINTO_WSTETH_WELL_BASE);
+      console.log(
+        "CBETH optimal percent deposited bdv: ",
+        cbethWellData.optimalPercentDepositedBdv.toString()
+      );
+      console.log(
+        "WSTETH optimal percent deposited bdv: ",
+        wstethWellData.optimalPercentDepositedBdv.toString()
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+);
 
 //////////////////////// CONFIGURATION ////////////////////////
 
@@ -61,7 +81,7 @@ module.exports = {
     localhost: {
       chainId: 1337,
       url: "http://127.0.0.1:8545/",
-      timeout: 1000000000,
+      timeout: 100000000000000000,
       accounts: "remote"
     },
     mainnet: {
@@ -77,8 +97,7 @@ module.exports = {
     base: {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
-      timeout: 100000000,
-      accounts: []
+      timeout: 100000000
     },
     custom: {
       chainId: 41337,
@@ -109,7 +128,8 @@ module.exports = {
           optimizer: {
             enabled: true,
             runs: 100
-          }
+          },
+          evmVersion: "cancun"
         }
       }
     ]

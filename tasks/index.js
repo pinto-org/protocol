@@ -10,4 +10,6 @@ module.exports = function () {
   require("./verification")();
   require("./abi-generation")();
   require("./tractor")();
+  require("./well-deployment")();
+  require("./beanstalk-shipments")();
 };

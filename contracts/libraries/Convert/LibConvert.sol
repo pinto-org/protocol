@@ -8,28 +8,18 @@ import {LibConvertData} from "./LibConvertData.sol";
 import {LibWellConvert, LibWhitelistedTokens} from "./LibWellConvert.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
-import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {C} from "contracts/C.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity, GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
-import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
-import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GerminationSide, GaugeId, ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title LibConvert
@@ -39,7 +29,6 @@ library LibConvert {
     using LibConvertData for bytes;
     using LibWell for address;
     using LibRedundantMathSigned256 for int256;
-    using SafeCast for uint256;
 
     uint256 internal constant ZERO_STALK_SLIPPAGE = 0;
     uint256 internal constant MAX_GROWN_STALK_SLIPPAGE = 1e18;
@@ -212,15 +201,15 @@ library LibConvert {
         uint256 fromAmount
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 overallConvertCapacityUsed;
-        uint256 inputTokenAmountUsed;
-        uint256 outputTokenAmountUsed;
+        uint256 overallCapacityDelta;
+        uint256 inputTokenCapacityDelta;
+        uint256 outputTokenCapacityDelta;
 
         (
             stalkPenaltyBdv,
-            overallConvertCapacityUsed,
-            inputTokenAmountUsed,
-            outputTokenAmountUsed
+            overallCapacityDelta,
+            inputTokenCapacityDelta,
+            outputTokenCapacityDelta
         ) = calculateStalkPenalty(
             dbs,
             bdvConverted,
@@ -233,14 +222,14 @@ library LibConvert {
         // Update penalties in storage.
         ConvertCapacity storage convertCap = s.sys.convertCapacity[block.number];
         convertCap.overallConvertCapacityUsed = convertCap.overallConvertCapacityUsed.add(
-            overallConvertCapacityUsed
+            overallCapacityDelta
         );
         convertCap.wellConvertCapacityUsed[inputToken] = convertCap
             .wellConvertCapacityUsed[inputToken]
-            .add(inputTokenAmountUsed);
+            .add(inputTokenCapacityDelta);
         convertCap.wellConvertCapacityUsed[outputToken] = convertCap
             .wellConvertCapacityUsed[outputToken]
-            .add(outputTokenAmountUsed);
+            .add(outputTokenCapacityDelta);
     }
 
     ////// Stalk Penalty Calculations //////
@@ -260,9 +249,9 @@ library LibConvert {
         view
         returns (
             uint256 stalkPenaltyBdv,
-            uint256 overallConvertCapacityUsed,
-            uint256 inputTokenAmountUsed,
-            uint256 outputTokenAmountUsed
+            uint256 overallCapacityDelta,
+            uint256 inputTokenCapacityDelta,
+            uint256 outputTokenCapacityDelta
         )
     {
         StalkPenaltyData memory spd;
@@ -329,7 +318,7 @@ library LibConvert {
      * @param outputToken Address of the output token
      * @param outputTokenAmountInDirectionOfPeg The amount deltaB was converted towards peg for the output well
      * @return cumulativePenalty The total Convert Capacity penalty, note it can return greater than the BDV converted
-     * @return pdCapacity The penalty data for capacity tracking
+     * @return pdCapacity The capacity deltas for overall, inputToken, and outputToken to add to storage
      * @return targetWell The well involved in the convert (address(0) for L2L/AL2L converts)
      * @return targetWellReserves The capped reserves for targetWell (empty for L2L/AL2L converts)
      */
@@ -366,10 +355,8 @@ library LibConvert {
                 overallCappedDeltaB.sub(convertCap.overallConvertCapacityUsed);
         }
 
-        // update overall remaining convert capacity
-        pdCapacity.overall = convertCap.overallConvertCapacityUsed.add(
-            overallAmountInDirectionOfPeg
-        );
+        // Return this convert's capacity usage for caller to add to storage
+        pdCapacity.overall = overallAmountInDirectionOfPeg;
 
         // Determine target well. For L2L/AL2L (inputToken == outputToken), skip penalty calculation.
         if (inputToken != outputToken) {
@@ -383,14 +370,13 @@ library LibConvert {
             (, targetWellReserves) = LibDeltaB.cappedReservesDeltaB(targetWell);
         }
 
-        // update per-well convert capacity
+        // Calculate per-well capacity usage for caller to add to storage
         if (inputToken != s.sys.bean && inputTokenAmountInDirectionOfPeg > 0) {
             (cumulativePenalty, pdCapacity.inputToken) = calculatePerWellCapacity(
                 inputToken,
                 inputTokenAmountInDirectionOfPeg,
                 cumulativePenalty,
-                convertCap,
-                pdCapacity.inputToken
+                convertCap
             );
         }
 
@@ -399,8 +385,7 @@ library LibConvert {
                 outputToken,
                 outputTokenAmountInDirectionOfPeg,
                 cumulativePenalty,
-                convertCap,
-                pdCapacity.outputToken
+                convertCap
             );
         }
     }
@@ -409,17 +394,19 @@ library LibConvert {
         address wellToken,
         uint256 amountInDirectionOfPeg,
         uint256 cumulativePenalty,
-        ConvertCapacity storage convertCap,
-        uint256 pdCapacityToken
+        ConvertCapacity storage convertCap
     ) internal view returns (uint256, uint256) {
         (int256 deltaB, ) = LibDeltaB.cappedReservesDeltaB(wellToken);
         uint256 tokenWellCapacity = abs(deltaB);
-        pdCapacityToken = convertCap.wellConvertCapacityUsed[wellToken].add(amountInDirectionOfPeg);
-        if (pdCapacityToken > tokenWellCapacity) {
-            cumulativePenalty = cumulativePenalty.add(pdCapacityToken.sub(tokenWellCapacity));
-        }
 
-        return (cumulativePenalty, pdCapacityToken);
+        uint256 cumulativeUsed = convertCap.wellConvertCapacityUsed[wellToken].add(
+            amountInDirectionOfPeg
+        );
+        if (cumulativeUsed > tokenWellCapacity) {
+            cumulativePenalty = cumulativePenalty.add(cumulativeUsed.sub(tokenWellCapacity));
+        }
+        // Return this convert's capacity usage for caller to add to storage
+        return (cumulativePenalty, amountInDirectionOfPeg);
     }
 
     /**
@@ -620,7 +607,7 @@ library LibConvert {
                 a.stalksRemoved[i] = LibSilo.stalkReward(
                     stems[i],
                     germStem.stemTip,
-                    a.bdvsRemoved[i].toUint128()
+                    SafeCast.toUint128(a.bdvsRemoved[i])
                 );
                 a.active.stalk = a.active.stalk.add(a.stalksRemoved[i]);
 
@@ -726,7 +713,7 @@ library LibConvert {
     ) internal returns (uint256 newGrownStalk) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // penalty down for BEAN -> WELL
-        if (inputToken == s.sys.bean && LibWell.isWell(outputToken)) {
+        if (inputToken == s.sys.bean && outputToken.isWell()) {
             uint256 grownStalkLost;
             (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
                 outputToken,
@@ -738,7 +725,7 @@ library LibConvert {
                 emit ConvertDownPenalty(account, grownStalkLost, newGrownStalk);
             }
             return newGrownStalk;
-        } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
+        } else if (inputToken.isWell() && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv, grownStalk);
 
@@ -846,7 +833,7 @@ library LibConvert {
     /**
      *
      * @notice verifies that the exchange rate of the well is above a rate,
-     * after an bean -> lp convert has occured with `amount`.
+     * after an bean -> lp convert has occurred with `amount`.
      * @return greaterThanRate true if the price after the convert is greater than the rate, false otherwise
      * @return beansOverRate the amount of beans that exceed the rate. 0 if `greaterThanRate` is true.
      */

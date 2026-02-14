@@ -8,6 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 
 interface IMockFBeanstalk {
     enum CounterUpdateType {
@@ -32,7 +33,9 @@ interface IMockFBeanstalk {
         SILO,
         FIELD,
         INTERNAL_BALANCE,
-        EXTERNAL_BALANCE
+        EXTERNAL_BALANCE,
+        SILO_PAYBACK,
+        BARN_PAYBACK
     }
 
     struct AccountSeasonOfPlenty {
@@ -84,6 +87,22 @@ interface IMockFBeanstalk {
     struct ClaimPlentyData {
         address token;
         uint256 plenty;
+    }
+
+    struct ConvertParams {
+        bytes convertData;
+        int96[] stems;
+        uint256[] amounts;
+        int256 grownStalkSlippage;
+    }
+
+    struct ConvertOutput {
+        LibConvertData.ConvertKind convertKind;
+        int96 toStem;
+        uint256 fromAmount;
+        uint256 toAmount;
+        uint256 fromBdv;
+        uint256 toBdv;
     }
 
     struct DeltaBStorage {
@@ -202,6 +221,28 @@ interface IMockFBeanstalk {
         uint256 minFillAmount;
     }
 
+    struct CancelPodListingParams {
+        uint256 fieldId;
+        uint256 index;
+    }
+
+    struct FillPodListingParams {
+        PodListing listing;
+        uint256 beanAmount;
+    }
+
+    struct CreatePodOrderParams {
+        PodOrder order;
+        uint256 beanAmount;
+    }
+
+    struct FillPodOrderParams {
+        PodOrder order;
+        uint256 index;
+        uint256 start;
+        uint256 amount;
+    }
+
     struct Rain {
         uint256 pods;
         uint256 roots;
@@ -284,6 +325,16 @@ interface IMockFBeanstalk {
         D256 podRate;
         address largestLiqWell;
         bool oracleFailure;
+    }
+
+    struct ContractData {
+        uint256 key;
+        bytes value;
+    }
+
+    struct ShipmentPlan {
+        uint256 points;
+        uint256 cap;
     }
 
     error AddressEmptyCode(address target);
@@ -552,6 +603,10 @@ interface IMockFBeanstalk {
         Implementation lwImplementation
     );
 
+    event TokenHookRegistered(address indexed token, address target, bytes4 selector);
+    event TokenHookRemoved(address indexed token);
+    event TokenHookUpdated(address indexed token, address target, bytes4 selector);
+
     function abovePeg() external view returns (bool);
 
     function activeField() external view returns (uint256);
@@ -742,7 +797,11 @@ interface IMockFBeanstalk {
 
     function cancelPodListing(uint256 fieldId, uint256 index) external payable;
 
+    function batchCancelPodListing(CancelPodListingParams[] memory params) external payable;
+
     function cancelPodOrder(PodOrder memory podOrder, uint8 mode) external payable;
+
+    function batchCancelPodOrder(PodOrder[] memory podOrders, uint8 mode) external payable;
 
     function cappedReservesDeltaB(address well) external view returns (int256 deltaB);
 
@@ -775,6 +834,26 @@ interface IMockFBeanstalk {
             uint256 toBdv
         );
 
+    function convertWithStalkSlippage(
+        bytes memory convertData,
+        int96[] memory stems,
+        uint256[] memory amounts,
+        int256 grownStalkSlippage
+    )
+        external
+        payable
+        returns (
+            int96 toStem,
+            uint256 fromAmount,
+            uint256 toAmount,
+            uint256 fromBdv,
+            uint256 toBdv
+        );
+
+    function batchConvert(
+        ConvertParams[] calldata converts
+    ) external payable returns (ConvertOutput[] memory convertOutputs);
+
     function convertInternalE(
         address tokenIn,
         uint256 amountIn,
@@ -792,11 +871,18 @@ interface IMockFBeanstalk {
 
     function createPodListing(PodListing memory podListing) external payable;
 
+    function batchCreatePodListing(PodListing[] memory podListings) external payable;
+
     function createPodOrder(
         PodOrder memory podOrder,
         uint256 beanAmount,
         uint8 mode
     ) external payable returns (bytes32 id);
+
+    function batchCreatePodOrder(
+        CreatePodOrderParams[] memory params,
+        uint8 mode
+    ) external payable returns (bytes32[] memory ids);
 
     function cumulativeCurrentDeltaB(address[] memory pools) external view returns (int256 deltaB);
 
@@ -892,6 +978,8 @@ interface IMockFBeanstalk {
         uint8 mode
     ) external payable;
 
+    function batchFillPodListing(FillPodListingParams[] memory params, uint8 mode) external payable;
+
     function fillPodOrder(
         PodOrder memory podOrder,
         uint256 index,
@@ -899,6 +987,8 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint8 mode
     ) external payable;
+
+    function batchFillPodOrder(FillPodOrderParams[] memory params, uint8 mode) external payable;
 
     function floodHarvestablePods() external view returns (uint256);
 
@@ -1130,12 +1220,38 @@ interface IMockFBeanstalk {
         uint256 fieldId
     ) external view returns (uint256[] memory plotIndexes);
 
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256);
+
+    function getPiIndexFromAccount(
+        address account,
+        uint256 fieldId,
+        uint256 index
+    ) external view returns (uint256);
+
+    function setUserPodsAtField(
+        address account,
+        uint256 fieldId,
+        uint256 index,
+        uint256 amount
+    ) external;
+
     function getPlotMerkleRoot() external pure returns (bytes32);
 
     function getPlotsFromAccount(
         address account,
         uint256 fieldId
     ) external view returns (Plot[] memory plots);
+
+    function combinePlots(uint256 fieldId, uint256[] calldata plotIndexes) external payable;
+
+    function reorderPlotIndexes(
+        uint256[] memory newPlotIndexes,
+        uint256 fieldId,
+        address account
+    ) external;
 
     function getPodListing(uint256 fieldId, uint256 index) external view returns (bytes32 id);
 
@@ -1151,7 +1267,9 @@ interface IMockFBeanstalk {
 
     function getPoolDeltaBWithoutCap(address well) external view returns (int256 deltaB);
 
-    function getPublisherCounter(bytes32 counterId) external view returns (uint256 count);
+    function getPublisherCounter(
+        bytes32 counterId
+    ) external view returns (address publisher, uint256 count);
 
     function getReceiver(address owner) external view returns (address);
 
@@ -1345,7 +1463,7 @@ interface IMockFBeanstalk {
 
     function mockBDVIncrease(uint256 amount) external pure returns (uint256);
 
-    function mockcalcCaseIdAndHandleRain(
+    function mockCalcCaseIdAndHandleRain(
         int256 deltaB
     ) external returns (uint256 caseId, BeanstalkState memory bs);
 
@@ -1393,8 +1511,6 @@ interface IMockFBeanstalk {
 
     function mockUpdateAverageGrownStalkPerBdvPerSeason() external;
 
-    function mockUpdateAverageStalkPerBdvPerSeason() external;
-
     function mockUpdateLiquidityWeight(
         address token,
         address newLiquidityWeightImplementation,
@@ -1419,14 +1535,6 @@ interface IMockFBeanstalk {
         bytes4 gaugePointSelector,
         bytes4 liquidityWeightSelector,
         uint128 gaugePoints,
-        uint64 optimalPercentDepositedBdv
-    ) external;
-
-    function mockinitializeGaugeForToken(
-        address token,
-        bytes4 gaugePointSelector,
-        bytes4 liquidityWeightSelector,
-        uint96 gaugePoints,
         uint64 optimalPercentDepositedBdv
     ) external;
 
@@ -1578,6 +1686,7 @@ interface IMockFBeanstalk {
     function seasonTime() external view returns (uint64);
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) external;
+    function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) external;
 
     function setAbovePegE(bool peg) external;
 
@@ -1622,6 +1731,10 @@ interface IMockFBeanstalk {
     function setShipmentRoutes(ShipmentRoute[] memory shipmentRoutes) external;
 
     function setSoilE(uint256 amount) external;
+
+    function setReferrerPercentageE(uint128 percentage) external;
+
+    function setRefereePercentageE(uint128 percentage) external;
 
     function setStalkAndRoots(address account, uint128 stalk, uint256 roots) external;
 
@@ -1670,7 +1783,7 @@ interface IMockFBeanstalk {
 
     function stemTipForToken(address token) external view returns (int96 _stemTip);
 
-    function stepGauge() external;
+    function stepSeedGauge() external;
 
     function sunSunrise(int256 deltaB, uint256 caseId, BeanstalkState memory bs) external;
 
@@ -1733,6 +1846,12 @@ interface IMockFBeanstalk {
     function tractor(
         Requisition memory requisition,
         bytes memory operatorData
+    ) external payable returns (bytes[] memory results);
+
+    function tractorDynamicData(
+        Requisition calldata requisition,
+        bytes memory operatorData,
+        ContractData[] memory operatorDynamicData
     ) external payable returns (bytes[] memory results);
 
     function transferDeposit(
@@ -1888,6 +2007,7 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
+
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1970,4 +2090,50 @@ interface IMockFBeanstalk {
     function updateGauge(GaugeId gaugeId, bytes memory value, bytes memory data) external;
 
     function getSeedsForToken(address token) external view returns (uint256 seeds);
+
+    function setReferralEligibility(address referrer, bool eligible) external;
+
+    function getTractorData(uint256 key) external view returns (bytes memory);
+
+    function setTargetReferralPods(uint128 amount) external;
+
+    function setTotalReferralPods(uint128 amount) external;
+
+    function sowWithReferral(
+        uint256 bean,
+        uint256 minTemperature,
+        uint256 minSoil,
+        uint8 mode,
+        address referrer
+    ) external payable returns (uint256 pods, uint256 referrerPods, uint256 refereePods);
+
+    function addTokenHook(address token, Implementation memory hook) external payable;
+
+    function removeTokenHook(address token) external payable;
+
+    function updateTokenHook(address token, Implementation memory hook) external payable;
+
+    function hasTokenHook(address token) external view returns (bool);
+
+    function getTokenHook(address token) external view returns (Implementation memory);
+
+    function getFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getSiloPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackSiloPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackBarnPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
 }

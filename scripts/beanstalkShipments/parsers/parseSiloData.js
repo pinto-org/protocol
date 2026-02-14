@@ -1,0 +1,152 @@
+const fs = require("fs");
+const path = require("path");
+
+/**
+ * Parses silo export data into the unripeBdvTokens format
+ *
+ * Expected output format:
+ * unripeBdvTokens.json: Array of [account, totalBdvAtRecapitalization]
+ *
+ * @param {boolean} includeContracts - Whether to include contract addresses alongside arbEOAs
+ * @param {string[]} detectedContractAddresses - Array of detected contract addresses to redirect to distributor
+ */
+function parseSiloData(includeContracts = false, detectedContractAddresses = []) {
+  const inputPath = path.join(__dirname, "../data/exports/beanstalk_silo.json");
+  const outputPath = path.join(__dirname, "../data/unripeBdvTokens.json");
+
+  const siloData = JSON.parse(fs.readFileSync(inputPath, "utf8"));
+
+  const { arbEOAs, arbContracts = {}, ethContracts = {} } = siloData;
+
+  console.log(`Processing ${Object.keys(arbEOAs).length} arbEOAs`);
+  if (includeContracts) {
+    console.log(`Processing ${Object.keys(arbContracts).length} arbContracts`);
+    console.log(`Processing ${Object.keys(ethContracts).length} ethContracts`);
+  }
+
+  // Load distributor address from cache
+  const { getDeployedAddresses } = require("../utils/addressCache.js");
+  const cachedAddresses = getDeployedAddresses();
+  if (!cachedAddresses || !cachedAddresses.contractPaybackDistributor) {
+    throw new Error(
+      "ContractPaybackDistributor address not found in cache. Run 'npx hardhat precomputeDistributorAddress' first."
+    );
+  }
+  const DISTRIBUTOR_ADDRESS = cachedAddresses.contractPaybackDistributor;
+
+  // Combine data sources and reassign ethContracts to distributor
+  const allAccounts = { ...arbEOAs };
+  if (includeContracts) {
+    Object.assign(allAccounts, arbContracts);
+  }
+
+  // Reassign all ethContracts assets to the distributor contract
+  for (const [ethContractAddress, ethContractData] of Object.entries(ethContracts)) {
+    if (ethContractData && ethContractData.bdvAtRecapitalization) {
+      // If distributor already has data, add to it, otherwise create new entry
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        const distributorBdv = parseInt(
+          allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total || "0"
+        );
+        const ethContractBdv = parseInt(ethContractData.bdvAtRecapitalization.total || "0");
+        allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total = (
+          distributorBdv + ethContractBdv
+        ).toString();
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = {
+          bdvAtRecapitalization: {
+            total: ethContractData.bdvAtRecapitalization.total
+          }
+        };
+      }
+    }
+  }
+
+  // Reassign detected contract addresses assets to the distributor contract
+  for (const detectedAddress of detectedContractAddresses) {
+    const normalizedDetectedAddress = detectedAddress.toLowerCase();
+
+    // Check if this detected contract has assets in arbEOAs that need to be redirected
+    const detectedContract = Object.keys(allAccounts).find(
+      (addr) => addr.toLowerCase() === normalizedDetectedAddress
+    );
+
+    if (
+      detectedContract &&
+      allAccounts[detectedContract] &&
+      allAccounts[detectedContract].bdvAtRecapitalization
+    ) {
+      const contractData = allAccounts[detectedContract];
+
+      // If distributor already has data, add to it, otherwise create new entry
+      if (allAccounts[DISTRIBUTOR_ADDRESS]) {
+        const distributorBdv = parseInt(
+          allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total || "0"
+        );
+        const contractBdv = parseInt(contractData.bdvAtRecapitalization.total || "0");
+        allAccounts[DISTRIBUTOR_ADDRESS].bdvAtRecapitalization.total = (
+          distributorBdv + contractBdv
+        ).toString();
+      } else {
+        allAccounts[DISTRIBUTOR_ADDRESS] = {
+          bdvAtRecapitalization: {
+            total: contractData.bdvAtRecapitalization.total
+          }
+        };
+      }
+
+      // Remove the detected contract from allAccounts since its assets are now redirected
+      delete allAccounts[detectedContract];
+    }
+  }
+
+  // Build unripe BDV data structure
+  const unripeBdvData = [];
+
+  // Process all accounts
+  for (const [accountAddress, accountData] of Object.entries(allAccounts)) {
+    if (
+      !accountData ||
+      !accountData.bdvAtRecapitalization ||
+      !accountData.bdvAtRecapitalization.total
+    )
+      continue;
+
+    const { bdvAtRecapitalization } = accountData;
+
+    // Use the pre-calculated total BDV at recapitalization
+    const totalBdv = parseInt(bdvAtRecapitalization.total);
+
+    if (totalBdv > 0) {
+      unripeBdvData.push([accountAddress, totalBdv.toString()]);
+    }
+  }
+
+  // Sort accounts by address for consistent output
+  unripeBdvData.sort((a, b) => a[0].localeCompare(b[0]));
+
+  // Calculate statistics
+  const totalAccounts = unripeBdvData.length;
+  const totalBdv = unripeBdvData.reduce((sum, [, bdv]) => sum + parseInt(bdv), 0);
+  const averageBdv = totalAccounts > 0 ? Math.floor(totalBdv / totalAccounts) : 0;
+
+  // Write output file
+  fs.writeFileSync(outputPath, JSON.stringify(unripeBdvData, null, 2));
+
+  console.log(`Accounts with BDV: ${totalAccounts}`);
+  console.log(`Total BDV: ${totalBdv.toLocaleString()}`);
+  console.log(`Average BDV per account: ${averageBdv.toLocaleString()}`);
+
+  return {
+    unripeBdvData,
+    stats: {
+      totalAccounts,
+      totalBdv,
+      averageBdv,
+      includeContracts
+    }
+  };
+}
+
+// Export for use in other scripts
+module.exports = parseSiloData;

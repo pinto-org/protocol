@@ -8,18 +8,18 @@ import {IWell, IERC20, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibGaugeHelpers} from "contracts/libraries/Gauge/LibGaugeHelpers.sol";
 
 import {console} from "forge-std/console.sol";
 
 /**
- * @notice Tests the functionality of the sun, the distrubution of beans and soil.
+ * @notice Tests the functionality of the sun, the distribution of beans and soil.
  */
 contract SunTest is TestHelper {
     // Events
@@ -39,14 +39,16 @@ contract SunTest is TestHelper {
     // largestLiqWell = address(0)
     // oracleFailure = false
     LibEvaluate.BeanstalkState beanstalkState;
+    address[] farmers;
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
+        farmers = createUsers(2);
     }
 
     /**
      * @notice tests bean issuance with only the silo.
-     * @dev 100% of new bean signorage should be issued to the silo.
+     * @dev 100% of new bean seigniorage should be issued to the silo.
      */
     function test_sunOnlySilo(int256 deltaB, uint256 caseId, uint256 blocksToRoll) public {
         uint32 currentSeason = bs.season();
@@ -586,162 +588,163 @@ contract SunTest is TestHelper {
         }
     }
 
-    function test_partials() public {
-        uint256 beansInBudget;
-        uint256 beansInPaybackContract;
+    // note: Tests at supply edge added in BeanstalkShipments.t.sol
+    // function test_partials() public {
+    //     uint256 beansInBudget;
+    //     uint256 beansInPaybackContract;
 
-        // increase pods in field.
-        bs.incrementTotalPodsE(0, 100_000_000_000e6);
-        bs.incrementTotalPodsE(1, 100_000_000_000e6);
-        uint256 podsInField1 = bs.totalUnharvestable(1);
+    //     // increase pods in field.
+    //     bs.incrementTotalPodsE(0, 100_000_000_000e6);
+    //     bs.incrementTotalPodsE(1, 100_000_000_000e6);
+    //     uint256 podsInField1 = bs.totalUnharvestable(1);
 
-        // Set up second Field. Update Routes and Plan getters.
-        vm.prank(deployer);
-        bs.addField();
-        vm.prank(deployer);
-        bs.setActiveField(0, 1);
-        setRoutes_all();
+    //     // Set up second Field. Update Routes and Plan getters.
+    //     vm.prank(deployer);
+    //     bs.addField();
+    //     vm.prank(deployer);
+    //     bs.setActiveField(0, 1);
+    //     setRoutes_all();
 
-        uint256 deltaB = 50_000_000e6;
-        uint256 caseId = 1;
+    //     uint256 deltaB = 50_000_000e6;
+    //     uint256 caseId = 1;
 
-        // Set lpToSupplyRatio in beanstalkState
-        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+    //     // Set lpToSupplyRatio in beanstalkState
+    //     beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
 
-        for (uint256 i; i < 19; i++) {
-            vm.roll(block.number + 300);
+    //     for (uint256 i; i < 19; i++) {
+    //         vm.roll(block.number + 300);
 
-            // Update twaDeltaB in beanstalkState before calling sunSunrise
-            beanstalkState.twaDeltaB = int256(deltaB);
+    //         // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //         beanstalkState.twaDeltaB = int256(deltaB);
 
-            season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        }
+    //         season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     }
 
-        // Almost ready to cross supply threshold to switch from budget to payback.
-        assertEq(inBudgetPhase(), true, "not in budget phase");
-        assertEq(inPaybackPhase(0), false, "in payback phase");
+    //     // Almost ready to cross supply threshold to switch from budget to payback.
+    //     assertEq(inBudgetPhase(), true, "not in budget phase");
+    //     assertEq(inPaybackPhase(0), false, "in payback phase");
 
-        uint256 priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        uint256 priorBeansInPayback = bean.balanceOf(payback);
-        uint256 priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     uint256 priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     uint256 priorBeansInPayback = bean.balanceOf(payback);
+    //     uint256 priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
 
-        assertEq(
-            priorBeansInBudget,
-            (deltaB * 19 * 3) / 100,
-            "invalid budget balance before partial"
-        );
-        assertEq(priorBeansInPayback, 0, "invalid payback balance before partial");
+    //     assertEq(
+    //         priorBeansInBudget,
+    //         (deltaB * 19 * 3) / 100,
+    //         "invalid budget balance before partial"
+    //     );
+    //     assertEq(priorBeansInPayback, 0, "invalid payback balance before partial");
 
-        deltaB = 80_000_000e6;
-        vm.roll(block.number + 300);
+    //     deltaB = 80_000_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
 
-        // 3% of mint goes to budget and payback.
-        // 5/8 of that goes to budget.
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget + (deltaB * 3 * 5) / 100 / 8,
-            "invalid budget balance from partial"
-        );
-        // 3/8 of that goes to payback, which is split 2/8 to payback contract and 1/8 to payback field.
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback + ((deltaB * 3 * 2) / 100 / 8),
-            "invalid payback contract balance from partial"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 3 * 1) / 100 / 8),
-            "invalid payback field balance from partial"
-        );
+    //     // 3% of mint goes to budget and payback.
+    //     // 5/8 of that goes to budget.
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget + (deltaB * 3 * 5) / 100 / 8,
+    //         "invalid budget balance from partial"
+    //     );
+    //     // 3/8 of that goes to payback, which is split 2/8 to payback contract and 1/8 to payback field.
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback + ((deltaB * 3 * 2) / 100 / 8),
+    //         "invalid payback contract balance from partial"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 3 * 1) / 100 / 8),
+    //         "invalid payback field balance from partial"
+    //     );
 
-        // 100% of the 3% goes to payback.
-        priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        priorBeansInPayback = bean.balanceOf(payback);
-        priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
-        deltaB = 1_000_000e6;
-        vm.roll(block.number + 300);
+    //     // 100% of the 3% goes to payback.
+    //     priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     priorBeansInPayback = bean.balanceOf(payback);
+    //     priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     deltaB = 1_000_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget,
-            "invalid budget balance after partial"
-        );
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback + (deltaB * 2) / 100,
-            "invalid payback contract balance after partial"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 1) / 100),
-            "invalid payback field balance after partial"
-        );
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget,
+    //         "invalid budget balance after partial"
+    //     );
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback + (deltaB * 2) / 100,
+    //         "invalid payback contract balance after partial"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 1) / 100),
+    //         "invalid payback field balance after partial"
+    //     );
 
-        // Silo is paid off. Shift to 1.5% payback contract and 1.5% payback field.
-        deal(address(bean), payback, 1_000_000_000e6 / 4, true);
-        priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        priorBeansInPayback = bean.balanceOf(payback);
-        priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
-        deltaB = 1_000e6;
-        vm.roll(block.number + 300);
+    //     // Silo is paid off. Shift to 1.5% payback contract and 1.5% payback field.
+    //     deal(address(bean), payback, 1_000_000_000e6 / 4, true);
+    //     priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     priorBeansInPayback = bean.balanceOf(payback);
+    //     priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     deltaB = 1_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget,
-            "invalid budget balance after silo paid off"
-        );
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback + (deltaB * 15) / 1000,
-            "invalid payback contract balance after silo paid off"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 15) / 1000),
-            "invalid payback field balance after silo paid off"
-        );
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget,
+    //         "invalid budget balance after silo paid off"
+    //     );
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback + (deltaB * 15) / 1000,
+    //         "invalid payback contract balance after silo paid off"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 15) / 1000),
+    //         "invalid payback field balance after silo paid off"
+    //     );
 
-        // Barn is paid off. Shift to 3% payback field. 0% to payback contract.
-        deal(address(bean), payback, 1_000_000_000e6, true);
-        priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
-        priorBeansInPayback = bean.balanceOf(payback);
-        priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
-        deltaB = 1_000e6;
-        vm.roll(block.number + 300);
+    //     // Barn is paid off. Shift to 3% payback field. 0% to payback contract.
+    //     deal(address(bean), payback, 1_000_000_000e6, true);
+    //     priorBeansInBudget = bs.getInternalBalance(budget, address(bean));
+    //     priorBeansInPayback = bean.balanceOf(payback);
+    //     priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
+    //     deltaB = 1_000e6;
+    //     vm.roll(block.number + 300);
 
-        // Update twaDeltaB in beanstalkState before calling sunSunrise
-        beanstalkState.twaDeltaB = int256(deltaB);
+    //     // Update twaDeltaB in beanstalkState before calling sunSunrise
+    //     beanstalkState.twaDeltaB = int256(deltaB);
 
-        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
-        assertEq(
-            bs.getInternalBalance(budget, address(bean)),
-            priorBeansInBudget,
-            "invalid budget balance after barn is paid off"
-        );
-        assertEq(
-            bean.balanceOf(payback),
-            priorBeansInPayback,
-            "invalid payback contract balance after barn is paid off"
-        );
-        assertEq(
-            podsInField1 - bs.totalUnharvestable(1),
-            priorHarvestablePodsPaybackField + ((deltaB * 3) / 100),
-            "invalid payback field balance after barn is paid off"
-        );
-    }
+    //     season.sunSunrise(int256(deltaB), caseId, beanstalkState);
+    //     assertEq(
+    //         bs.getInternalBalance(budget, address(bean)),
+    //         priorBeansInBudget,
+    //         "invalid budget balance after barn is paid off"
+    //     );
+    //     assertEq(
+    //         bean.balanceOf(payback),
+    //         priorBeansInPayback,
+    //         "invalid payback contract balance after barn is paid off"
+    //     );
+    //     assertEq(
+    //         podsInField1 - bs.totalUnharvestable(1),
+    //         priorHarvestablePodsPaybackField + ((deltaB * 3) / 100),
+    //         "invalid payback field balance after barn is paid off"
+    //     );
+    // }
 
     function test_stepCultivationFactor() public {
         // Initial setup
@@ -1700,10 +1703,109 @@ contract SunTest is TestHelper {
         assertEq(soilIssued, 250e6);
     }
 
+    /// REFERRAL SYSTEM TESTS ///
+
+    // When the system is above peg, and the pod referral system is enabled,
+    // the soil issued should be scaled down such that the total number of pods
+    // issued is equal to the total number of pods that would be issued if the pod referral system was disabled.
+    function test_referralSystem(
+        uint256 referrerPercentage,
+        uint256 refereePercentage,
+        uint256 deltaB,
+        uint256 temperature
+    ) public {
+        deltaB = bound(deltaB, 1000e6, 1_000_000e6);
+        temperature = bound(temperature, 0, 100e6);
+
+        bs.setMaxTempE(uint32(temperature)); // 100% temperature
+
+        // set a non-zero podline
+        bs.incrementTotalPodsE(0, 1e18);
+
+        // set a non-zero targetReferralPods
+        bs.setTargetReferralPods(1e18);
+
+        // call sunrise with a positive twaDeltaB (all other parameters are irrelevant)
+        bs.seedGaugeSunSunrise(int256(deltaB), 3);
+
+        uint256 soilWithoutReferralScalar = bs.initialSoil();
+        // sow everything, cache the pods gained.
+        uint256 podsWithoutReferral = sowAmountForFarmer(farmers[0], soilWithoutReferralScalar);
+
+        // limit totalReferralPercentage between 0 and 100
+        referrerPercentage = bound(referrerPercentage, 0, 500e6);
+        refereePercentage = bound(refereePercentage, 0, 500e6);
+        // set the referral system to totalReferralPercentage
+        bs.setReferrerPercentageE(uint128(referrerPercentage));
+        // set the referee system to totalReferralPercentage
+        bs.setRefereePercentageE(uint128(refereePercentage));
+        // revert temperature.
+        bs.setMaxTempE(uint32(temperature)); // 100% temperature
+
+        // call sunrise with a positive twaDeltaB (all other parameters are irrelevant)
+        bs.seedGaugeSunSunrise(int256(deltaB), 3);
+        uint256 soilWithReferralScalar = bs.initialSoil();
+        bs.setReferralEligibility(farmers[1], true);
+        (
+            uint256 podsWithReferral,
+            uint256 referrerPods,
+            uint256 refereePods
+        ) = sowAmountForFarmerWithReferral(farmers[0], soilWithReferralScalar, farmers[1]);
+
+        // without the soil referral system, the soil issued would be greater than the soil issued with the referral system.
+        // we attempt to verify that the soil issued with the referral system is equal to the soil issued without the referral system.
+        // thus, the equivalent soil is the soil without the referral system, scaled down.
+        uint256 equivalentSoil = ((soilWithoutReferralScalar * 1e12) /
+            (1e6 + referrerPercentage + refereePercentage)) / 1e6;
+
+        assertApproxEqAbs(
+            1e12 / (1e6 + referrerPercentage + refereePercentage),
+            (soilWithReferralScalar * 1e6) / soilWithoutReferralScalar,
+            1
+        );
+
+        // precision loss scales with amount of soil issued.
+        if (soilWithReferralScalar > 10e6) {
+            assertApproxEqRel(
+                equivalentSoil,
+                soilWithReferralScalar,
+                0.0000001e18,
+                "soil with referral should be equal to soil without referral"
+            );
+        } else {
+            assertApproxEqAbs(
+                equivalentSoil,
+                soilWithReferralScalar,
+                2,
+                "soil with referral should be equal to soil without referral"
+            );
+        }
+
+        uint256 totalPodsReferral = podsWithReferral + referrerPods + refereePods;
+
+        // verify that the total pods issued with the referral system is approximately equal to the total pods issued without the referral system.
+        // based on the size of the soil issued, we use a different tolerance.
+        if (podsWithoutReferral > 10e6) {
+            assertApproxEqRel(
+                podsWithoutReferral,
+                totalPodsReferral,
+                0.00001e18,
+                "soil with referral should be equal to soil without referral"
+            );
+        } else {
+            assertApproxEqAbs(
+                podsWithoutReferral,
+                totalPodsReferral,
+                2,
+                "soil with referral should be equal to soil without referral"
+            );
+        }
+    }
+
     ////// HELPER FUNCTIONS //////
 
     /**
-     * @notice calculates the distrubution of field and silo beans.
+     * @notice calculates the distribution of field and silo beans.
      * @dev TODO: generalize field division.
      */
     function calcBeansToFieldAndSilo(
