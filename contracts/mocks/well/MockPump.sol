@@ -58,6 +58,10 @@ contract MockPump is IInstantaneousPump, ICumulativePump {
         _update(msg.sender, _reserves, data);
     }
 
+    function setCappedReserves(address well, uint[] memory _cappedReserves) external {
+        reservesData[well].cappedReserves = _cappedReserves;
+    }
+
     function setCumulativeReserves(address well, uint[] memory _cumulativeReserves) external {
         reservesData[well].cumulativeReserves = _cumulativeReserves;
     }

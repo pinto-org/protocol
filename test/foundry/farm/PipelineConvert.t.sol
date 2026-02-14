@@ -829,8 +829,22 @@ contract PipelineConvertTest is TestHelper {
         uint256 convertCapacityStage2 = bs.getOverallConvertCapacity();
         assertLe(convertCapacityStage2, convertCapacityStage1);
 
-        // add more eth to well again
+        // MockPump._update() overwrites instantaneous, cumulative, AND capped reserves
+        // in a single call. In production, capped reserves are not affected by
+        // spot manipulation within the same block. Since addEthToWell triggers a Well.addLiquidity
+        // which calls pump.update(), we must snapshot and restore capped reserves to prevent
+        // the manipulation below from inflating the capped deltaB used by shadow deltaB calculation.
+        Call[] memory pumps = IWell(beanEthWell).pumps();
+        uint256[] memory savedCappedReserves = MockPump(pumps[0].target).readCappedReserves(
+            beanEthWell,
+            new bytes(0)
+        );
+
+        // simulate flash-loan manipulation: add ETH to push well further above peg
         addEthToWell(users[1], ethAmount);
+
+        // restore capped reserves so shadow deltaB reflects TWAP, not manipulated spot
+        MockPump(pumps[0].target).setCappedReserves(beanEthWell, savedCappedReserves);
 
         beanToLPDoConvert(amount, stem2, users[2]);
 
