@@ -112,6 +112,8 @@ describe("Tractor", function () {
     await this.well
       .connect(owner)
       .addLiquidity([to6("1000000"), to18("2000")], 0, owner.address, ethers.constants.MaxUint256);
+    // Sync pump with post-addLiquidity reserves.
+    await this.well.connect(owner).sync(owner.address, 0);
     this.blueprint = {
       publisher: publisher.address,
       data: ethers.utils.hexlify("0x"),
@@ -518,6 +520,8 @@ describe("Tractor", function () {
       await this.well
         .connect(owner)
         .addLiquidity([to6("3000000"), to18("0")], 0, owner.address, ethers.constants.MaxUint256);
+      // Sync pump with post-addLiquidity reserves.
+      await this.well.connect(owner).sync(owner.address, 0);
 
       // Convert in other direction (LP->Bean).
       operatorData = ethers.utils.defaultAbiCoder.encode(

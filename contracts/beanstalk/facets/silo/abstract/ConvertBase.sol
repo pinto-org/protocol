@@ -91,7 +91,8 @@ abstract contract ConvertBase is Invariable, ReentrancyGuard {
             convertData,
             cp.fromToken,
             cp.toToken,
-            toBdv
+            toBdv,
+            cp.fromAmount
         );
 
         // if the Farmer is converting between beans and well LP, check for

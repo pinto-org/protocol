@@ -52,13 +52,18 @@ library LibConvert {
         uint256[] depositIds;
     }
 
+    /**
+     * @param shadowOverallDeltaB Post-convert overall deltaB anchored to the capped baseline
+     * rather than raw spot values. Captures only the spot change caused by the convert,
+     * so pre-existing spot manipulation is neutralized.
+     */
     struct DeltaBStorage {
-        int256 beforeInputTokenDeltaB;
-        int256 afterInputTokenDeltaB;
-        int256 beforeOutputTokenDeltaB;
-        int256 afterOutputTokenDeltaB;
-        int256 beforeOverallDeltaB;
-        int256 afterOverallDeltaB;
+        int256 beforeInputTokenSpotDeltaB;
+        int256 afterInputTokenSpotDeltaB;
+        int256 beforeOutputTokenSpotDeltaB;
+        int256 afterOutputTokenSpotDeltaB;
+        int256 cappedOverallDeltaB;
+        int256 shadowOverallDeltaB;
     }
 
     struct PenaltyData {
@@ -192,7 +197,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     ) internal returns (uint256 stalkPenaltyBdv) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         uint256 overallCapacityDelta;
@@ -209,7 +215,8 @@ library LibConvert {
             bdvConverted,
             overallConvertCapacity,
             inputToken,
-            outputToken
+            outputToken,
+            fromAmount
         );
 
         // Update penalties in storage.
@@ -235,7 +242,8 @@ library LibConvert {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         internal
         view
@@ -256,7 +264,15 @@ library LibConvert {
             spd.againstPeg.inputToken.add(spd.againstPeg.outputToken)
         );
 
-        (spd.convertCapacityPenalty, spd.capacity) = calculateConvertCapacityPenalty(
+        // Get capacity penalty, target well, and reserves in one call
+        address targetWell;
+        uint256[] memory targetWellReserves;
+        (
+            spd.convertCapacityPenalty,
+            spd.capacity,
+            targetWell,
+            targetWellReserves
+        ) = calculateConvertCapacityPenalty(
             overallConvertCapacity,
             spd.directionOfPeg.overall,
             inputToken,
@@ -265,11 +281,25 @@ library LibConvert {
             spd.directionOfPeg.outputToken
         );
 
-        // Cap amount of bdv penalized at amount of bdv converted (no penalty should be over 100%)
-        stalkPenaltyBdv = min(
-            max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty),
-            bdvConverted
+        uint256 penaltyAmount = max(spd.higherAmountAgainstPeg, spd.convertCapacityPenalty);
+
+        uint256 pipelineConvertDeltaBImpact = LibDeltaB.calculateMaxDeltaBImpact(
+            inputToken,
+            fromAmount,
+            targetWell,
+            targetWellReserves
         );
+
+        if (pipelineConvertDeltaBImpact > 0) {
+            // This scales the penalty proportionally to how much of the theoretical max was penalized
+            stalkPenaltyBdv = min(
+                (penaltyAmount * bdvConverted) / pipelineConvertDeltaBImpact,
+                bdvConverted
+            );
+        } else {
+            // L2L/AL2L converts have zero deltaB impact, resulting in zero penalty.
+            stalkPenaltyBdv = 0;
+        }
 
         return (
             stalkPenaltyBdv,
@@ -280,14 +310,17 @@ library LibConvert {
     }
 
     /**
+     * @notice Calculates the convert capacity penalty and determines the target well for the conversion.
      * @param overallCappedDeltaB The capped overall deltaB for all wells
      * @param overallAmountInDirectionOfPeg The amount deltaB was converted towards peg
-     * @param inputToken Address of the input well
+     * @param inputToken Address of the input token
      * @param inputTokenAmountInDirectionOfPeg The amount deltaB was converted towards peg for the input well
-     * @param outputToken Address of the output well
+     * @param outputToken Address of the output token
      * @param outputTokenAmountInDirectionOfPeg The amount deltaB was converted towards peg for the output well
      * @return cumulativePenalty The total Convert Capacity penalty, note it can return greater than the BDV converted
      * @return pdCapacity The capacity deltas for overall, inputToken, and outputToken to add to storage
+     * @return targetWell The well involved in the convert (address(0) for L2L/AL2L converts)
+     * @return targetWellReserves The capped reserves for targetWell (empty for L2L/AL2L converts)
      */
     function calculateConvertCapacityPenalty(
         uint256 overallCappedDeltaB,
@@ -296,7 +329,16 @@ library LibConvert {
         uint256 inputTokenAmountInDirectionOfPeg,
         address outputToken,
         uint256 outputTokenAmountInDirectionOfPeg
-    ) internal view returns (uint256 cumulativePenalty, PenaltyData memory pdCapacity) {
+    )
+        internal
+        view
+        returns (
+            uint256 cumulativePenalty,
+            PenaltyData memory pdCapacity,
+            address targetWell,
+            uint256[] memory targetWellReserves
+        )
+    {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         ConvertCapacity storage convertCap = s.sys.convertCapacity[block.number];
@@ -316,8 +358,19 @@ library LibConvert {
         // Return this convert's capacity usage for caller to add to storage
         pdCapacity.overall = overallAmountInDirectionOfPeg;
 
-        // Calculate per-well capacity usage for caller to add to storage
+        // Determine target well. For L2L/AL2L (inputToken == outputToken), skip penalty calculation.
+        if (inputToken != outputToken) {
+            if (inputToken == s.sys.bean) {
+                targetWell = outputToken;
+            } else {
+                targetWell = inputToken;
+            }
 
+            // `targetWell` must be a well at this point.
+            (, targetWellReserves) = LibDeltaB.cappedReservesDeltaB(targetWell);
+        }
+
+        // Calculate per-well capacity usage for caller to add to storage
         if (inputToken != s.sys.bean && inputTokenAmountInDirectionOfPeg > 0) {
             (cumulativePenalty, pdCapacity.inputToken) = calculatePerWellCapacity(
                 inputToken,
@@ -343,7 +396,8 @@ library LibConvert {
         uint256 cumulativePenalty,
         ConvertCapacity storage convertCap
     ) internal view returns (uint256, uint256) {
-        uint256 tokenWellCapacity = abs(LibDeltaB.cappedReservesDeltaB(wellToken));
+        (int256 deltaB, ) = LibDeltaB.cappedReservesDeltaB(wellToken);
+        uint256 tokenWellCapacity = abs(deltaB);
 
         uint256 cumulativeUsed = convertCap.wellConvertCapacityUsed[wellToken].add(
             amountInDirectionOfPeg
@@ -361,11 +415,14 @@ library LibConvert {
     function calculateAmountAgainstPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateAgainstPeg(dbs.beforeOverallDeltaB, dbs.afterOverallDeltaB);
-        pd.inputToken = calculateAgainstPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
+        pd.overall = calculateAgainstPeg(dbs.cappedOverallDeltaB, dbs.shadowOverallDeltaB);
+        pd.inputToken = calculateAgainstPeg(
+            dbs.beforeInputTokenSpotDeltaB,
+            dbs.afterInputTokenSpotDeltaB
+        );
         pd.outputToken = calculateAgainstPeg(
-            dbs.beforeOutputTokenDeltaB,
-            dbs.afterOutputTokenDeltaB
+            dbs.beforeOutputTokenSpotDeltaB,
+            dbs.afterOutputTokenSpotDeltaB
         );
     }
 
@@ -397,11 +454,14 @@ library LibConvert {
     function calculateConvertedTowardsPeg(
         DeltaBStorage memory dbs
     ) internal pure returns (PenaltyData memory pd) {
-        pd.overall = calculateTowardsPeg(dbs.beforeOverallDeltaB, dbs.afterOverallDeltaB);
-        pd.inputToken = calculateTowardsPeg(dbs.beforeInputTokenDeltaB, dbs.afterInputTokenDeltaB);
+        pd.overall = calculateTowardsPeg(dbs.cappedOverallDeltaB, dbs.shadowOverallDeltaB);
+        pd.inputToken = calculateTowardsPeg(
+            dbs.beforeInputTokenSpotDeltaB,
+            dbs.afterInputTokenSpotDeltaB
+        );
         pd.outputToken = calculateTowardsPeg(
-            dbs.beforeOutputTokenDeltaB,
-            dbs.afterOutputTokenDeltaB
+            dbs.beforeOutputTokenSpotDeltaB,
+            dbs.afterOutputTokenSpotDeltaB
         );
     }
 
@@ -412,11 +472,11 @@ library LibConvert {
         int256 beforeTokenDeltaB,
         int256 afterTokenDeltaB
     ) internal pure returns (uint256) {
-        // Calculate absolute values of beforeInputTokenDeltaB and afterInputTokenDeltaB using the abs() function
+        // Calculate absolute values of beforeTokenDeltaB and afterTokenDeltaB using the abs() function
         uint256 beforeDeltaAbs = abs(beforeTokenDeltaB);
         uint256 afterDeltaAbs = abs(afterTokenDeltaB);
 
-        // Check if afterInputTokenDeltaB and beforeInputTokenDeltaB have the same sign
+        // Check if afterTokenDeltaB and beforeTokenDeltaB have the same sign
         if (
             (beforeTokenDeltaB >= 0 && afterTokenDeltaB >= 0) ||
             (beforeTokenDeltaB < 0 && afterTokenDeltaB < 0)
@@ -426,7 +486,7 @@ library LibConvert {
                 // Return the difference between beforeDeltaAbs and afterDeltaAbs
                 return beforeDeltaAbs.sub(afterDeltaAbs);
             } else {
-                // If afterInputTokenDeltaB is further from or equal to zero, return zero
+                // If afterTokenDeltaB is further from or equal to zero, return zero
                 return 0;
             }
         } else {
