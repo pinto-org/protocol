@@ -8,9 +8,22 @@ import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
+ * @dev Minimal interface for BarnPayback's claim and balance functions.
+ * We cannot import IBarnPayback directly because it defines its own local LibTransfer
+ * library, which causes a type conflict with the protocol's LibTransfer.To used here.
+ */
+interface IBarnPaybackClaim {
+    function claimFertilized(uint256[] memory ids, LibTransfer.To mode) external;
+    function balanceOfFertilized(
+        address account,
+        uint256[] memory ids
+    ) external view returns (uint256 beans);
+}
+
+/**
  * @title AutomateClaimBlueprint
  * @author DefaultJuice
- * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
+ * @notice Contract for mowing, planting, harvesting and rinsing with Tractor, with a number of conditions
  */
 contract AutomateClaimBlueprint is BlueprintBase {
     /**
@@ -21,10 +34,16 @@ contract AutomateClaimBlueprint is BlueprintBase {
     /**
      * @dev Key for operator-provided harvest data in transient storage
      * The key format is: HARVEST_DATA_KEY + fieldId
-     * Hash: 0x57c0c06c01076b3dedd361eef555163669978891b716ce6c5ef1355fc8ab5a36
+     * Hash: 0xad7d503bd76a2177b94db747d4e00459b65eb93e2a4be3b707394f51d084fc4c
      */
     uint256 public constant HARVEST_DATA_KEY =
-        uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
+        uint256(keccak256("AutomateClaimBlueprint.harvestData"));
+
+    /**
+     * @dev Key for operator-provided rinse data in transient storage
+     */
+    uint256 public constant RINSE_DATA_KEY =
+        uint256(keccak256("AutomateClaimBlueprint.rinseData"));
 
     /**
      * @notice Main struct for automate claim blueprint
@@ -80,6 +99,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
         uint256 minPlantAmount;
         // Harvest, per field id
         FieldHarvestConfig[] fieldHarvestConfigs;
+        // Rinse (claimFertilized)
+        uint256 minRinseAmount;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
         uint256 maxGrownStalkPerBdv;
@@ -102,6 +123,7 @@ contract AutomateClaimBlueprint is BlueprintBase {
         int256 mowTipAmount;
         int256 plantTipAmount;
         int256 harvestTipAmount;
+        int256 rinseTipAmount;
     }
 
     /**
@@ -117,18 +139,23 @@ contract AutomateClaimBlueprint is BlueprintBase {
         bool shouldMow;
         bool shouldPlant;
         UserFieldHarvestResults[] userFieldHarvestResults;
+        uint256[] rinseFertilizerIds;
     }
 
     // Silo helpers for withdrawal functionality
     SiloHelpers public immutable siloHelpers;
+    // BarnPayback contract for claiming fertilized beans
+    IBarnPaybackClaim public immutable barnPayback;
 
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
-        address _siloHelpers
+        address _siloHelpers,
+        address _barnPayback
     ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
         siloHelpers = SiloHelpers(_siloHelpers);
+        barnPayback = IBarnPaybackClaim(_barnPayback);
     }
 
     /**
@@ -145,11 +172,12 @@ contract AutomateClaimBlueprint is BlueprintBase {
         vars.account = beanstalk.tractorUser();
 
         // get the user state from the protocol and validate against params
-        (vars.shouldMow, vars.shouldPlant, vars.userFieldHarvestResults) = _getAndValidateUserState(
-            vars.account,
-            beanstalk.time().timestamp,
-            params
-        );
+        (
+            vars.shouldMow,
+            vars.shouldPlant,
+            vars.userFieldHarvestResults,
+            vars.rinseFertilizerIds
+        ) = _getAndValidateUserState(vars.account, beanstalk.time().timestamp, params);
 
         // validate order params and revert early if invalid
         _validateSourceTokens(params.automateClaimParams.sourceTokenIndices);
@@ -158,10 +186,14 @@ contract AutomateClaimBlueprint is BlueprintBase {
         // resolve tip address (defaults to operator if not set)
         address tipAddress = _resolveTipAddress(params.opParams.baseOpParams.tipAddress);
 
-        // Mow, Plant and Harvest
-        // Check if user should harvest or plant
-        // In the case a harvest or plant is executed, mow by default
-        if (vars.shouldPlant || vars.userFieldHarvestResults.length > 0) vars.shouldMow = true;
+        // Mow, Plant, Harvest and Rinse
+        // Check if user should harvest, plant or rinse
+        // In the case a harvest, plant or rinse is executed, mow by default
+        if (
+            vars.shouldPlant ||
+            vars.userFieldHarvestResults.length > 0 ||
+            vars.rinseFertilizerIds.length > 0
+        ) vars.shouldMow = true;
 
         // Execute operations in order: mow first (if needed), then plant, then harvest
         if (vars.shouldMow) {
@@ -198,6 +230,27 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.totalBeanTip += params.opParams.harvestTipAmount;
         }
 
+        // Rinse (claim fertilized beans) if the conditions are met
+        if (vars.rinseFertilizerIds.length > 0) {
+            // Get expected amount before claiming
+            uint256 expectedRinseAmount = barnPayback.balanceOfFertilized(
+                vars.account,
+                vars.rinseFertilizerIds
+            );
+
+            require(
+                expectedRinseAmount >= params.automateClaimParams.minRinseAmount,
+                "AutomateClaimBlueprint: Rinsed amount below minimum threshold"
+            );
+
+            // Claim fertilized beans to user's internal balance
+            barnPayback.claimFertilized(vars.rinseFertilizerIds, LibTransfer.To.INTERNAL);
+
+            // Rinsed beans are in internal balance, same as harvested beans
+            vars.totalHarvestedBeans += expectedRinseAmount;
+            vars.totalBeanTip += params.opParams.rinseTipAmount;
+        }
+
         // Handle tip payment
         handleBeansAndTip(
             vars.account,
@@ -220,6 +273,7 @@ contract AutomateClaimBlueprint is BlueprintBase {
      * @return shouldPlant True if the user should plant
      * @return userFieldHarvestResults An array of structs containing the harvestable pods
      * and plots for the user for each field id where operator provided data
+     * @return rinseFertilizerIds Array of fertilizer IDs to rinse (empty if rinse skipped)
      */
     function _getAndValidateUserState(
         address account,
@@ -231,7 +285,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
         returns (
             bool shouldMow,
             bool shouldPlant,
-            UserFieldHarvestResults[] memory userFieldHarvestResults
+            UserFieldHarvestResults[] memory userFieldHarvestResults,
+            uint256[] memory rinseFertilizerIds
         )
     {
         // get user state
@@ -240,6 +295,9 @@ contract AutomateClaimBlueprint is BlueprintBase {
             uint256 totalPlantableBeans,
             UserFieldHarvestResults[] memory userFieldHarvestResults
         ) = _getUserState(account, params.automateClaimParams.fieldHarvestConfigs);
+
+        // get rinse data from operator-provided transient storage
+        rinseFertilizerIds = _getRinseData(account, params.automateClaimParams.minRinseAmount);
 
         // validate params - only revert if none of the conditions are met
         shouldMow = _checkMowConditions(
@@ -251,11 +309,11 @@ contract AutomateClaimBlueprint is BlueprintBase {
         shouldPlant = totalPlantableBeans >= params.automateClaimParams.minPlantAmount;
 
         require(
-            shouldMow || shouldPlant || userFieldHarvestResults.length > 0,
+            shouldMow || shouldPlant || userFieldHarvestResults.length > 0 || rinseFertilizerIds.length > 0,
             "AutomateClaimBlueprint: None of the order conditions are met"
         );
 
-        return (shouldMow, shouldPlant, userFieldHarvestResults);
+        return (shouldMow, shouldPlant, userFieldHarvestResults, rinseFertilizerIds);
     }
 
     /**
@@ -347,6 +405,38 @@ contract AutomateClaimBlueprint is BlueprintBase {
         }
 
         return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestResults);
+    }
+
+    /**
+     * @notice Reads rinse data from operator-provided transient storage
+     * @dev If no data is provided or claimable amount is below minRinseAmount, returns empty array (rinse skipped)
+     * @param account The account to check fertilized balance for
+     * @param minRinseAmount The minimum rinsable amount threshold
+     * @return fertilizerIds Array of fertilizer IDs to rinse (empty if skipped)
+     */
+    function _getRinseData(
+        address account,
+        uint256 minRinseAmount
+    ) internal view returns (uint256[] memory fertilizerIds) {
+        bytes memory operatorData = beanstalk.getTractorData(RINSE_DATA_KEY);
+
+        if (operatorData.length == 0) {
+            return new uint256[](0);
+        }
+
+        fertilizerIds = abi.decode(operatorData, (uint256[]));
+
+        if (fertilizerIds.length == 0) {
+            return new uint256[](0);
+        }
+
+        // Check if claimable amount meets minimum threshold
+        uint256 claimableAmount = barnPayback.balanceOfFertilized(account, fertilizerIds);
+        if (claimableAmount < minRinseAmount) {
+            return new uint256[](0);
+        }
+
+        return fertilizerIds;
     }
 
     /**
