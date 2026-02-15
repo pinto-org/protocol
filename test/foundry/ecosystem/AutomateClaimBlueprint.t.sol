@@ -11,10 +11,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {AutomateClaimBlueprint} from "contracts/ecosystem/AutomateClaimBlueprint.sol";
 import "forge-std/console.sol";
 
-contract MowPlantHarvestBlueprintTest is TractorTestHelper {
+contract AutomateClaimBlueprintTest is TractorTestHelper {
     address[] farmers;
     BeanstalkPrice beanstalkPrice;
 
@@ -62,30 +62,30 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        // Deploy MowPlantHarvestBlueprint with TractorHelpers and SiloHelpers addresses
-        mowPlantHarvestBlueprint = new MowPlantHarvestBlueprint(
+        // Deploy AutomateClaimBlueprint with TractorHelpers and SiloHelpers addresses
+        automateClaimBlueprint = new AutomateClaimBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
             address(siloHelpers)
         );
-        vm.label(address(mowPlantHarvestBlueprint), "MowPlantHarvestBlueprint");
+        vm.label(address(automateClaimBlueprint), "AutomateClaimBlueprint");
 
         setTractorHelpers(address(tractorHelpers));
-        setMowPlantHarvestBlueprint(address(mowPlantHarvestBlueprint));
+        setAutomateClaimBlueprint(address(automateClaimBlueprint));
 
         // Advance season to grow stalk
         advanceSeason();
     }
 
     /**
-     * @notice Setup the test state for the MowPlantHarvestBlueprint test
+     * @notice Setup the test state for the AutomateClaimBlueprint test
      * @param setupPlant If true, setup the conditions for planting
      * @param setupHarvest If true, setup the conditions for harvesting
      * @param abovePeg If true, setup the conditions for above peg
      * @return TestState The test state
      */
-    function setupMowPlantHarvestBlueprintTest(
+    function setupAutomateClaimBlueprintTest(
         bool setupPlant,
         bool setupHarvest,
         bool twoFields,
@@ -131,10 +131,10 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
 
     /////////////////////////// TESTS ///////////////////////////
 
-    function test_mowPlantHarvestBlueprint_Mow() public {
+    function test_automateClaimBlueprint_Mow() public {
         // Setup test state
         // setupPlant: false, setupHarvest: false, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, false, false, true);
+        TestState memory state = setupAutomateClaimBlueprintTest(false, false, false, true);
 
         // Advance season to grow stalk but not enough to plant
         advanceSeason();
@@ -149,8 +149,8 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         // assert totalDeltaB is greater than 0
         assertGt(bs.totalDeltaB(), 0, "totalDeltaB should be greater than 0");
 
-        // Setup mowPlantHarvestBlueprint
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+        // Setup automateClaimBlueprint
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
             state.user, // account
             SourceMode.PURE_PINTO, // sourceMode for tip
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
@@ -170,7 +170,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Try to execute before the last minutes of the season, expect revert
-        vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
+        vm.expectRevert("AutomateClaimBlueprint: None of the order conditions are met");
         executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
 
         // Try to execute after in last minutes of the season
@@ -191,16 +191,16 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
     }
 
-    function test_mowPlantHarvestBlueprint_plant_revertWhenInsufficientPlantableBeans() public {
+    function test_automateClaimBlueprint_plant_revertWhenInsufficientPlantableBeans() public {
         // Setup test state for planting
         // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, false, true);
+        TestState memory state = setupAutomateClaimBlueprintTest(true, false, false, true);
 
         // assert that the user has earned beans
         assertGt(bs.balanceOfEarnedBeans(state.user), 0, "user should have earned beans to plant");
 
         // Setup blueprint with minPlantAmount greater than total plantable beans
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
             state.user, // account
             SourceMode.PURE_PINTO, // sourceMode for tip
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
@@ -220,14 +220,14 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Execute requisition, expect revert
-        vm.expectRevert("MowPlantHarvestBlueprint: None of the order conditions are met");
+        vm.expectRevert("AutomateClaimBlueprint: None of the order conditions are met");
         executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
     }
 
-    function test_mowPlantHarvestBlueprint_plant_success() public {
+    function test_automateClaimBlueprint_plant_success() public {
         // Setup test state for planting
         // setupPlant: true, setupHarvest: false, twoFields: true, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(true, false, true, true);
+        TestState memory state = setupAutomateClaimBlueprintTest(true, false, true, true);
 
         // get user state before plant
         uint256 userTotalStalkBeforePlant = bs.balanceOfStalk(state.user);
@@ -239,7 +239,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         assertGt(bs.balanceOfEarnedBeans(state.user), 0, "user should have earned beans to plant");
 
         // Setup blueprint with valid minPlantAmount
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
             state.user, // account
             SourceMode.PURE_PINTO, // sourceMode for tip
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
@@ -266,10 +266,10 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         assertGt(userTotalBdvAfterPlant, userTotalBdvBeforePlant, "userTotalBdv increase");
     }
 
-    function test_mowPlantHarvestBlueprint_harvest_partialHarvest() public {
+    function test_automateClaimBlueprint_harvest_partialHarvest() public {
         // Setup test state for harvesting
         // setupPlant: false, setupHarvest: true, twoFields: true, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true, true);
+        TestState memory state = setupAutomateClaimBlueprintTest(false, true, true, true);
 
         // advance season to print beans
         advanceSeason();
@@ -287,7 +287,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         assertEq(userTotalBdvBeforeHarvest, 100000e6, "user should have the initial bdv");
 
         // Setup blueprint for partial harvest
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
             state.user, // account
             SourceMode.PURE_PINTO, // sourceMode for tip
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
@@ -314,10 +314,10 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         assertNoHarvestablePods(state.user, DEFAULT_FIELD_ID);
     }
 
-    function test_mowPlantHarvestBlueprint_harvest_fullHarvest() public {
+    function test_automateClaimBlueprint_harvest_fullHarvest() public {
         // Setup test state for harvesting
         // setupPlant: false, setupHarvest: true, twoFields: false, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, false, true);
+        TestState memory state = setupAutomateClaimBlueprintTest(false, true, false, true);
 
         // add even more liquidity to well to print more beans and clear the podline
         addLiquidityToWell(BEAN_ETH_WELL, 10000e6, 20 ether);
@@ -336,7 +336,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Setup blueprint for full harvest
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
             state.user, // account
             SourceMode.PURE_PINTO, // sourceMode for tip
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)
@@ -371,10 +371,10 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         assertNoHarvestablePods(state.user, DEFAULT_FIELD_ID);
     }
 
-    function test_mowPlantHarvestBlueprint_harvest_fullHarvest_twoFields() public {
+    function test_automateClaimBlueprint_harvest_fullHarvest_twoFields() public {
         // Setup test state for harvesting
         // setupPlant: false, setupHarvest: true, twoFields: true, abovePeg: true
-        TestState memory state = setupMowPlantHarvestBlueprintTest(false, true, true, true);
+        TestState memory state = setupAutomateClaimBlueprintTest(false, true, true, true);
 
         // add even more liquidity to well to print more beans and clear the podline at fieldId 0
         // note: field id 1 has had its harvestable index incremented already
@@ -401,7 +401,7 @@ contract MowPlantHarvestBlueprintTest is TractorTestHelper {
         );
 
         // Setup blueprint for full harvest
-        (IMockFBeanstalk.Requisition memory req, ) = setupMowPlantHarvestBlueprint(
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
             state.user, // account
             SourceMode.PURE_PINTO, // sourceMode for tip
             1 * STALK_DECIMALS, // minMowAmount (1 stalk)

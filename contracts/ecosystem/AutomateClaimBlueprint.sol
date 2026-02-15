@@ -8,11 +8,11 @@ import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
- * @title MowPlantHarvestBlueprint
+ * @title AutomateClaimBlueprint
  * @author DefaultJuice
  * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
  */
-contract MowPlantHarvestBlueprint is BlueprintBase {
+contract AutomateClaimBlueprint is BlueprintBase {
     /**
      * @dev Minutes after sunrise to check if the totalDeltaB is about to be positive for the following season
      */
@@ -27,12 +27,12 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
 
     /**
-     * @notice Main struct for mow, plant and harvest blueprint
-     * @param mowPlantHarvestParams Parameters related to mow, plant and harvest
+     * @notice Main struct for automate claim blueprint
+     * @param automateClaimParams Parameters related to mow, plant and harvest
      * @param opParams Parameters related to operators
      */
-    struct MowPlantHarvestBlueprintStruct {
-        MowPlantHarvestParams mowPlantHarvestParams;
+    struct AutomateClaimBlueprintStruct {
+        AutomateClaimParams automateClaimParams;
         OperatorParamsExtended opParams;
     }
 
@@ -72,7 +72,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param slippageRatio The price slippage ratio for lp token withdrawal.
      * Only applicable for lp token withdrawals.
      */
-    struct MowPlantHarvestParams {
+    struct AutomateClaimParams {
         // Mow
         uint256 minMowAmount;
         uint256 minTwaDeltaB;
@@ -108,7 +108,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @notice Local variables for the mow, plant and harvest function
      * @dev Used to avoid stack too deep errors
      */
-    struct MowPlantHarvestLocalVars {
+    struct AutomateClaimLocalVars {
         address account;
         int256 totalBeanTip;
         uint256 totalHarvestedBeans;
@@ -132,14 +132,14 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     }
 
     /**
-     * @notice Main entry point for the mow, plant and harvest blueprint
+     * @notice Main entry point for the automate claim blueprint
      * @param params User-controlled parameters for automating mowing, planting and harvesting
      */
-    function mowPlantHarvestBlueprint(
-        MowPlantHarvestBlueprintStruct calldata params
+    function automateClaimBlueprint(
+        AutomateClaimBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
-        MowPlantHarvestLocalVars memory vars;
+        AutomateClaimLocalVars memory vars;
 
         // Validate
         vars.account = beanstalk.tractorUser();
@@ -152,7 +152,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         );
 
         // validate order params and revert early if invalid
-        _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
+        _validateSourceTokens(params.automateClaimParams.sourceTokenIndices);
         _validateOperatorParams(params.opParams.baseOpParams);
 
         // resolve tip address (defaults to operator if not set)
@@ -188,7 +188,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                 // Validate post-harvest: revert if harvested amount is below minimum threshold
                 require(
                     harvestedBeans >= vars.userFieldHarvestResults[i].minHarvestAmount,
-                    "MowPlantHarvestBlueprint: Harvested amount below minimum threshold"
+                    "AutomateClaimBlueprint: Harvested amount below minimum threshold"
                 );
 
                 // Accumulate harvested beans
@@ -202,13 +202,13 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         handleBeansAndTip(
             vars.account,
             tipAddress,
-            params.mowPlantHarvestParams.sourceTokenIndices,
+            params.automateClaimParams.sourceTokenIndices,
             vars.totalBeanTip,
             vars.totalHarvestedBeans,
             vars.totalPlantedBeans,
             vars.plantedStem,
-            params.mowPlantHarvestParams.maxGrownStalkPerBdv,
-            params.mowPlantHarvestParams.slippageRatio
+            params.automateClaimParams.maxGrownStalkPerBdv,
+            params.automateClaimParams.slippageRatio
         );
     }
 
@@ -224,7 +224,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     function _getAndValidateUserState(
         address account,
         uint256 previousSeasonTimestamp,
-        MowPlantHarvestBlueprintStruct calldata params
+        AutomateClaimBlueprintStruct calldata params
     )
         internal
         view
@@ -239,20 +239,20 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             uint256 totalClaimableStalk,
             uint256 totalPlantableBeans,
             UserFieldHarvestResults[] memory userFieldHarvestResults
-        ) = _getUserState(account, params.mowPlantHarvestParams.fieldHarvestConfigs);
+        ) = _getUserState(account, params.automateClaimParams.fieldHarvestConfigs);
 
         // validate params - only revert if none of the conditions are met
         shouldMow = _checkMowConditions(
-            params.mowPlantHarvestParams.minTwaDeltaB,
-            params.mowPlantHarvestParams.minMowAmount,
+            params.automateClaimParams.minTwaDeltaB,
+            params.automateClaimParams.minMowAmount,
             totalClaimableStalk,
             previousSeasonTimestamp
         );
-        shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
+        shouldPlant = totalPlantableBeans >= params.automateClaimParams.minPlantAmount;
 
         require(
             shouldMow || shouldPlant || userFieldHarvestResults.length > 0,
-            "MowPlantHarvestBlueprint: None of the order conditions are met"
+            "AutomateClaimBlueprint: None of the order conditions are met"
         );
 
         return (shouldMow, shouldPlant, userFieldHarvestResults);
