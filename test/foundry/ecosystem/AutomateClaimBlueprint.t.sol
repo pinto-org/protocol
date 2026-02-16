@@ -14,6 +14,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {AutomateClaimBlueprint, IBarnPaybackClaim} from "contracts/ecosystem/AutomateClaimBlueprint.sol";
 import {BarnPayback} from "contracts/ecosystem/beanstalkShipments/barn/BarnPayback.sol";
 import {BeanstalkFertilizer} from "contracts/ecosystem/beanstalkShipments/barn/BeanstalkFertilizer.sol";
+import {SiloPayback} from "contracts/ecosystem/beanstalkShipments/SiloPayback.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "forge-std/console.sol";
 
@@ -21,16 +22,24 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
     address[] farmers;
     BeanstalkPrice beanstalkPrice;
     BarnPayback barnPayback;
+    SiloPayback siloPaybackContract;
 
     event Plant(address indexed account, uint256 beans);
     event Harvest(address indexed account, uint256 fieldId, uint256[] plots, uint256 beans);
     event ClaimFertilizer(uint256[] ids, uint256 beans);
+    event SiloPaybackRewardsClaimed(
+        address indexed account,
+        address indexed recipient,
+        uint256 amount,
+        LibTransfer.To toMode
+    );
 
     uint256 STALK_DECIMALS = 1e10;
     int256 DEFAULT_TIP_AMOUNT = 10e6; // 10 BEAN
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
     uint256 UNEXECUTABLE_MIN_HARVEST_AMOUNT = 1_000_000_000e6; // 1B BEAN
     uint256 UNEXECUTABLE_MIN_RINSE_AMOUNT = type(uint256).max;
+    uint256 UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT = type(uint256).max;
     uint256 PODS_FIELD_0 = 1000100000;
     uint256 PODS_FIELD_1 = 250e6;
 
@@ -78,13 +87,18 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
         barnPayback = _deployBarnPayback();
         vm.label(address(barnPayback), "BarnPayback");
 
-        // Deploy AutomateClaimBlueprint with TractorHelpers, SiloHelpers and BarnPayback addresses
+        // Deploy SiloPayback (proxy pattern)
+        siloPaybackContract = _deploySiloPayback();
+        vm.label(address(siloPaybackContract), "SiloPayback");
+
+        // Deploy AutomateClaimBlueprint with TractorHelpers, SiloHelpers, BarnPayback and SiloPayback addresses
         automateClaimBlueprint = new AutomateClaimBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
             address(siloHelpers),
-            address(barnPayback)
+            address(barnPayback),
+            address(siloPaybackContract)
         );
         vm.label(address(automateClaimBlueprint), "AutomateClaimBlueprint");
 
@@ -176,11 +190,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -230,11 +246,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -273,11 +291,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: 11e6,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -325,11 +345,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: 11e6,
                 minHarvestAmount: 11e6,
                 minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -378,11 +400,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: 11e6,
                 minHarvestAmount: 11e6,
                 minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -447,11 +471,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: 11e6,
                 minHarvestAmount: 11e6,
                 minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -793,11 +819,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: 1,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: DEFAULT_TIP_AMOUNT,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -857,11 +885,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: 11e6,
                 minRinseAmount: 1,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: DEFAULT_TIP_AMOUNT,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -913,11 +943,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: 1,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: DEFAULT_TIP_AMOUNT,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -961,11 +993,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: claimableAmount + 1,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: DEFAULT_TIP_AMOUNT,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -1003,11 +1037,13 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
                 minPlantAmount: type(uint256).max,
                 minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
                 minRinseAmount: 1,
+                minUnripeClaimAmount: UNEXECUTABLE_MIN_UNRIPE_CLAIM_AMOUNT,
                 tipAddress: state.operator,
                 mowTipAmount: state.mowTipAmount,
                 plantTipAmount: state.plantTipAmount,
                 harvestTipAmount: state.harvestTipAmount,
                 rinseTipAmount: DEFAULT_TIP_AMOUNT,
+                unripeClaimTipAmount: 0,
                 maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
             })
         );
@@ -1018,6 +1054,266 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
         );
 
         // Execute without rinse data - should revert since all conditions are skipped
+        vm.expectRevert("AutomateClaimBlueprint: None of the order conditions are met");
+        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
+    }
+
+    /////////////////////////// SILO PAYBACK HELPERS ///////////////////////////
+
+    /**
+     * @notice Deploy SiloPayback contract via proxy pattern (same as BarnPayback)
+     */
+    function _deploySiloPayback() internal returns (SiloPayback) {
+        SiloPayback implementation = new SiloPayback();
+        bytes memory data = abi.encodeWithSelector(
+            SiloPayback.initialize.selector,
+            address(BEAN),
+            address(BEANSTALK)
+        );
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(implementation),
+            address(this),
+            data
+        );
+        return SiloPayback(address(proxy));
+    }
+
+    /**
+     * @notice Setup unripe claim conditions for a user
+     * @dev Mints UnripeBDV tokens to the user, sends Pinto rewards to SiloPayback,
+     * and funds the user's external bean balance to cover the claim via tractor.
+     * Same external balance funding pattern as _setupRinseConditions.
+     */
+    function _setupUnripeClaimConditions(address user) internal {
+        // Mint UnripeBDV tokens to the user
+        SiloPayback.UnripeBdvTokenData[] memory data = new SiloPayback.UnripeBdvTokenData[](1);
+        data[0] = SiloPayback.UnripeBdvTokenData({receipient: user, bdv: 1000e6});
+        siloPaybackContract.batchMint(data);
+
+        // Send Pinto rewards to SiloPayback to create earned rewards
+        uint256 rewardAmount = 100e6;
+        deal(address(BEAN), address(deployer), rewardAmount);
+        vm.prank(deployer);
+        IERC20(address(BEAN)).transfer(address(siloPaybackContract), rewardAmount);
+        vm.prank(address(BEANSTALK));
+        siloPaybackContract.siloPaybackReceive(rewardAmount);
+
+        // Fund user's external bean balance to cover claim via tractor
+        // (same pattern as _setupRinseConditions - transferToken uses tractor user as sender)
+        uint256 earnedAmount = siloPaybackContract.earned(user);
+        mintTokensToUser(user, address(BEAN), earnedAmount);
+    }
+
+    /////////////////////////// UNRIPE CLAIM TESTS ///////////////////////////
+
+    function test_automateClaimBlueprint_unripeClaim_success() public {
+        // Setup test state (no plant, no harvest, above peg)
+        TestState memory state = setupAutomateClaimBlueprintTest(false, false, false, true);
+
+        // Setup unripe claim conditions
+        _setupUnripeClaimConditions(state.user);
+
+        // Verify user has earned rewards
+        uint256 earnedBefore = siloPaybackContract.earned(state.user);
+        assertGt(earnedBefore, 0, "user should have earned unripe rewards");
+
+        // Get user BDV before claim
+        uint256 userTotalBdvBefore = bs.balanceOfDepositedBdv(state.user, state.beanToken);
+
+        // Setup blueprint with unripe claim enabled (minUnripeClaimAmount = 1)
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
+            AutomateClaimSetupParams({
+                account: state.user,
+                sourceMode: SourceMode.PURE_PINTO,
+                minMowAmount: 1 * STALK_DECIMALS,
+                minTwaDeltaB: 10e6,
+                minPlantAmount: type(uint256).max,
+                minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
+                minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: 1,
+                tipAddress: state.operator,
+                mowTipAmount: state.mowTipAmount,
+                plantTipAmount: state.plantTipAmount,
+                harvestTipAmount: state.harvestTipAmount,
+                rinseTipAmount: 0,
+                unripeClaimTipAmount: DEFAULT_TIP_AMOUNT,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
+            })
+        );
+
+        // Execute with harvest data (unripe claim does not need dynamic data)
+        vm.expectEmit();
+        emit SiloPaybackRewardsClaimed(state.user, state.user, earnedBefore, LibTransfer.To.INTERNAL);
+        executeWithHarvestData(state.operator, state.user, req);
+
+        // Verify earned rewards are now 0
+        uint256 earnedAfter = siloPaybackContract.earned(state.user);
+        assertEq(earnedAfter, 0, "earned rewards should be 0 after claim");
+
+        // Verify BDV increased (claimed beans deposited to silo)
+        uint256 userTotalBdvAfter = bs.balanceOfDepositedBdv(state.user, state.beanToken);
+        assertGt(userTotalBdvAfter, userTotalBdvBefore, "userTotalBdv should increase from unripe claim");
+    }
+
+    function test_automateClaimBlueprint_unripeClaim_belowMinimum() public {
+        // Setup test state (no plant, no harvest, above peg)
+        TestState memory state = setupAutomateClaimBlueprintTest(false, false, false, true);
+
+        // Setup unripe claim conditions
+        _setupUnripeClaimConditions(state.user);
+
+        // Verify user has earned rewards
+        uint256 earnedAmount = siloPaybackContract.earned(state.user);
+        assertGt(earnedAmount, 0, "user should have earned unripe rewards");
+
+        // Setup blueprint with minUnripeClaimAmount higher than earned (claim skipped)
+        // Also disable mow/plant/harvest/rinse so we expect a full revert
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
+            AutomateClaimSetupParams({
+                account: state.user,
+                sourceMode: SourceMode.PURE_PINTO,
+                minMowAmount: type(uint256).max,
+                minTwaDeltaB: 10e6,
+                minPlantAmount: type(uint256).max,
+                minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
+                minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: earnedAmount + 1,
+                tipAddress: state.operator,
+                mowTipAmount: state.mowTipAmount,
+                plantTipAmount: state.plantTipAmount,
+                harvestTipAmount: state.harvestTipAmount,
+                rinseTipAmount: 0,
+                unripeClaimTipAmount: DEFAULT_TIP_AMOUNT,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
+            })
+        );
+
+        // Pre-calculate dynamic data BEFORE expectRevert
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
+            state.user
+        );
+
+        // Execute - should revert since all conditions are skipped
+        vm.expectRevert("AutomateClaimBlueprint: None of the order conditions are met");
+        executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
+    }
+
+    function test_automateClaimBlueprint_unripeClaim_withHarvestAndRinse() public {
+        // Setup test state for harvesting (twoFields=true for deterministic field 1 harvest)
+        TestState memory state = setupAutomateClaimBlueprintTest(false, true, true, true);
+
+        // Also setup rinse conditions
+        _setupRinseConditions(state.user);
+
+        // Also setup unripe claim conditions
+        _setupUnripeClaimConditions(state.user);
+
+        // Advance season to print beans for harvest
+        advanceSeason();
+
+        // Get user state before operations
+        uint256 userTotalBdvBefore = bs.balanceOfDepositedBdv(state.user, state.beanToken);
+
+        // Verify harvestable pods exist
+        (uint256 harvestablePods, ) = _userHarvestablePods(state.user, DEFAULT_FIELD_ID);
+        assertGt(harvestablePods, 0, "user should have harvestable pods");
+
+        // Verify claimable rinse beans exist
+        uint256[] memory fertIds = new uint256[](1);
+        fertIds[0] = FERT_ID_1;
+        uint256 claimableRinse = barnPayback.balanceOfFertilized(state.user, fertIds);
+        assertGt(claimableRinse, 0, "user should have claimable fertilized beans");
+
+        // Verify earned unripe rewards exist
+        uint256 earnedBefore = siloPaybackContract.earned(state.user);
+        assertGt(earnedBefore, 0, "user should have earned unripe rewards");
+
+        // Fund extra external beans to cover both rinse and unripe claim via tractor.
+        // Both operations pull from user's external balance (transferToken uses tractor user as sender).
+        // Individual setup helpers fund their own amounts, but when combined we need the total.
+        mintTokensToUser(state.user, state.beanToken, claimableRinse + earnedBefore);
+
+        // Setup blueprint with harvest + rinse + unripe claim all enabled
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
+            AutomateClaimSetupParams({
+                account: state.user,
+                sourceMode: SourceMode.PURE_PINTO,
+                minMowAmount: 1 * STALK_DECIMALS,
+                minTwaDeltaB: 10e6,
+                minPlantAmount: type(uint256).max,
+                minHarvestAmount: 11e6,
+                minRinseAmount: 1,
+                minUnripeClaimAmount: 1,
+                tipAddress: state.operator,
+                mowTipAmount: state.mowTipAmount,
+                plantTipAmount: state.plantTipAmount,
+                harvestTipAmount: state.harvestTipAmount,
+                rinseTipAmount: DEFAULT_TIP_AMOUNT,
+                unripeClaimTipAmount: DEFAULT_TIP_AMOUNT,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
+            })
+        );
+
+        // Execute with harvest and rinse data
+        executeWithHarvestAndRinseData(state.operator, state.user, req, fertIds);
+
+        // Verify BDV increased (harvested + rinsed + claimed beans deposited)
+        uint256 userTotalBdvAfter = bs.balanceOfDepositedBdv(state.user, state.beanToken);
+        assertGt(
+            userTotalBdvAfter,
+            userTotalBdvBefore,
+            "userTotalBdv should increase from harvest + rinse + unripe claim"
+        );
+
+        // Verify rinse fully claimed
+        uint256 postRinseBalance = barnPayback.balanceOfFertilized(state.user, fertIds);
+        assertEq(postRinseBalance, 0, "rinse should be fully claimed");
+
+        // Verify harvest complete on field 0
+        assertNoHarvestablePods(state.user, DEFAULT_FIELD_ID);
+
+        // Verify unripe claim rewards are now 0
+        uint256 earnedAfter = siloPaybackContract.earned(state.user);
+        assertEq(earnedAfter, 0, "earned rewards should be 0 after claim");
+    }
+
+    function test_automateClaimBlueprint_unripeClaim_noBalance() public {
+        // Setup test state (no plant, no harvest, above peg)
+        TestState memory state = setupAutomateClaimBlueprintTest(false, false, false, true);
+
+        // Do NOT setup unripe claim conditions (no UnripeBDV tokens)
+        // Verify user has no earned rewards
+        uint256 earnedAmount = siloPaybackContract.earned(state.user);
+        assertEq(earnedAmount, 0, "user should have no earned unripe rewards");
+
+        // Setup blueprint with minUnripeClaimAmount = 1 but user has 0 earned
+        // Also disable mow/plant/harvest/rinse so we expect a full revert
+        (IMockFBeanstalk.Requisition memory req, ) = setupAutomateClaimBlueprint(
+            AutomateClaimSetupParams({
+                account: state.user,
+                sourceMode: SourceMode.PURE_PINTO,
+                minMowAmount: type(uint256).max,
+                minTwaDeltaB: 10e6,
+                minPlantAmount: type(uint256).max,
+                minHarvestAmount: UNEXECUTABLE_MIN_HARVEST_AMOUNT,
+                minRinseAmount: UNEXECUTABLE_MIN_RINSE_AMOUNT,
+                minUnripeClaimAmount: 1,
+                tipAddress: state.operator,
+                mowTipAmount: state.mowTipAmount,
+                plantTipAmount: state.plantTipAmount,
+                harvestTipAmount: state.harvestTipAmount,
+                rinseTipAmount: 0,
+                unripeClaimTipAmount: 0,
+                maxGrownStalkPerBdv: MAX_GROWN_STALK_PER_BDV
+            })
+        );
+
+        // Pre-calculate dynamic data BEFORE expectRevert
+        IMockFBeanstalk.ContractData[] memory dynamicData = getHarvestDynamicDataForUser(
+            state.user
+        );
+
+        // Execute - should revert since earned = 0 < minUnripeClaimAmount = 1
         vm.expectRevert("AutomateClaimBlueprint: None of the order conditions are met");
         executeRequisitionWithDynamicData(state.operator, req, address(bs), dynamicData);
     }

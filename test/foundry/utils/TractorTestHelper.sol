@@ -438,11 +438,13 @@ contract TractorTestHelper is TestHelper {
         uint256 minPlantAmount;
         uint256 minHarvestAmount;
         uint256 minRinseAmount;
+        uint256 minUnripeClaimAmount;
         address tipAddress;
         int256 mowTipAmount;
         int256 plantTipAmount;
         int256 harvestTipAmount;
         int256 rinseTipAmount;
+        int256 unripeClaimTipAmount;
         uint256 maxGrownStalkPerBdv;
     }
 
@@ -494,6 +496,7 @@ contract TractorTestHelper is TestHelper {
                 minPlantAmount: p.minPlantAmount,
                 fieldHarvestConfigs: fieldHarvestConfigs,
                 minRinseAmount: p.minRinseAmount,
+                minUnripeClaimAmount: p.minUnripeClaimAmount,
                 sourceTokenIndices: sourceTokenIndices,
                 maxGrownStalkPerBdv: p.maxGrownStalkPerBdv,
                 slippageRatio: 0.01e18 // 1%
@@ -507,7 +510,8 @@ contract TractorTestHelper is TestHelper {
                 p.mowTipAmount,
                 p.plantTipAmount,
                 p.harvestTipAmount,
-                p.rinseTipAmount
+                p.rinseTipAmount,
+                p.unripeClaimTipAmount
             );
 
         return
@@ -586,7 +590,8 @@ contract TractorTestHelper is TestHelper {
         int256 mowTipAmount,
         int256 plantTipAmount,
         int256 harvestTipAmount,
-        int256 rinseTipAmount
+        int256 rinseTipAmount,
+        int256 unripeClaimTipAmount
     ) internal view returns (AutomateClaimBlueprint.OperatorParamsExtended memory) {
         // create OperatorParams struct
         BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
@@ -602,7 +607,8 @@ contract TractorTestHelper is TestHelper {
                 mowTipAmount: mowTipAmount,
                 plantTipAmount: plantTipAmount,
                 harvestTipAmount: harvestTipAmount,
-                rinseTipAmount: rinseTipAmount
+                rinseTipAmount: rinseTipAmount,
+                unripeClaimTipAmount: unripeClaimTipAmount
             });
 
         return opParamsExtended;

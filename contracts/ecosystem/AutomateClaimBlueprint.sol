@@ -21,6 +21,16 @@ interface IBarnPaybackClaim {
 }
 
 /**
+ * @dev Minimal interface for SiloPayback's claim and earned functions.
+ * We cannot import ISiloPayback directly because it defines its own local LibTransfer
+ * library, which causes a type conflict with the protocol's LibTransfer.To used here.
+ */
+interface ISiloPaybackClaim {
+    function claim(address recipient, LibTransfer.To toMode) external;
+    function earned(address account) external view returns (uint256);
+}
+
+/**
  * @title AutomateClaimBlueprint
  * @author DefaultJuice
  * @notice Contract for mowing, planting, harvesting and rinsing with Tractor, with a number of conditions
@@ -99,8 +109,10 @@ contract AutomateClaimBlueprint is BlueprintBase {
         uint256 minPlantAmount;
         // Harvest, per field id
         FieldHarvestConfig[] fieldHarvestConfigs;
-        // Rinse (claimFertilized)
+        // Rinse (BarnPayback.claimFertilized)
         uint256 minRinseAmount;
+        // Unripe Claim (SiloPayback.claim)
+        uint256 minUnripeClaimAmount;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
         uint256 maxGrownStalkPerBdv;
@@ -124,6 +136,7 @@ contract AutomateClaimBlueprint is BlueprintBase {
         int256 plantTipAmount;
         int256 harvestTipAmount;
         int256 rinseTipAmount;
+        int256 unripeClaimTipAmount;
     }
 
     /**
@@ -140,22 +153,27 @@ contract AutomateClaimBlueprint is BlueprintBase {
         bool shouldPlant;
         UserFieldHarvestResults[] userFieldHarvestResults;
         uint256[] rinseFertilizerIds;
+        uint256 unripeClaimAmount;
     }
 
     // Silo helpers for withdrawal functionality
     SiloHelpers public immutable siloHelpers;
     // BarnPayback contract for claiming fertilized beans
     IBarnPaybackClaim public immutable barnPayback;
+    // SiloPayback contract for claiming unripe silo rewards
+    ISiloPaybackClaim public immutable siloPayback;
 
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
         address _siloHelpers,
-        address _barnPayback
+        address _barnPayback,
+        address _siloPayback
     ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
         siloHelpers = SiloHelpers(_siloHelpers);
         barnPayback = IBarnPaybackClaim(_barnPayback);
+        siloPayback = ISiloPaybackClaim(_siloPayback);
     }
 
     /**
@@ -176,7 +194,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.shouldMow,
             vars.shouldPlant,
             vars.userFieldHarvestResults,
-            vars.rinseFertilizerIds
+            vars.rinseFertilizerIds,
+            vars.unripeClaimAmount
         ) = _getAndValidateUserState(vars.account, beanstalk.time().timestamp, params);
 
         // validate order params and revert early if invalid
@@ -192,7 +211,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
         if (
             vars.shouldPlant ||
             vars.userFieldHarvestResults.length > 0 ||
-            vars.rinseFertilizerIds.length > 0
+            vars.rinseFertilizerIds.length > 0 ||
+            vars.unripeClaimAmount > 0
         ) vars.shouldMow = true;
 
         // Execute operations in order: mow first (if needed), then plant, then harvest
@@ -251,6 +271,18 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.totalBeanTip += params.opParams.rinseTipAmount;
         }
 
+        // Claim unripe rewards (SiloPayback) if the conditions are met
+        if (vars.unripeClaimAmount > 0) {
+            // Claim to user's internal balance
+            // Note: In tractor context, transferToken uses the tractor user as sender,
+            // so the user must have sufficient external Pinto balance to cover the claim.
+            siloPayback.claim(vars.account, LibTransfer.To.INTERNAL);
+
+            // Claimed amount goes to internal balance, same flow as harvested/rinsed beans
+            vars.totalHarvestedBeans += vars.unripeClaimAmount;
+            vars.totalBeanTip += params.opParams.unripeClaimTipAmount;
+        }
+
         // Handle tip payment
         handleBeansAndTip(
             vars.account,
@@ -286,7 +318,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
             bool shouldMow,
             bool shouldPlant,
             UserFieldHarvestResults[] memory userFieldHarvestResults,
-            uint256[] memory rinseFertilizerIds
+            uint256[] memory rinseFertilizerIds,
+            uint256 unripeClaimAmount
         )
     {
         // get user state
@@ -299,6 +332,9 @@ contract AutomateClaimBlueprint is BlueprintBase {
         // get rinse data from operator-provided transient storage
         rinseFertilizerIds = _getRinseData(account, params.automateClaimParams.minRinseAmount);
 
+        // get unripe claim amount from SiloPayback earned balance
+        unripeClaimAmount = _getUnripeClaimAmount(account, params.automateClaimParams.minUnripeClaimAmount);
+
         // validate params - only revert if none of the conditions are met
         shouldMow = _checkMowConditions(
             params.automateClaimParams.minTwaDeltaB,
@@ -309,11 +345,11 @@ contract AutomateClaimBlueprint is BlueprintBase {
         shouldPlant = totalPlantableBeans >= params.automateClaimParams.minPlantAmount;
 
         require(
-            shouldMow || shouldPlant || userFieldHarvestResults.length > 0 || rinseFertilizerIds.length > 0,
+            shouldMow || shouldPlant || userFieldHarvestResults.length > 0 || rinseFertilizerIds.length > 0 || unripeClaimAmount > 0,
             "AutomateClaimBlueprint: None of the order conditions are met"
         );
 
-        return (shouldMow, shouldPlant, userFieldHarvestResults, rinseFertilizerIds);
+        return (shouldMow, shouldPlant, userFieldHarvestResults, rinseFertilizerIds, unripeClaimAmount);
     }
 
     /**
@@ -437,6 +473,24 @@ contract AutomateClaimBlueprint is BlueprintBase {
         }
 
         return fertilizerIds;
+    }
+
+    /**
+     * @notice Checks if user has enough earned unripe rewards to claim
+     * @dev Returns 0 if earned amount is below threshold (soft skip, no revert)
+     * @param account The account to check earned rewards for
+     * @param minUnripeClaimAmount The minimum earned amount threshold
+     * @return earnedAmount The earned amount if above threshold, 0 otherwise
+     */
+    function _getUnripeClaimAmount(
+        address account,
+        uint256 minUnripeClaimAmount
+    ) internal view returns (uint256) {
+        uint256 earnedAmount = siloPayback.earned(account);
+        if (earnedAmount < minUnripeClaimAmount) {
+            return 0;
+        }
+        return earnedAmount;
     }
 
     /**
