@@ -8,11 +8,34 @@ import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {BlueprintBase} from "./BlueprintBase.sol";
 
 /**
- * @title MowPlantHarvestBlueprint
- * @author DefaultJuice
- * @notice Contract for mowing, planting and harvesting with Tractor, with a number of conditions
+ * @dev Minimal interface for BarnPayback's claim and balance functions.
+ * We cannot import IBarnPayback directly because it defines its own local LibTransfer
+ * library, which causes a type conflict with the protocol's LibTransfer.To used here.
  */
-contract MowPlantHarvestBlueprint is BlueprintBase {
+interface IBarnPaybackClaim {
+    function claimFertilized(uint256[] memory ids, LibTransfer.To mode) external;
+    function balanceOfFertilized(
+        address account,
+        uint256[] memory ids
+    ) external view returns (uint256 beans);
+}
+
+/**
+ * @dev Minimal interface for SiloPayback's claim and earned functions.
+ * We cannot import ISiloPayback directly because it defines its own local LibTransfer
+ * library, which causes a type conflict with the protocol's LibTransfer.To used here.
+ */
+interface ISiloPaybackClaim {
+    function claim(address recipient, LibTransfer.To toMode) external;
+    function earned(address account) external view returns (uint256);
+}
+
+/**
+ * @title AutomateClaimBlueprint
+ * @author DefaultJuice
+ * @notice Contract for mowing, planting, harvesting and rinsing with Tractor, with a number of conditions
+ */
+contract AutomateClaimBlueprint is BlueprintBase {
     /**
      * @dev Minutes after sunrise to check if the totalDeltaB is about to be positive for the following season
      */
@@ -21,18 +44,23 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
     /**
      * @dev Key for operator-provided harvest data in transient storage
      * The key format is: HARVEST_DATA_KEY + fieldId
-     * Hash: 0x57c0c06c01076b3dedd361eef555163669978891b716ce6c5ef1355fc8ab5a36
+     * Hash: 0xad7d503bd76a2177b94db747d4e00459b65eb93e2a4be3b707394f51d084fc4c
      */
     uint256 public constant HARVEST_DATA_KEY =
-        uint256(keccak256("MowPlantHarvestBlueprint.harvestData"));
+        uint256(keccak256("AutomateClaimBlueprint.harvestData"));
 
     /**
-     * @notice Main struct for mow, plant and harvest blueprint
-     * @param mowPlantHarvestParams Parameters related to mow, plant and harvest
+     * @dev Key for operator-provided rinse data in transient storage
+     */
+    uint256 public constant RINSE_DATA_KEY = uint256(keccak256("AutomateClaimBlueprint.rinseData"));
+
+    /**
+     * @notice Main struct for automate claim blueprint
+     * @param automateClaimParams Parameters related to mow, plant and harvest
      * @param opParams Parameters related to operators
      */
-    struct MowPlantHarvestBlueprintStruct {
-        MowPlantHarvestParams mowPlantHarvestParams;
+    struct AutomateClaimBlueprintStruct {
+        AutomateClaimParams automateClaimParams;
         OperatorParamsExtended opParams;
     }
 
@@ -72,7 +100,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @param slippageRatio The price slippage ratio for lp token withdrawal.
      * Only applicable for lp token withdrawals.
      */
-    struct MowPlantHarvestParams {
+    struct AutomateClaimParams {
         // Mow
         uint256 minMowAmount;
         uint256 minTwaDeltaB;
@@ -80,6 +108,10 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         uint256 minPlantAmount;
         // Harvest, per field id
         FieldHarvestConfig[] fieldHarvestConfigs;
+        // Rinse (BarnPayback.claimFertilized)
+        uint256 minRinseAmount;
+        // Unripe Claim (SiloPayback.claim)
+        uint256 minUnripeClaimAmount;
         // Withdrawal plan parameters for tipping
         uint8[] sourceTokenIndices;
         uint256 maxGrownStalkPerBdv;
@@ -102,13 +134,15 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         int256 mowTipAmount;
         int256 plantTipAmount;
         int256 harvestTipAmount;
+        int256 rinseTipAmount;
+        int256 unripeClaimTipAmount;
     }
 
     /**
      * @notice Local variables for the mow, plant and harvest function
      * @dev Used to avoid stack too deep errors
      */
-    struct MowPlantHarvestLocalVars {
+    struct AutomateClaimLocalVars {
         address account;
         int256 totalBeanTip;
         uint256 totalHarvestedBeans;
@@ -117,51 +151,68 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         bool shouldMow;
         bool shouldPlant;
         UserFieldHarvestResults[] userFieldHarvestResults;
+        uint256[] rinseFertilizerIds;
+        uint256 unripeClaimAmount;
     }
 
     // Silo helpers for withdrawal functionality
     SiloHelpers public immutable siloHelpers;
+    // BarnPayback contract for claiming fertilized beans
+    IBarnPaybackClaim public immutable barnPayback;
+    // SiloPayback contract for claiming unripe silo rewards
+    ISiloPaybackClaim public immutable siloPayback;
 
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
-        address _siloHelpers
+        address _siloHelpers,
+        address _barnPayback,
+        address _siloPayback
     ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
         siloHelpers = SiloHelpers(_siloHelpers);
+        barnPayback = IBarnPaybackClaim(_barnPayback);
+        siloPayback = ISiloPaybackClaim(_siloPayback);
     }
 
     /**
-     * @notice Main entry point for the mow, plant and harvest blueprint
+     * @notice Main entry point for the automate claim blueprint
      * @param params User-controlled parameters for automating mowing, planting and harvesting
      */
-    function mowPlantHarvestBlueprint(
-        MowPlantHarvestBlueprintStruct calldata params
+    function automateClaimBlueprint(
+        AutomateClaimBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
         // Initialize local variables
-        MowPlantHarvestLocalVars memory vars;
+        AutomateClaimLocalVars memory vars;
 
         // Validate
         vars.account = beanstalk.tractorUser();
 
         // get the user state from the protocol and validate against params
-        (vars.shouldMow, vars.shouldPlant, vars.userFieldHarvestResults) = _getAndValidateUserState(
-            vars.account,
-            beanstalk.time().timestamp,
-            params
-        );
+        (
+            vars.shouldMow,
+            vars.shouldPlant,
+            vars.userFieldHarvestResults,
+            vars.rinseFertilizerIds,
+            vars.unripeClaimAmount
+        ) = _getAndValidateUserState(vars.account, beanstalk.time().timestamp, params);
 
         // validate order params and revert early if invalid
-        _validateSourceTokens(params.mowPlantHarvestParams.sourceTokenIndices);
+        _validateSourceTokens(params.automateClaimParams.sourceTokenIndices);
         _validateOperatorParams(params.opParams.baseOpParams);
 
         // resolve tip address (defaults to operator if not set)
         address tipAddress = _resolveTipAddress(params.opParams.baseOpParams.tipAddress);
 
-        // Mow, Plant and Harvest
-        // Check if user should harvest or plant
-        // In the case a harvest or plant is executed, mow by default
-        if (vars.shouldPlant || vars.userFieldHarvestResults.length > 0) vars.shouldMow = true;
+        // Mow, Plant, Harvest and Rinse
+        // Check if user should harvest, plant or rinse
+        // In the case a harvest, plant or rinse is executed, mow by default
+        if (
+            vars.shouldPlant ||
+            vars.userFieldHarvestResults.length > 0 ||
+            vars.rinseFertilizerIds.length > 0 ||
+            vars.unripeClaimAmount > 0
+        ) vars.shouldMow = true;
 
         // Execute operations in order: mow first (if needed), then plant, then harvest
         if (vars.shouldMow) {
@@ -188,7 +239,7 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
                 // Validate post-harvest: revert if harvested amount is below minimum threshold
                 require(
                     harvestedBeans >= vars.userFieldHarvestResults[i].minHarvestAmount,
-                    "MowPlantHarvestBlueprint: Harvested amount below minimum threshold"
+                    "AutomateClaimBlueprint: Harvested amount below minimum threshold"
                 );
 
                 // Accumulate harvested beans
@@ -198,17 +249,50 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             vars.totalBeanTip += params.opParams.harvestTipAmount;
         }
 
+        // Rinse (claim fertilized beans) if the conditions are met
+        if (vars.rinseFertilizerIds.length > 0) {
+            // Get expected amount before claiming
+            uint256 expectedRinseAmount = barnPayback.balanceOfFertilized(
+                vars.account,
+                vars.rinseFertilizerIds
+            );
+
+            require(
+                expectedRinseAmount >= params.automateClaimParams.minRinseAmount,
+                "AutomateClaimBlueprint: Rinsed amount below minimum threshold"
+            );
+
+            // Claim fertilized beans to user's internal balance
+            barnPayback.claimFertilized(vars.rinseFertilizerIds, LibTransfer.To.INTERNAL);
+
+            // Rinsed beans are in internal balance, same as harvested beans
+            vars.totalHarvestedBeans += expectedRinseAmount;
+            vars.totalBeanTip += params.opParams.rinseTipAmount;
+        }
+
+        // Claim unripe rewards (SiloPayback) if the conditions are met
+        if (vars.unripeClaimAmount > 0) {
+            // Claim to user's internal balance
+            // Note: In tractor context, transferToken uses the tractor user as sender,
+            // so the user must have sufficient external Pinto balance to cover the claim.
+            siloPayback.claim(vars.account, LibTransfer.To.INTERNAL);
+
+            // Claimed amount goes to internal balance, same flow as harvested/rinsed beans
+            vars.totalHarvestedBeans += vars.unripeClaimAmount;
+            vars.totalBeanTip += params.opParams.unripeClaimTipAmount;
+        }
+
         // Handle tip payment
         handleBeansAndTip(
             vars.account,
             tipAddress,
-            params.mowPlantHarvestParams.sourceTokenIndices,
+            params.automateClaimParams.sourceTokenIndices,
             vars.totalBeanTip,
             vars.totalHarvestedBeans,
             vars.totalPlantedBeans,
             vars.plantedStem,
-            params.mowPlantHarvestParams.maxGrownStalkPerBdv,
-            params.mowPlantHarvestParams.slippageRatio
+            params.automateClaimParams.maxGrownStalkPerBdv,
+            params.automateClaimParams.slippageRatio
         );
     }
 
@@ -220,18 +304,21 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
      * @return shouldPlant True if the user should plant
      * @return userFieldHarvestResults An array of structs containing the harvestable pods
      * and plots for the user for each field id where operator provided data
+     * @return rinseFertilizerIds Array of fertilizer IDs to rinse (empty if rinse skipped)
      */
     function _getAndValidateUserState(
         address account,
         uint256 previousSeasonTimestamp,
-        MowPlantHarvestBlueprintStruct calldata params
+        AutomateClaimBlueprintStruct calldata params
     )
         internal
         view
         returns (
             bool shouldMow,
             bool shouldPlant,
-            UserFieldHarvestResults[] memory userFieldHarvestResults
+            UserFieldHarvestResults[] memory userFieldHarvestResults,
+            uint256[] memory rinseFertilizerIds,
+            uint256 unripeClaimAmount
         )
     {
         // get user state
@@ -239,23 +326,42 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
             uint256 totalClaimableStalk,
             uint256 totalPlantableBeans,
             UserFieldHarvestResults[] memory userFieldHarvestResults
-        ) = _getUserState(account, params.mowPlantHarvestParams.fieldHarvestConfigs);
+        ) = _getUserState(account, params.automateClaimParams.fieldHarvestConfigs);
+
+        // get rinse data from operator-provided transient storage
+        rinseFertilizerIds = _getRinseData(account, params.automateClaimParams.minRinseAmount);
+
+        // get unripe claim amount from SiloPayback earned balance
+        unripeClaimAmount = _getUnripeClaimAmount(
+            account,
+            params.automateClaimParams.minUnripeClaimAmount
+        );
 
         // validate params - only revert if none of the conditions are met
         shouldMow = _checkMowConditions(
-            params.mowPlantHarvestParams.minTwaDeltaB,
-            params.mowPlantHarvestParams.minMowAmount,
+            params.automateClaimParams.minTwaDeltaB,
+            params.automateClaimParams.minMowAmount,
             totalClaimableStalk,
             previousSeasonTimestamp
         );
-        shouldPlant = totalPlantableBeans >= params.mowPlantHarvestParams.minPlantAmount;
+        shouldPlant = totalPlantableBeans >= params.automateClaimParams.minPlantAmount;
 
         require(
-            shouldMow || shouldPlant || userFieldHarvestResults.length > 0,
-            "MowPlantHarvestBlueprint: None of the order conditions are met"
+            shouldMow ||
+                shouldPlant ||
+                userFieldHarvestResults.length > 0 ||
+                rinseFertilizerIds.length > 0 ||
+                unripeClaimAmount > 0,
+            "AutomateClaimBlueprint: None of the order conditions are met"
         );
 
-        return (shouldMow, shouldPlant, userFieldHarvestResults);
+        return (
+            shouldMow,
+            shouldPlant,
+            userFieldHarvestResults,
+            rinseFertilizerIds,
+            unripeClaimAmount
+        );
     }
 
     /**
@@ -347,6 +453,56 @@ contract MowPlantHarvestBlueprint is BlueprintBase {
         }
 
         return (totalClaimableStalk, totalPlantableBeans, userFieldHarvestResults);
+    }
+
+    /**
+     * @notice Reads rinse data from operator-provided transient storage
+     * @dev If no data is provided or claimable amount is below minRinseAmount, returns empty array (rinse skipped)
+     * @param account The account to check fertilized balance for
+     * @param minRinseAmount The minimum rinsable amount threshold
+     * @return fertilizerIds Array of fertilizer IDs to rinse (empty if skipped)
+     */
+    function _getRinseData(
+        address account,
+        uint256 minRinseAmount
+    ) internal view returns (uint256[] memory fertilizerIds) {
+        bytes memory operatorData = beanstalk.getTractorData(RINSE_DATA_KEY);
+
+        if (operatorData.length == 0) {
+            return new uint256[](0);
+        }
+
+        fertilizerIds = abi.decode(operatorData, (uint256[]));
+
+        if (fertilizerIds.length == 0) {
+            return new uint256[](0);
+        }
+
+        // Check if claimable amount meets minimum threshold
+        uint256 claimableAmount = barnPayback.balanceOfFertilized(account, fertilizerIds);
+        if (claimableAmount < minRinseAmount) {
+            return new uint256[](0);
+        }
+
+        return fertilizerIds;
+    }
+
+    /**
+     * @notice Checks if user has enough earned unripe rewards to claim
+     * @dev Returns 0 if earned amount is below threshold (soft skip, no revert)
+     * @param account The account to check earned rewards for
+     * @param minUnripeClaimAmount The minimum earned amount threshold
+     * @return earnedAmount The earned amount if above threshold, 0 otherwise
+     */
+    function _getUnripeClaimAmount(
+        address account,
+        uint256 minUnripeClaimAmount
+    ) internal view returns (uint256) {
+        uint256 earnedAmount = siloPayback.earned(account);
+        if (earnedAmount < minUnripeClaimAmount) {
+            return 0;
+        }
+        return earnedAmount;
     }
 
     /**
