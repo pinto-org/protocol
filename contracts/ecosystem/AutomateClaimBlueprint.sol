@@ -52,8 +52,7 @@ contract AutomateClaimBlueprint is BlueprintBase {
     /**
      * @dev Key for operator-provided rinse data in transient storage
      */
-    uint256 public constant RINSE_DATA_KEY =
-        uint256(keccak256("AutomateClaimBlueprint.rinseData"));
+    uint256 public constant RINSE_DATA_KEY = uint256(keccak256("AutomateClaimBlueprint.rinseData"));
 
     /**
      * @notice Main struct for automate claim blueprint
@@ -333,7 +332,10 @@ contract AutomateClaimBlueprint is BlueprintBase {
         rinseFertilizerIds = _getRinseData(account, params.automateClaimParams.minRinseAmount);
 
         // get unripe claim amount from SiloPayback earned balance
-        unripeClaimAmount = _getUnripeClaimAmount(account, params.automateClaimParams.minUnripeClaimAmount);
+        unripeClaimAmount = _getUnripeClaimAmount(
+            account,
+            params.automateClaimParams.minUnripeClaimAmount
+        );
 
         // validate params - only revert if none of the conditions are met
         shouldMow = _checkMowConditions(
@@ -345,11 +347,21 @@ contract AutomateClaimBlueprint is BlueprintBase {
         shouldPlant = totalPlantableBeans >= params.automateClaimParams.minPlantAmount;
 
         require(
-            shouldMow || shouldPlant || userFieldHarvestResults.length > 0 || rinseFertilizerIds.length > 0 || unripeClaimAmount > 0,
+            shouldMow ||
+                shouldPlant ||
+                userFieldHarvestResults.length > 0 ||
+                rinseFertilizerIds.length > 0 ||
+                unripeClaimAmount > 0,
             "AutomateClaimBlueprint: None of the order conditions are met"
         );
 
-        return (shouldMow, shouldPlant, userFieldHarvestResults, rinseFertilizerIds, unripeClaimAmount);
+        return (
+            shouldMow,
+            shouldPlant,
+            userFieldHarvestResults,
+            rinseFertilizerIds,
+            unripeClaimAmount
+        );
     }
 
     /**

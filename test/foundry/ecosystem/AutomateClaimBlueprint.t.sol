@@ -1143,7 +1143,12 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
 
         // Execute with harvest data (unripe claim does not need dynamic data)
         vm.expectEmit();
-        emit SiloPaybackRewardsClaimed(state.user, state.user, earnedBefore, LibTransfer.To.INTERNAL);
+        emit SiloPaybackRewardsClaimed(
+            state.user,
+            state.user,
+            earnedBefore,
+            LibTransfer.To.INTERNAL
+        );
         executeWithHarvestData(state.operator, state.user, req);
 
         // Verify earned rewards are now 0
@@ -1152,7 +1157,11 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
 
         // Verify BDV increased (claimed beans deposited to silo)
         uint256 userTotalBdvAfter = bs.balanceOfDepositedBdv(state.user, state.beanToken);
-        assertGt(userTotalBdvAfter, userTotalBdvBefore, "userTotalBdv should increase from unripe claim");
+        assertGt(
+            userTotalBdvAfter,
+            userTotalBdvBefore,
+            "userTotalBdv should increase from unripe claim"
+        );
     }
 
     function test_automateClaimBlueprint_unripeClaim_belowMinimum() public {
