@@ -9,7 +9,7 @@ import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.s
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
-import {MowPlantHarvestBlueprint} from "contracts/ecosystem/MowPlantHarvestBlueprint.sol";
+import {AutomateClaimBlueprint} from "contracts/ecosystem/AutomateClaimBlueprint.sol";
 import {BlueprintBase} from "contracts/ecosystem/BlueprintBase.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import "forge-std/console.sol";
@@ -19,7 +19,7 @@ contract TractorTestHelper is TestHelper {
     TractorHelpers internal tractorHelpers;
     SowBlueprint internal sowBlueprint;
     SiloHelpers internal siloHelpers;
-    MowPlantHarvestBlueprint internal mowPlantHarvestBlueprint;
+    AutomateClaimBlueprint internal automateClaimBlueprint;
 
     uint256 public constant DEFAULT_FIELD_ID = 0;
     uint256 public constant PAYBACK_FIELD_ID = 1;
@@ -42,8 +42,8 @@ contract TractorTestHelper is TestHelper {
         siloHelpers = SiloHelpers(_siloHelpers);
     }
 
-    function setMowPlantHarvestBlueprint(address _mowPlantHarvestBlueprint) internal {
-        mowPlantHarvestBlueprint = MowPlantHarvestBlueprint(_mowPlantHarvestBlueprint);
+    function setAutomateClaimBlueprint(address _automateClaimBlueprint) internal {
+        automateClaimBlueprint = AutomateClaimBlueprint(_automateClaimBlueprint);
     }
 
     function createRequisitionWithPipeCall(
@@ -172,7 +172,7 @@ contract TractorTestHelper is TestHelper {
             uint256[] memory harvestablePlotIndexes = _getHarvestablePlotIndexes(account, fieldId);
 
             // Create ContractData with key = HARVEST_DATA_KEY + fieldId
-            uint256 key = mowPlantHarvestBlueprint.HARVEST_DATA_KEY() + fieldId;
+            uint256 key = automateClaimBlueprint.HARVEST_DATA_KEY() + fieldId;
             dynamicData[i] = IMockFBeanstalk.ContractData({
                 key: key,
                 value: abi.encode(harvestablePlotIndexes)
@@ -425,120 +425,116 @@ contract TractorTestHelper is TestHelper {
         return abi.encodeWithSelector(IMockFBeanstalk.advancedFarm.selector, calls);
     }
 
-    //////////////////////////// MowPlantHarvestBlueprint ////////////////////////////
+    //////////////////////////// AutomateClaimBlueprint ////////////////////////////
 
-    function setupMowPlantHarvestBlueprint(
-        address account,
-        SourceMode sourceMode,
-        uint256 minMowAmount,
-        uint256 minTwaDeltaB,
-        uint256 minPlantAmount,
-        uint256 minHarvestAmount,
-        address tipAddress,
-        int256 mowTipAmount,
-        int256 plantTipAmount,
-        int256 harvestTipAmount,
-        uint256 maxGrownStalkPerBdv
+    /**
+     * @notice Helper struct to bundle automate claim setup parameters and avoid stack too deep
+     */
+    struct AutomateClaimSetupParams {
+        address account;
+        SourceMode sourceMode;
+        uint256 minMowAmount;
+        uint256 minTwaDeltaB;
+        uint256 minPlantAmount;
+        uint256 minHarvestAmount;
+        uint256 minRinseAmount;
+        uint256 minUnripeClaimAmount;
+        address tipAddress;
+        int256 mowTipAmount;
+        int256 plantTipAmount;
+        int256 harvestTipAmount;
+        int256 rinseTipAmount;
+        int256 unripeClaimTipAmount;
+        uint256 maxGrownStalkPerBdv;
+    }
+
+    function setupAutomateClaimBlueprint(
+        AutomateClaimSetupParams memory p
     )
         internal
         returns (
             IMockFBeanstalk.Requisition memory,
-            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+            AutomateClaimBlueprint.AutomateClaimBlueprintStruct memory params
         )
     {
-        // build struct params
-        params = createMowPlantHarvestBlueprintStruct(
-            uint8(sourceMode),
-            minMowAmount,
-            minTwaDeltaB,
-            minPlantAmount,
-            minHarvestAmount,
-            tipAddress,
-            mowTipAmount,
-            plantTipAmount,
-            harvestTipAmount,
-            maxGrownStalkPerBdv
-        );
+        params = _createAutomateClaimBlueprintStructFromParams(p);
 
-        // create pipe call data
-        bytes memory pipeCallData = createMowPlantHarvestBlueprintCallData(params);
+        bytes memory pipeCallData = createAutomateClaimBlueprintCallData(params);
 
-        // create requisition
         IMockFBeanstalk.Requisition memory req = createRequisitionWithPipeCall(
-            account,
+            p.account,
             pipeCallData,
             address(bs)
         );
 
-        // publish requisition
-        publishAccountRequisition(account, req);
+        publishAccountRequisition(p.account, req);
 
         return (req, params);
     }
 
-    // Creates and returns the struct params for the mowPlantHarvestBlueprint
-    function createMowPlantHarvestBlueprintStruct(
-        uint8 sourceMode,
-        uint256 minMowAmount,
-        uint256 minTwaDeltaB,
-        uint256 minPlantAmount,
-        uint256 minHarvestAmount,
-        address tipAddress,
-        int256 mowTipAmount,
-        int256 plantTipAmount,
-        int256 harvestTipAmount,
-        uint256 maxGrownStalkPerBdv
-    ) internal view returns (MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory) {
+    function _createAutomateClaimBlueprintStructFromParams(
+        AutomateClaimSetupParams memory p
+    ) internal view returns (AutomateClaimBlueprint.AutomateClaimBlueprintStruct memory) {
         // Create default whitelisted operators array with msg.sender
         address[] memory whitelistedOps = new address[](3);
         whitelistedOps[0] = msg.sender;
-        whitelistedOps[1] = tipAddress;
+        whitelistedOps[1] = p.tipAddress;
         whitelistedOps[2] = address(this);
 
         // Create array with single index for the token based on source mode
-        uint8[] memory sourceTokenIndices = new uint8[](1);
-        if (sourceMode == uint8(SourceMode.PURE_PINTO)) {
+        uint8[] memory sourceTokenIndices = _getSourceTokenIndices(p.sourceMode);
+
+        // create per-field-id harvest configs
+        AutomateClaimBlueprint.FieldHarvestConfig[]
+            memory fieldHarvestConfigs = createFieldHarvestConfigs(p.minHarvestAmount);
+
+        // Create AutomateClaimParams struct
+        AutomateClaimBlueprint.AutomateClaimParams
+            memory automateClaimParams = AutomateClaimBlueprint.AutomateClaimParams({
+                minMowAmount: p.minMowAmount,
+                minTwaDeltaB: p.minTwaDeltaB,
+                minPlantAmount: p.minPlantAmount,
+                fieldHarvestConfigs: fieldHarvestConfigs,
+                minRinseAmount: p.minRinseAmount,
+                minUnripeClaimAmount: p.minUnripeClaimAmount,
+                sourceTokenIndices: sourceTokenIndices,
+                maxGrownStalkPerBdv: p.maxGrownStalkPerBdv,
+                slippageRatio: 0.01e18 // 1%
+            });
+
+        // create OperatorParamsExtended struct
+        AutomateClaimBlueprint.OperatorParamsExtended
+            memory opParamsExtended = createOperatorParamsExtended(
+                whitelistedOps,
+                p.tipAddress,
+                p.mowTipAmount,
+                p.plantTipAmount,
+                p.harvestTipAmount,
+                p.rinseTipAmount,
+                p.unripeClaimTipAmount
+            );
+
+        return
+            AutomateClaimBlueprint.AutomateClaimBlueprintStruct({
+                automateClaimParams: automateClaimParams,
+                opParams: opParamsExtended
+            });
+    }
+
+    function _getSourceTokenIndices(
+        SourceMode sourceMode
+    ) internal view returns (uint8[] memory sourceTokenIndices) {
+        sourceTokenIndices = new uint8[](1);
+        if (sourceMode == SourceMode.PURE_PINTO) {
             sourceTokenIndices[0] = tractorHelpers.getTokenIndex(
                 IMockFBeanstalk(address(bs)).getBeanToken()
             );
-        } else if (sourceMode == uint8(SourceMode.LOWEST_PRICE)) {
+        } else if (sourceMode == SourceMode.LOWEST_PRICE) {
             sourceTokenIndices[0] = type(uint8).max;
         } else {
             // LOWEST_SEED
             sourceTokenIndices[0] = type(uint8).max - 1;
         }
-
-        // create per-field-id harvest configs
-        MowPlantHarvestBlueprint.FieldHarvestConfig[]
-            memory fieldHarvestConfigs = createFieldHarvestConfigs(minHarvestAmount);
-
-        // Create MowPlantHarvestParams struct
-        MowPlantHarvestBlueprint.MowPlantHarvestParams
-            memory mowPlantHarvestParams = MowPlantHarvestBlueprint.MowPlantHarvestParams({
-                minMowAmount: minMowAmount,
-                minTwaDeltaB: minTwaDeltaB,
-                minPlantAmount: minPlantAmount,
-                fieldHarvestConfigs: fieldHarvestConfigs,
-                sourceTokenIndices: sourceTokenIndices,
-                maxGrownStalkPerBdv: maxGrownStalkPerBdv,
-                slippageRatio: 0.01e18 // 1%
-            });
-
-        // create OperatorParamsExtended struct
-        MowPlantHarvestBlueprint.OperatorParamsExtended
-            memory opParamsExtended = createOperatorParamsExtended(
-                whitelistedOps,
-                tipAddress,
-                mowTipAmount,
-                plantTipAmount,
-                harvestTipAmount
-            );
-
-        return
-            MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct({
-                mowPlantHarvestParams: mowPlantHarvestParams,
-                opParams: opParamsExtended
-            });
     }
 
     function createFieldHarvestConfigs(
@@ -546,32 +542,32 @@ contract TractorTestHelper is TestHelper {
     )
         internal
         view
-        returns (MowPlantHarvestBlueprint.FieldHarvestConfig[] memory fieldHarvestConfigs)
+        returns (AutomateClaimBlueprint.FieldHarvestConfig[] memory fieldHarvestConfigs)
     {
-        fieldHarvestConfigs = new MowPlantHarvestBlueprint.FieldHarvestConfig[](2);
+        fieldHarvestConfigs = new AutomateClaimBlueprint.FieldHarvestConfig[](2);
         // default field id
-        fieldHarvestConfigs[0] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+        fieldHarvestConfigs[0] = AutomateClaimBlueprint.FieldHarvestConfig({
             fieldId: DEFAULT_FIELD_ID,
             minHarvestAmount: minHarvestAmount
         });
         // expected payback field id
-        fieldHarvestConfigs[1] = MowPlantHarvestBlueprint.FieldHarvestConfig({
+        fieldHarvestConfigs[1] = AutomateClaimBlueprint.FieldHarvestConfig({
             fieldId: PAYBACK_FIELD_ID,
             minHarvestAmount: minHarvestAmount
         });
         return fieldHarvestConfigs;
     }
 
-    function createMowPlantHarvestBlueprintCallData(
-        MowPlantHarvestBlueprint.MowPlantHarvestBlueprintStruct memory params
+    function createAutomateClaimBlueprintCallData(
+        AutomateClaimBlueprint.AutomateClaimBlueprintStruct memory params
     ) internal view returns (bytes memory) {
-        // create the mowPlantHarvestBlueprint pipe call
+        // create the automateClaimBlueprint pipe call
         IMockFBeanstalk.AdvancedPipeCall[] memory pipes = new IMockFBeanstalk.AdvancedPipeCall[](1);
 
         pipes[0] = IMockFBeanstalk.AdvancedPipeCall({
-            target: address(mowPlantHarvestBlueprint),
+            target: address(automateClaimBlueprint),
             callData: abi.encodeWithSelector(
-                MowPlantHarvestBlueprint.mowPlantHarvestBlueprint.selector,
+                AutomateClaimBlueprint.automateClaimBlueprint.selector,
                 params
             ),
             clipboard: hex"0000"
@@ -593,8 +589,10 @@ contract TractorTestHelper is TestHelper {
         address tipAddress,
         int256 mowTipAmount,
         int256 plantTipAmount,
-        int256 harvestTipAmount
-    ) internal view returns (MowPlantHarvestBlueprint.OperatorParamsExtended memory) {
+        int256 harvestTipAmount,
+        int256 rinseTipAmount,
+        int256 unripeClaimTipAmount
+    ) internal view returns (AutomateClaimBlueprint.OperatorParamsExtended memory) {
         // create OperatorParams struct
         BlueprintBase.OperatorParams memory opParams = BlueprintBase.OperatorParams({
             whitelistedOperators: whitelistedOps,
@@ -603,14 +601,50 @@ contract TractorTestHelper is TestHelper {
         });
 
         // create OperatorParamsExtended struct
-        MowPlantHarvestBlueprint.OperatorParamsExtended
-            memory opParamsExtended = MowPlantHarvestBlueprint.OperatorParamsExtended({
+        AutomateClaimBlueprint.OperatorParamsExtended
+            memory opParamsExtended = AutomateClaimBlueprint.OperatorParamsExtended({
                 baseOpParams: opParams,
                 mowTipAmount: mowTipAmount,
                 plantTipAmount: plantTipAmount,
-                harvestTipAmount: harvestTipAmount
+                harvestTipAmount: harvestTipAmount,
+                rinseTipAmount: rinseTipAmount,
+                unripeClaimTipAmount: unripeClaimTipAmount
             });
 
         return opParamsExtended;
+    }
+
+    /**
+     * @notice Create ContractData for rinse operations
+     * @param fertilizerIds Array of fertilizer IDs to include in rinse data
+     * @return dynamicData Array of ContractData containing rinse information
+     */
+    function createRinseDynamicData(
+        uint256[] memory fertilizerIds
+    ) internal view returns (IMockFBeanstalk.ContractData[] memory dynamicData) {
+        dynamicData = new IMockFBeanstalk.ContractData[](1);
+        dynamicData[0] = IMockFBeanstalk.ContractData({
+            key: automateClaimBlueprint.RINSE_DATA_KEY(),
+            value: abi.encode(fertilizerIds)
+        });
+    }
+
+    /**
+     * @notice Merge harvest and rinse dynamic data arrays
+     * @param harvestData Dynamic data for harvest operations
+     * @param rinseData Dynamic data for rinse operations
+     * @return merged Combined dynamic data array
+     */
+    function mergeHarvestAndRinseDynamicData(
+        IMockFBeanstalk.ContractData[] memory harvestData,
+        IMockFBeanstalk.ContractData[] memory rinseData
+    ) internal pure returns (IMockFBeanstalk.ContractData[] memory merged) {
+        merged = new IMockFBeanstalk.ContractData[](harvestData.length + rinseData.length);
+        for (uint256 i = 0; i < harvestData.length; i++) {
+            merged[i] = harvestData[i];
+        }
+        for (uint256 i = 0; i < rinseData.length; i++) {
+            merged[harvestData.length + i] = rinseData[i];
+        }
     }
 }
