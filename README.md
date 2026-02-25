@@ -95,5 +95,5 @@ For `<FORKING_RPC>`, use an Alchemy or Infura RPC URL.
 
 
 ## Bug Bounty
-Reports that come through the Pinto Bug Boungty are recorded here:
+Reports that come through the Pinto Bug Bounty are recorded here:
 https://pintofarm.notion.site/
