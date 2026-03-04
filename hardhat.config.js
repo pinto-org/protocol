@@ -39,6 +39,8 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
     mock: setMock,
     log: true
   });
+
+  await hre.run("deployAutomateClaimBlueprint");
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
