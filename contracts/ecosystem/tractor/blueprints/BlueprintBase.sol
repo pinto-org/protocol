@@ -175,16 +175,17 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @return fee The calculated fee amount in Bean
      */
     function _payDynamicFee(DynamicFeeParams memory feeParams) internal returns (uint256 fee) {
-        fee = gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(
-            feeParams.startGas,
-            feeParams.remainingGasOverhead,
-            feeParams.feeMarginBps
-        );
 
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
             feeParams.maxGrownStalkPerBdv
         );
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+
+        fee = gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(
+            feeParams.startGas,
+            feeParams.remainingGasOverhead,
+            feeParams.feeMarginBps
+        );
 
         siloHelpers.withdrawBeansFromSources(
             feeParams.account,
