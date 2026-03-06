@@ -45,9 +45,15 @@ function parseBarnData(includeContracts = false, detectedContractAddresses = [])
     console.log(`Processing ${Object.keys(ethContracts).length} ethContracts`);
   }
   
-  // Load constants for distributor address
-  const constants = require('../../../test/hardhat/utils/constants.js');
-  const DISTRIBUTOR_ADDRESS = constants.BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR;
+  // Load distributor address from cache
+  const { getDeployedAddresses } = require('../utils/addressCache.js');
+  const cachedAddresses = getDeployedAddresses();
+  if (!cachedAddresses || !cachedAddresses.contractPaybackDistributor) {
+    throw new Error(
+      "ContractPaybackDistributor address not found in cache. Run 'npx hardhat precomputeDistributorAddress' first."
+    );
+  }
+  const DISTRIBUTOR_ADDRESS = cachedAddresses.contractPaybackDistributor;
   
   // Combine data sources and reassign ethContracts to distributor
   const allAccounts = { ...arbEOAs };

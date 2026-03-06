@@ -1,6 +1,14 @@
 const fs = require("fs");
-const { splitEntriesIntoChunks, updateProgress, retryOperation } = require("../../utils/read.js");
-const { BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR } = require("../../test/hardhat/utils/constants.js");
+const {
+  splitEntriesIntoChunks,
+  updateProgress,
+  retryOperation,
+  verifyTransaction,
+  sleep,
+  CHUNK_DELAY
+} = require("../../utils/read.js");
+const { saveDeployedAddresses, computeDistributorAddress } = require("./utils/addressCache.js");
+const DELAY = 2000; // 2000ms delay between contracts
 
 // Deploys SiloPayback, BarnPayback, and ContractPaybackDistributor contracts
 async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = true }) {
@@ -17,8 +25,7 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     kind: "transparent"
   });
   await siloPaybackContract.deployed();
-  console.log("✅ SiloPayback deployed to:", siloPaybackContract.address);
-  console.log("👤 SiloPayback owner:", await siloPaybackContract.owner());
+  await printContractAddresses(siloPaybackContract.address, "SiloPayback");
 
   //////////////////////////// Barn Payback ////////////////////////////
   console.log("\n📦 Deploying BarnPayback...");
@@ -26,18 +33,22 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
   // get the initialization args from the json file
   const barnPaybackArgsPath = "./scripts/beanstalkShipments/data/beanstalkGlobalFertilizer.json";
   const barnPaybackArgs = JSON.parse(fs.readFileSync(barnPaybackArgsPath));
-  // factory, args, proxy options
+
+  // note: `distributorAddress` is heavily nonce based. The openZeppelin package, for transparent proxies,
+  // will attempt to reuse the proxy admin address for the next contract. Thus, multiple executions would use a different amount of nonces.
+  // this script should be used with a fresh implementation every time.
+  const distributorAddress = (await computeDistributorAddress(account)).distributorAddress;
+  console.log(`\n📍 Using pre-computed ContractPaybackDistributor address: ${distributorAddress}`);
   const barnPaybackContract = await upgrades.deployProxy(
     barnPaybackFactory,
-    [PINTO, L2_PINTO, BEANSTALK_CONTRACT_PAYBACK_DISTRIBUTOR, barnPaybackArgs],
+    [PINTO, L2_PINTO, distributorAddress, barnPaybackArgs],
     {
       initializer: "initialize",
       kind: "transparent"
     }
   );
   await barnPaybackContract.deployed();
-  console.log("✅ BarnPayback deployed to:", barnPaybackContract.address);
-  console.log("👤 BarnPayback owner:", await barnPaybackContract.owner());
+  await printContractAddresses(barnPaybackContract.address, "BarnPayback");
 
   //////////////////////////// Contract Payback Distributor ////////////////////////////
   console.log("\n📦 Deploying ContractPaybackDistributor...");
@@ -46,19 +57,18 @@ async function deployShipmentContracts({ PINTO, L2_PINTO, account, verbose = tru
     account
   );
 
-  const contractPaybackDistributorContract = await contractPaybackDistributorFactory.deploy(
-    L2_PINTO, // address _pintoProtocol
-    siloPaybackContract.address, // address _siloPayback
-    barnPaybackContract.address // address _barnPayback
+  const contractPaybackDistributorContract = await upgrades.deployProxy(
+    contractPaybackDistributorFactory,
+    [L2_PINTO, siloPaybackContract.address, barnPaybackContract.address],
+    {
+      initializer: "initialize",
+      kind: "transparent"
+    }
   );
   await contractPaybackDistributorContract.deployed();
-  console.log(
-    "✅ ContractPaybackDistributor deployed to:",
-    contractPaybackDistributorContract.address
-  );
-  console.log(
-    "👤 ContractPaybackDistributor owner:",
-    await contractPaybackDistributorContract.owner()
+  await printContractAddresses(
+    contractPaybackDistributorContract.address,
+    "ContractPaybackDistributor"
   );
 
   return {
@@ -75,7 +85,8 @@ async function distributeUnripeBdvTokens({
   dataPath,
   verbose = true,
   useChunking = true,
-  targetEntriesPerChunk = 300
+  targetEntriesPerChunk = 300,
+  startFromChunk = 0
 }) {
   if (verbose) console.log("🌱 Distributing unripe BDV tokens...");
 
@@ -90,33 +101,55 @@ async function distributeUnripeBdvTokens({
       // log the address of the payback contract
       console.log("SiloPayback address:", siloPaybackContract.address);
 
-      const tx = await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
-      const receipt = await tx.wait();
-
-      if (verbose) console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+      await retryOperation(
+        async () => {
+          const tx = await siloPaybackContract.connect(account).batchMint(unripeAccountBdvTokens);
+          const receipt = await verifyTransaction(tx, "Unripe BDV batch mint");
+          if (verbose) console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+        },
+        { context: "Unripe BDV single transaction" }
+      );
     } else {
       // Split into chunks for processing
       const chunks = splitEntriesIntoChunks(unripeAccountBdvTokens, targetEntriesPerChunk);
       console.log(`Starting to process ${chunks.length} chunks...`);
 
+      if (startFromChunk > 0) {
+        console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${chunks.length}`);
+      }
+
       let totalGasUsed = ethers.BigNumber.from(0);
 
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = startFromChunk; i < chunks.length; i++) {
         if (verbose) {
           console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
           console.log(`Chunk contains ${chunks[i].length} accounts`);
           console.log("-----------------------------------");
         }
 
-        await retryOperation(async () => {
-          // mint tokens to users in chunks
-          const tx = await siloPaybackContract.connect(account).batchMint(chunks[i]);
-          const receipt = await tx.wait();
-          totalGasUsed = totalGasUsed.add(receipt.gasUsed);
-          if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
-        });
+        try {
+          await retryOperation(
+            async () => {
+              // mint tokens to users in chunks
+              const tx = await siloPaybackContract.connect(account).batchMint(chunks[i]);
+              const receipt = await verifyTransaction(tx, `Unripe BDV chunk ${i + 1}`);
+              totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+              if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+            },
+            { context: `Chunk ${i + 1}/${chunks.length}` }
+          );
+        } catch (error) {
+          console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
+          console.error(`To resume, use: --start-chunk ${i}`);
+          throw error;
+        }
 
         await updateProgress(i + 1, chunks.length);
+
+        // Small delay between chunks to avoid rate limiting
+        if (i < chunks.length - 1) {
+          await sleep(CHUNK_DELAY);
+        }
       }
 
       if (verbose) {
@@ -138,7 +171,8 @@ async function distributeBarnPaybackTokens({
   account,
   dataPath,
   verbose = true,
-  targetEntriesPerChunk = 300
+  targetEntriesPerChunk = 300,
+  startFromChunk = 0
 }) {
   if (verbose) console.log("🌱 Distributing barn payback tokens...");
 
@@ -150,21 +184,41 @@ async function distributeBarnPaybackTokens({
     const chunks = splitEntriesIntoChunks(accountFertilizers, targetEntriesPerChunk);
     console.log(`Starting to process ${chunks.length} chunks...`);
 
+    if (startFromChunk > 0) {
+      console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${chunks.length}`);
+    }
+
     let totalGasUsed = ethers.BigNumber.from(0);
 
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = startFromChunk; i < chunks.length; i++) {
       if (verbose) {
         console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
         console.log(`Chunk contains ${chunks[i].length} fertilizers`);
         console.log("-----------------------------------");
       }
-      const tx = await barnPaybackContract.connect(account).mintFertilizers(chunks[i]);
-      const receipt = await tx.wait();
 
-      totalGasUsed = totalGasUsed.add(receipt.gasUsed);
-      if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+      try {
+        await retryOperation(
+          async () => {
+            const tx = await barnPaybackContract.connect(account).mintFertilizers(chunks[i]);
+            const receipt = await verifyTransaction(tx, `Barn payback chunk ${i + 1}`);
+            totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+            if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+          },
+          { context: `Chunk ${i + 1}/${chunks.length}` }
+        );
+      } catch (error) {
+        console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
+        console.error(`To resume, use: --start-chunk ${i}`);
+        throw error;
+      }
 
       await updateProgress(i + 1, chunks.length);
+
+      // Small delay between chunks to avoid rate limiting
+      if (i < chunks.length - 1) {
+        await sleep(CHUNK_DELAY);
+      }
     }
     if (verbose) {
       console.log("\n📊 Total Gas Summary:");
@@ -182,7 +236,8 @@ async function distributeContractAccountData({
   contractPaybackDistributorContract,
   account,
   verbose = true,
-  targetEntriesPerChunk = 25
+  targetEntriesPerChunk = 25,
+  startFromChunk = 0
 }) {
   if (verbose) console.log("🌱 Distributing contract account data...");
 
@@ -219,32 +274,51 @@ async function distributeContractAccountData({
     }
 
     console.log(`Starting to process ${chunks.length} chunks...`);
+
+    if (startFromChunk > 0) {
+      console.log(`⏩ Resuming from chunk ${startFromChunk + 1}/${chunks.length}`);
+    }
+
     let totalGasUsed = ethers.BigNumber.from(0);
 
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = startFromChunk; i < chunks.length; i++) {
       if (verbose) {
         console.log(`\n\nProcessing chunk ${i + 1}/${chunks.length}`);
         console.log(`Chunk contains ${chunks[i].accounts.length} contract accounts`);
         console.log("-----------------------------------");
       }
 
-      await retryOperation(async () => {
-        // Remove address field from data before contract call (contract doesn't expect this field)
-        const dataForContract = chunks[i].data.map((accountData) => {
-          const { address, ...dataWithoutAddress } = accountData;
-          return dataWithoutAddress;
-        });
+      try {
+        await retryOperation(
+          async () => {
+            // Remove address field from data before contract call (contract doesn't expect this field)
+            const dataForContract = chunks[i].data.map((accountData) => {
+              const { address, ...dataWithoutAddress } = accountData;
+              return dataWithoutAddress;
+            });
 
-        // Initialize contract account data in chunks
-        const tx = await contractPaybackDistributorContract
-          .connect(account)
-          .initializeAccountData(chunks[i].accounts, dataForContract);
-        const receipt = await tx.wait();
-        totalGasUsed = totalGasUsed.add(receipt.gasUsed);
-        if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
-      });
+            // Initialize contract account data in chunks
+            const tx = await contractPaybackDistributorContract
+              .connect(account)
+              .initializeAccountData(chunks[i].accounts, dataForContract);
+            const receipt = await verifyTransaction(tx, `Contract account data chunk ${i + 1}`);
+            totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+            if (verbose) console.log(`⛽ Chunk gas used: ${receipt.gasUsed.toString()}`);
+          },
+          { context: `Chunk ${i + 1}/${chunks.length}` }
+        );
+      } catch (error) {
+        console.error(`\n❌ FAILED AT CHUNK ${i + 1}/${chunks.length}`);
+        console.error(`To resume, use: --start-chunk ${i}`);
+        throw error;
+      }
 
       await updateProgress(i + 1, chunks.length);
+
+      // Small delay between chunks to avoid rate limiting
+      if (i < chunks.length - 1) {
+        await sleep(CHUNK_DELAY);
+      }
     }
 
     if (verbose) {
@@ -280,33 +354,39 @@ async function transferContractOwnership({
   if (verbose) console.log("✅ ContractPaybackDistributor ownership transferred to PCM");
 }
 
-// Main function that orchestrates all deployment steps
+// Main function that deploys contracts (no initialization)
+// Initialization is now handled by separate tasks (Steps 1.5, 1.6, 1.7)
 async function deployAndSetupContracts(params) {
   const contracts = await deployShipmentContracts(params);
 
-  if (params.populateData) {
-    await distributeUnripeBdvTokens({
-      siloPaybackContract: contracts.siloPaybackContract,
-      account: params.account,
-      dataPath: "./scripts/beanstalkShipments/data/unripeBdvTokens.json",
-      verbose: true
-    });
-
-    await distributeBarnPaybackTokens({
-      barnPaybackContract: contracts.barnPaybackContract,
-      account: params.account,
-      dataPath: "./scripts/beanstalkShipments/data/beanstalkAccountFertilizer.json",
-      verbose: true
-    });
-
-    await distributeContractAccountData({
-      contractPaybackDistributorContract: contracts.contractPaybackDistributorContract,
-      account: params.account,
-      verbose: true
-    });
-  }
+  // Save deployed addresses to cache for use by initialization tasks
+  const network = params.network || "unknown";
+  saveDeployedAddresses(
+    {
+      siloPayback: contracts.siloPaybackContract.address,
+      barnPayback: contracts.barnPaybackContract.address,
+      contractPaybackDistributor: contracts.contractPaybackDistributorContract.address
+    },
+    network
+  );
 
   return contracts;
+}
+
+async function printContractAddresses(contractAddress, contractName, isUpgradeable = true) {
+  console.log(`✅ ${contractName} deployed to:`, contractAddress);
+  if (isUpgradeable) {
+    await sleep(DELAY);
+    console.log(
+      "   Implementation:",
+      await upgrades.erc1967.getImplementationAddress(contractAddress)
+    );
+    await sleep(DELAY);
+    console.log("   ProxyAdmin:", await upgrades.erc1967.getAdminAddress(contractAddress));
+    await sleep(DELAY);
+    const contract = await ethers.getContractAt("OwnableUpgradeable", contractAddress);
+    console.log(`👤 ${contractName} owner:`, await contract.owner());
+  }
 }
 
 module.exports = {

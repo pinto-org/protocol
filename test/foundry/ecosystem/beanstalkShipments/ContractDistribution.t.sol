@@ -27,7 +27,7 @@ contract ContractDistributionTest is TestHelper {
     ICrossDomainMessenger public constant L1_MESSENGER =
         ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
     // L1 sender
-    address public constant L1_SENDER = 0x51f472874a303D5262d7668f5a3d17e3317f8E51;
+    address public constant L1_SENDER = 0xD2abd9a7E7F10e3bF4376fb03A07fca729A55b6f;
 
     address public constant EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR =
         0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000;
@@ -57,23 +57,34 @@ contract ContractDistributionTest is TestHelper {
         bs.setActiveField(REPAYMENT_FIELD_ID, 100e6);
         vm.stopPrank();
 
-        // Deploy the ContractPaybackDistributor contract
-        // get the constructor arguments
-        // Whitelisted contract accounts
-        address[] memory contractAccounts = new address[](2);
-        contractAccounts[0] = contractAccount1;
-        contractAccounts[1] = contractAccount2;
-        // Account data
+        // Deploy the ContractPaybackDistributor contract as transparent proxy
+        // 1. Deploy implementation
+        ContractPaybackDistributor distributorImpl = new ContractPaybackDistributor();
+
+        // 2. Encode initialization data
+        bytes memory initData = abi.encodeWithSelector(
+            ContractPaybackDistributor.initialize.selector,
+            address(bs),
+            address(siloPayback),
+            address(barnPayback)
+        );
+
+        // 3. Deploy proxy at expected address using deployCodeTo
         vm.prank(owner);
         deployCodeTo(
-            "ContractPaybackDistributor.sol:ContractPaybackDistributor",
-            abi.encode(address(bs), address(siloPayback), address(barnPayback)),
+            "TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
+            abi.encode(address(distributorImpl), owner, initData),
             EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
         );
 
         contractPaybackDistributor = ContractPaybackDistributor(
-            address(0x5dC8F2e4F47F36F5d20B6456F7993b65A7994000)
+            EXPECTED_CONTRACT_PAYBACK_DISTRIBUTOR
         );
+
+        // Whitelisted contract accounts
+        address[] memory contractAccounts = new address[](2);
+        contractAccounts[0] = contractAccount1;
+        contractAccounts[1] = contractAccount2;
 
         // assert owner is correct
         assertEq(contractPaybackDistributor.owner(), owner, "distributor owner");

@@ -106,12 +106,12 @@ interface IMockFBeanstalk {
     }
 
     struct DeltaBStorage {
-        int256 beforeInputTokenDeltaB;
-        int256 afterInputTokenDeltaB;
-        int256 beforeOutputTokenDeltaB;
-        int256 afterOutputTokenDeltaB;
-        int256 beforeOverallDeltaB;
-        int256 afterOverallDeltaB;
+        int256 beforeInputTokenSpotDeltaB;
+        int256 afterInputTokenSpotDeltaB;
+        int256 beforeOutputTokenSpotDeltaB;
+        int256 afterOutputTokenSpotDeltaB;
+        int256 cappedOverallDeltaB;
+        int256 shadowOverallDeltaB;
     }
 
     struct Deposit {
@@ -744,7 +744,15 @@ interface IMockFBeanstalk {
         uint256 inputTokenAmountInDirectionOfPeg,
         address outputToken,
         uint256 outputTokenAmountInDirectionOfPeg
-    ) external view returns (uint256 cumulativePenalty, PenaltyData memory pdCapacity);
+    )
+        external
+        view
+        returns (
+            uint256 cumulativePenalty,
+            PenaltyData memory pdCapacity,
+            address targetWell,
+            uint256[] memory targetWellReserves
+        );
 
     function calculateDeltaBFromReserves(
         address well,
@@ -757,7 +765,8 @@ interface IMockFBeanstalk {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         external
         view
@@ -1236,11 +1245,7 @@ interface IMockFBeanstalk {
         uint256 fieldId
     ) external view returns (Plot[] memory plots);
 
-    function combinePlots(
-        address account,
-        uint256 fieldId,
-        uint256[] calldata plotIndexes
-    ) external payable;
+    function combinePlots(uint256 fieldId, uint256[] calldata plotIndexes) external payable;
 
     function reorderPlotIndexes(
         uint256[] memory newPlotIndexes,

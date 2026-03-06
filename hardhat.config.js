@@ -26,26 +26,19 @@ require("./tasks")();
 // 4) at a block number (to make subsequent deployments faster).
 //  - anvil --fork-url <url> -disable-gas-limit --no-rate-limit --threads 0 --fork-block-number <block number>
 task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
+  setMock = true;
   // compile contracts.
   await hre.run("compile");
 
-  await hre.run("PI-14");
-
-  console.log("Diamond Upgraded.");
-
-  await hre.run("addLiquidityToWstethWell", { deposit: true });
-  console.log("Liquidity added to WSTETH well.");
-
-  // deploy the new pod referral contracts:
-  await hre.run("deployPodReferralContracts");
-  console.log("Pod referral contracts deployed.");
-
-  // update the oracle timeouts
-  await hre.run("updateOracleTimeouts");
-  console.log("Oracle timeouts updated.");
-
   // run beanstalk shipments
-  await hre.run("runBeanstalkShipments", { skipPause: true, runStep0: false });
+  await hre.run("finalizeBeanstalkShipments", {
+    mock: setMock
+  });
+
+  await hre.run("transferPaybackContractOwnership", {
+    mock: setMock,
+    log: true
+  });
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
@@ -104,8 +97,7 @@ module.exports = {
     base: {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
-      timeout: 100000000,
-      accounts: []
+      timeout: 100000000
     },
     custom: {
       chainId: 41337,

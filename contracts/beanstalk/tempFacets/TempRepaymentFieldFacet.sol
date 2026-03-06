@@ -14,7 +14,7 @@ import {LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
  * After the initialization is complete, this facet will be removed.
  */
 contract TempRepaymentFieldFacet is ReentrancyGuard {
-    address public constant REPAYMENT_FIELD_POPULATOR = 0xc4c66c8b199443a8deA5939ce175C3592e349791;
+    address public constant REPAYMENT_FIELD_POPULATOR = 0x00000015EE13a3C1fD0e8Dc2e8C2c8590D5B440B;
     uint256 public constant REPAYMENT_FIELD_ID = 1;
 
     event RepaymentPlotAdded(address indexed account, uint256 indexed plotIndex, uint256 pods);
@@ -45,12 +45,13 @@ contract TempRepaymentFieldFacet is ReentrancyGuard {
         for (uint i; i < accountPlots.length; i++) {
             // cache the account and length of the plot indexes array
             address account = accountPlots[i].account;
+            uint256 len = s.accts[account].fields[REPAYMENT_FIELD_ID].plotIndexes.length;
             for (uint j; j < accountPlots[i].plots.length; j++) {
                 uint256 podIndex = accountPlots[i].plots[j].podIndex;
                 uint256 podAmount = accountPlots[i].plots[j].podAmounts;
                 s.accts[account].fields[REPAYMENT_FIELD_ID].plots[podIndex] = podAmount;
                 s.accts[account].fields[REPAYMENT_FIELD_ID].plotIndexes.push(podIndex);
-                s.accts[account].fields[REPAYMENT_FIELD_ID].piIndex[podIndex] = j;
+                s.accts[account].fields[REPAYMENT_FIELD_ID].piIndex[podIndex] = len + j;
                 emit RepaymentPlotAdded(account, podIndex, podAmount);
             }
         }

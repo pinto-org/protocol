@@ -91,3 +91,9 @@ For `<FORKING_RPC>`, use an Alchemy or Infura RPC URL.
 ## License
 
 [MIT](https://github.com/pintomoney/protocol/blob/main/LICENSE.txt)
+
+
+
+## Bug Bounty
+Reports that come through the Pinto Bug Boungty are recorded here:
+https://pintofarm.notion.site/
