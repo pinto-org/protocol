@@ -30,15 +30,8 @@ task("runLatestUpgrade", "Compiles the contracts").setAction(async function () {
   // compile contracts.
   await hre.run("compile");
 
-  // run beanstalk shipments
-  await hre.run("finalizeBeanstalkShipments", {
-    mock: setMock
-  });
-
-  await hre.run("transferPaybackContractOwnership", {
-    mock: setMock,
-    log: true
-  });
+  // deploy automate claim blueprint
+  await hre.run("deployAutomateClaimBlueprint");
 });
 
 task("callSunriseAndTestMigration", "Calls the sunrise function and tests the migration").setAction(
