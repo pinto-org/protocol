@@ -475,6 +475,18 @@ module.exports = function () {
           });
         }
 
+        // Deploy GasCostCalculator
+        console.log("Deploying GasCostCalculator...");
+        const GasCostCalculator = await ethers.getContractFactory("GasCostCalculator", {
+          signer: deployer
+        });
+        const gasCostCalculator = await GasCostCalculator.deploy(
+          PINTO_PRICE_CONTRACT, // beanstalkPrice address
+          deployer.address, // owner address
+          50000 // base gas overhead
+        );
+        await gasCostCalculator.deployed();
+
         // Deploy AutomateClaimBlueprint with linked library
         console.log("Deploying AutomateClaimBlueprint...");
         const AutomateClaimBlueprint = await ethers.getContractFactory("AutomateClaimBlueprint", {
@@ -487,6 +499,7 @@ module.exports = function () {
           L2_PINTO,
           deployer.address, // owner address
           tractorHelpersContract.address, // tractorHelpers address
+          gasCostCalculator.address, // gasCostCalculator address
           siloHelpersContract.address, // siloHelpers address
           BEANSTALK_BARN_PAYBACK, // barn payback proxy
           BEANSTALK_SILO_PAYBACK // silo payback proxy
@@ -497,6 +510,7 @@ module.exports = function () {
         console.log("LibSiloHelpers:", libSiloHelpers.address);
         console.log("TractorHelpers:", tractorHelpersContract.address);
         console.log("SiloHelpers:", siloHelpersContract.address);
+        console.log("GasCostCalculator:", gasCostCalculator.address);
         console.log("BeanstalkBarnPayback:", BEANSTALK_BARN_PAYBACK);
         console.log("BeanstalkSiloPayback:", BEANSTALK_SILO_PAYBACK);
         console.log("AutomateClaimBlueprint:", automateClaimBlueprint.address);
