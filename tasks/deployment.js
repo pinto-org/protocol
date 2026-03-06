@@ -11,7 +11,9 @@ const {
   LIB_SILO_HELPERS,
   PRICE_MANIPULATION,
   TRACTOR_HELPERS,
-  SILO_HELPERS
+  SILO_HELPERS,
+  BEANSTALK_BARN_PAYBACK,
+  BEANSTALK_SILO_PAYBACK
 } = require("../test/hardhat/utils/constants.js");
 
 module.exports = function () {
@@ -424,6 +426,87 @@ module.exports = function () {
       console.log("SiloHelpers deployed to:", siloHelpersContract.address);
       return siloHelpersContract;
     });
+
+  task("deployAutomateClaimBlueprint", "Deploys the AutomateClaimBlueprint contract").setAction(
+    async (args, { ethers }) => {
+      const mock = true;
+      const useExistingContracts = true;
+      try {
+        console.log("-----------------------------------");
+        console.log("Deploying AutomateClaimBlueprint...");
+
+        // Get deployer
+        let deployer;
+        if (mock) {
+          deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+          await mintEth(deployer.address);
+        } else {
+          deployer = (await ethers.getSigners())[0];
+        }
+
+        // Get or deploy LibSiloHelpers library
+        let libSiloHelpers;
+        if (useExistingContracts) {
+          libSiloHelpers = await ethers.getContractAt("LibSiloHelpers", LIB_SILO_HELPERS);
+        } else {
+          libSiloHelpers = await hre.run("deployLibSiloHelpers", { mock });
+        }
+
+        // Get or deploy TractorHelpers
+        let tractorHelpersContract;
+        if (useExistingContracts) {
+          tractorHelpersContract = await ethers.getContractAt("TractorHelpers", TRACTOR_HELPERS);
+        } else {
+          tractorHelpersContract = await hre.run("deployTractorHelpers", {
+            mock,
+            libSiloHelpersAddress: libSiloHelpers.address
+          });
+        }
+
+        // Get or deploy SiloHelpers
+        let siloHelpersContract;
+        if (useExistingContracts) {
+          siloHelpersContract = await ethers.getContractAt("SiloHelpers", SILO_HELPERS);
+        } else {
+          siloHelpersContract = await hre.run("deploySiloHelpers", {
+            mock,
+            libSiloHelpersAddress: libSiloHelpers.address,
+            tractorHelpersAddress: tractorHelpersContract.address
+          });
+        }
+
+        // Deploy AutomateClaimBlueprint with linked library
+        console.log("Deploying AutomateClaimBlueprint...");
+        const AutomateClaimBlueprint = await ethers.getContractFactory("AutomateClaimBlueprint", {
+          libraries: {
+            "contracts/libraries/Silo/LibSiloHelpers.sol:LibSiloHelpers": libSiloHelpers.address
+          },
+          signer: deployer
+        });
+        const automateClaimBlueprint = await AutomateClaimBlueprint.deploy(
+          L2_PINTO,
+          deployer.address, // owner address
+          tractorHelpersContract.address, // tractorHelpers address
+          siloHelpersContract.address, // siloHelpers address
+          BEANSTALK_BARN_PAYBACK, // barn payback proxy
+          BEANSTALK_SILO_PAYBACK // silo payback proxy
+        );
+        await automateClaimBlueprint.deployed();
+
+        console.log("\n=== Deployment Summary ===");
+        console.log("LibSiloHelpers:", libSiloHelpers.address);
+        console.log("TractorHelpers:", tractorHelpersContract.address);
+        console.log("SiloHelpers:", siloHelpersContract.address);
+        console.log("BeanstalkBarnPayback:", BEANSTALK_BARN_PAYBACK);
+        console.log("BeanstalkSiloPayback:", BEANSTALK_SILO_PAYBACK);
+        console.log("AutomateClaimBlueprint:", automateClaimBlueprint.address);
+        console.log("-----------------------------------");
+      } catch (error) {
+        console.error("\x1b[31mError during deployment:\x1b[0m", error);
+        process.exit(1);
+      }
+    }
+  );
 
   task("deployLSDChainlinkOracle", "Deploys the LSDChainlinkOracle contract").setAction(
     async (args, { ethers }) => {
