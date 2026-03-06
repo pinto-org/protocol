@@ -7,6 +7,7 @@ import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TractorHelpers} from "contracts/ecosystem/tractor/utils/TractorHelpers.sol";
 import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
+import {GasCostCalculator} from "contracts/ecosystem/tractor/utils/GasCostCalculator.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorTestHelper} from "test/foundry/utils/TractorTestHelper.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
@@ -83,6 +84,14 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
+        // Deploy GasCostCalculator (3 args: beanstalkPrice, owner, baseGasOverhead)
+        GasCostCalculator gasCostCalculator = new GasCostCalculator(
+            address(beanstalkPrice),
+            address(this),
+            50000 // base gas overhead
+        );
+        vm.label(address(gasCostCalculator), "GasCostCalculator");
+
         // Deploy BarnPayback (proxy pattern)
         barnPayback = _deployBarnPayback();
         vm.label(address(barnPayback), "BarnPayback");
@@ -91,11 +100,12 @@ contract AutomateClaimBlueprintTest is TractorTestHelper {
         siloPaybackContract = _deploySiloPayback();
         vm.label(address(siloPaybackContract), "SiloPayback");
 
-        // Deploy AutomateClaimBlueprint with TractorHelpers, SiloHelpers, BarnPayback and SiloPayback addresses
+        // Deploy AutomateClaimBlueprint with TractorHelpers, GasCostCalculator, SiloHelpers, BarnPayback and SiloPayback addresses
         automateClaimBlueprint = new AutomateClaimBlueprint(
             address(bs),
             address(this),
             address(tractorHelpers),
+            address(gasCostCalculator),
             address(siloHelpers),
             address(barnPayback),
             address(siloPaybackContract)

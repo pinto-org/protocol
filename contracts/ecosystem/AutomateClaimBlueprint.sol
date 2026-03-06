@@ -4,7 +4,8 @@ pragma solidity ^0.8.20;
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
-import {BlueprintBase} from "./BlueprintBase.sol";
+import {BlueprintBase} from "./tractor/blueprints/BlueprintBase.sol";
+import {SiloHelpers} from "contracts/ecosystem/tractor/utils/SiloHelpers.sol";
 
 /**
  * @dev Minimal interface for BarnPayback's claim and balance functions.
@@ -154,11 +155,7 @@ contract AutomateClaimBlueprint is BlueprintBase {
         uint256 unripeClaimAmount;
     }
 
-<<<<<<<< HEAD:contracts/ecosystem/tractor/blueprints/MowPlantHarvestBlueprint.sol
-========
     // Silo helpers for withdrawal functionality
-    SiloHelpers public immutable siloHelpers;
-    // BarnPayback contract for claiming fertilized beans
     IBarnPaybackClaim public immutable barnPayback;
     // SiloPayback contract for claiming unripe silo rewards
     ISiloPaybackClaim public immutable siloPayback;
@@ -172,7 +169,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
      * @param harvestTip Tip allocated for harvest operation (0 if harvest was skipped)
      * @param rinseTip Tip allocated for rinse operation (0 if rinse was skipped)
      * @param unripeClaimTip Tip allocated for unripe claim operation (0 if claim was skipped)
-     * @param totalTip Total tip amount (sum of all operation tips)
+     * @param dynamicFee Dynamic fee charged (0 if fee disabled)
+     * @param totalTip Total tip amount (sum of all operation tips and dynamic fee)
      */
     event AutomateClaimTipBreakdown(
         address indexed account,
@@ -182,28 +180,22 @@ contract AutomateClaimBlueprint is BlueprintBase {
         int256 harvestTip,
         int256 rinseTip,
         int256 unripeClaimTip,
+        uint256 dynamicFee,
         int256 totalTip
     );
 
->>>>>>>> origin/refactor/automate-claim-blueprint:contracts/ecosystem/AutomateClaimBlueprint.sol
     constructor(
         address _beanstalk,
         address _owner,
         address _tractorHelpers,
-<<<<<<<< HEAD:contracts/ecosystem/tractor/blueprints/MowPlantHarvestBlueprint.sol
         address _gasCostCalculator,
-        address _siloHelpers
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {}
-========
         address _siloHelpers,
         address _barnPayback,
         address _siloPayback
-    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers) {
-        siloHelpers = SiloHelpers(_siloHelpers);
+    ) BlueprintBase(_beanstalk, _owner, _tractorHelpers, _gasCostCalculator, _siloHelpers) {
         barnPayback = IBarnPaybackClaim(_barnPayback);
         siloPayback = ISiloPaybackClaim(_siloPayback);
     }
->>>>>>>> origin/refactor/automate-claim-blueprint:contracts/ecosystem/AutomateClaimBlueprint.sol
 
     /**
      * @notice Main entry point for the automate claim blueprint
@@ -281,26 +273,6 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.totalBeanTip += params.opParams.harvestTipAmount;
         }
 
-<<<<<<<< HEAD:contracts/ecosystem/tractor/blueprints/MowPlantHarvestBlueprint.sol
-        // Add dynamic fee if enabled
-        if (params.opParams.baseOpParams.useDynamicFee) {
-            uint256 dynamicFee = _payDynamicFee(
-                DynamicFeeParams({
-                    account: vars.account,
-                    sourceTokenIndices: params.mowPlantHarvestParams.sourceTokenIndices,
-                    startGas: startGas,
-                    remainingGasOverhead: _getRemainingGasOverhead(
-                        params.mowPlantHarvestParams.sourceTokenIndices
-                    ),
-                    feeMarginBps: params.opParams.baseOpParams.feeMarginBps,
-                    maxGrownStalkPerBdv: params.mowPlantHarvestParams.maxGrownStalkPerBdv,
-                    slippageRatio: params.mowPlantHarvestParams.slippageRatio
-                })
-            );
-            vars.totalBeanTip = _addDynamicFee(vars.totalBeanTip, dynamicFee);
-        }
-
-========
         // Rinse (claim fertilized beans) if the conditions are met
         if (vars.rinseFertilizerIds.length > 0) {
             // Get expected amount before claiming
@@ -334,6 +306,25 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.totalBeanTip += params.opParams.unripeClaimTipAmount;
         }
 
+        // Calculate and apply dynamic fee if enabled
+        uint256 dynamicFeeAmount = 0;
+        if (params.opParams.baseOpParams.useDynamicFee) {
+            dynamicFeeAmount = _payDynamicFee(
+                DynamicFeeParams({
+                    account: vars.account,
+                    sourceTokenIndices: params.automateClaimParams.sourceTokenIndices,
+                    startGas: startGas,
+                    remainingGasOverhead: _getRemainingGasOverhead(
+                        params.automateClaimParams.sourceTokenIndices
+                    ),
+                    feeMarginBps: params.opParams.baseOpParams.feeMarginBps,
+                    maxGrownStalkPerBdv: params.automateClaimParams.maxGrownStalkPerBdv,
+                    slippageRatio: params.automateClaimParams.slippageRatio
+                })
+            );
+            vars.totalBeanTip = _addDynamicFee(vars.totalBeanTip, dynamicFeeAmount);
+        }
+
         emit AutomateClaimTipBreakdown(
             vars.account,
             tipAddress,
@@ -342,10 +333,10 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.userFieldHarvestResults.length > 0 ? params.opParams.harvestTipAmount : int256(0),
             vars.rinseFertilizerIds.length > 0 ? params.opParams.rinseTipAmount : int256(0),
             vars.unripeClaimAmount > 0 ? params.opParams.unripeClaimTipAmount : int256(0),
+            dynamicFeeAmount,
             vars.totalBeanTip
         );
 
->>>>>>>> origin/refactor/automate-claim-blueprint:contracts/ecosystem/AutomateClaimBlueprint.sol
         // Handle tip payment
         handleBeansAndTip(
             vars.account,
