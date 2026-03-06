@@ -162,6 +162,26 @@ contract AutomateClaimBlueprint is BlueprintBase {
     // SiloPayback contract for claiming unripe silo rewards
     ISiloPaybackClaim public immutable siloPayback;
 
+    /**
+     * @notice Emitted when automate claim blueprint executes, showing per-operation tip breakdown
+     * @param account The user whose claims were automated
+     * @param operator The operator who executed the blueprint
+     * @param mowTip Tip allocated for mow operation (0 if mow was skipped)
+     * @param plantTip Tip allocated for plant operation (0 if plant was skipped)
+     * @param harvestTip Tip allocated for harvest operation (0 if harvest was skipped)
+     * @param rinseTip Tip allocated for rinse operation (0 if rinse was skipped)
+     * @param unripeClaimTip Tip allocated for unripe claim operation (0 if claim was skipped)
+     */
+    event AutomateClaimTipBreakdown(
+        address indexed account,
+        address indexed operator,
+        int256 mowTip,
+        int256 plantTip,
+        int256 harvestTip,
+        int256 rinseTip,
+        int256 unripeClaimTip
+    );
+
     constructor(
         address _beanstalk,
         address _owner,
@@ -281,6 +301,16 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.totalHarvestedBeans += vars.unripeClaimAmount;
             vars.totalBeanTip += params.opParams.unripeClaimTipAmount;
         }
+
+        emit AutomateClaimTipBreakdown(
+            vars.account,
+            tipAddress,
+            vars.shouldMow ? params.opParams.mowTipAmount : int256(0),
+            vars.shouldPlant ? params.opParams.plantTipAmount : int256(0),
+            vars.userFieldHarvestResults.length > 0 ? params.opParams.harvestTipAmount : int256(0),
+            vars.rinseFertilizerIds.length > 0 ? params.opParams.rinseTipAmount : int256(0),
+            vars.unripeClaimAmount > 0 ? params.opParams.unripeClaimTipAmount : int256(0)
+        );
 
         // Handle tip payment
         handleBeansAndTip(
