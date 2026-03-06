@@ -171,6 +171,7 @@ contract AutomateClaimBlueprint is BlueprintBase {
      * @param harvestTip Tip allocated for harvest operation (0 if harvest was skipped)
      * @param rinseTip Tip allocated for rinse operation (0 if rinse was skipped)
      * @param unripeClaimTip Tip allocated for unripe claim operation (0 if claim was skipped)
+     * @param totalTip Total tip amount (sum of all operation tips)
      */
     event AutomateClaimTipBreakdown(
         address indexed account,
@@ -179,7 +180,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
         int256 plantTip,
         int256 harvestTip,
         int256 rinseTip,
-        int256 unripeClaimTip
+        int256 unripeClaimTip,
+        int256 totalTip
     );
 
     constructor(
@@ -309,7 +311,8 @@ contract AutomateClaimBlueprint is BlueprintBase {
             vars.shouldPlant ? params.opParams.plantTipAmount : int256(0),
             vars.userFieldHarvestResults.length > 0 ? params.opParams.harvestTipAmount : int256(0),
             vars.rinseFertilizerIds.length > 0 ? params.opParams.rinseTipAmount : int256(0),
-            vars.unripeClaimAmount > 0 ? params.opParams.unripeClaimTipAmount : int256(0)
+            vars.unripeClaimAmount > 0 ? params.opParams.unripeClaimTipAmount : int256(0),
+            vars.totalBeanTip
         );
 
         // Handle tip payment
