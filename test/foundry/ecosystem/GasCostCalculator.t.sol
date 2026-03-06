@@ -43,11 +43,7 @@ contract GasCostCalculatorTest is TestHelper {
 
     function test_calculateFeeInBeanWithMeasuredOracle_revertsOnExcessiveMargin() public {
         vm.expectRevert("GasCostCalculator: margin exceeds max");
-        gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(
-            TYPICAL_GAS_USED,
-            500_000,
-            10001
-        );
+        gasCostCalculator.calculateFeeInBeanWithMeasuredOracle(TYPICAL_GAS_USED, 500_000, 10001);
     }
 
     function test_calculateFeeInBeanWithMeasuredOracle_revertsWithoutEthOracle() public {

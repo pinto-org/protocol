@@ -175,7 +175,6 @@ abstract contract BlueprintBase is PerFunctionPausable {
      * @return fee The calculated fee amount in Bean
      */
     function _payDynamicFee(DynamicFeeParams memory feeParams) internal returns (uint256 fee) {
-
         LibSiloHelpers.FilterParams memory filterParams = LibSiloHelpers.getDefaultFilterParams(
             feeParams.maxGrownStalkPerBdv
         );

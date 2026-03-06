@@ -58,11 +58,7 @@ contract GasMeasurementForkTest is Test {
             address(tractorHelpers),
             address(priceManipulation)
         );
-        gasCostCalculator = new GasCostCalculator(
-            address(beanstalkPrice),
-            address(this),
-            50000
-        );
+        gasCostCalculator = new GasCostCalculator(address(beanstalkPrice), address(this), 50000);
 
         user = makeAddr("gasMeasurementUser");
         vm.deal(user, 100 ether);
