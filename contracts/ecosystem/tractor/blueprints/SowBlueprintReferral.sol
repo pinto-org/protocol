@@ -33,6 +33,7 @@ contract SowBlueprintReferral is SowBlueprintBase {
     function sowBlueprintReferral(
         SowReferralBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
+        _validateOperatorParams(params.params.opParams);
         _sowBlueprintInternal(params.params, params.referral);
     }
 

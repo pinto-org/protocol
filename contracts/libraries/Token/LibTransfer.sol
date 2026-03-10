@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../interfaces/IBean.sol";
 import "./LibBalance.sol";
+import {LibTokenHook} from "./LibTokenHook.sol";
 
 /**
  * @title LibTransfer
@@ -42,6 +43,11 @@ library LibTransfer {
         From fromMode,
         To toMode
     ) internal returns (uint256 transferredAmount) {
+        // if the transfer involves internal balances and the token has a hook, call the hook
+        if (fromMode == From.INTERNAL || toMode == To.INTERNAL) {
+            LibTokenHook.checkForAndCallPreTransferHook(address(token), sender, recipient, amount);
+        }
+
         if (fromMode == From.EXTERNAL && toMode == To.EXTERNAL) {
             uint256 beforeBalance = token.balanceOf(recipient);
             token.safeTransferFrom(sender, recipient, amount);

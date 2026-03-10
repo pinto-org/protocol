@@ -9,13 +9,13 @@ import {MockPayback} from "contracts/mocks/MockPayback.sol";
 import {MockBudget} from "contracts/mocks/MockBudget.sol";
 import {Utils, console} from "test/foundry/utils/Utils.sol";
 import {C} from "contracts/C.sol";
-import {ShipmentPlanner, ShipmentPlan} from "contracts/ecosystem/ShipmentPlanner.sol";
-import {IShipmentPlanner} from "contracts/interfaces/IShipmentPlanner.sol";
+import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {MockShipmentPlanner} from "contracts/mocks/MockShipmentPlanner.sol";
 
 // Extend the interface to support Fields with different points.
-interface IMockShipmentPlanner is IShipmentPlanner {
+interface IMockShipmentPlanner is IMockFBeanstalk {
     function getFieldPlanMulti(bytes memory data) external view returns (ShipmentPlan memory);
+    function getPaybackPlan(bytes memory data) external view returns (ShipmentPlan memory);
 }
 
 /**
@@ -23,7 +23,9 @@ interface IMockShipmentPlanner is IShipmentPlanner {
  * @notice Test helper contract to deploy ShipmentPlanner and set Routes.
  */
 contract ShipmentDeployer is Utils {
-    address shipmentPlanner;
+    // address(0) == address(this) == ShipmentPlannerFacet
+    address defaultShipmentPlanner;
+    // Mock external contract to test decoupling from ShipmentPlannerFacet
     address mockShipmentPlanner;
 
     // Deploy fake budget address.
@@ -46,14 +48,12 @@ contract ShipmentDeployer is Utils {
         payback = address(new MockPayback(BEAN));
 
         // Deploy the planner, which will determine points and caps of each route.
-        shipmentPlanner = address(new ShipmentPlanner(BEANSTALK, BEAN));
+        defaultShipmentPlanner = address(0);
         mockShipmentPlanner = address(new MockShipmentPlanner(BEANSTALK, BEAN));
 
         // TODO: Update this with new routes.
         // Set up two routes: the Silo and a Field.
         setRoutes_siloAndField();
-
-        if (verbose) console.log("ShipmentPlanner deployed at: ", shipmentPlanner);
     }
 
     /**
@@ -62,8 +62,8 @@ contract ShipmentDeployer is Utils {
     function setRoutes_silo() internal {
         IBeanstalk.ShipmentRoute[] memory shipmentRoutes = new IBeanstalk.ShipmentRoute[](1);
         shipmentRoutes[0] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getSiloPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getSiloPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.SILO,
             data: abi.encode("")
         });
@@ -78,14 +78,14 @@ contract ShipmentDeployer is Utils {
     function setRoutes_siloAndField() internal {
         IBeanstalk.ShipmentRoute[] memory shipmentRoutes = new IBeanstalk.ShipmentRoute[](2);
         shipmentRoutes[0] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getSiloPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getSiloPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.SILO,
             data: abi.encode("")
         });
         shipmentRoutes[1] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getFieldPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getFieldPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.FIELD,
             data: abi.encode(uint256(0))
         });
@@ -99,15 +99,15 @@ contract ShipmentDeployer is Utils {
             1 + fieldCount
         );
         shipmentRoutes[0] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getSiloPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getSiloPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.SILO,
             data: abi.encode("")
         });
         for (uint256 i = 0; i < fieldCount; i++) {
             shipmentRoutes[i + 1] = IBeanstalk.ShipmentRoute({
-                planContract: shipmentPlanner,
-                planSelector: IShipmentPlanner.getFieldPlan.selector,
+                planContract: defaultShipmentPlanner,
+                planSelector: IMockFBeanstalk.getFieldPlan.selector,
                 recipient: IBeanstalk.ShipmentRecipient.FIELD,
                 data: abi.encode(i)
             });
@@ -129,10 +129,11 @@ contract ShipmentDeployer is Utils {
         );
         shipmentRoutes[0] = IBeanstalk.ShipmentRoute({
             planContract: mockShipmentPlanner,
-            planSelector: IShipmentPlanner.getSiloPlan.selector,
+            planSelector: IMockFBeanstalk.getSiloPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.SILO,
             data: abi.encodePacked("")
         });
+        // MockShipmentPlanner
         shipmentRoutes[1] = IBeanstalk.ShipmentRoute({
             planContract: mockShipmentPlanner,
             planSelector: IMockShipmentPlanner.getFieldPlanMulti.selector,
@@ -163,38 +164,38 @@ contract ShipmentDeployer is Utils {
 
         // Silo.
         shipmentRoutes[0] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getSiloPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getSiloPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.SILO,
             data: abi.encode("")
         });
         // Active Field.
         shipmentRoutes[1] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getFieldPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getFieldPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.FIELD,
             data: abi.encode(uint256(0))
         });
         // Second Field (1/3 of payback).
         shipmentRoutes[2] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getPaybackFieldPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getPaybackFieldPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.FIELD,
             data: abi.encode(uint256(1), payback)
         });
         // Budget.
         shipmentRoutes[3] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getBudgetPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockFBeanstalk.getBudgetPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.INTERNAL_BALANCE,
             data: abi.encode(budget)
         });
         // Payback.
         shipmentRoutes[4] = IBeanstalk.ShipmentRoute({
-            planContract: shipmentPlanner,
-            planSelector: IShipmentPlanner.getPaybackPlan.selector,
+            planContract: defaultShipmentPlanner,
+            planSelector: IMockShipmentPlanner.getPaybackPlan.selector,
             recipient: IBeanstalk.ShipmentRecipient.EXTERNAL_BALANCE,
-            data: abi.encode(payback)
+            data: abi.encode(payback) // sends to payback contract
         });
 
         vm.prank(deployer);

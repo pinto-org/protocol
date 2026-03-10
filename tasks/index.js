@@ -11,4 +11,5 @@ module.exports = function () {
   require("./abi-generation")();
   require("./tractor")();
   require("./well-deployment")();
+  require("./beanstalk-shipments")();
 };

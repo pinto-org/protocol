@@ -287,9 +287,13 @@ describe("Well Convert", function () {
         // call sunrise twice to finish germination (germinating deposits cannot convert).
         await mockBeanstalk.siloSunrise("0");
         await mockBeanstalk.siloSunrise("0");
+
+        const [toStem, fromAmount, toAmount, fromBdv, toBdv] = await beanstalk
+          .connect(owner)
+          .callStatic.convert(convertData, ["0"], [to18("2000")]);
         await beanstalk.connect(owner).convert(convertData, ["0"], [to18("2000")]);
 
-        deposit = await beanstalk.getDeposit(owner.address, BEAN, "-3520050");
+        deposit = await beanstalk.getDeposit(owner.address, BEAN, toStem);
         expect(deposit[0]).to.be.equal("134564064605");
       });
 

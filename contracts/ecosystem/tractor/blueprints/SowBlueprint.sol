@@ -23,6 +23,7 @@ contract SowBlueprint is SowBlueprintBase {
     function sowBlueprint(
         SowBlueprintStruct calldata params
     ) external payable whenFunctionNotPaused {
+        _validateOperatorParams(params.opParams);
         _sowBlueprintInternal(params, address(0));
     }
 

@@ -33,7 +33,9 @@ interface IMockFBeanstalk {
         SILO,
         FIELD,
         INTERNAL_BALANCE,
-        EXTERNAL_BALANCE
+        EXTERNAL_BALANCE,
+        SILO_PAYBACK,
+        BARN_PAYBACK
     }
 
     struct AccountSeasonOfPlenty {
@@ -104,12 +106,12 @@ interface IMockFBeanstalk {
     }
 
     struct DeltaBStorage {
-        int256 beforeInputTokenDeltaB;
-        int256 afterInputTokenDeltaB;
-        int256 beforeOutputTokenDeltaB;
-        int256 afterOutputTokenDeltaB;
-        int256 beforeOverallDeltaB;
-        int256 afterOverallDeltaB;
+        int256 beforeInputTokenSpotDeltaB;
+        int256 afterInputTokenSpotDeltaB;
+        int256 beforeOutputTokenSpotDeltaB;
+        int256 afterOutputTokenSpotDeltaB;
+        int256 cappedOverallDeltaB;
+        int256 shadowOverallDeltaB;
     }
 
     struct Deposit {
@@ -328,6 +330,11 @@ interface IMockFBeanstalk {
     struct ContractData {
         uint256 key;
         bytes value;
+    }
+
+    struct ShipmentPlan {
+        uint256 points;
+        uint256 cap;
     }
 
     error AddressEmptyCode(address target);
@@ -596,6 +603,10 @@ interface IMockFBeanstalk {
         Implementation lwImplementation
     );
 
+    event TokenHookRegistered(address indexed token, address target, bytes4 selector);
+    event TokenHookRemoved(address indexed token);
+    event TokenHookUpdated(address indexed token, address target, bytes4 selector);
+
     function abovePeg() external view returns (bool);
 
     function activeField() external view returns (uint256);
@@ -733,7 +744,15 @@ interface IMockFBeanstalk {
         uint256 inputTokenAmountInDirectionOfPeg,
         address outputToken,
         uint256 outputTokenAmountInDirectionOfPeg
-    ) external view returns (uint256 cumulativePenalty, PenaltyData memory pdCapacity);
+    )
+        external
+        view
+        returns (
+            uint256 cumulativePenalty,
+            PenaltyData memory pdCapacity,
+            address targetWell,
+            uint256[] memory targetWellReserves
+        );
 
     function calculateDeltaBFromReserves(
         address well,
@@ -746,7 +765,8 @@ interface IMockFBeanstalk {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         external
         view
@@ -1200,12 +1220,38 @@ interface IMockFBeanstalk {
         uint256 fieldId
     ) external view returns (uint256[] memory plotIndexes);
 
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256);
+
+    function getPiIndexFromAccount(
+        address account,
+        uint256 fieldId,
+        uint256 index
+    ) external view returns (uint256);
+
+    function setUserPodsAtField(
+        address account,
+        uint256 fieldId,
+        uint256 index,
+        uint256 amount
+    ) external;
+
     function getPlotMerkleRoot() external pure returns (bytes32);
 
     function getPlotsFromAccount(
         address account,
         uint256 fieldId
     ) external view returns (Plot[] memory plots);
+
+    function combinePlots(uint256 fieldId, uint256[] calldata plotIndexes) external payable;
+
+    function reorderPlotIndexes(
+        uint256[] memory newPlotIndexes,
+        uint256 fieldId,
+        address account
+    ) external;
 
     function getPodListing(uint256 fieldId, uint256 index) external view returns (bytes32 id);
 
@@ -2060,4 +2106,34 @@ interface IMockFBeanstalk {
         uint8 mode,
         address referrer
     ) external payable returns (uint256 pods, uint256 referrerPods, uint256 refereePods);
+
+    function addTokenHook(address token, Implementation memory hook) external payable;
+
+    function removeTokenHook(address token) external payable;
+
+    function updateTokenHook(address token, Implementation memory hook) external payable;
+
+    function hasTokenHook(address token) external view returns (bool);
+
+    function getTokenHook(address token) external view returns (Implementation memory);
+
+    function getFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getSiloPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getBudgetPlan(bytes memory) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackFieldPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackSiloPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
+
+    function getPaybackBarnPlan(
+        bytes memory data
+    ) external view returns (ShipmentPlan memory shipmentPlan);
 }

@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {IBarnPayback} from "contracts/interfaces/IBarnPayback.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ICrossDomainMessenger} from "contracts/interfaces/ICrossDomainMessenger.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {IContractPaybackDistributor} from "contracts/interfaces/IContractPaybackDistributor.sol";
+import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
+
+/**
+ * @title ContractPaybackDistributor
+ * @notice Contract that distributes the beanstalk repayment assets to the contract accounts.
+ * After the distribution, this contract will custody and distribute all assets for all eligible contract accounts.
+ *
+ * Contract accounts eligible for Beanstalk repayment assets can either:
+ *
+ * 1. Deploy their contracts on the same address as in Ethereum L1 using the following methods:
+ *    - For safe multisigs with version >1.3.0 , deploy their safe from the official UI
+ *        (https://help.safe.global/en/articles/222612-deploying-a-multi-chain-safe)
+ *    - For regular contracts, deploy using the same deployer nonce as on L1 to replicate their address on Base
+ *         (https://github.com/pinto-org/beanstalkContractRedeployer)
+ *    - For amibre wallets just perform a transaction on Base to activate their account
+ *   Once their address is replicated they can just call claimDirect() and receive their assets.
+ *
+ * 2. Send a cross chain message from Ethereum L1 using the cross chain messenger that when
+ *    received, will whitelist an receiver address that will be able to claim the assets of the caller on the L2.
+ *
+ * 3. If an account has just delegated its code to a contract, they can just call claimDirect() and receive their assets.
+ */
+contract ContractPaybackDistributor is
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    IERC1155Receiver,
+    IContractPaybackDistributor
+{
+    using SafeERC20 for IERC20;
+
+    // Repayment field id
+    uint256 public constant REPAYMENT_FIELD_ID = 1;
+
+    // L2 messenger on the Superchain
+    ICrossDomainMessenger public constant MESSENGER =
+        ICrossDomainMessenger(0x4200000000000000000000000000000000000007);
+
+    // L1 sender: the contract address that sent the claim message from the L1
+    address public constant L1_SENDER = 0xD2abd9a7E7F10e3bF4376fb03A07fca729A55b6f;
+
+    struct AccountData {
+        bool whitelisted;
+        bool claimed;
+        uint256 siloPaybackTokensOwed;
+        uint256[] fertilizerIds;
+        uint256[] fertilizerAmounts;
+        uint256[] plotIds;
+        uint256[] plotAmounts;
+    }
+
+    /// @dev contains all the data for all the contract accounts
+    mapping(address => AccountData) public accounts;
+
+    // Beanstalk protocol
+    IBeanstalk public pintoProtocol;
+    // Silo payback token
+    IERC20 public siloPayback;
+    // Barn payback token
+    IBarnPayback public barnPayback;
+
+    modifier onlyWhitelistedCaller(address caller) {
+        require(
+            accounts[caller].whitelisted,
+            "ContractPaybackDistributor: Caller not whitelisted for claim"
+        );
+        _;
+    }
+
+    modifier onlyL1Messenger() {
+        require(
+            msg.sender == address(MESSENGER),
+            "ContractPaybackDistributor: Caller not L1 messenger"
+        );
+        require(
+            MESSENGER.xDomainMessageSender() == L1_SENDER,
+            "ContractPaybackDistributor: Bad origin"
+        );
+        _;
+    }
+
+    modifier isValidReceiver(address receiver) {
+        require(receiver != address(0), "ContractPaybackDistributor: Invalid receiver address");
+        _;
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Initializes the contract with the required addresses
+     * @param _pintoProtocol The pinto protocol address
+     * @param _siloPayback The silo payback token address
+     * @param _barnPayback The barn payback token address
+     */
+    function initialize(
+        address _pintoProtocol,
+        address _siloPayback,
+        address _barnPayback
+    ) public initializer {
+        __ReentrancyGuard_init();
+        __Ownable_init(msg.sender);
+        pintoProtocol = IBeanstalk(_pintoProtocol);
+        siloPayback = IERC20(_siloPayback);
+        barnPayback = IBarnPayback(_barnPayback);
+    }
+
+    /**
+     * @notice Initializes the claimable assets for the contract accounts
+     * @param _contractAccounts The contract account addresses to whitelist
+     * @param _accountsData The account data for the contract accounts to whitelist
+     */
+    function initializeAccountData(
+        address[] memory _contractAccounts,
+        AccountData[] memory _accountsData
+    ) external onlyOwner {
+        require(_contractAccounts.length == _accountsData.length, "Init Array length mismatch");
+        for (uint256 i = 0; i < _contractAccounts.length; i++) {
+            require(_contractAccounts[i] != address(0), "Invalid contract account address");
+            accounts[_contractAccounts[i]] = _accountsData[i];
+        }
+    }
+
+    /**
+     * @notice Allows a contract account to claim their beanstalk repayment assets directly to a receiver.
+     * @param receiver The address to transfer the assets to
+     */
+    function claimDirect(
+        address receiver,
+        LibTransfer.To siloPaybackToMode
+    ) external nonReentrant onlyWhitelistedCaller(msg.sender) isValidReceiver(receiver) {
+        AccountData storage account = accounts[msg.sender];
+        require(!account.claimed, "ContractPaybackDistributor: Caller already claimed");
+
+        account.claimed = true;
+        _transferAllAssetsForAccount(msg.sender, receiver, siloPaybackToMode);
+    }
+
+    /**
+     * @notice Allows a contract account to set a receiver for their assets on the L2.
+     * @param caller The address of the caller on the L1. (The encoded msg.sender in the message)
+     * @param receiver The address that will be able to claim the assets of the caller on the L2.
+     */
+    function setReceiverFromL1Message(
+        address caller,
+        address receiver
+    ) public nonReentrant onlyL1Messenger onlyWhitelistedCaller(caller) isValidReceiver(receiver) {
+        AccountData storage callerData = accounts[caller];
+        require(!callerData.claimed, "ContractPaybackDistributor: Caller already claimed");
+        accounts[receiver] = callerData;
+        callerData.claimed = true;
+    }
+
+    /**
+     * @notice Transfers all assets for a whitelisted contract account to a receiver
+     * note: if the receiver is a contract it must implement the ERC1155Receiver interface
+     * @param account The address of the account to claim from
+     * @param receiver The address to transfer the assets to
+     */
+    function _transferAllAssetsForAccount(
+        address account,
+        address receiver,
+        LibTransfer.To siloPaybackToMode
+    ) internal {
+        AccountData memory accountData = accounts[account];
+
+        // transfer silo payback tokens to the receiver
+        if (accountData.siloPaybackTokensOwed > 0) {
+            if (siloPaybackToMode == LibTransfer.To.INTERNAL) {
+                pintoProtocol.sendTokenToInternalBalance(
+                    address(siloPayback),
+                    receiver,
+                    accountData.siloPaybackTokensOwed
+                );
+            } else {
+                siloPayback.safeTransfer(receiver, accountData.siloPaybackTokensOwed);
+            }
+        }
+
+        // transfer fertilizer ERC1155s to the receiver
+        if (accountData.fertilizerIds.length > 0) {
+            barnPayback.safeBatchTransferFrom(
+                address(this),
+                receiver,
+                accountData.fertilizerIds,
+                accountData.fertilizerAmounts,
+                ""
+            );
+        }
+
+        // transfer the plots to the receiver
+        // make an empty array of plotStarts since all plot transfers start from the beginning of the plot
+        uint256[] memory plotStarts = new uint256[](accountData.plotIds.length);
+        if (accountData.plotIds.length > 0) {
+            pintoProtocol.transferPlots(
+                address(this),
+                receiver,
+                REPAYMENT_FIELD_ID,
+                accountData.plotIds,
+                plotStarts,
+                accountData.plotAmounts
+            );
+        }
+    }
+
+    //////////////////////////// ERC1155Receiver ////////////////////////////
+
+    /**
+     * @dev ERC-1155 hook allowing this contract to receive a single fertilizer from the barn payback contract
+     */
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) external returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    /**
+     * @dev ERC-1155 hook allowing this contract to receive a batch of fertilizers from the barn payback contract
+     */
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    /**
+     * @dev ERC-1155 compliance function to indicate that this contract implements the IERC1155Receiver interface
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId;
+    }
+}

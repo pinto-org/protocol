@@ -3,8 +3,8 @@
 pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ShipmentPlan, IBeanstalk} from "contracts/ecosystem/ShipmentPlanner.sol";
-
+import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {ShipmentPlan} from "contracts/beanstalk/facets/sun/ShipmentPlannerFacet.sol";
 /**
  * @title ShipmentPlanner
  * @notice Same as standard Shipment planner, but implements two Fields with different points.

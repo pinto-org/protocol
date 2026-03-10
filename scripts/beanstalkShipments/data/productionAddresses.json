@@ -1,0 +1,11 @@
+{
+  "siloPayback": "0x525C94754C51946a7a3B72580Ce0DF36922E1E64",
+  "siloPaybackImplementation": "0xDbb10C0cE795FFd3A4003CF0EcC849b25a788EB1",
+  "barnPayback": "0x68bDbb0402a3Ca89C7C4af8e41C021635102d158",
+  "barnPaybackImplementation": "0x5bb2b891496F9f4db1467755eDc240329EA08E2C",
+  "contractPaybackDistributor": "0xbA941Af3292c49b585f4EC5C8164c1dfc893EEdC",
+  "proxyAdmin": "0xE5A707d49968937C860762fB256CE9dC7B1370F0",
+  "l1ContractMessenger": "0xD2abd9a7E7F10e3bF4376fb03A07fca729A55b6f",
+  "network": "base",
+  "description": "Production addresses for Base mainnet - DO NOT AUTO-INCREMENT"
+}

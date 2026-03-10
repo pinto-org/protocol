@@ -461,6 +461,18 @@ library LibDibbler {
     }
 
     /**
+     * @notice inserts a plot into an account, adds the index to the plotIndex list and updates the piIndex mapping.
+     */
+    function insertPlot(address account, uint256 fieldId, uint256 index, uint256 amount) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.accts[account].fields[fieldId].plots[index] = amount;
+        s.accts[account].fields[fieldId].plotIndexes.push(index);
+        s.accts[account].fields[fieldId].piIndex[index] =
+            s.accts[account].fields[fieldId].plotIndexes.length -
+            1;
+    }
+
+    /**
      * @notice removes a plot index from an accounts plotIndex list.
      */
     function removePlotIndexFromAccount(

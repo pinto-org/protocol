@@ -58,6 +58,20 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      */
     event Harvest(address indexed account, uint256 fieldId, uint256[] plots, uint256 beans);
 
+    /**
+     * @notice Emitted when `account` combines multiple plot indexes into a single plot.
+     * @param account The account that owns the plots
+     * @param fieldId The field ID where the merging occurred
+     * @param plotIndexes The indices of the plots that were combined
+     * @param totalPods The total number of pods in the final combined plot
+     */
+    event PlotsCombined(
+        address indexed account,
+        uint256 fieldId,
+        uint256[] plotIndexes,
+        uint256 totalPods
+    );
+
     //////////////////// SOW ////////////////////
 
     /**
@@ -234,23 +248,28 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     /**
      * @notice Delegate the referral rewards to a delegate.
      * @param delegate The address of the delegate to delegate the referral rewards to.
-     * @dev a user can reset their delegate to the zero address to stop delegating.
+     * @dev Delegation to address(0) is not allowed to prevent storage pollution.
      */
     function delegateReferralRewards(address delegate) external {
         address user = LibTractor._user();
         uint256 af = s.sys.activeField;
         require(delegate != user, "Field: delegate cannot be the user");
+        require(delegate != address(0), "Field: delegate cannot be the zero address");
 
         // a user is eligible to delegate if they are eligible themselves via sowing the threshold number of beans.
+        uint256 eligibilityThreshold = s.sys.referralBeanSownEligibilityThreshold;
         require(
-            s.accts[user].fields[af].referral.beans >= s.sys.referralBeanSownEligibilityThreshold,
+            s.accts[user].fields[af].referral.beans >= eligibilityThreshold,
             "Field: user cannot delegate"
         );
 
         // if the user has already delegated, reset the eligibility for the delegate.
         if (s.accts[user].fields[af].referral.delegate != address(0)) {
             address oldDelegate = s.accts[user].fields[af].referral.delegate;
-            s.accts[oldDelegate].fields[af].referral.eligibility = false;
+            // check whether the old delegate is eligible. if not, reset their eligibility.
+            if (s.accts[oldDelegate].fields[af].referral.beans < eligibilityThreshold) {
+                s.accts[oldDelegate].fields[af].referral.eligibility = false;
+            }
         }
 
         // the delegate must not be already eligible.
@@ -484,6 +503,16 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice returns the length of the plotIndexes owned by `account`.
+     */
+    function getPlotIndexesLengthFromAccount(
+        address account,
+        uint256 fieldId
+    ) external view returns (uint256) {
+        return s.accts[account].fields[fieldId].plotIndexes.length;
+    }
+
+    /**
      * @notice returns the plots owned by `account`.
      */
     function getPlotsFromAccount(
@@ -500,6 +529,18 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns the value in the piIndex mapping for a given account, fieldId and index.
+     * @dev `piIndex` is a mapping from Plot index to the index in the `plotIndexes` array.
+     */
+    function getPiIndexFromAccount(
+        address account,
+        uint256 fieldId,
+        uint256 index
+    ) external view returns (uint256) {
+        return s.accts[account].fields[fieldId].piIndex[index];
+    }
+
+    /**
      * @notice returns the number of pods owned by `account` in a field.
      */
     function balanceOfPods(address account, uint256 fieldId) external view returns (uint256 pods) {
@@ -508,6 +549,92 @@ contract FieldFacet is Invariable, ReentrancyGuard {
             pods += s.accts[account].fields[fieldId].plots[plotIndexes[i]];
         }
     }
+
+    //////////////////// PLOT INDEX HELPERS ////////////////////
+
+    /**
+     * @notice Returns Plot indexes by their positions in the `plotIndexes` array.
+     * @dev plotIndexes is an array of Plot indexes, used to return the farm plots of a Farmer.
+     */
+    function getPlotIndexesAtPositions(
+        address account,
+        uint256 fieldId,
+        uint256[] calldata arrayIndexes
+    ) external view returns (uint256[] memory plotIndexes) {
+        uint256 accountPlotIndexesLength = s.accts[account].fields[fieldId].plotIndexes.length;
+        plotIndexes = new uint256[](arrayIndexes.length);
+
+        for (uint256 i = 0; i < arrayIndexes.length; i++) {
+            require(arrayIndexes[i] < accountPlotIndexesLength, "Field: Index out of bounds");
+            plotIndexes[i] = s.accts[account].fields[fieldId].plotIndexes[arrayIndexes[i]];
+        }
+    }
+
+    /**
+     * @notice Returns Plot indexes for a specified range in the `plotIndexes` array.
+     */
+    function getPlotIndexesByRange(
+        address account,
+        uint256 fieldId,
+        uint256 startIndex,
+        uint256 endIndex
+    ) external view returns (uint256[] memory plotIndexes) {
+        uint256 accountPlotIndexesLength = s.accts[account].fields[fieldId].plotIndexes.length;
+        require(startIndex < endIndex, "Field: Invalid range");
+        require(endIndex <= accountPlotIndexesLength, "Field: End index out of bounds");
+
+        plotIndexes = new uint256[](endIndex - startIndex);
+        for (uint256 i = 0; i < plotIndexes.length; i++) {
+            plotIndexes[i] = s.accts[account].fields[fieldId].plotIndexes[startIndex + i];
+        }
+    }
+
+    /**
+     * @notice Combines the caller's adjacent plots.
+     * @param fieldId The field ID containing the plots
+     * @param plotIndexes Array of adjacent plot indexes to combine (must be sorted and consecutive)
+     * @dev Plots must be adjacent: plot[i].index + plot[i].pods == plot[i+1].index
+     */
+    function combinePlots(
+        uint256 fieldId,
+        uint256[] calldata plotIndexes
+    ) external payable fundsSafu noSupplyChange noNetFlow nonReentrant {
+        require(plotIndexes.length >= 2, "Field: Need at least 2 plots to combine");
+
+        address account = LibTractor._user();
+
+        // initialize total pods with the first plot
+        uint256 totalPods = s.accts[account].fields[fieldId].plots[plotIndexes[0]];
+        require(totalPods > 0, "Field: Plot not owned by caller");
+        // track the expected next start position to avoid querying deleted plots
+        uint256 expectedNextStart = plotIndexes[0] + totalPods;
+
+        for (uint256 i = 1; i < plotIndexes.length; i++) {
+            uint256 currentPods = s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+            require(currentPods > 0, "Field: Plot not owned by caller");
+
+            // check adjacency: expected next start == current plot start
+            require(expectedNextStart == plotIndexes[i], "Field: Plots to combine not adjacent");
+
+            totalPods += currentPods;
+            expectedNextStart = plotIndexes[i] + currentPods;
+
+            // cancel pod listing if one exists for this plot
+            if (s.sys.podListings[fieldId][plotIndexes[i]] != bytes32(0)) {
+                LibMarket._cancelPodListing(account, fieldId, plotIndexes[i]);
+            }
+
+            // delete subsequent plot, plotIndex and piIndex mapping entry
+            delete s.accts[account].fields[fieldId].plots[plotIndexes[i]];
+            LibDibbler.removePlotIndexFromAccount(account, fieldId, plotIndexes[i]);
+        }
+
+        // update first plot with combined pods
+        s.accts[account].fields[fieldId].plots[plotIndexes[0]] = totalPods;
+        emit PlotsCombined(account, fieldId, plotIndexes, totalPods);
+    }
+
+    //////////////////// REFERRAL GETTERS ////////////////////
 
     /**
      * @notice Returns the number of Beans that have been Sown this season.

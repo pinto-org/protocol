@@ -17,7 +17,6 @@ import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IDiamondCut} from "contracts/interfaces/IDiamondCut.sol";
 import {IDiamondLoupe} from "contracts/interfaces/IDiamondLoupe.sol";
-import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
 import {LibSeedGauge} from "contracts/libraries/Gauge/LibSeedGauge.sol";
 
 /**
@@ -172,20 +171,17 @@ contract InitProtocol {
      * @notice Deploys the shipment planner and sets the shipment routes.
      */
     function initShipping(ShipmentRoute[] calldata routes) internal {
-        // deploy the shipment planner
-        address shipmentPlanner = address(new ShipmentPlanner(address(this), s.sys.bean));
         // set the shipment routes
-        _setShipmentRoutes(shipmentPlanner, routes);
+        _setShipmentRoutes(routes);
     }
 
     /**
      * @notice Sets the shipment routes to the field, silo and dev budget.
      * @dev Solidity does not support direct assignment of array structs to Storage.
      */
-    function _setShipmentRoutes(address shipmentPlanner, ShipmentRoute[] calldata routes) internal {
+    function _setShipmentRoutes(ShipmentRoute[] calldata routes) internal {
         for (uint256 i; i < routes.length; i++) {
             ShipmentRoute memory route = routes[i];
-            route.planContract = shipmentPlanner;
             s.sys.shipmentRoutes.push(route);
         }
         emit Distribution.ShipmentRoutesSet(routes);

@@ -68,7 +68,7 @@ contract ConvertGettersFacet {
      * @return deltaB The capped reserves deltaB for the well
      */
     function cappedReservesDeltaB(address well) external view returns (int256 deltaB) {
-        return LibDeltaB.cappedReservesDeltaB(well);
+        (deltaB, ) = LibDeltaB.cappedReservesDeltaB(well);
     }
 
     /**
@@ -110,8 +110,9 @@ contract ConvertGettersFacet {
      */
     function getWellConvertCapacity(address well) external view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
+        (int256 deltaB, ) = LibDeltaB.cappedReservesDeltaB(well);
         return
-            LibConvert.abs(LibDeltaB.cappedReservesDeltaB(well)).sub(
+            LibConvert.abs(deltaB).sub(
                 s.sys.convertCapacity[block.number].wellConvertCapacityUsed[well]
             );
     }
@@ -125,7 +126,8 @@ contract ConvertGettersFacet {
         uint256 bdvConverted,
         uint256 overallConvertCapacity,
         address inputToken,
-        address outputToken
+        address outputToken,
+        uint256 fromAmount
     )
         external
         view
@@ -142,7 +144,8 @@ contract ConvertGettersFacet {
                 bdvConverted,
                 overallConvertCapacity,
                 inputToken,
-                outputToken
+                outputToken,
+                fromAmount
             );
     }
 
